@@ -2,7 +2,23 @@
 
 > En webbapp för svenska familjer: gemensam kalender, gamifierade sysslor, AI-assistent, foton, hälsa, fastighets- och fordonsadministration.
 
-**Status:** MVP-utveckling pågår.
+**Status:** MVP-utveckling pågår – Sprint 1 (Auth + grundstruktur) klar.
+
+## Sprint-status
+
+| Sprint | Beskrivning | Status |
+|--------|-------------|--------|
+| Sprint 0 | Setup – repo, CI, Docker, skelett | ✅ Klar |
+| Sprint 1 | Auth + grundstruktur | ✅ Klar |
+| Sprint 2 | Familjer + inbjudningar | 🔲 Ej påbörjad |
+| Sprint 3 | Kalender bas | 🔲 Ej påbörjad |
+| Sprint 4 | Externa kalender-feeds (iCal) | 🔲 Ej påbörjad |
+| Sprint 5 | Anpassningsbar dashboard | 🔲 Ej påbörjad |
+| Sprint 6 | Tema, PWA och polish | 🔲 Ej påbörjad |
+| Sprint 7 | Stripe + prenumerationsflöde | 🔲 Ej påbörjad |
+| Sprint 8 | Publik sajt + signup | 🔲 Ej påbörjad |
+| Sprint 9 | GDPR + polering | 🔲 Ej påbörjad |
+| Sprint 10–11 | Beta + lansering | 🔲 Ej påbörjad |
 
 ## Snabbstart
 
@@ -12,6 +28,7 @@
 - Node.js 20+ med [pnpm](https://pnpm.io/)
 - Docker + Docker Compose
 - Konton på: [Clerk](https://clerk.com), [Stripe](https://stripe.com), [Resend](https://resend.com), [Sentry](https://sentry.io)
+- Clerk CLI: `npm install -g clerk`
 
 ### Lokal utveckling
 
@@ -64,7 +81,7 @@ boet/
 
 | Lager | Val | Anledning |
 |-------|-----|-----------|
-| Frontend framework | Next.js 15 (App Router) | Server Components, bra DX, inbyggt i18n |
+| Frontend framework | Next.js 16 (App Router) | Server Components, bra DX, inbyggt i18n |
 | Frontend språk | TypeScript | Typsäkerhet end-to-end |
 | Styling | Tailwind + Shadcn/ui | Snabbt, ingen CSS-fil-rörig |
 | Backend framework | FastAPI | Async, OpenAPI auto, Pydantic |

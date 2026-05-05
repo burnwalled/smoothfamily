@@ -16,9 +16,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models here so Alembic can auto-detect them.
-# As modules are added, import their models below.
 from app.core.database import Base  # noqa: E402
 from app.core.settings import get_settings  # noqa: E402
+
+from app.auth import models as _auth_models  # noqa: F401
 
 # Future imports:
 # from app.families import models as _family_models  # noqa: F401

@@ -1,15 +1,48 @@
+import Link from "next/link";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-2xl text-center">
-        <h1 className="mb-4 text-5xl font-medium tracking-tight">Boet</h1>
-        <p className="mb-8 text-lg text-muted-foreground">
-          Familjeappen som faktiskt hjälper er hålla ordning på vardagen.
-        </p>
-        <p className="text-sm opacity-50">
-          Under utveckling – fas 1 av Sprint 0.
-        </p>
-      </div>
-    </main>
+    <div className="flex min-h-screen flex-col">
+      <header className="flex items-center justify-between border-b px-6 py-4">
+        <span className="text-lg font-semibold tracking-tight">Boet</span>
+        <div className="flex items-center gap-3">
+          <SignedOut>
+            <SignInButton />
+            <SignUpButton />
+          </SignedOut>
+          <SignedIn>
+            <Link href="/app" className="text-sm underline underline-offset-4">
+              Öppna appen
+            </Link>
+            <UserButton />
+          </SignedIn>
+        </div>
+      </header>
+
+      <main className="flex flex-1 flex-col items-center justify-center p-8">
+        <div className="max-w-2xl text-center">
+          <h1 className="mb-4 text-5xl font-medium tracking-tight">Boet</h1>
+          <p className="mb-8 text-lg text-muted-foreground">
+            Familjeappen som faktiskt hjälper er hålla ordning på vardagen.
+          </p>
+          <SignedOut>
+            <SignUpButton>
+              <button className="rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background hover:opacity-80 transition-opacity">
+                Kom igång gratis
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              href="/app"
+              className="rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background hover:opacity-80 transition-opacity"
+            >
+              Öppna appen →
+            </Link>
+          </SignedIn>
+        </div>
+      </main>
+    </div>
   );
 }

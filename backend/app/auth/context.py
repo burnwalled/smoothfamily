@@ -7,7 +7,7 @@ CRITICAL: family_id NEVER comes from the client. It always comes from the
 server based on who the authenticated user is.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 import httpx
@@ -15,6 +15,7 @@ from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.service import get_or_create_user
 from app.core.database import get_db
 from app.core.settings import get_settings
 
@@ -28,14 +29,14 @@ class AuthContext:
     user_id: Internal Boet UUID for the User row.
     clerk_user_id: External Clerk identifier (string from Clerk).
     family_ids: List of all families this user is a member of.
-    primary_family_id: User's primary family (the one they signed up with).
+    primary_family_id: User's primary family – None until Sprint 2 (families).
     """
 
     user_id: UUID
     clerk_user_id: str
     email: str
-    family_ids: list[UUID]
-    primary_family_id: UUID
+    family_ids: list[UUID] = field(default_factory=list)
+    primary_family_id: UUID | None = None
 
     def has_family_access(self, family_id: UUID) -> bool:
         """Check if the current user is a member of the given family."""
@@ -127,11 +128,15 @@ async def get_current_context(
             detail="Token missing sub claim",
         )
 
-    # TODO(sprint-1): Look up User by clerk_user_id, get family_ids from
-    # UserFamilyMembership, return AuthContext.
-    raise NotImplementedError(
-        "AuthContext resolution requires User model from Sprint 1. "
-        "See app/auth/__init__.py."
+    email = str(claims.get("email", ""))
+    user = await get_or_create_user(db, str(clerk_user_id), email)
+
+    # TODO(sprint-2): Query UserFamilyMembership to populate family_ids and
+    # primary_family_id once the families module is implemented.
+    return AuthContext(
+        user_id=user.id,
+        clerk_user_id=str(clerk_user_id),
+        email=email,
     )
 
 

@@ -66,13 +66,13 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "version": app.version}
 
 
-# Routers will be included here as modules are implemented in subsequent sprints:
-# from app.auth.router import router as auth_router
+from app.auth.router import router as auth_router
+
+app.include_router(auth_router, prefix="/api/v1/users", tags=["users"])
+
+# Future routers (uncomment as modules are implemented):
 # from app.families.router import router as families_router
 # from app.calendar.router import router as calendar_router
 # from app.dashboard.router import router as dashboard_router
 # from app.billing.router import router as billing_router
-#
-# app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 # app.include_router(families_router, prefix="/api/v1/families", tags=["families"])
-# ... etc
