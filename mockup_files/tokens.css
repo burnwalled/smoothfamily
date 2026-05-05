@@ -1,0 +1,231 @@
+/* =============================================================================
+ * Boet – Design tokens
+ * =============================================================================
+ * Single source of truth för färger, spacing, typografi, etc.
+ *
+ * Dessa variabler används av både mockup-prototyper (i denna mapp) och av
+ * den riktiga frontend-koden (frontend/src/app/globals.css importerar dem).
+ *
+ * Vid temabyte (Sprint 6) ändras [data-theme="dark"] / [data-theme="forest"]
+ * etc. på <html>, vilket overridar variablerna utan att komponenter behöver
+ * känna till temat.
+ * ============================================================================= */
+
+:root,
+[data-theme="light"] {
+  /* --- Färger: bakgrunder --- */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f7f7f7;
+  --color-bg-tertiary: #efefef;
+  --color-bg-info: #e6f1fb;
+  --color-bg-success: #e7f3df;
+  --color-bg-warning: #fbf0d9;
+  --color-bg-danger: #fbe7e1;
+
+  /* --- Färger: text --- */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6b6b;
+  --color-text-tertiary: #9a9a9a;
+  --color-text-info: #0c447c;
+  --color-text-success: #27500a;
+  --color-text-warning: #633806;
+  --color-text-danger: #712b13;
+  --color-text-on-accent: #ffffff;
+
+  /* --- Färger: borders --- */
+  --color-border-primary: #d4d4d4;
+  --color-border-secondary: #b0b0b0;
+  --color-border-tertiary: #e8e8e8;
+  --color-border-info: #b6d4ee;
+
+  /* --- Färger: accent (klickbara element, fokus) --- */
+  --color-accent: #378add;
+  --color-accent-hover: #2a6db5;
+
+  /* --- Familjemedlemmars standardfärger --- */
+  /* Tilldelas vid skapande, kan justeras per medlem */
+  --color-member-1: #378add; /* blå */
+  --color-member-2: #1d9e75; /* grön */
+  --color-member-3: #d4537e; /* rosa */
+  --color-member-4: #ba7517; /* amber */
+  --color-member-5: #639922; /* lime */
+  --color-member-6: #d85a30; /* orange */
+  --color-member-family: #5f5e5a; /* neutral grå för "hela familjen"-events */
+
+  /* --- Typografi --- */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.6875rem; /* 11px */
+  --text-sm: 0.75rem; /* 12px */
+  --text-base: 0.8125rem; /* 13px */
+  --text-md: 0.875rem; /* 14px */
+  --text-lg: 1rem; /* 16px */
+  --text-xl: 1.125rem; /* 18px */
+  --text-2xl: 1.25rem; /* 20px */
+  --text-3xl: 1.5rem; /* 24px */
+  --text-4xl: 2rem; /* 32px */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* --- Spacing skala --- */
+  --space-1: 0.25rem; /* 4px */
+  --space-2: 0.5rem; /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+
+  /* --- Border radius --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
+
+  /* --- Shadows --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(55, 138, 221, 0.25);
+
+  /* --- Transitions --- */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+}
+
+/* =============================================================================
+ * Dark theme
+ * ============================================================================= */
+[data-theme="dark"] {
+  --color-bg-primary: #1a1a1a;
+  --color-bg-secondary: #232323;
+  --color-bg-tertiary: #2a2a2a;
+  --color-bg-info: #1a3a5c;
+  --color-bg-success: #1f3a14;
+  --color-bg-warning: #4a2e0a;
+  --color-bg-danger: #4a1d12;
+
+  --color-text-primary: #f0f0f0;
+  --color-text-secondary: #a8a8a8;
+  --color-text-tertiary: #6e6e6e;
+  --color-text-info: #7ab4ed;
+  --color-text-success: #8bc170;
+  --color-text-warning: #e0a86c;
+  --color-text-danger: #e08a72;
+
+  --color-border-primary: #3a3a3a;
+  --color-border-secondary: #555555;
+  --color-border-tertiary: #2e2e2e;
+  --color-border-info: #2a5e8a;
+
+  --color-accent: #64a5e6;
+  --color-accent-hover: #87bbed;
+}
+
+/* =============================================================================
+ * Forest theme – jordnära gröna toner
+ * ============================================================================= */
+[data-theme="forest"] {
+  --color-bg-primary: #f7f4ed;
+  --color-bg-secondary: #ede8d8;
+  --color-bg-tertiary: #ddd5bf;
+  --color-bg-info: #dde7d8;
+
+  --color-text-primary: #2a3826;
+  --color-text-secondary: #5d6b58;
+  --color-text-tertiary: #8a9685;
+
+  --color-border-primary: #c5bfa8;
+  --color-border-tertiary: #d8d2bb;
+
+  --color-accent: #5a7c3f;
+  --color-accent-hover: #486630;
+}
+
+/* =============================================================================
+ * Ocean theme – lugna blå/turkosa toner
+ * ============================================================================= */
+[data-theme="ocean"] {
+  --color-bg-primary: #f4f8fb;
+  --color-bg-secondary: #e1ebf2;
+  --color-bg-tertiary: #d0dfe9;
+
+  --color-text-primary: #1a3849;
+  --color-text-secondary: #4a6878;
+  --color-text-tertiary: #7a96a4;
+
+  --color-border-primary: #b9cbd6;
+  --color-border-tertiary: #d8e3eb;
+
+  --color-accent: #2780a8;
+  --color-accent-hover: #1e6886;
+}
+
+/* =============================================================================
+ * Metro theme – Windows Phone-hyllning
+ * Skarpa kanter, solida färger, Segoe UI
+ * ============================================================================= */
+[data-theme="metro"] {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f0f0f0;
+  --color-bg-tertiary: #e0e0e0;
+  --color-bg-info: #e6f1fb;
+
+  --color-text-primary: #000000;
+  --color-text-secondary: #404040;
+  --color-text-tertiary: #707070;
+
+  --color-border-primary: #c0c0c0;
+  --color-border-tertiary: #d0d0d0;
+
+  --color-accent: #0078d7;
+  --color-accent-hover: #005a9e;
+
+  --color-member-1: #0078d7; /* Microsoft-blå */
+  --color-member-2: #00b294; /* teal */
+  --color-member-3: #e3008c; /* magenta */
+  --color-member-4: #ff8c00; /* orange */
+  --color-member-5: #00cc6a; /* lime */
+  --color-member-6: #d13438; /* röd */
+
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+
+  /* Skarpa kanter – ingen border-radius */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-full: 0;
+
+  /* Plattare skuggor – mer "flat design" */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* =============================================================================
+ * High contrast – tillgänglighet (WCAG AAA)
+ * ============================================================================= */
+[data-theme="high-contrast"] {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f0f0f0;
+
+  --color-text-primary: #000000;
+  --color-text-secondary: #000000;
+  --color-text-tertiary: #2a2a2a;
+
+  --color-border-primary: #000000;
+  --color-border-secondary: #000000;
+  --color-border-tertiary: #595959;
+
+  --color-accent: #0066cc;
+  --color-accent-hover: #004999;
+}

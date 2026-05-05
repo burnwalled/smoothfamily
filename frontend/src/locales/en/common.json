@@ -2,5 +2,38 @@
   "common": {
     "appName": "Boet",
     "tagline": "The family app that actually helps you stay organized."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Calendar",
+    "family": "Family",
+    "settings": "Settings"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "openApp": "Open app",
+    "signOut": "Sign out"
+  },
+  "landing": {
+    "cta": "Get started for free",
+    "openApp": "Open app →"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Welcome to Boet."
+  },
+  "family": {
+    "title": "Family",
+    "members": "Members",
+    "invite": "Invite"
+  },
+  "calendar": {
+    "title": "Calendar"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme"
   }
 }

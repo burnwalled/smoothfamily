@@ -2,5 +2,38 @@
   "common": {
     "appName": "Boet",
     "tagline": "Familjeappen som faktiskt hjälper er hålla ordning på vardagen."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Kalender",
+    "family": "Familj",
+    "settings": "Inställningar"
+  },
+  "auth": {
+    "signIn": "Logga in",
+    "signUp": "Skapa konto",
+    "openApp": "Öppna appen",
+    "signOut": "Logga ut"
+  },
+  "landing": {
+    "cta": "Kom igång gratis",
+    "openApp": "Öppna appen →"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Välkommen till Boet."
+  },
+  "family": {
+    "title": "Familj",
+    "members": "Medlemmar",
+    "invite": "Bjud in"
+  },
+  "calendar": {
+    "title": "Kalender"
+  },
+  "settings": {
+    "title": "Inställningar",
+    "language": "Språk",
+    "theme": "Tema"
   }
 }

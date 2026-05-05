@@ -1,20 +1,23 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
+import { getTranslations } from "next-intl/server";
 
-const navItems = [
-  { href: "/app", label: "Dashboard" },
-  { href: "/app/calendar", label: "Kalender" },
-  { href: "/app/family", label: "Familj" },
-  { href: "/app/settings", label: "Inställningar" },
-];
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations();
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const navItems = [
+    { href: "/app", label: t("nav.dashboard") },
+    { href: "/app/calendar", label: t("nav.calendar") },
+    { href: "/app/family", label: t("nav.family") },
+    { href: "/app/settings", label: t("nav.settings") },
+  ];
+
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="flex w-60 flex-col border-r bg-background">
         <div className="flex h-14 items-center border-b px-6">
           <Link href="/app" className="text-lg font-semibold tracking-tight">
-            Boet
+            {t("common.appName")}
           </Link>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
