@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme – default */
+    --color-background: 255 255 255;
+    --color-foreground: 26 26 26;
+    --color-muted: 245 245 245;
+    --color-accent: 55 138 221;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+
+  .dark {
+    --color-background: 26 26 26;
+    --color-foreground: 245 245 245;
+    --color-muted: 38 38 38;
+    --color-accent: 100 165 230;
+  }
+
+  /* Theme variants will be added here as the theme system is built (Sprint 6) */
+  /* .forest { ... } */
+  /* .ocean { ... } */
+  /* .metro { border-radius: 0; ... } */
+
+  body {
+    background-color: rgb(var(--color-background));
+    color: rgb(var(--color-foreground));
+  }
+}
