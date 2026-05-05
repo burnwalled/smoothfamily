@@ -15,7 +15,7 @@ Boet är en webbapp för svenska familjer: en gemensam kalender, gamifierade sys
 - **Frontend:** Next.js 15 (App Router) + TypeScript + Tailwind + Shadcn/ui
 - **Backend:** FastAPI (Python 3.12) + SQLAlchemy 2.0 (async) + Alembic + Pydantic v2
 - **Databas:** PostgreSQL 16
-- **Auth:** Clerk (Google + Microsoft + passkeys)
+- **Auth:** Clerk (Google + Microsoft + passkeys (+ AppleID))
 - **Betalning:** Stripe
 - **Hosting:** Google Cloud (Cloud Run + Cloud SQL + Cloud Storage), region `europe-north1`
 - **Email:** Resend
@@ -55,10 +55,12 @@ app/
 ### 4. Familjebaserad prissättning
 
 En prenumeration per familj täcker alla medlemmar. Två tiers:
+
 - **Standard** (79 kr/mån) – grundfunktioner
 - **Premium** (149 kr/mån) – AI, fastighet/bil
 
 **Trial-modell:**
+
 - Standard-trial 30 dagar utan kort vid signup
 - Premium-trial 30 dagar låses upp efter 30 dagar som betalande Standard-kund
 - Premium-trial är engångsförmån (`has_used_premium_trial`)
