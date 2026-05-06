@@ -28,11 +28,7 @@ export default async function HomePage() {
           <h1 className="mb-4 text-5xl font-medium tracking-tight">{t("common.appName")}</h1>
           <p className="mb-8 text-lg text-muted-foreground">{t("common.tagline")}</p>
           <SignedOut>
-            <SignUpButton>
-              <button className="rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background hover:opacity-80 transition-opacity">
-                {t("landing.cta")}
-              </button>
-            </SignUpButton>
+            <SignUpButton>{t("landing.cta")}</SignUpButton>
           </SignedOut>
           <SignedIn>
             <Link

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages } from "../lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,13 +15,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = await getLocale();
-  const messages = await getMessages();
+  const messages = getMessages(locale);
 
   return (
     <ClerkProvider afterSignInUrl="/app" afterSignUpUrl="/app">
       <html lang={locale} suppressHydrationWarning>
         <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-          <NextIntlClientProvider messages={messages}>
+          <NextIntlClientProvider locale={locale} messages={messages}>
             {children}
           </NextIntlClientProvider>
         </body>
