@@ -8,6 +8,7 @@
     "dashboard": "Dashboard",
     "calendar": "Calendar",
     "chat": "Chat",
+    "lists": "Lists",
     "family": "Family",
     "settings": "Settings"
   },
@@ -191,6 +192,36 @@
     "errors": {
       "auth": "Could not verify sign-in.",
       "load": "Could not load chat data.",
+      "save": "Could not save change.",
+      "network": "Network error. Please try again."
+    }
+  },
+  "lists": {
+    "title": "Shared lists",
+    "subtitle": "Create shopping and to-do lists with participant-based visibility.",
+    "listsTitle": "Lists",
+    "createTitle": "Create list",
+    "create": "Create list",
+    "deleteList": "Delete list",
+    "addItem": "Add",
+    "selectList": "Select a list to view items.",
+    "noDescription": "No description",
+    "emptyLists": "No lists yet.",
+    "emptyItems": "No items yet.",
+    "emptyWidget": "No open lists right now.",
+    "widgetTitle": "Open lists",
+    "remainingCount": "{open} of {total} remaining",
+    "loading": "Loading lists...",
+    "fields": {
+      "listTitle": "List title",
+      "listDescription": "Description (optional)",
+      "visibleMembers": "Visible for members",
+      "visibleGroups": "Visible for chat groups",
+      "itemTitle": "New item"
+    },
+    "errors": {
+      "auth": "Could not verify sign-in.",
+      "load": "Could not load list data.",
       "save": "Could not save change.",
       "network": "Network error. Please try again."
     }

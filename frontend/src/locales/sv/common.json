@@ -8,6 +8,7 @@
     "dashboard": "Dashboard",
     "calendar": "Kalender",
     "chat": "Chatt",
+    "lists": "Listor",
     "family": "Familj",
     "settings": "Inställningar"
   },
@@ -191,6 +192,36 @@
     "errors": {
       "auth": "Kunde inte verifiera inloggning.",
       "load": "Kunde inte ladda chattdata.",
+      "save": "Kunde inte spara ändringen.",
+      "network": "Nätverksfel. Försök igen."
+    }
+  },
+  "lists": {
+    "title": "Delade listor",
+    "subtitle": "Skapa inköp- och att-göra-listor med deltagarstyrd synlighet.",
+    "listsTitle": "Listor",
+    "createTitle": "Skapa lista",
+    "create": "Skapa lista",
+    "deleteList": "Ta bort lista",
+    "addItem": "Lägg till",
+    "selectList": "Välj en lista för att visa innehåll.",
+    "noDescription": "Ingen beskrivning",
+    "emptyLists": "Inga listor ännu.",
+    "emptyItems": "Inga punkter ännu.",
+    "emptyWidget": "Inga öppna listor just nu.",
+    "widgetTitle": "Öppna listor",
+    "remainingCount": "{open} av {total} kvar",
+    "loading": "Laddar listor...",
+    "fields": {
+      "listTitle": "Listnamn",
+      "listDescription": "Beskrivning (valfritt)",
+      "visibleMembers": "Synlig för medlemmar",
+      "visibleGroups": "Synlig för chattgrupper",
+      "itemTitle": "Ny punkt"
+    },
+    "errors": {
+      "auth": "Kunde inte verifiera inloggning.",
+      "load": "Kunde inte ladda listdata.",
       "save": "Kunde inte spara ändringen.",
       "network": "Nätverksfel. Försök igen."
     }

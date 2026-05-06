@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import OpenListsWidget from "@/components/widgets/OpenListsWidget";
 import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
 
       <UpcomingEventsWidget />
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-3">
         <article className="portal-card">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-semibold">
@@ -139,6 +140,8 @@ export default async function DashboardPage() {
         </article>
 
         <UnreadChatWidget />
+
+        <OpenListsWidget />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

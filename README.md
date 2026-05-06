@@ -12,6 +12,7 @@
 - ✅ Issue #13 klar: iCal-integrationer i inställningar med krypterad URL-lagring, validering och RBAC (owner/parent).
 - ✅ Issue #14 klar: Aggregerad kalendervy (familj + externa iCal), filter per källa/medlem, samt widget med samlade kommande events.
 - ✅ Issue #15 klar: Familjechatt med grupper, RBAC-styrd gruppadministration, meddelandeflöde och dashboard-widget för olästa meddelanden.
+- ✅ Issue #16 klar: Delade listor med deltagarstyrd synlighet (medlem + chattgrupp), list-/item-API, lists-sida och dashboard-widget för öppna listor.
 
 ## Sprint-status
 
@@ -91,6 +92,10 @@ Chatt-felsokning (lokal utveckling):
   - Kor: `cd backend && uv run alembic upgrade head`
   - Verifiera: `uv run alembic current` ska visa `0006 (head)`
   - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt chat_*"`
+- Om list-endpoints ger `500 Internal Server Error` lokalt: kontrollera att migration `0007` ar applicerad.
+  - Kor: `cd backend && uv run alembic upgrade head`
+  - Verifiera: `uv run alembic current` ska visa `0007 (head)`
+  - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt shared_list*"`
 - Om frontend visar `Failed to fetch` mot `localhost`: verifiera att backend faktiskt svarar pa samma loopback-adress (IPv4/IPv6 kan skilja i Windows).
 
 Migrationer i backend:

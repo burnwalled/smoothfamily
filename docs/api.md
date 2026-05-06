@@ -178,6 +178,59 @@ Responsen innehaller source-metadata for rendering/filter:
 - Auth: Bearer JWT.
 - Respons: `unread_count` + lista med meddelanden (gruppnamn, avsandare, innehall, timestamp).
 
+## Lists
+
+### GET /api/v1/families/{family_id}/lists
+
+- Beskrivning: listar delade listor som aktuell anvandare har synlighet till.
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+
+### POST /api/v1/families/{family_id}/lists
+
+- Beskrivning: skapar ny delad lista med deltagarstyrd synlighet.
+- Auth: Bearer JWT.
+- RBAC: owner/parent.
+
+### PUT /api/v1/families/{family_id}/lists/{list_id}
+
+- Beskrivning: uppdaterar listmetadata och synlighetsregler.
+- Auth: Bearer JWT.
+- RBAC: owner/parent.
+
+### DELETE /api/v1/families/{family_id}/lists/{list_id}
+
+- Beskrivning: tar bort lista inklusive tillhorande listpunkter.
+- Auth: Bearer JWT.
+- RBAC: owner/parent.
+
+### GET /api/v1/families/{family_id}/lists/{list_id}/items
+
+- Beskrivning: listar listpunkter for en lista som anvandaren har synlighet till.
+- Auth: Bearer JWT.
+
+### POST /api/v1/families/{family_id}/lists/{list_id}/items
+
+- Beskrivning: lagger till ny listpunkt.
+- Auth: Bearer JWT.
+
+### PUT /api/v1/families/{family_id}/lists/{list_id}/items/{item_id}
+
+- Beskrivning: uppdaterar listpunkt (titel, klarstatus, ordning).
+- Auth: Bearer JWT.
+
+### DELETE /api/v1/families/{family_id}/lists/{list_id}/items/{item_id}
+
+- Beskrivning: tar bort listpunkt.
+- Auth: Bearer JWT.
+
+### GET /api/v1/families/{family_id}/lists/widgets/open
+
+- Beskrivning: data till dashboard-widget med oppna listor och kvarvarande antal punkter.
+- Query params:
+  - `limit` (default 5, min 1, max 20)
+- Auth: Bearer JWT.
+
 ## Calendar payload (upsert)
 
 `POST` och `PUT` for calendar-events anvander samma body:
@@ -246,6 +299,37 @@ Valideringsregler:
 {
   "content": "Jag hamtar efter traningen kl 18"
 }
+
+## Lists payloads
+
+`POST /lists` och `PUT /lists/{list_id}` anvander body:
+
+```json
+{
+  "title": "Handla",
+  "description": "Veckans matinkop",
+  "visible_member_user_ids": ["uuid-1", "uuid-2"],
+  "visible_chat_group_ids": ["uuid-group-1"]
+}
+```
+
+`POST /lists/{list_id}/items` anvander body:
+
+```json
+{
+  "title": "Mjolk"
+}
+```
+
+`PUT /lists/{list_id}/items/{item_id}` anvander body:
+
+```json
+{
+  "title": "Mjolk",
+  "is_completed": true,
+  "sort_order": 0
+}
+```
 ```
 
 ## Kalenderaggregation och cache-strategi

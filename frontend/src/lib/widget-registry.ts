@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 
+import OpenListsWidget from "@/components/widgets/OpenListsWidget";
 import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
@@ -25,5 +26,12 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     allowedSizes: ["medium", "large", "full"],
     requiredFeatures: ["chat"],
     component: UnreadChatWidget,
+  },
+  lists_open: {
+    type: "lists_open",
+    defaultSize: "large",
+    allowedSizes: ["medium", "large", "full"],
+    requiredFeatures: ["lists"],
+    component: OpenListsWidget,
   },
 };

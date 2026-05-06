@@ -22,6 +22,7 @@ from app.chat import models as _chat_models  # noqa: F401
 from app.core.database import Base  # noqa: E402
 from app.core.settings import get_settings  # noqa: E402
 from app.families import models as _family_models  # noqa: F401
+from app.lists import models as _lists_models  # noqa: F401
 
 # Future imports:
 # etc.
