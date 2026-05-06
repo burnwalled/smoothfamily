@@ -8,6 +8,9 @@
 
 - ✅ Issue #2 klar: Tema-system (light/dark), persistens i localStorage, sync mot `User.theme_preference` och toggle i app-headern.
 - ✅ Issue #3 klar: Alembic migration körd mot Postgres och `users`-tabellen verifierad.
+- ✅ Issue #12 klar: Intern familjekalender med month/week/list, create/edit/delete och dashboard-widget for kommande events.
+- ✅ Issue #13 klar: iCal-integrationer i inställningar med krypterad URL-lagring, validering och RBAC (owner/parent).
+- ✅ Issue #14 klar: Aggregerad kalendervy (familj + externa iCal), filter per källa/medlem, samt widget med samlade kommande events.
 
 ## Sprint-status
 
@@ -15,9 +18,9 @@
 | ------------ | --------------------------------- | -------------- |
 | Sprint 0     | Setup – repo, CI, Docker, skelett | ✅ Klar        |
 | Sprint 1     | Auth + grundstruktur              | ✅ Klar        |
-| Sprint 2     | Familjer + inbjudningar           | 🔲 Ej påbörjad |
-| Sprint 3     | Kalender bas                      | 🔲 Ej påbörjad |
-| Sprint 4     | Externa kalender-feeds (iCal)     | 🔲 Ej påbörjad |
+| Sprint 2     | Familjer + inbjudningar           | ✅ Klar        |
+| Sprint 3     | Kalender bas                      | ✅ Klar        |
+| Sprint 4     | Externa kalender-feeds (iCal)     | ✅ Klar        |
 | Sprint 5     | Anpassningsbar dashboard          | 🔲 Ej påbörjad |
 | Sprint 6     | Tema, PWA och polish              | 🔲 Ej påbörjad |
 | Sprint 7     | Stripe + prenumerationsflöde      | 🔲 Ej påbörjad |

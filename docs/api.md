@@ -73,6 +73,15 @@ Versionering:
 - Tenant-regel: anvandaren maste vara medlem i `family_id`.
 - Notera: events dedupliceras med tolerant strategi (titel + tidsintervall), och familjeevent prioriteras over extern dublett.
 
+Responsen innehaller source-metadata for rendering/filter:
+
+- `source_type`: `family` eller `external`
+- `source_label`: t.ex. `Family` eller integrationens display-namn
+- `member_user_id`: medlem kopplad till event-kallan (om tillganglig)
+- `source_color_hex`: medlemsfarg for tydlig visuell markering
+- `can_edit`: true endast for interna events dar anvandaren har edit-ratt
+- `family_event_id`: satt for interna events (anvands for edit/delete)
+
 ### POST /api/v1/families/{family_id}/calendar/events
 
 - Beskrivning: skapar event.
@@ -101,6 +110,7 @@ Versionering:
 - Query params:
   - `limit` (default 5, min 1, max 20)
 - Auth: Bearer JWT.
+- Responsen innehaller `source_type` och `source_label` sa widgeten kan visa var varje event kommer ifran.
 
 ### GET /api/v1/families/{family_id}/calendar/integrations
 
@@ -168,6 +178,7 @@ Valideringsregler:
 - For prestanda cachas parseade feed-events i minnet per integration-id med TTL pa 15 minuter.
 - Vid cache-hit undviks nytt HTTP-anrop mot extern leverantor.
 - Om en extern feed tillfalligt faller bort returneras ovriga kallor fortsatt, sa kalendern degraderar mjukt.
+- Sortering sker pa `start_at` efter sammanlaggning av interna + externa events.
 
 ## Felhantering och felsokning
 
