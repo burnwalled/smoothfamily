@@ -4,11 +4,11 @@ export default async function DashboardPage() {
   const t = await getTranslations();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 lg:space-y-5">
       <section className="portal-card">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               {t("dashboard.greetingTitle")}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -17,10 +17,10 @@ export default async function DashboardPage() {
           </div>
           <button
             type="button"
-            className="rounded-md border px-3 py-2 text-sm font-medium transition-colors"
+            className="rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
             style={{
               borderColor: "rgb(var(--color-border))",
-              backgroundColor: "rgb(var(--color-background))",
+              backgroundColor: "rgb(var(--color-surface))",
             }}
           >
             {t("dashboard.addWidget")}
@@ -29,8 +29,11 @@ export default async function DashboardPage() {
       </section>
 
       <section className="portal-card">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {t("dashboard.todayLabel")}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {t("dashboard.todayLabel")}
+          </div>
+          <div className="text-xs text-muted-foreground">11:42</div>
         </div>
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <div
@@ -86,7 +89,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2">
         <article className="portal-card">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-semibold">
@@ -168,7 +171,7 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article className="portal-card">
           <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
             {t("dashboard.shoppingTitle")}

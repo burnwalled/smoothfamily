@@ -19,13 +19,13 @@ export default async function AppLayout({
   ];
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
+    <div className="min-h-screen lg:grid lg:grid-cols-[220px_1fr]">
       <FamilyBootstrap />
       <aside
         className="hidden border-r px-3 py-5 lg:flex lg:flex-col"
         style={{
           borderColor: "rgb(var(--color-border))",
-          backgroundColor: "rgb(var(--color-surface) / 0.86)",
+          backgroundColor: "rgb(var(--color-surface) / 0.92)",
         }}
       >
         <div
@@ -50,8 +50,9 @@ export default async function AppLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center rounded-md border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               style={{
+                borderColor: "transparent",
                 backgroundColor: "transparent",
               }}
             >
@@ -63,16 +64,36 @@ export default async function AppLayout({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header
-          className="sticky top-0 z-10 flex h-16 items-center justify-end gap-3 border-b px-5 backdrop-blur-sm lg:px-8"
+          className="sticky top-0 z-10 border-b backdrop-blur-sm"
           style={{
             borderColor: "rgb(var(--color-border))",
-            backgroundColor: "rgb(var(--color-background) / 0.78)",
+            backgroundColor: "rgb(var(--color-background) / 0.82)",
           }}
         >
-          <ThemeToggle />
-          <UserButton />
+          <div className="flex h-16 items-center justify-between gap-3 px-5 lg:justify-end lg:px-8">
+            <Link href="/app" className="text-sm font-semibold tracking-tight lg:hidden">
+              {t("common.appName")}
+            </Link>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <UserButton />
+            </div>
+          </div>
+
+          <nav className="flex gap-2 overflow-x-auto border-t px-5 py-2 lg:hidden" style={{ borderColor: "rgb(var(--color-border))" }}>
+            {navItems.map((item) => (
+              <Link
+                key={`mobile-${item.href}`}
+                href={item.href}
+                className="whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                style={{ borderColor: "rgb(var(--color-border))", backgroundColor: "rgb(var(--color-surface))" }}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </header>
-        <main className="flex-1 overflow-auto p-5 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">{children}</main>
       </div>
     </div>
   );
