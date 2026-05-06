@@ -15,6 +15,9 @@ type UpcomingEvent = {
   end_at: string;
   all_day: boolean;
   tagged_user_ids: string[];
+  source_type: "family" | "external";
+  source_label: string;
+  member_user_id: string | null;
 };
 
 type UpcomingResponse = {
@@ -148,6 +151,7 @@ export default function UpcomingEventsWidget() {
               <p className="text-xs text-muted-foreground">
                 {formatStart(event.start_at, event.all_day)}
               </p>
+              <p className="text-xs text-muted-foreground">{event.source_label}</p>
             </li>
           ))}
         </ul>

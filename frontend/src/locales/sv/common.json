@@ -83,6 +83,13 @@
     "edit": "Redigera",
     "delete": "Ta bort",
     "eventListTitle": "Familjeevents",
+    "filters": {
+      "source": "Källa",
+      "all": "Alla",
+      "family": "Familj",
+      "external": "Extern",
+      "members": "Medlemmar"
+    },
     "hiddenBadge": "Dolt event",
     "empty": "Inga events ännu.",
     "loading": "Laddar kalender...",

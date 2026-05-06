@@ -9,6 +9,8 @@ from app.auth.context import AuthContext, get_current_context
 from app.auth.models import User
 from app.calendar.models import CalendarEvent, ExternalCalendarFeed
 from app.calendar.schemas import (
+    AggregatedCalendarEventResponse,
+    AggregatedCalendarEventsListResponse,
     CalendarEventResponse,
     CalendarEventsListResponse,
     CalendarEventUpsertRequest,
@@ -25,6 +27,7 @@ from app.calendar.service import (
     delete_calendar_event,
     delete_external_calendar_feed,
     get_family_role_for_user,
+    list_aggregated_events,
     list_external_calendar_feeds,
     list_visible_events,
     mask_ical_url,
@@ -76,6 +79,31 @@ def to_external_calendar_feed_response(
     )
 
 
+def to_aggregated_event_response(event: object) -> AggregatedCalendarEventResponse:
+    from app.calendar.service import AggregatedCalendarEvent
+
+    if not isinstance(event, AggregatedCalendarEvent):
+        raise ValueError("Expected AggregatedCalendarEvent")
+    return AggregatedCalendarEventResponse(
+        id=event.id,
+        source_type=event.source_type,
+        source_label=event.source_label,
+        member_user_id=event.member_user_id,
+        source_color_hex=event.source_color_hex,
+        title=event.title,
+        description=event.description,
+        location=event.location,
+        start_at=event.start_at,
+        end_at=event.end_at,
+        all_day=event.all_day,
+        is_hidden=event.is_hidden,
+        can_edit=event.can_edit,
+        family_event_id=event.family_event_id,
+        tagged_user_ids=event.tagged_user_ids,
+        hidden_for_user_ids=event.hidden_for_user_ids,
+    )
+
+
 @router.get("/{family_id}/calendar/events", response_model=CalendarEventsListResponse)
 async def list_calendar_events(
     family_id: UUID,
@@ -99,6 +127,37 @@ async def list_calendar_events(
     )
     return CalendarEventsListResponse(
         events=[to_calendar_event_response(event) for event in events]
+    )
+
+
+@router.get(
+    "/{family_id}/calendar/events/aggregated",
+    response_model=AggregatedCalendarEventsListResponse,
+)
+async def list_aggregated_calendar_events(
+    family_id: UUID,
+    start_at_from: datetime | None = Query(default=None),
+    start_at_to: datetime | None = Query(default=None),
+    ctx: AuthContext = Depends(get_current_context),
+    db: AsyncSession = Depends(get_db),
+) -> AggregatedCalendarEventsListResponse:
+    if not ctx.has_family_access(family_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this family",
+        )
+
+    role = await get_family_role_for_user(db, family_id=family_id, user_id=ctx.user_id)
+    events = await list_aggregated_events(
+        db,
+        family_id=family_id,
+        current_user_id=ctx.user_id,
+        role=role,
+        start_at_from=start_at_from,
+        start_at_to=start_at_to,
+    )
+    return AggregatedCalendarEventsListResponse(
+        events=[to_aggregated_event_response(event) for event in events]
     )
 
 
@@ -189,12 +248,14 @@ async def get_upcoming_events_widget(
         )
 
     now = datetime.now(tz=UTC)
-    events = await list_visible_events(
+    role = await get_family_role_for_user(db, family_id=family_id, user_id=ctx.user_id)
+    aggregated_events = await list_aggregated_events(
         db,
         family_id=family_id,
         current_user_id=ctx.user_id,
+        role=role,
         start_at_from=now,
-        start_at_to=None,
+        start_at_to=now.replace(year=now.year + 1),
     )
 
     upcoming = [
@@ -204,9 +265,12 @@ async def get_upcoming_events_widget(
             start_at=event.start_at,
             end_at=event.end_at,
             all_day=event.all_day,
-            tagged_user_ids=[member.user_id for member in event.tagged_members],
+            tagged_user_ids=event.tagged_user_ids,
+            source_type=event.source_type,
+            source_label=event.source_label,
+            member_user_id=event.member_user_id,
         )
-        for event in events[:limit]
+        for event in aggregated_events[:limit]
     ]
 
     return UpcomingEventsWidgetResponse(family_id=family_id, events=upcoming)

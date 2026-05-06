@@ -43,17 +43,43 @@ class CalendarEventsListResponse(BaseModel):
 
 
 class UpcomingCalendarEventResponse(BaseModel):
-    id: UUID
+    id: str
     title: str
     start_at: datetime
     end_at: datetime
     all_day: bool
     tagged_user_ids: list[UUID]
+    source_type: str = "family"
+    source_label: str = "Family"
+    member_user_id: UUID | None = None
 
 
 class UpcomingEventsWidgetResponse(BaseModel):
     family_id: UUID
     events: list[UpcomingCalendarEventResponse]
+
+
+class AggregatedCalendarEventResponse(BaseModel):
+    id: str
+    source_type: str
+    source_label: str
+    member_user_id: UUID | None
+    source_color_hex: str | None
+    title: str
+    description: str | None
+    location: str | None
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    is_hidden: bool
+    can_edit: bool
+    family_event_id: UUID | None = None
+    tagged_user_ids: list[UUID] = Field(default_factory=list)
+    hidden_for_user_ids: list[UUID] = Field(default_factory=list)
+
+
+class AggregatedCalendarEventsListResponse(BaseModel):
+    events: list[AggregatedCalendarEventResponse]
 
 
 class ExternalCalendarFeedCreateRequest(BaseModel):

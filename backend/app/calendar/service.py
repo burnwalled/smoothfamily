@@ -1,7 +1,7 @@
 import base64
 import hashlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -30,6 +30,30 @@ class CalendarPermissions:
     can_manage_any_event: bool
     can_create_hidden_events: bool
     can_manage_calendar_integrations: bool
+
+
+@dataclass(frozen=True)
+class AggregatedCalendarEvent:
+    id: str
+    source_type: str
+    source_label: str
+    member_user_id: UUID | None
+    source_color_hex: str | None
+    title: str
+    description: str | None
+    location: str | None
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    is_hidden: bool
+    can_edit: bool
+    family_event_id: UUID | None
+    tagged_user_ids: list[UUID]
+    hidden_for_user_ids: list[UUID]
+
+
+_external_feed_cache: dict[UUID, tuple[datetime, list[AggregatedCalendarEvent]]] = {}
+_external_feed_cache_ttl = timedelta(minutes=15)
 
 
 def permissions_for_calendar_role(role: str) -> CalendarPermissions:
@@ -106,6 +130,113 @@ def ensure_can_manage_integrations(role: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to manage calendar integrations",
         )
+
+
+def _to_utc_datetime(value: date | datetime) -> tuple[datetime, bool]:
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC), False
+        return value.astimezone(UTC), False
+    return datetime.combine(value, time(0, 0), tzinfo=UTC), True
+
+
+def _iter_external_events_from_calendar(
+    *,
+    feed: ExternalCalendarFeed,
+    calendar_text: str,
+    member_color_hex: str | None,
+    start_at_from: datetime | None,
+    start_at_to: datetime | None,
+) -> list[AggregatedCalendarEvent]:
+    calendar = Calendar.from_ical(calendar_text)
+    events: list[AggregatedCalendarEvent] = []
+    for component in calendar.walk("VEVENT"):
+        dtstart_raw = component.get("dtstart")
+        if dtstart_raw is None:
+            continue
+
+        dtend_raw = component.get("dtend")
+        start_at, all_day = _to_utc_datetime(dtstart_raw.dt)
+        if dtend_raw is None:
+            end_at = start_at if not all_day else start_at + timedelta(days=1)
+        else:
+            end_at, _ = _to_utc_datetime(dtend_raw.dt)
+
+        if start_at_to is not None and start_at > start_at_to:
+            continue
+        if start_at_from is not None and end_at < start_at_from:
+            continue
+
+        title = str(component.get("summary", "(untitled)"))
+        uid_value = str(component.get("uid", f"{title}:{start_at.isoformat()}"))
+        source_uuid = UUID(uid_value) if _is_uuid(uid_value) else feed.id
+        stable_id = hashlib.sha256(
+            f"{feed.id}:{source_uuid}:{start_at.isoformat()}:{end_at.isoformat()}".encode("utf-8")
+        ).hexdigest()[:24]
+
+        events.append(
+            AggregatedCalendarEvent(
+                id=f"external-{stable_id}",
+                source_type="external",
+                source_label=feed.display_name,
+                member_user_id=feed.member_user_id,
+                source_color_hex=member_color_hex,
+                title=title,
+                description=str(component.get("description"))
+                if component.get("description")
+                else None,
+                location=str(component.get("location")) if component.get("location") else None,
+                start_at=start_at,
+                end_at=end_at,
+                all_day=all_day,
+                is_hidden=False,
+                can_edit=False,
+                family_event_id=None,
+                tagged_user_ids=[],
+                hidden_for_user_ids=[],
+            )
+        )
+
+    return events
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        UUID(value)
+        return True
+    except ValueError:
+        return False
+
+
+async def _load_external_events_for_feed(
+    *,
+    feed: ExternalCalendarFeed,
+    member_color_hex: str | None,
+    start_at_from: datetime | None,
+    start_at_to: datetime | None,
+) -> list[AggregatedCalendarEvent]:
+    now = datetime.now(tz=UTC)
+    cached = _external_feed_cache.get(feed.id)
+    if cached and cached[0] > now:
+        return cached[1]
+
+    try:
+        ical_url = decrypt_ical_url(feed.ical_url_encrypted)
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            response = await client.get(ical_url)
+            response.raise_for_status()
+
+        feed_events = _iter_external_events_from_calendar(
+            feed=feed,
+            calendar_text=response.text,
+            member_color_hex=member_color_hex,
+            start_at_from=start_at_from,
+            start_at_to=start_at_to,
+        )
+        _external_feed_cache[feed.id] = (now + _external_feed_cache_ttl, feed_events)
+        return feed_events
+    except Exception:
+        return []
 
 
 def can_modify_event(*, role: str, current_user_id: UUID, creator_user_id: UUID) -> bool:
@@ -448,3 +579,81 @@ async def delete_external_calendar_feed(
 
     await db.delete(feed)
     await db.flush()
+
+
+async def list_aggregated_events(
+    db: AsyncSession,
+    *,
+    family_id: UUID,
+    current_user_id: UUID,
+    role: str,
+    start_at_from: datetime | None,
+    start_at_to: datetime | None,
+) -> list[AggregatedCalendarEvent]:
+    family_events = await list_visible_events(
+        db,
+        family_id=family_id,
+        current_user_id=current_user_id,
+        start_at_from=start_at_from,
+        start_at_to=start_at_to,
+    )
+
+    can_manage_any = permissions_for_calendar_role(role).can_manage_any_event
+    internal_events = [
+        AggregatedCalendarEvent(
+            id=f"family-{event.id}",
+            source_type="family",
+            source_label="Family",
+            member_user_id=event.creator_user_id,
+            source_color_hex=None,
+            title=event.title,
+            description=event.description,
+            location=event.location,
+            start_at=event.start_at,
+            end_at=event.end_at,
+            all_day=event.all_day,
+            is_hidden=event.is_hidden,
+            can_edit=can_manage_any or event.creator_user_id == current_user_id,
+            family_event_id=event.id,
+            tagged_user_ids=[member.user_id for member in event.tagged_members],
+            hidden_for_user_ids=[member.user_id for member in event.hidden_for_members],
+        )
+        for event in family_events
+    ]
+
+    color_result = await db.execute(
+        select(UserFamilyMembership.user_id, UserFamilyMembership.color_hex).where(
+            UserFamilyMembership.family_id == family_id
+        )
+    )
+    member_color_by_user_id = {
+        user_id: color_hex for user_id, color_hex in color_result.all()
+    }
+
+    feeds = await list_external_calendar_feeds(db, family_id=family_id)
+    external_events: list[AggregatedCalendarEvent] = []
+    for feed in feeds:
+        if not feed.enabled:
+            continue
+        external_events.extend(
+            await _load_external_events_for_feed(
+                feed=feed,
+                member_color_hex=member_color_by_user_id.get(feed.member_user_id),
+                start_at_from=start_at_from,
+                start_at_to=start_at_to,
+            )
+        )
+
+    combined = internal_events + external_events
+    deduped_by_key: dict[str, AggregatedCalendarEvent] = {}
+    for event in combined:
+        dedupe_key = (
+            f"{event.title.strip().lower()}:{event.start_at.isoformat()}:{event.end_at.isoformat()}"
+        )
+        if dedupe_key not in deduped_by_key:
+            deduped_by_key[dedupe_key] = event
+            continue
+        if deduped_by_key[dedupe_key].source_type == "external" and event.source_type == "family":
+            deduped_by_key[dedupe_key] = event
+
+    return sorted(deduped_by_key.values(), key=lambda event: event.start_at)

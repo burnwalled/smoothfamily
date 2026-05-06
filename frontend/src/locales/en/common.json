@@ -83,6 +83,13 @@
     "edit": "Edit",
     "delete": "Delete",
     "eventListTitle": "Family events",
+    "filters": {
+      "source": "Source",
+      "all": "All",
+      "family": "Family",
+      "external": "External",
+      "members": "Members"
+    },
     "hiddenBadge": "Hidden event",
     "empty": "No events yet.",
     "loading": "Loading calendar...",

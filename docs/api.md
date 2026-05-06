@@ -63,6 +63,16 @@ Versionering:
 - Auth: Bearer JWT.
 - Tenant-regel: anvandaren maste vara medlem i `family_id`.
 
+### GET /api/v1/families/{family_id}/calendar/events/aggregated
+
+- Beskrivning: returnerar samlad kalendervy med interna familjeevents + externa iCal-events.
+- Query params:
+  - `start_at_from` (optional, datetime)
+  - `start_at_to` (optional, datetime)
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+- Notera: events dedupliceras med tolerant strategi (titel + tidsintervall), och familjeevent prioriteras over extern dublett.
+
 ### POST /api/v1/families/{family_id}/calendar/events
 
 - Beskrivning: skapar event.
@@ -87,7 +97,7 @@ Versionering:
 
 ### GET /api/v1/families/{family_id}/calendar/widgets/upcoming
 
-- Beskrivning: data till dashboard-widget med kommande aktiviteter.
+- Beskrivning: data till dashboard-widget med kommande aktiviteter fran bade familjekalender och externa iCal-kallor.
 - Query params:
   - `limit` (default 5, min 1, max 20)
 - Auth: Bearer JWT.
@@ -151,6 +161,13 @@ Valideringsregler:
 - Feeden maste vara reachbar och parsebar som iCal (`VCALENDAR`).
 - `member_user_id` maste tillhora samma familj.
 - URL lagras krypterad i databasen (`ical_url_encrypted`) och returneras endast maskerad i API-respons.
+
+## Kalenderaggregation och cache-strategi
+
+- Externa iCal-feeds hamtas vid behov och parseas till `VEVENT`.
+- For prestanda cachas parseade feed-events i minnet per integration-id med TTL pa 15 minuter.
+- Vid cache-hit undviks nytt HTTP-anrop mot extern leverantor.
+- Om en extern feed tillfalligt faller bort returneras ovriga kallor fortsatt, sa kalendern degraderar mjukt.
 
 ## Felhantering och felsokning
 

@@ -8,6 +8,7 @@ type FamilyMember = {
   user_id: string;
   email: string;
   role: string;
+  color_hex?: string | null;
 };
 
 type FamilyOverview = {
@@ -18,8 +19,10 @@ type FamilyOverview = {
 
 type CalendarEvent = {
   id: string;
-  family_id: string;
-  creator_user_id: string;
+  source_type: "family" | "external";
+  source_label: string;
+  member_user_id: string | null;
+  source_color_hex: string | null;
   title: string;
   description: string | null;
   location: string | null;
@@ -27,6 +30,8 @@ type CalendarEvent = {
   end_at: string;
   all_day: boolean;
   is_hidden: boolean;
+  can_edit: boolean;
+  family_event_id: string | null;
   tagged_user_ids: string[];
   hidden_for_user_ids: string[];
 };
@@ -121,6 +126,8 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "family" | "external">("all");
+  const [memberFilterIds, setMemberFilterIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(
     startOfDay(new Date()),
   );
@@ -143,13 +150,56 @@ export default function CalendarPage() {
   }, [overview?.current_user_role]);
 
   const sortedEvents = useMemo(
-    () =>
-      [...events].sort(
+    () => {
+      const filtered = events.filter((event) => {
+        if (sourceFilter !== "all" && event.source_type !== sourceFilter) {
+          return false;
+        }
+        if (memberFilterIds.length === 0) {
+          return true;
+        }
+        if (!event.member_user_id) {
+          return false;
+        }
+        return memberFilterIds.includes(event.member_user_id);
+      });
+      return [...filtered].sort(
         (a, b) =>
           new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-      ),
-    [events],
+      );
+    },
+    [events, memberFilterIds, sourceFilter],
   );
+
+  function toggleMemberFilter(userId: string): void {
+    setMemberFilterIds((previous) =>
+      previous.includes(userId)
+        ? previous.filter((value) => value !== userId)
+        : [...previous, userId],
+    );
+  }
+
+  async function loadAggregatedEvents(
+    token: string,
+    familyId: string,
+  ): Promise<void> {
+    const eventsResponse = await fetch(
+      `${API_URL}/api/v1/families/${familyId}/calendar/events/aggregated`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!eventsResponse.ok) {
+      throw new Error("failed_to_load_events");
+    }
+
+    const eventsPayload = (await eventsResponse.json()) as CalendarEventsResponse;
+    setEvents(eventsPayload.events);
+  }
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -229,25 +279,10 @@ export default function CalendarPage() {
         const overviewPayload =
           (await overviewResponse.json()) as FamilyOverview;
         setOverview(overviewPayload);
-
-        const eventsResponse = await fetch(
-          `${API_URL}/api/v1/families/${overviewPayload.family_id}/calendar/events`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          },
-        );
-
-        if (!eventsResponse.ok) {
-          setError(t("errors.load"));
-          return;
+        if (memberFilterIds.length === 0) {
+          setMemberFilterIds(overviewPayload.members.map((member) => member.user_id));
         }
-
-        const eventsPayload =
-          (await eventsResponse.json()) as CalendarEventsResponse;
-        setEvents(eventsPayload.events);
+        await loadAggregatedEvents(token, overviewPayload.family_id);
       } catch {
         setError(t("errors.network"));
       } finally {
@@ -256,7 +291,7 @@ export default function CalendarPage() {
     }
 
     void loadData();
-  }, [getToken, isSignedIn, t]);
+  }, [getToken, isSignedIn, memberFilterIds.length, t]);
 
   function resetForm(): void {
     setEditingEventId(null);
@@ -295,7 +330,10 @@ export default function CalendarPage() {
   }
 
   function startEdit(event: CalendarEvent): void {
-    setEditingEventId(event.id);
+    if (!event.can_edit || !event.family_event_id) {
+      return;
+    }
+    setEditingEventId(event.family_event_id);
     setTitle(event.title);
     setDescription(event.description ?? "");
     setLocation(event.location ?? "");
@@ -371,15 +409,7 @@ export default function CalendarPage() {
       }
 
       const upsertedEvent = (await response.json()) as CalendarEvent;
-      setEvents((previous) => {
-        const withoutOld = previous.filter(
-          (item) => item.id !== upsertedEvent.id,
-        );
-        return [...withoutOld, upsertedEvent].sort(
-          (a, b) =>
-            new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-        );
-      });
+      await loadAggregatedEvents(token, overview.family_id);
       setSelectedDate(startOfDay(new Date(upsertedEvent.start_at)));
       closeForm();
       resetForm();
@@ -421,7 +451,7 @@ export default function CalendarPage() {
         return;
       }
 
-      setEvents((previous) => previous.filter((item) => item.id !== eventId));
+      await loadAggregatedEvents(token, overview.family_id);
       if (editingEventId === eventId) {
         closeForm();
       }
@@ -462,6 +492,38 @@ export default function CalendarPage() {
       </section>
 
       <section className="portal-card space-y-4">
+        <div className="flex flex-wrap items-center gap-2 rounded-md border p-2"
+          style={{ borderColor: "rgb(var(--color-border))" }}>
+          <span className="text-xs text-muted-foreground">{t("filters.source")}</span>
+          {([
+            ["all", t("filters.all")],
+            ["family", t("filters.family")],
+            ["external", t("filters.external")],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSourceFilter(value)}
+              className={`rounded px-2 py-1 text-xs ${
+                sourceFilter === value ? "bg-muted font-semibold" : "text-muted-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="ml-2 text-xs text-muted-foreground">{t("filters.members")}</span>
+          {overview.members.map((member) => (
+            <label key={member.user_id} className="inline-flex items-center gap-1 text-xs">
+              <input
+                type="checkbox"
+                checked={memberFilterIds.includes(member.user_id)}
+                onChange={() => toggleMemberFilter(member.user_id)}
+              />
+              {member.email}
+            </label>
+          ))}
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
@@ -562,6 +624,11 @@ export default function CalendarPage() {
                         <p
                           key={event.id}
                           className="truncate rounded bg-muted px-1 py-0.5 text-[10px]"
+                          style={{
+                            borderLeft: event.source_color_hex
+                              ? `3px solid ${event.source_color_hex}`
+                              : undefined,
+                          }}
                         >
                           {event.title}
                         </p>
@@ -607,14 +674,23 @@ export default function CalendarPage() {
                       <p className="text-xs text-muted-foreground">-</p>
                     ) : (
                       dayEvents.map((event) => (
-                        <button
+                        <div
                           key={event.id}
-                          type="button"
-                          onClick={() => startEdit(event)}
                           className="w-full rounded bg-muted px-1 py-1 text-left text-[11px]"
+                          style={{
+                            borderLeft: event.source_color_hex
+                              ? `3px solid ${event.source_color_hex}`
+                              : undefined,
+                          }}
                         >
-                          {event.title}
-                        </button>
+                          <p>{event.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{event.source_label}</p>
+                          {event.can_edit ? (
+                            <button type="button" onClick={() => startEdit(event)} className="text-[10px] underline">
+                              {t("edit")}
+                            </button>
+                          ) : null}
+                        </div>
                       ))
                     )}
                   </div>
@@ -641,15 +717,18 @@ export default function CalendarPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatEventRange(event)}
                       </p>
+                      <p className="text-xs text-muted-foreground">{event.source_label}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => startEdit(event)}
-                      className="rounded-md border px-2 py-1 text-xs"
-                      style={{ borderColor: "rgb(var(--color-border))" }}
-                    >
-                      {t("edit")}
-                    </button>
+                    {event.can_edit ? (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(event)}
+                        className="rounded-md border px-2 py-1 text-xs"
+                        style={{ borderColor: "rgb(var(--color-border))" }}
+                      >
+                        {t("edit")}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))
@@ -696,6 +775,7 @@ export default function CalendarPage() {
                     <p className="text-xs text-muted-foreground">
                       {formatEventRange(event)}
                     </p>
+                    <p className="text-xs text-muted-foreground">{event.source_label}</p>
                     {event.location ? (
                       <p className="text-xs text-muted-foreground">
                         {t("fields.location")}: {event.location}
@@ -708,22 +788,26 @@ export default function CalendarPage() {
                     ) : null}
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(event)}
-                      className="rounded-md border px-2 py-1 text-xs"
-                      style={{ borderColor: "rgb(var(--color-border))" }}
-                    >
-                      {t("edit")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeEvent(event.id)}
-                      className="rounded-md border px-2 py-1 text-xs"
-                      style={{ borderColor: "rgb(var(--color-border))" }}
-                    >
-                      {t("delete")}
-                    </button>
+                    {event.can_edit && event.family_event_id ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(event)}
+                          className="rounded-md border px-2 py-1 text-xs"
+                          style={{ borderColor: "rgb(var(--color-border))" }}
+                        >
+                          {t("edit")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void removeEvent(event.family_event_id as string)}
+                          className="rounded-md border px-2 py-1 text-xs"
+                          style={{ borderColor: "rgb(var(--color-border))" }}
+                        >
+                          {t("delete")}
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </li>
