@@ -65,6 +65,8 @@ Backend: http://localhost:8000
 API-docs: http://localhost:8000/api/docs
 Frontend: http://localhost:3000
 
+Repository API-oversikt: `docs/api.md`
+
 ## Dev-miljö (Windows + Docker Desktop)
 
 Rekommenderad setup på Windows är Docker Desktop med WSL 2-backend.
@@ -168,7 +170,7 @@ Light/dark-tema är implementerat i frontend:
 
 - Tema styrs via CSS-variabler i `frontend/src/app/globals.css`
 - Aktivt tema sparas i `localStorage` (`boet-theme-preference`)
-- För inloggade användare synkas tema även mot backend-fältet `User.theme_preference` via `GET/PATCH /api/v1/auth/me`
+- För inloggade användare synkas tema även mot backend-fältet `User.theme_preference` via `GET/PATCH /api/v1/users/me`
 - Växlare finns i app-headern (`/app`-layout)
 
 Tester för tenant isolation är obligatoriska för varje endpoint som hanterar familje-data.

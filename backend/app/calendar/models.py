@@ -47,10 +47,31 @@ class CalendarEventMember(Base):
 
 class CalendarEventHiddenMember(Base):
     __tablename__ = "calendar_event_hidden_members"
-    __table_args__ = (UniqueConstraint("event_id", "user_id", name="uq_calendar_event_hidden_member"),)
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_calendar_event_hidden_member"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calendar_events.id"), index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
 
     event: Mapped[CalendarEvent] = relationship(back_populates="hidden_for_members")
+
+
+class ExternalCalendarFeed(Base):
+    __tablename__ = "external_calendar_feeds"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    member_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(20), default="other")
+    display_name: Mapped[str] = mapped_column(String(120))
+    ical_url_encrypted: Mapped[str] = mapped_column(Text)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_fetch_status: Mapped[str] = mapped_column(String(20), default="never")
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -54,3 +54,30 @@ class UpcomingCalendarEventResponse(BaseModel):
 class UpcomingEventsWidgetResponse(BaseModel):
     family_id: UUID
     events: list[UpcomingCalendarEventResponse]
+
+
+class ExternalCalendarFeedCreateRequest(BaseModel):
+    member_user_id: UUID
+    provider: str = Field(min_length=2, max_length=20)
+    display_name: str = Field(min_length=1, max_length=120)
+    ical_url: str = Field(min_length=12, max_length=4000)
+
+
+class ExternalCalendarFeedResponse(BaseModel):
+    id: UUID
+    family_id: UUID
+    member_user_id: UUID
+    member_email: str
+    provider: str
+    display_name: str
+    ical_url_masked: str
+    enabled: bool
+    last_fetched_at: datetime | None
+    last_fetch_status: str
+    last_error_message: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExternalCalendarFeedsListResponse(BaseModel):
+    feeds: list[ExternalCalendarFeedResponse]

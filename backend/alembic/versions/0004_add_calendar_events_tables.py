@@ -54,7 +54,9 @@ def upgrade() -> None:
         sa.Column(
             "id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
         ),
-        sa.Column("event_id", UUID(as_uuid=True), sa.ForeignKey("calendar_events.id"), nullable=False),
+        sa.Column(
+            "event_id", UUID(as_uuid=True), sa.ForeignKey("calendar_events.id"), nullable=False
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.UniqueConstraint("event_id", "user_id", name="uq_calendar_event_member"),
     )
@@ -85,8 +87,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_calendar_event_hidden_members_user_id", table_name="calendar_event_hidden_members")
-    op.drop_index("ix_calendar_event_hidden_members_event_id", table_name="calendar_event_hidden_members")
+    op.drop_index(
+        "ix_calendar_event_hidden_members_user_id", table_name="calendar_event_hidden_members"
+    )
+    op.drop_index(
+        "ix_calendar_event_hidden_members_event_id", table_name="calendar_event_hidden_members"
+    )
     op.drop_table("calendar_event_hidden_members")
 
     op.drop_index("ix_calendar_event_members_user_id", table_name="calendar_event_members")

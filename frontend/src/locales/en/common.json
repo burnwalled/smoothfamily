@@ -131,6 +131,27 @@
     "accessEdit": "Can edit",
     "accessViewOnly": "View only",
     "accessHidden": "Restricted",
+    "calendar": {
+      "loading": "Loading calendar integrations...",
+      "form": {
+        "displayName": "Integration name (for example: Anna - Work Calendar)",
+        "icalUrl": "iCal URL",
+        "submit": "Add integration",
+        "submitting": "Adding...",
+        "readOnly": "You can view integrations, but your role cannot change them."
+      },
+      "list": {
+        "title": "Connected iCal feeds",
+        "empty": "No iCal feeds connected yet.",
+        "lastFetched": "Last validated",
+        "remove": "Remove"
+      },
+      "errors": {
+        "load": "Could not load calendar integrations.",
+        "save": "Could not add iCal integration.",
+        "delete": "Could not remove iCal integration."
+      }
+    },
     "errors": {
       "auth": "Could not verify sign-in.",
       "load": "Could not load settings.",

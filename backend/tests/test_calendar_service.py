@@ -7,6 +7,7 @@ from app.calendar.service import (
     can_modify_event,
     permissions_for_calendar_role,
     validate_hidden_members,
+    validate_ical_url_format,
     validate_tagged_members,
 )
 
@@ -58,3 +59,17 @@ def test_validate_hidden_members_rejects_external_user() -> None:
             family_member_ids={in_family},
             hidden_for_user_ids=[outside_family],
         )
+
+
+def test_child_cannot_manage_calendar_integrations() -> None:
+    permissions = permissions_for_calendar_role("child")
+    assert not permissions.can_manage_calendar_integrations
+
+
+def test_validate_ical_url_format_rejects_non_http_scheme() -> None:
+    with pytest.raises(HTTPException, match="http or https"):
+        validate_ical_url_format("webcal://calendar.example.com/feed.ics")
+
+
+def test_validate_ical_url_format_accepts_https_url() -> None:
+    validate_ical_url_format("https://calendar.example.com/feed.ics")
