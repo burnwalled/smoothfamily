@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "../lib/i18n";
 import { ThemeProvider } from "../components/theme/theme-provider";
+import { getLocale, getMessages } from "../lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Boet",
-  description: "Familjeappen som faktiskt hjälper er hålla ordning på vardagen.",
+  description:
+    "Familjeappen som faktiskt hjälper er hålla ordning på vardagen.",
 };
 
 export default async function RootLayout({

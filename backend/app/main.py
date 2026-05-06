@@ -4,8 +4,8 @@ Sets up middleware, routers, exception handlers, and OpenAPI configuration.
 """
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import sentry_sdk
 from fastapi import FastAPI

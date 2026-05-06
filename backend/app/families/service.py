@@ -1,6 +1,6 @@
-from datetime import UTC, datetime, timedelta
 import hashlib
 import secrets
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import resend
@@ -76,7 +76,9 @@ def _build_invite_email_html(family_name: str, invite_url: str, expires_at: date
     )
 
 
-def _send_family_invite_email(email: str, family_name: str, token: str, expires_at: datetime) -> None:
+def _send_family_invite_email(
+    email: str, family_name: str, token: str, expires_at: datetime
+) -> None:
     resend.api_key = settings.RESEND_API_KEY.get_secret_value()
     invite_url = f"{settings.APP_URL}/invite/{token}"
 

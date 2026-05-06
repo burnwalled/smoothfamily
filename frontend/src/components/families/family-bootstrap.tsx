@@ -11,7 +11,11 @@ export function FamilyBootstrap() {
 
   useEffect(() => {
     async function ensureFamily() {
-      if (!isSignedIn || !API_URL || sessionStorage.getItem(SESSION_KEY) === "1") {
+      if (
+        !isSignedIn ||
+        !API_URL ||
+        sessionStorage.getItem(SESSION_KEY) === "1"
+      ) {
         return;
       }
 

@@ -5,9 +5,10 @@ Revises: 0001
 Create Date: 2026-05-06
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "0002"
 down_revision = "0001"
@@ -18,7 +19,9 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "families",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        ),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("owner_user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("stripe_customer_id", sa.String(length=255), nullable=True),
@@ -35,7 +38,9 @@ def upgrade() -> None:
         sa.Column("first_paid_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("premium_trial_started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("premium_trial_ends_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("has_used_premium_trial", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "has_used_premium_trial", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("max_members", sa.Integer(), nullable=False, server_default="6"),
         sa.Column(
             "storage_quota_bytes",
@@ -43,8 +48,18 @@ def upgrade() -> None:
             nullable=False,
             server_default="26843545600",
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.UniqueConstraint("stripe_customer_id", name="uq_families_stripe_customer_id"),
         sa.UniqueConstraint("stripe_subscription_id", name="uq_families_stripe_subscription_id"),
     )
@@ -54,7 +69,9 @@ def upgrade() -> None:
 
     op.create_table(
         "user_family_memberships",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("family_id", UUID(as_uuid=True), sa.ForeignKey("families.id"), nullable=False),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.text("false")),
@@ -62,11 +79,15 @@ def upgrade() -> None:
         sa.Column("display_name", sa.String(length=100), nullable=True),
         sa.Column("color_hex", sa.String(length=7), nullable=True),
         sa.Column("invited_email", sa.String(length=320), nullable=True),
-        sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "joined_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")
+        ),
         sa.UniqueConstraint("user_id", "family_id", name="uq_user_family_membership"),
     )
     op.create_index("ix_user_family_memberships_user_id", "user_family_memberships", ["user_id"])
-    op.create_index("ix_user_family_memberships_family_id", "user_family_memberships", ["family_id"])
+    op.create_index(
+        "ix_user_family_memberships_family_id", "user_family_memberships", ["family_id"]
+    )
 
 
 def downgrade() -> None:

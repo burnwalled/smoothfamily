@@ -5,9 +5,10 @@ Revises: 0002
 Create Date: 2026-05-06
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
+from alembic import op
 
 revision = "0003"
 down_revision = "0002"
@@ -18,14 +19,21 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "family_invites",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        ),
         sa.Column("family_id", UUID(as_uuid=True), sa.ForeignKey("families.id"), nullable=False),
         sa.Column("invited_email", sa.String(length=320), nullable=False),
         sa.Column("role", sa.String(length=20), nullable=False, server_default="parent"),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.UniqueConstraint("token_hash", name="uq_family_invites_token_hash"),
     )
     op.create_index("ix_family_invites_family_id", "family_invites", ["family_id"])
