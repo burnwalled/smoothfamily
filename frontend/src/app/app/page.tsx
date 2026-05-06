@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
+
 export default async function DashboardPage() {
   const t = await getTranslations();
 
@@ -88,6 +90,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <UpcomingEventsWidget />
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="portal-card">

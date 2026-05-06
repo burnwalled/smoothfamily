@@ -62,10 +62,41 @@
   },
   "calendar": {
     "title": "Kalender",
+    "subtitle": "Skapa aktiviteter, tagga familjemedlemmar och hantera dolda events.",
+    "widgetTitle": "Kommande aktiviteter",
+    "newEvent": "Nytt event",
+    "editEvent": "Redigera event",
+    "cancelEdit": "Avbryt redigering",
+    "create": "Skapa",
+    "update": "Uppdatera",
+    "saving": "Sparar...",
+    "edit": "Redigera",
+    "delete": "Ta bort",
+    "eventListTitle": "Familjeevents",
+    "hiddenBadge": "Dolt event",
+    "empty": "Inga events ännu.",
+    "loading": "Laddar kalender...",
     "comingSoonTitle": "Kommer snart",
     "comingSoonItem1": "Skapa och hantera familjeevents",
     "comingSoonItem2": "Tagga berörda familjemedlemmar per aktivitet",
-    "comingSoonItem3": "Översikt i dashboard-widget"
+    "comingSoonItem3": "Översikt i dashboard-widget",
+    "fields": {
+      "title": "Titel",
+      "description": "Beskrivning",
+      "location": "Plats",
+      "startAt": "Start",
+      "endAt": "Slut",
+      "allDay": "Heldag",
+      "taggedMembers": "Taggade medlemmar",
+      "hiddenFor": "Dolj för medlemmar"
+    },
+    "errors": {
+      "auth": "Kunde inte verifiera inloggning.",
+      "load": "Kunde inte ladda kalender.",
+      "save": "Kunde inte spara event.",
+      "delete": "Kunde inte ta bort event.",
+      "network": "Natverksfel. Forsok igen."
+    }
   },
   "settings": {
     "title": "Inställningar",

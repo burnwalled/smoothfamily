@@ -62,10 +62,41 @@
   },
   "calendar": {
     "title": "Calendar",
+    "subtitle": "Create events, tag family members, and manage hidden events.",
+    "widgetTitle": "Upcoming activities",
+    "newEvent": "New event",
+    "editEvent": "Edit event",
+    "cancelEdit": "Cancel edit",
+    "create": "Create",
+    "update": "Update",
+    "saving": "Saving...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "eventListTitle": "Family events",
+    "hiddenBadge": "Hidden event",
+    "empty": "No events yet.",
+    "loading": "Loading calendar...",
     "comingSoonTitle": "Coming soon",
     "comingSoonItem1": "Create and manage family events",
     "comingSoonItem2": "Tag relevant family members per activity",
-    "comingSoonItem3": "Overview in a dashboard widget"
+    "comingSoonItem3": "Overview in a dashboard widget",
+    "fields": {
+      "title": "Title",
+      "description": "Description",
+      "location": "Location",
+      "startAt": "Start",
+      "endAt": "End",
+      "allDay": "All day",
+      "taggedMembers": "Tagged members",
+      "hiddenFor": "Hide for members"
+    },
+    "errors": {
+      "auth": "Could not verify sign-in.",
+      "load": "Could not load calendar.",
+      "save": "Could not save event.",
+      "delete": "Could not delete event.",
+      "network": "Network error. Please try again."
+    }
   },
   "settings": {
     "title": "Settings",
