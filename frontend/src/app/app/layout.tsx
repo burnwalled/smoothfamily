@@ -71,7 +71,10 @@ export default async function AppLayout({
           }}
         >
           <div className="flex h-16 items-center justify-between gap-3 px-5 lg:justify-end lg:px-8">
-            <Link href="/app" className="text-sm font-semibold tracking-tight lg:hidden">
+            <Link
+              href="/app"
+              className="text-sm font-semibold tracking-tight lg:hidden"
+            >
               {t("common.appName")}
             </Link>
             <div className="flex items-center gap-3">
@@ -80,20 +83,28 @@ export default async function AppLayout({
             </div>
           </div>
 
-          <nav className="flex gap-2 overflow-x-auto border-t px-5 py-2 lg:hidden" style={{ borderColor: "rgb(var(--color-border))" }}>
+          <nav
+            className="flex gap-2 overflow-x-auto border-t px-5 py-2 lg:hidden"
+            style={{ borderColor: "rgb(var(--color-border))" }}
+          >
             {navItems.map((item) => (
               <Link
                 key={`mobile-${item.href}`}
                 href={item.href}
                 className="whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                style={{ borderColor: "rgb(var(--color-border))", backgroundColor: "rgb(var(--color-surface))" }}
+                style={{
+                  borderColor: "rgb(var(--color-border))",
+                  backgroundColor: "rgb(var(--color-surface))",
+                }}
               >
                 {item.label}
               </Link>
             ))}
           </nav>
         </header>
-        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );
