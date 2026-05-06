@@ -42,6 +42,9 @@ class Family(Base):
     memberships: Mapped[list["UserFamilyMembership"]] = relationship(
         back_populates="family", cascade="all, delete-orphan"
     )
+    invites: Mapped[list["FamilyInvite"]] = relationship(
+        back_populates="family", cascade="all, delete-orphan"
+    )
 
 
 class UserFamilyMembership(Base):
@@ -59,3 +62,18 @@ class UserFamilyMembership(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     family: Mapped[Family] = relationship(back_populates="memberships")
+
+
+class FamilyInvite(Base):
+    __tablename__ = "family_invites"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    invited_email: Mapped[str] = mapped_column(String(320), index=True)
+    role: Mapped[str] = mapped_column(String(20), default="parent")
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    family: Mapped[Family] = relationship(back_populates="invites")

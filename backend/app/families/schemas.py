@@ -20,3 +20,19 @@ class FamilyCreateResponse(BaseModel):
     created: bool
 
     model_config = {"from_attributes": True}
+
+
+class FamilyInviteCreateRequest(BaseModel):
+    email: str
+    role: str = "parent"
+
+
+class FamilyInviteCreateResponse(BaseModel):
+    id: UUID
+    family_id: UUID
+    invited_email: str
+    role: str
+    expires_at: datetime
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
