@@ -126,7 +126,9 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "family" | "external">("all");
+  const [sourceFilter, setSourceFilter] = useState<
+    "all" | "family" | "external"
+  >("all");
   const [memberFilterIds, setMemberFilterIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(
     startOfDay(new Date()),
@@ -149,27 +151,23 @@ export default function CalendarPage() {
     return role === "owner" || role === "parent";
   }, [overview?.current_user_role]);
 
-  const sortedEvents = useMemo(
-    () => {
-      const filtered = events.filter((event) => {
-        if (sourceFilter !== "all" && event.source_type !== sourceFilter) {
-          return false;
-        }
-        if (memberFilterIds.length === 0) {
-          return true;
-        }
-        if (!event.member_user_id) {
-          return false;
-        }
-        return memberFilterIds.includes(event.member_user_id);
-      });
-      return [...filtered].sort(
-        (a, b) =>
-          new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-      );
-    },
-    [events, memberFilterIds, sourceFilter],
-  );
+  const sortedEvents = useMemo(() => {
+    const filtered = events.filter((event) => {
+      if (sourceFilter !== "all" && event.source_type !== sourceFilter) {
+        return false;
+      }
+      if (memberFilterIds.length === 0) {
+        return true;
+      }
+      if (!event.member_user_id) {
+        return false;
+      }
+      return memberFilterIds.includes(event.member_user_id);
+    });
+    return [...filtered].sort(
+      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+    );
+  }, [events, memberFilterIds, sourceFilter]);
 
   function toggleMemberFilter(userId: string): void {
     setMemberFilterIds((previous) =>
@@ -197,7 +195,8 @@ export default function CalendarPage() {
       throw new Error("failed_to_load_events");
     }
 
-    const eventsPayload = (await eventsResponse.json()) as CalendarEventsResponse;
+    const eventsPayload =
+      (await eventsResponse.json()) as CalendarEventsResponse;
     setEvents(eventsPayload.events);
   }
 
@@ -280,7 +279,9 @@ export default function CalendarPage() {
           (await overviewResponse.json()) as FamilyOverview;
         setOverview(overviewPayload);
         if (memberFilterIds.length === 0) {
-          setMemberFilterIds(overviewPayload.members.map((member) => member.user_id));
+          setMemberFilterIds(
+            overviewPayload.members.map((member) => member.user_id),
+          );
         }
         await loadAggregatedEvents(token, overviewPayload.family_id);
       } catch {
@@ -492,28 +493,41 @@ export default function CalendarPage() {
       </section>
 
       <section className="portal-card space-y-4">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border p-2"
-          style={{ borderColor: "rgb(var(--color-border))" }}>
-          <span className="text-xs text-muted-foreground">{t("filters.source")}</span>
-          {([
-            ["all", t("filters.all")],
-            ["family", t("filters.family")],
-            ["external", t("filters.external")],
-          ] as const).map(([value, label]) => (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-md border p-2"
+          style={{ borderColor: "rgb(var(--color-border))" }}
+        >
+          <span className="text-xs text-muted-foreground">
+            {t("filters.source")}
+          </span>
+          {(
+            [
+              ["all", t("filters.all")],
+              ["family", t("filters.family")],
+              ["external", t("filters.external")],
+            ] as const
+          ).map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => setSourceFilter(value)}
               className={`rounded px-2 py-1 text-xs ${
-                sourceFilter === value ? "bg-muted font-semibold" : "text-muted-foreground"
+                sourceFilter === value
+                  ? "bg-muted font-semibold"
+                  : "text-muted-foreground"
               }`}
             >
               {label}
             </button>
           ))}
-          <span className="ml-2 text-xs text-muted-foreground">{t("filters.members")}</span>
+          <span className="ml-2 text-xs text-muted-foreground">
+            {t("filters.members")}
+          </span>
           {overview.members.map((member) => (
-            <label key={member.user_id} className="inline-flex items-center gap-1 text-xs">
+            <label
+              key={member.user_id}
+              className="inline-flex items-center gap-1 text-xs"
+            >
               <input
                 type="checkbox"
                 checked={memberFilterIds.includes(member.user_id)}
@@ -684,9 +698,15 @@ export default function CalendarPage() {
                           }}
                         >
                           <p>{event.title}</p>
-                          <p className="text-[10px] text-muted-foreground">{event.source_label}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {event.source_label}
+                          </p>
                           {event.can_edit ? (
-                            <button type="button" onClick={() => startEdit(event)} className="text-[10px] underline">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(event)}
+                              className="text-[10px] underline"
+                            >
                               {t("edit")}
                             </button>
                           ) : null}
@@ -717,7 +737,9 @@ export default function CalendarPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatEventRange(event)}
                       </p>
-                      <p className="text-xs text-muted-foreground">{event.source_label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.source_label}
+                      </p>
                     </div>
                     {event.can_edit ? (
                       <button
@@ -775,7 +797,9 @@ export default function CalendarPage() {
                     <p className="text-xs text-muted-foreground">
                       {formatEventRange(event)}
                     </p>
-                    <p className="text-xs text-muted-foreground">{event.source_label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.source_label}
+                    </p>
                     {event.location ? (
                       <p className="text-xs text-muted-foreground">
                         {t("fields.location")}: {event.location}
@@ -800,7 +824,9 @@ export default function CalendarPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void removeEvent(event.family_event_id as string)}
+                          onClick={() =>
+                            void removeEvent(event.family_event_id as string)
+                          }
                           className="rounded-md border px-2 py-1 text-xs"
                           style={{ borderColor: "rgb(var(--color-border))" }}
                         >

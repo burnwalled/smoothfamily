@@ -151,7 +151,9 @@ export default function UpcomingEventsWidget() {
               <p className="text-xs text-muted-foreground">
                 {formatStart(event.start_at, event.all_day)}
               </p>
-              <p className="text-xs text-muted-foreground">{event.source_label}</p>
+              <p className="text-xs text-muted-foreground">
+                {event.source_label}
+              </p>
             </li>
           ))}
         </ul>

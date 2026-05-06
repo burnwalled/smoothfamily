@@ -171,7 +171,7 @@ def _iter_external_events_from_calendar(
         uid_value = str(component.get("uid", f"{title}:{start_at.isoformat()}"))
         source_uuid = UUID(uid_value) if _is_uuid(uid_value) else feed.id
         stable_id = hashlib.sha256(
-            f"{feed.id}:{source_uuid}:{start_at.isoformat()}:{end_at.isoformat()}".encode("utf-8")
+            f"{feed.id}:{source_uuid}:{start_at.isoformat()}:{end_at.isoformat()}".encode()
         ).hexdigest()[:24]
 
         events.append(
@@ -626,9 +626,7 @@ async def list_aggregated_events(
             UserFamilyMembership.family_id == family_id
         )
     )
-    member_color_by_user_id = {
-        user_id: color_hex for user_id, color_hex in color_result.all()
-    }
+    member_color_by_user_id = {user_id: color_hex for user_id, color_hex in color_result.all()}
 
     feeds = await list_external_calendar_feeds(db, family_id=family_id)
     external_events: list[AggregatedCalendarEvent] = []
