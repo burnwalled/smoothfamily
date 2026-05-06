@@ -6,14 +6,31 @@ import { useEffect } from "react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const SESSION_KEY = "boet-family-bootstrap-ran";
 
+function resolveApiUrl(rawValue: string | undefined): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (parsed.hostname === "localhost") {
+      parsed.hostname = "127.0.0.1";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawValue;
+  }
+}
+
 export function FamilyBootstrap() {
   const { isSignedIn, getToken } = useAuth();
+  const apiUrl = resolveApiUrl(API_URL);
 
   useEffect(() => {
     async function ensureFamily() {
       if (
         !isSignedIn ||
-        !API_URL ||
+        !apiUrl ||
         sessionStorage.getItem(SESSION_KEY) === "1"
       ) {
         return;
@@ -25,7 +42,7 @@ export function FamilyBootstrap() {
           return;
         }
 
-        await fetch(`${API_URL}/api/v1/families`, {
+        await fetch(`${apiUrl}/api/v1/families`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -40,7 +57,7 @@ export function FamilyBootstrap() {
     }
 
     void ensureFamily();
-  }, [getToken, isSignedIn]);
+  }, [apiUrl, getToken, isSignedIn]);
 
   return null;
 }

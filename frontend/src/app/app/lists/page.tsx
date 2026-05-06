@@ -165,25 +165,17 @@ export default function ListsPage() {
         );
       }
 
-      const [listsResponse, groupsResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/families/${overviewPayload.family_id}/lists`, {
+      const listsResponse = await fetch(
+        `${apiUrl}/api/v1/families/${overviewPayload.family_id}/lists`,
+        {
           headers: {
             Authorization: `Bearer ${token}`,
           },
           cache: "no-store",
-        }),
-        fetch(
-          `${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          },
-        ),
-      ]);
+        },
+      );
 
-      if (!listsResponse.ok || !groupsResponse.ok) {
+      if (!listsResponse.ok) {
         setError(t("errors.load"));
         return;
       }
@@ -194,8 +186,27 @@ export default function ListsPage() {
         (current) => current ?? listsPayload.lists[0]?.id ?? null,
       );
 
-      const groupsPayload = (await groupsResponse.json()) as ChatGroupsResponse;
-      setChatGroups(groupsPayload.groups);
+      try {
+        const groupsResponse = await fetch(
+          `${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+          },
+        );
+
+        if (groupsResponse.ok) {
+          const groupsPayload =
+            (await groupsResponse.json()) as ChatGroupsResponse;
+          setChatGroups(groupsPayload.groups);
+        } else {
+          setChatGroups([]);
+        }
+      } catch {
+        setChatGroups([]);
+      }
     } catch (loadError) {
       const detail =
         loadError instanceof Error ? ` (${loadError.message})` : "";

@@ -10,6 +10,22 @@ type ThemePreference = "light" | "dark";
 const STORAGE_KEY = "boet-theme-preference";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function resolveApiUrl(rawValue: string | undefined): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (parsed.hostname === "localhost") {
+      parsed.hostname = "127.0.0.1";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawValue;
+  }
+}
+
 function isThemePreference(
   value: string | null | undefined,
 ): value is ThemePreference {
@@ -22,10 +38,11 @@ export function ThemeToggle() {
   const { isSignedIn, getToken } = useAuth();
   const localPreferenceRef = useRef<ThemePreference | null>(null);
   const serverPreferenceRef = useRef<ThemePreference | null>(null);
+  const apiUrl = resolveApiUrl(API_URL);
 
   useEffect(() => {
     async function syncFromServer() {
-      if (!isSignedIn || !API_URL) {
+      if (!isSignedIn || !apiUrl) {
         return;
       }
 
@@ -35,7 +52,7 @@ export function ThemeToggle() {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/v1/auth/me`, {
+        const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -63,7 +80,7 @@ export function ThemeToggle() {
         }
 
         if (localPreferenceRef.current !== data.theme_preference) {
-          await fetch(`${API_URL}/api/v1/auth/me`, {
+          await fetch(`${apiUrl}/api/v1/auth/me`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -96,7 +113,7 @@ export function ThemeToggle() {
     async function syncToServer() {
       if (
         !isSignedIn ||
-        !API_URL ||
+        !apiUrl ||
         serverPreferenceRef.current === currentTheme
       ) {
         return;
@@ -108,7 +125,7 @@ export function ThemeToggle() {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/v1/auth/me`, {
+        const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,

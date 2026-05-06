@@ -96,7 +96,15 @@ Chatt-felsokning (lokal utveckling):
   - Kor: `cd backend && uv run alembic upgrade head`
   - Verifiera: `uv run alembic current` ska visa `0007 (head)`
   - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt shared_list*"`
+- Incidentnotis (2026-05-06): `POST /api/v1/families/{family_id}/lists` gav `500` eftersom lokal DB lag pa `0006` och saknade `shared_list*`-tabeller. Lost genom `uv run alembic upgrade head` (till `0007`) och verifiering av tabeller i Postgres.
 - Om frontend visar `Failed to fetch` mot `localhost`: verifiera att backend faktiskt svarar pa samma loopback-adress (IPv4/IPv6 kan skilja i Windows).
+
+Checklista vid ny backend-modul med nya tabeller:
+
+- Kor alltid `cd backend && uv run alembic upgrade head` efter att migrationen skapats/merge:ats.
+- Verifiera aktiv revision med `uv run alembic current`.
+- Verifiera att forvantade tabeller finns i Postgres (`docker exec ... psql -c "\\dt <prefix>*"`).
+- Om endpoint returnerar `500` direkt efter featurearbete: kontrollera migration-state fore kodfelsokning.
 
 Migrationer i backend:
 
