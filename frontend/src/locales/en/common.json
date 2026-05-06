@@ -34,6 +34,9 @@
   "settings": {
     "title": "Settings",
     "language": "Language",
-    "theme": "Theme"
+    "theme": "Theme",
+    "toggleTheme": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark"
   }
 }

@@ -4,6 +4,10 @@
 
 **Status:** MVP-utveckling pågår – Sprint 1 (Auth + grundstruktur) klar.
 
+## Senaste uppdateringar
+
+- ✅ Issue #2 klar: Tema-system (light/dark), persistens i localStorage, sync mot `User.theme_preference` och toggle i app-headern.
+
 ## Sprint-status
 
 | Sprint | Beskrivning | Status |
@@ -53,6 +57,8 @@ cp .env.local.example .env.local  # fyll i värden
 pnpm install
 pnpm dev
 ```
+
+Tips för Windows PowerShell: använd `pnpm.cmd` om execution policy blockerar `pnpm`.
 
 Backend: http://localhost:8000
 API-docs: http://localhost:8000/api/docs
@@ -132,6 +138,17 @@ uv run pytest
 cd frontend
 pnpm test
 ```
+
+Frontend-tester körs med Vitest + Testing Library.
+
+## Tema-system
+
+Light/dark-tema är implementerat i frontend:
+
+- Tema styrs via CSS-variabler i `frontend/src/app/globals.css`
+- Aktivt tema sparas i `localStorage` (`boet-theme-preference`)
+- För inloggade användare synkas tema även mot backend-fältet `User.theme_preference` via `GET/PATCH /api/v1/auth/me`
+- Växlare finns i app-headern (`/app`-layout)
 
 Tester för tenant isolation är obligatoriska för varje endpoint som hanterar familje-data.
 

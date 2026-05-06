@@ -1,6 +1,12 @@
-import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/nextjs";
 import { getTranslations } from "next-intl/server";
+import Link from "next/link";
 
 export default async function HomePage() {
   const t = await getTranslations();
@@ -8,7 +14,9 @@ export default async function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
-        <span className="text-lg font-semibold tracking-tight">{t("common.appName")}</span>
+        <span className="text-lg font-semibold tracking-tight">
+          {t("common.appName")}
+        </span>
         <div className="flex items-center gap-3">
           <SignedOut>
             <SignInButton />
@@ -25,8 +33,12 @@ export default async function HomePage() {
 
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="max-w-2xl text-center">
-          <h1 className="mb-4 text-5xl font-medium tracking-tight">{t("common.appName")}</h1>
-          <p className="mb-8 text-lg text-muted-foreground">{t("common.tagline")}</p>
+          <h1 className="mb-4 text-5xl font-medium tracking-tight">
+            {t("common.appName")}
+          </h1>
+          <p className="mb-8 text-lg text-muted-foreground">
+            {t("common.tagline")}
+          </p>
           <SignedOut>
             <SignUpButton>{t("landing.cta")}</SignUpButton>
           </SignedOut>

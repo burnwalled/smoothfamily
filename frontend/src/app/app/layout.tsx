@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { getTranslations } from "next-intl/server";
+import { ThemeToggle } from "../../components/theme/theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations();
@@ -34,7 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center justify-end border-b px-6">
+        <header className="flex h-14 items-center justify-end gap-3 border-b px-6">
+          <ThemeToggle />
           <UserButton />
         </header>
         <main className="flex-1 overflow-auto p-6">{children}</main>

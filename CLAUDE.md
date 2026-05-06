@@ -12,7 +12,7 @@ Boet är en webbapp för svenska familjer: en gemensam kalender, gamifierade sys
 
 ## Övergripande arkitektur
 
-- **Frontend:** Next.js 15 (App Router) + TypeScript + Tailwind + Shadcn/ui
+- **Frontend:** Next.js 16 (App Router) + TypeScript + Tailwind + Shadcn/ui
 - **Backend:** FastAPI (Python 3.12) + SQLAlchemy 2.0 (async) + Alembic + Pydantic v2
 - **Databas:** PostgreSQL 16
 - **Auth:** Clerk (Google + Microsoft + passkeys (+ AppleID))
@@ -102,6 +102,14 @@ Fördelar: ingen Google OAuth-verifiering krävs, iCloud fungerar gratis, mindre
 - **Tailwind för styling** – inga separata CSS-filer
 - **Shadcn/ui som baskomponenter** – kopierad in i projektet, inte npm-dependency
 - **`pnpm` som package manager**, inte npm/yarn
+- **`next-intl` v4+** med Next.js 16 (v3 är inte kompatibel med Next 16)
+
+### Tema (nuvarande implementation)
+
+- Light/dark via `next-themes` (`class` på html)
+- Persistens i `localStorage` med nyckeln `boet-theme-preference`
+- Sync för inloggad användare till `User.theme_preference` via `/api/v1/auth/me`
+- UI-toggle finns i `frontend/src/app/app/layout.tsx`
 
 ### Naming
 

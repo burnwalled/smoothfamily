@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "../lib/i18n";
+import { ThemeProvider } from "../components/theme/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,9 +22,11 @@ export default async function RootLayout({
     <ClerkProvider afterSignInUrl="/app" afterSignUpUrl="/app">
       <html lang={locale} suppressHydrationWarning>
         <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            {children}
-          </NextIntlClientProvider>
+          <ThemeProvider>
+            <NextIntlClientProvider locale={locale} messages={messages}>
+              {children}
+            </NextIntlClientProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

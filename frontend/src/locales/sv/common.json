@@ -34,6 +34,9 @@
   "settings": {
     "title": "Inställningar",
     "language": "Språk",
-    "theme": "Tema"
+    "theme": "Tema",
+    "toggleTheme": "Växla tema",
+    "light": "Ljust",
+    "dark": "Mörkt"
   }
 }
