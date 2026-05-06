@@ -1,7 +1,8 @@
 {
   "common": {
     "appName": "Boet",
-    "tagline": "Familjeappen som faktiskt hjälper er hålla ordning på vardagen."
+    "tagline": "Familjeappen som faktiskt hjälper er hålla ordning på vardagen.",
+    "underConstruction": "Denna funktion är under byggnation."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -58,7 +59,11 @@
     }
   },
   "calendar": {
-    "title": "Kalender"
+    "title": "Kalender",
+    "comingSoonTitle": "Kommer snart",
+    "comingSoonItem1": "Skapa och hantera familjeevents",
+    "comingSoonItem2": "Tagga berörda familjemedlemmar per aktivitet",
+    "comingSoonItem3": "Översikt i dashboard-widget"
   },
   "settings": {
     "title": "Inställningar",
@@ -66,6 +71,10 @@
     "theme": "Tema",
     "toggleTheme": "Växla tema",
     "light": "Ljust",
-    "dark": "Mörkt"
+    "dark": "Mörkt",
+    "comingSoonTitle": "Kommer snart",
+    "comingSoonItem1": "RBAC för owner, parent och child",
+    "comingSoonItem2": "Kalenderintegration via iCal-länkar",
+    "comingSoonItem3": "Fler kontoinställningar och familjepreferenser"
   }
 }
