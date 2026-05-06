@@ -35,7 +35,39 @@ type CalendarEventsResponse = {
   events: CalendarEvent[];
 };
 
+type ViewMode = "month" | "week" | "list";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function pad(value: number): string {
+  return `${value}`.padStart(2, "0");
+}
+
+function toDayKey(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, amount: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function addMonths(date: Date, amount: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getWeekStart(date: Date): Date {
+  const current = startOfDay(date);
+  const day = current.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return addDays(current, mondayOffset);
+}
 
 function toDateTimeLocal(value: string): string {
   const date = new Date(value);
@@ -88,6 +120,13 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    startOfDay(new Date()),
+  );
+  const [cursorDate, setCursorDate] = useState<Date>(startOfDay(new Date()));
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -102,6 +141,52 @@ export default function CalendarPage() {
     const role = overview?.current_user_role;
     return role === "owner" || role === "parent";
   }, [overview?.current_user_role]);
+
+  const sortedEvents = useMemo(
+    () =>
+      [...events].sort(
+        (a, b) =>
+          new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+      ),
+    [events],
+  );
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const event of sortedEvents) {
+      const key = toDayKey(new Date(event.start_at));
+      const existing = map.get(key) ?? [];
+      existing.push(event);
+      map.set(key, existing);
+    }
+    return map;
+  }, [sortedEvents]);
+
+  const monthGridDays = useMemo(() => {
+    const monthStart = new Date(
+      cursorDate.getFullYear(),
+      cursorDate.getMonth(),
+      1,
+    );
+    const gridStart = getWeekStart(monthStart);
+    return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+  }, [cursorDate]);
+
+  const weekDays = useMemo(() => {
+    const weekStart = getWeekStart(cursorDate);
+    return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  }, [cursorDate]);
+
+  const selectedDayEvents = useMemo(() => {
+    return eventsByDay.get(toDayKey(selectedDate)) ?? [];
+  }, [eventsByDay, selectedDate]);
+
+  const listEvents = useMemo(() => {
+    const todayKey = toDayKey(startOfDay(new Date()));
+    return sortedEvents.filter(
+      (event) => toDayKey(new Date(event.start_at)) >= todayKey,
+    );
+  }, [sortedEvents]);
 
   useEffect(() => {
     async function loadData() {
@@ -141,7 +226,8 @@ export default function CalendarPage() {
           return;
         }
 
-        const overviewPayload = (await overviewResponse.json()) as FamilyOverview;
+        const overviewPayload =
+          (await overviewResponse.json()) as FamilyOverview;
         setOverview(overviewPayload);
 
         const eventsResponse = await fetch(
@@ -159,7 +245,8 @@ export default function CalendarPage() {
           return;
         }
 
-        const eventsPayload = (await eventsResponse.json()) as CalendarEventsResponse;
+        const eventsPayload =
+          (await eventsResponse.json()) as CalendarEventsResponse;
         setEvents(eventsPayload.events);
       } catch {
         setError(t("errors.network"));
@@ -183,6 +270,23 @@ export default function CalendarPage() {
     setHiddenForUserIds([]);
   }
 
+  function openCreateForm(date?: Date): void {
+    resetForm();
+    const baseDate = date ?? selectedDate;
+    const start = new Date(baseDate);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(baseDate);
+    end.setHours(10, 0, 0, 0);
+    setStartAt(toDateTimeLocal(start.toISOString()));
+    setEndAt(toDateTimeLocal(end.toISOString()));
+    setIsFormOpen(true);
+  }
+
+  function closeForm(): void {
+    setIsFormOpen(false);
+    setEditingEventId(null);
+  }
+
   function toggleId(list: string[], id: string): string[] {
     if (list.includes(id)) {
       return list.filter((item) => item !== id);
@@ -200,9 +304,24 @@ export default function CalendarPage() {
     setAllDay(event.all_day);
     setTaggedUserIds(event.tagged_user_ids);
     setHiddenForUserIds(event.hidden_for_user_ids);
+    setIsFormOpen(true);
   }
 
-  async function submitEvent(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  function onNavigate(direction: -1 | 1): void {
+    if (viewMode === "month") {
+      setCursorDate((current) => addMonths(current, direction));
+      return;
+    }
+    if (viewMode === "week") {
+      setCursorDate((current) => addDays(current, 7 * direction));
+      return;
+    }
+    setCursorDate((current) => addDays(current, 14 * direction));
+  }
+
+  async function submitEvent(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
     if (!overview || !API_URL || !title.trim() || !startAt || !endAt) {
       return;
@@ -253,11 +372,16 @@ export default function CalendarPage() {
 
       const upsertedEvent = (await response.json()) as CalendarEvent;
       setEvents((previous) => {
-        const withoutOld = previous.filter((item) => item.id !== upsertedEvent.id);
+        const withoutOld = previous.filter(
+          (item) => item.id !== upsertedEvent.id,
+        );
         return [...withoutOld, upsertedEvent].sort(
-          (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+          (a, b) =>
+            new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
         );
       });
+      setSelectedDate(startOfDay(new Date(upsertedEvent.start_at)));
+      closeForm();
       resetForm();
     } catch {
       setError(t("errors.network"));
@@ -299,7 +423,7 @@ export default function CalendarPage() {
 
       setEvents((previous) => previous.filter((item) => item.id !== eventId));
       if (editingEventId === eventId) {
-        resetForm();
+        closeForm();
       }
     } catch {
       setError(t("errors.network"));
@@ -317,164 +441,250 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <section className="portal-card">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t("title")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("subtitle")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCreateForm()}
+            className="rounded-md border px-3 py-2 text-sm font-medium"
+            style={{ borderColor: "rgb(var(--color-border))" }}
+          >
+            {t("openCreate")}
+          </button>
+        </div>
       </section>
 
       <section className="portal-card space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">
-            {editingEventId ? t("editEvent") : t("newEvent")}
-          </h2>
-          {editingEventId ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="text-xs text-muted-foreground underline"
-              onClick={resetForm}
+              onClick={() => onNavigate(-1)}
+              className="rounded-md border px-2 py-1 text-sm"
+              style={{ borderColor: "rgb(var(--color-border))" }}
             >
-              {t("cancelEdit")}
+              {t("prev")}
             </button>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => setCursorDate(startOfDay(new Date()))}
+              className="rounded-md border px-2 py-1 text-sm"
+              style={{ borderColor: "rgb(var(--color-border))" }}
+            >
+              {t("today")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate(1)}
+              className="rounded-md border px-2 py-1 text-sm"
+              style={{ borderColor: "rgb(var(--color-border))" }}
+            >
+              {t("next")}
+            </button>
+          </div>
+
+          <div className="text-sm font-medium">
+            {new Intl.DateTimeFormat("sv-SE", {
+              month: "long",
+              year: "numeric",
+            }).format(cursorDate)}
+          </div>
+
+          <div
+            className="flex items-center gap-1 rounded-md border p-1"
+            style={{ borderColor: "rgb(var(--color-border))" }}
+          >
+            {(
+              [
+                ["month", t("viewMonth")],
+                ["week", t("viewWeek")],
+                ["list", t("viewList")],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setViewMode(value)}
+                className={`rounded px-2 py-1 text-xs ${
+                  viewMode === value
+                    ? "bg-muted font-semibold"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={submitEvent} className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span>{t("fields.title")}</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span>{t("fields.location")}</span>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm md:col-span-2">
-            <span>{t("fields.description")}</span>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span>{t("fields.startAt")}</span>
-            <input
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              required
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm">
-            <span>{t("fields.endAt")}</span>
-            <input
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              required
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-          </label>
-
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <input
-              type="checkbox"
-              checked={allDay}
-              onChange={(e) => setAllDay(e.target.checked)}
-            />
-            {t("fields.allDay")}
-          </label>
-
-          <div className="space-y-2 md:col-span-2">
-            <p className="text-sm font-medium">{t("fields.taggedMembers")}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {overview.members.map((member) => (
-                <label
-                  key={member.user_id}
-                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border))" }}
+        {viewMode === "month" ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-7 gap-2">
+              {WEEKDAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="px-1 text-center text-xs font-semibold text-muted-foreground"
                 >
-                  <input
-                    type="checkbox"
-                    checked={taggedUserIds.includes(member.user_id)}
-                    onChange={() =>
-                      setTaggedUserIds((previous) =>
-                        toggleId(previous, member.user_id),
-                      )
-                    }
-                  />
-                  <span>{member.email}</span>
-                </label>
+                  {label}
+                </div>
               ))}
             </div>
-          </div>
-
-          {canCreateHiddenEvents ? (
-            <div className="space-y-2 md:col-span-2">
-              <p className="text-sm font-medium">{t("fields.hiddenFor")}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {overview.members.map((member) => (
-                  <label
-                    key={member.user_id}
-                    className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                    style={{ borderColor: "rgb(var(--color-border))" }}
+            <div className="grid grid-cols-7 gap-2">
+              {monthGridDays.map((date) => {
+                const key = toDayKey(date);
+                const dayEvents = eventsByDay.get(key) ?? [];
+                const isCurrentMonth =
+                  date.getMonth() === cursorDate.getMonth();
+                const isSelected = key === toDayKey(selectedDate);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedDate(startOfDay(date))}
+                    className={`min-h-24 rounded-md border p-2 text-left ${
+                      isSelected ? "ring-2 ring-sky-500" : ""
+                    }`}
+                    style={{
+                      borderColor: "rgb(var(--color-border))",
+                      opacity: isCurrentMonth ? 1 : 0.45,
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={hiddenForUserIds.includes(member.user_id)}
-                      onChange={() =>
-                        setHiddenForUserIds((previous) =>
-                          toggleId(previous, member.user_id),
-                        )
-                      }
-                    />
-                    <span>{member.email}</span>
-                  </label>
-                ))}
-              </div>
+                    <p className="text-xs font-semibold">{date.getDate()}</p>
+                    <div className="mt-2 space-y-1">
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <p
+                          key={event.id}
+                          className="truncate rounded bg-muted px-1 py-0.5 text-[10px]"
+                        >
+                          {event.title}
+                        </p>
+                      ))}
+                      {dayEvents.length > 2 ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          +{dayEvents.length - 2}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          ) : null}
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md border px-3 py-2 text-sm font-medium"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            >
-              {saving ? t("saving") : editingEventId ? t("update") : t("create")}
-            </button>
           </div>
-        </form>
+        ) : null}
 
-        {error ? <p className="text-xs text-red-500">{error}</p> : null}
+        {viewMode === "week" ? (
+          <div className="grid gap-2 md:grid-cols-7">
+            {weekDays.map((day) => {
+              const key = toDayKey(day);
+              const dayEvents = eventsByDay.get(key) ?? [];
+              return (
+                <div
+                  key={key}
+                  className="rounded-md border p-2"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(startOfDay(day))}
+                    className="text-left"
+                  >
+                    <p className="text-xs font-semibold">
+                      {new Intl.DateTimeFormat("sv-SE", {
+                        weekday: "short",
+                        day: "2-digit",
+                      }).format(day)}
+                    </p>
+                  </button>
+                  <div className="mt-2 space-y-1">
+                    {dayEvents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">-</p>
+                    ) : (
+                      dayEvents.map((event) => (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={() => startEdit(event)}
+                          className="w-full rounded bg-muted px-1 py-1 text-left text-[11px]"
+                        >
+                          {event.title}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {viewMode === "list" ? (
+          <div className="space-y-2">
+            {listEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            ) : (
+              listEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="rounded-md border px-3 py-2"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{event.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatEventRange(event)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(event)}
+                      className="rounded-md border px-2 py-1 text-xs"
+                      style={{ borderColor: "rgb(var(--color-border))" }}
+                    >
+                      {t("edit")}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
       </section>
 
       <section className="portal-card space-y-3">
-        <h2 className="text-base font-semibold">{t("eventListTitle")}</h2>
-        {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">
+            {t("selectedDayTitle")}{" "}
+            {new Intl.DateTimeFormat("sv-SE", {
+              weekday: "long",
+              day: "2-digit",
+              month: "short",
+            }).format(selectedDate)}
+          </h2>
+          <button
+            type="button"
+            onClick={() => openCreateForm(selectedDate)}
+            className="rounded-md border px-2 py-1 text-xs"
+            style={{ borderColor: "rgb(var(--color-border))" }}
+          >
+            {t("openCreate")}
+          </button>
+        </div>
+
+        {selectedDayEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("selectedDayEmpty")}
+          </p>
         ) : (
           <ul className="space-y-2">
-            {events.map((event) => (
+            {selectedDayEvents.map((event) => (
               <li
                 key={event.id}
                 className="rounded-md border px-3 py-3"
@@ -520,7 +730,179 @@ export default function CalendarPage() {
             ))}
           </ul>
         )}
+
+        {error ? <p className="text-xs text-red-500">{error}</p> : null}
       </section>
+
+      {isFormOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border p-4 shadow-2xl"
+            style={{
+              borderColor: "rgb(var(--color-border))",
+              backgroundColor: "rgb(var(--color-surface))",
+            }}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold">
+                {editingEventId ? t("editEvent") : t("newEvent")}
+              </h2>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="rounded-md border px-2 py-1 text-xs"
+                style={{ borderColor: "rgb(var(--color-border))" }}
+              >
+                {t("closeForm")}
+              </button>
+            </div>
+
+            <form onSubmit={submitEvent} className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-1 text-sm">
+                <span>{t("fields.title")}</span>
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  required
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                />
+              </label>
+
+              <label className="space-y-1 text-sm">
+                <span>{t("fields.location")}</span>
+                <input
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                />
+              </label>
+
+              <label className="space-y-1 text-sm md:col-span-2">
+                <span>{t("fields.description")}</span>
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  rows={2}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                />
+              </label>
+
+              <label className="space-y-1 text-sm">
+                <span>{t("fields.startAt")}</span>
+                <input
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(event) => setStartAt(event.target.value)}
+                  required
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                />
+              </label>
+
+              <label className="space-y-1 text-sm">
+                <span>{t("fields.endAt")}</span>
+                <input
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(event) => setEndAt(event.target.value)}
+                  required
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                />
+              </label>
+
+              <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={allDay}
+                  onChange={(event) => setAllDay(event.target.checked)}
+                />
+                {t("fields.allDay")}
+              </label>
+
+              <div className="space-y-2 md:col-span-2">
+                <p className="text-sm font-medium">
+                  {t("fields.taggedMembers")}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {overview.members.map((member) => (
+                    <label
+                      key={member.user_id}
+                      className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                      style={{ borderColor: "rgb(var(--color-border))" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={taggedUserIds.includes(member.user_id)}
+                        onChange={() =>
+                          setTaggedUserIds((previous) =>
+                            toggleId(previous, member.user_id),
+                          )
+                        }
+                      />
+                      <span>{member.email}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {canCreateHiddenEvents ? (
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-sm font-medium">{t("fields.hiddenFor")}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {overview.members.map((member) => (
+                      <label
+                        key={member.user_id}
+                        className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                        style={{ borderColor: "rgb(var(--color-border))" }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={hiddenForUserIds.includes(member.user_id)}
+                          onChange={() =>
+                            setHiddenForUserIds((previous) =>
+                              toggleId(previous, member.user_id),
+                            )
+                          }
+                        />
+                        <span>{member.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-between gap-2 md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-md border px-3 py-2 text-sm font-medium"
+                  style={{ borderColor: "rgb(var(--color-border))" }}
+                >
+                  {saving
+                    ? t("saving")
+                    : editingEventId
+                      ? t("update")
+                      : t("create")}
+                </button>
+                {editingEventId ? (
+                  <button
+                    type="button"
+                    onClick={() => void removeEvent(editingEventId)}
+                    className="rounded-md border px-3 py-2 text-sm"
+                    style={{ borderColor: "rgb(var(--color-border))" }}
+                  >
+                    {t("delete")}
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

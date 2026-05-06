@@ -52,10 +52,16 @@ async def _get_clerk_jwks() -> dict[str, object]:
     """Fetch Clerk's JWKS for JWT verification. Cached per process."""
     global _jwks_cache
     if _jwks_cache is None:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{settings.CLERK_JWT_ISSUER}/.well-known/jwks.json")
-            response.raise_for_status()
-            _jwks_cache = response.json()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{settings.CLERK_JWT_ISSUER}/.well-known/jwks.json")
+                response.raise_for_status()
+                _jwks_cache = response.json()
+        except httpx.HTTPError as error:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unable to verify token against Clerk issuer",
+            ) from error
     assert _jwks_cache is not None
     return _jwks_cache
 
