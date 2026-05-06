@@ -7,6 +7,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "calendar": "Calendar",
+    "chat": "Chat",
     "family": "Family",
     "settings": "Settings"
   },
@@ -162,6 +163,35 @@
     "errors": {
       "auth": "Could not verify sign-in.",
       "load": "Could not load settings.",
+      "network": "Network error. Please try again."
+    }
+  },
+  "chat": {
+    "title": "Family chat",
+    "subtitle": "Create groups, manage participants, and send messages.",
+    "groupsTitle": "Groups",
+    "groupCreateTitle": "Create group",
+    "manageMembersTitle": "Manage participants",
+    "createGroup": "Create group",
+    "saveMembers": "Save participants",
+    "send": "Send",
+    "selectGroup": "Select a group to view messages.",
+    "noDescription": "No description",
+    "emptyGroups": "You are not in any chat groups yet.",
+    "emptyMessages": "No messages yet.",
+    "emptyUnread": "No unread messages.",
+    "widgetTitle": "Unread messages",
+    "loading": "Loading chat...",
+    "fields": {
+      "groupName": "Group name",
+      "groupDescription": "Description (optional)",
+      "participants": "Participants",
+      "message": "Write a message..."
+    },
+    "errors": {
+      "auth": "Could not verify sign-in.",
+      "load": "Could not load chat data.",
+      "save": "Could not save change.",
       "network": "Network error. Please try again."
     }
   }

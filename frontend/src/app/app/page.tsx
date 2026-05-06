@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
 export default async function DashboardPage() {
@@ -137,42 +138,7 @@ export default async function DashboardPage() {
           </ul>
         </article>
 
-        <article className="portal-card">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold">
-              {t("dashboard.chatTitle")}
-            </h2>
-            <span
-              className="rounded-full px-2 py-1 text-xs"
-              style={{
-                backgroundColor: "rgb(var(--color-accent) / 0.15)",
-                color: "rgb(var(--color-accent))",
-              }}
-            >
-              {t("dashboard.newMessages")}
-            </span>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div
-              className="rounded-md border px-3 py-2"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            >
-              Erik: Hamtar Lova fran piano 17:15
-            </div>
-            <div
-              className="rounded-md border px-3 py-2"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            >
-              Oskar: Glomde matladan!
-            </div>
-            <div
-              className="rounded-md border px-3 py-2"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            >
-              Lova: Sover hos Saga ikvall?
-            </div>
-          </div>
-        </article>
+        <UnreadChatWidget />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

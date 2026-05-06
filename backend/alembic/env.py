@@ -18,6 +18,7 @@ if config.config_file_name is not None:
 # Import all models here so Alembic can auto-detect them.
 from app.auth import models as _auth_models  # noqa: F401
 from app.calendar import models as _calendar_models  # noqa: F401
+from app.chat import models as _chat_models  # noqa: F401
 from app.core.database import Base  # noqa: E402
 from app.core.settings import get_settings  # noqa: E402
 from app.families import models as _family_models  # noqa: F401

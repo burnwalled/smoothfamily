@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 
+import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
 export type WidgetDefinition = {
@@ -17,5 +18,12 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     allowedSizes: ["medium", "large", "full"],
     requiredFeatures: ["calendar"],
     component: UpcomingEventsWidget,
+  },
+  chat_unread: {
+    type: "chat_unread",
+    defaultSize: "large",
+    allowedSizes: ["medium", "large", "full"],
+    requiredFeatures: ["chat"],
+    component: UnreadChatWidget,
   },
 };

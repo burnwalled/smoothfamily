@@ -130,6 +130,54 @@ Responsen innehaller source-metadata for rendering/filter:
 - Auth: Bearer JWT.
 - RBAC: krav pa `can_manage_calendar_integrations` (owner/parent).
 
+## Chat
+
+### GET /api/v1/families/{family_id}/chat/groups
+
+- Beskrivning: listar chattgrupper som aktuell anvandare ar medlem i.
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+
+### POST /api/v1/families/{family_id}/chat/groups
+
+- Beskrivning: skapar ny chattgrupp och satter deltagare.
+- Auth: Bearer JWT.
+- RBAC: owner/parent.
+
+### PUT /api/v1/families/{family_id}/chat/groups/{group_id}/members
+
+- Beskrivning: uppdaterar gruppens deltagare.
+- Auth: Bearer JWT.
+- RBAC: owner/parent.
+
+### GET /api/v1/families/{family_id}/chat/groups/{group_id}/messages
+
+- Beskrivning: listar meddelanden i vald grupp (senaste forst i DB, returneras i tidsordning).
+- Query params:
+  - `limit` (default 50, min 1, max 200)
+- Auth: Bearer JWT.
+- Krav: anvandaren maste vara medlem i gruppen.
+
+### POST /api/v1/families/{family_id}/chat/groups/{group_id}/messages
+
+- Beskrivning: skickar meddelande till vald grupp.
+- Auth: Bearer JWT.
+- Krav: anvandaren maste vara medlem i gruppen.
+
+### POST /api/v1/families/{family_id}/chat/groups/{group_id}/read
+
+- Beskrivning: markerar gruppens meddelanden som lasta for aktuell anvandare.
+- Auth: Bearer JWT.
+- Krav: anvandaren maste vara medlem i gruppen.
+
+### GET /api/v1/families/{family_id}/chat/widgets/unread
+
+- Beskrivning: data till dashboard-widget med senaste olasta meddelanden.
+- Query params:
+  - `limit` (default 5, min 1, max 20)
+- Auth: Bearer JWT.
+- Respons: `unread_count` + lista med meddelanden (gruppnamn, avsandare, innehall, timestamp).
+
 ## Calendar payload (upsert)
 
 `POST` och `PUT` for calendar-events anvander samma body:
@@ -171,6 +219,34 @@ Valideringsregler:
 - Feeden maste vara reachbar och parsebar som iCal (`VCALENDAR`).
 - `member_user_id` maste tillhora samma familj.
 - URL lagras krypterad i databasen (`ical_url_encrypted`) och returneras endast maskerad i API-respons.
+
+## Chat payloads
+
+`POST /chat/groups` anvander body:
+
+```json
+{
+  "name": "Foraldrachatt",
+  "description": "Koordinering av veckan",
+  "member_user_ids": ["uuid-1", "uuid-2"]
+}
+```
+
+`PUT /chat/groups/{group_id}/members` anvander body:
+
+```json
+{
+  "member_user_ids": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+`POST /chat/groups/{group_id}/messages` anvander body:
+
+```json
+{
+  "content": "Jag hamtar efter traningen kl 18"
+}
+```
 
 ## Kalenderaggregation och cache-strategi
 

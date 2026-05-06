@@ -14,6 +14,7 @@ export default async function AppLayout({
   const navItems = [
     { href: "/app", label: t("nav.dashboard") },
     { href: "/app/calendar", label: t("nav.calendar") },
+    { href: "/app/chat", label: t("nav.chat") },
     { href: "/app/family", label: t("nav.family") },
     { href: "/app/settings", label: t("nav.settings") },
   ];

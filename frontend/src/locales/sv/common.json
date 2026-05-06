@@ -7,6 +7,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "calendar": "Kalender",
+    "chat": "Chatt",
     "family": "Familj",
     "settings": "Inställningar"
   },
@@ -162,6 +163,35 @@
     "errors": {
       "auth": "Kunde inte verifiera inloggning.",
       "load": "Kunde inte ladda inställningar.",
+      "network": "Nätverksfel. Försök igen."
+    }
+  },
+  "chat": {
+    "title": "Familjechatt",
+    "subtitle": "Skapa grupper, hantera deltagare och skicka meddelanden.",
+    "groupsTitle": "Grupper",
+    "groupCreateTitle": "Skapa grupp",
+    "manageMembersTitle": "Hantera deltagare",
+    "createGroup": "Skapa grupp",
+    "saveMembers": "Spara deltagare",
+    "send": "Skicka",
+    "selectGroup": "Välj en grupp för att se meddelanden.",
+    "noDescription": "Ingen beskrivning",
+    "emptyGroups": "Du är inte med i några chattgrupper ännu.",
+    "emptyMessages": "Inga meddelanden ännu.",
+    "emptyUnread": "Inga olästa meddelanden.",
+    "widgetTitle": "Olästa meddelanden",
+    "loading": "Laddar chatt...",
+    "fields": {
+      "groupName": "Gruppnamn",
+      "groupDescription": "Beskrivning (valfritt)",
+      "participants": "Deltagare",
+      "message": "Skriv ett meddelande..."
+    },
+    "errors": {
+      "auth": "Kunde inte verifiera inloggning.",
+      "load": "Kunde inte ladda chattdata.",
+      "save": "Kunde inte spara ändringen.",
       "network": "Nätverksfel. Försök igen."
     }
   }

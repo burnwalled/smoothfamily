@@ -11,6 +11,7 @@
 - ✅ Issue #12 klar: Intern familjekalender med month/week/list, create/edit/delete och dashboard-widget for kommande events.
 - ✅ Issue #13 klar: iCal-integrationer i inställningar med krypterad URL-lagring, validering och RBAC (owner/parent).
 - ✅ Issue #14 klar: Aggregerad kalendervy (familj + externa iCal), filter per källa/medlem, samt widget med samlade kommande events.
+- ✅ Issue #15 klar: Familjechatt med grupper, RBAC-styrd gruppadministration, meddelandeflöde och dashboard-widget för olästa meddelanden.
 
 ## Sprint-status
 
