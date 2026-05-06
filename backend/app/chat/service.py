@@ -163,7 +163,9 @@ async def create_group(
             detail="Chat group must contain at least one member",
         )
 
-    invalid_members = [member_id for member_id in requested_members if member_id not in family_member_ids]
+    invalid_members = [
+        member_id for member_id in requested_members if member_id not in family_member_ids
+    ]
     if invalid_members:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -180,10 +182,7 @@ async def create_group(
     await db.flush()
 
     db.add_all(
-        [
-            ChatGroupMember(group_id=group.id, user_id=member_id)
-            for member_id in requested_members
-        ]
+        [ChatGroupMember(group_id=group.id, user_id=member_id) for member_id in requested_members]
     )
     await db.flush()
 
@@ -210,7 +209,9 @@ async def update_group_members(
             detail="Chat group must contain at least one member",
         )
 
-    invalid_members = [member_id for member_id in requested_members if member_id not in family_member_ids]
+    invalid_members = [
+        member_id for member_id in requested_members if member_id not in family_member_ids
+    ]
     if invalid_members:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -219,10 +220,7 @@ async def update_group_members(
 
     await db.execute(delete(ChatGroupMember).where(ChatGroupMember.group_id == group_id))
     db.add_all(
-        [
-            ChatGroupMember(group_id=group_id, user_id=member_id)
-            for member_id in requested_members
-        ]
+        [ChatGroupMember(group_id=group_id, user_id=member_id) for member_id in requested_members]
     )
     await db.flush()
 
@@ -311,7 +309,9 @@ async def list_unread_messages(
     limit: int,
 ) -> tuple[int, list[tuple[ChatMessage, str, str]]]:
     membership_rows = await db.execute(
-        select(ChatGroupMember).join(ChatGroup, ChatGroup.id == ChatGroupMember.group_id).where(
+        select(ChatGroupMember)
+        .join(ChatGroup, ChatGroup.id == ChatGroupMember.group_id)
+        .where(
             ChatGroup.family_id == family_id,
             ChatGroupMember.user_id == current_user_id,
         )

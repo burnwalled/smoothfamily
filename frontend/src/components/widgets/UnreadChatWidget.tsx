@@ -26,6 +26,22 @@ type UnreadWidgetResponse = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function resolveApiUrl(rawValue: string | undefined): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (parsed.hostname === "localhost") {
+      parsed.hostname = "127.0.0.1";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawValue;
+  }
+}
+
 function formatStart(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -42,17 +58,21 @@ function formatStart(value: string): string {
 export default function UnreadChatWidget() {
   const t = useTranslations("chat");
   const { isSignedIn, getToken } = useAuth();
+  const apiUrl = useMemo(() => resolveApiUrl(API_URL), []);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [messages, setMessages] = useState<UnreadMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canFetch = useMemo(() => Boolean(API_URL) && isSignedIn, [isSignedIn]);
+  const canFetch = useMemo(
+    () => Boolean(apiUrl) && isSignedIn,
+    [apiUrl, isSignedIn],
+  );
 
   useEffect(() => {
     async function loadWidget() {
-      if (!API_URL) {
+      if (!apiUrl) {
         setError("NEXT_PUBLIC_API_URL is not configured.");
         setLoading(false);
         return;
@@ -74,7 +94,7 @@ export default function UnreadChatWidget() {
         }
 
         const overviewResponse = await fetch(
-          `${API_URL}/api/v1/families/current/overview`,
+          `${apiUrl}/api/v1/families/current/overview`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -90,7 +110,7 @@ export default function UnreadChatWidget() {
 
         const overview = (await overviewResponse.json()) as FamilyOverview;
         const widgetResponse = await fetch(
-          `${API_URL}/api/v1/families/${overview.family_id}/chat/widgets/unread?limit=5`,
+          `${apiUrl}/api/v1/families/${overview.family_id}/chat/widgets/unread?limit=5`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -107,8 +127,9 @@ export default function UnreadChatWidget() {
         const payload = (await widgetResponse.json()) as UnreadWidgetResponse;
         setUnreadCount(payload.unread_count);
         setMessages(payload.messages);
-      } catch {
-        setError(t("errors.network"));
+      } catch (error) {
+        const detail = error instanceof Error ? ` (${error.message})` : "";
+        setError(`${t("errors.network")}${detail}`);
       } finally {
         setLoading(false);
       }
@@ -119,7 +140,7 @@ export default function UnreadChatWidget() {
     } else {
       setLoading(false);
     }
-  }, [canFetch, getToken, isSignedIn, t]);
+  }, [apiUrl, canFetch, getToken, isSignedIn, t]);
 
   return (
     <section className="portal-card">
@@ -143,7 +164,9 @@ export default function UnreadChatWidget() {
               style={{ borderColor: "rgb(var(--color-border))" }}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-xs text-muted-foreground">{message.group_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {message.group_name}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatStart(message.created_at)}
                 </p>

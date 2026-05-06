@@ -268,3 +268,5 @@ Vanliga lokala fallgropar:
 - Fel `CLERK_JWT_ISSUER` ger auth-fel mot JWKS.
 - Frontend maste ha korrekt `NEXT_PUBLIC_API_URL` i `frontend/.env.local`.
 - Backend maste vara restartad efter miljovariabelandringar.
+- Om `POST /chat/groups` returnerar `500` lokalt: kontrollera att DB-migration `0006` ar applicerad (`uv run alembic current`).
+- Vid `Failed to fetch` i browsern: verifiera loopback/host i lokal miljo (`localhost` vs `127.0.0.1` vs `::1`).

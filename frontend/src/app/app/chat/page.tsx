@@ -47,6 +47,22 @@ type ChatMessagesResponse = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function resolveApiUrl(rawValue: string | undefined): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (parsed.hostname === "localhost") {
+      parsed.hostname = "127.0.0.1";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawValue;
+  }
+}
+
 function formatDateTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -63,6 +79,7 @@ function formatDateTime(value: string): string {
 export default function ChatPage() {
   const t = useTranslations("chat");
   const { isSignedIn, getToken } = useAuth();
+  const apiUrl = useMemo(() => resolveApiUrl(API_URL), []);
 
   const [overview, setOverview] = useState<FamilyOverview | null>(null);
   const [groups, setGroups] = useState<ChatGroup[]>([]);
@@ -104,7 +121,7 @@ export default function ChatPage() {
   }
 
   async function loadOverviewAndGroups(): Promise<void> {
-    if (!API_URL) {
+    if (!apiUrl) {
       setError("NEXT_PUBLIC_API_URL is not configured.");
       setLoading(false);
       return;
@@ -126,7 +143,7 @@ export default function ChatPage() {
       }
 
       const overviewResponse = await fetch(
-        `${API_URL}/api/v1/families/current/overview`,
+        `${apiUrl}/api/v1/families/current/overview`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -143,12 +160,14 @@ export default function ChatPage() {
       const overviewPayload = (await overviewResponse.json()) as FamilyOverview;
       setOverview(overviewPayload);
       if (newGroupMemberIds.length === 0) {
-        setNewGroupMemberIds(overviewPayload.members.map((member) => member.user_id));
+        setNewGroupMemberIds(
+          overviewPayload.members.map((member) => member.user_id),
+        );
       }
 
       setGroupsLoading(true);
       const groupsResponse = await fetch(
-        `${API_URL}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
+        `${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -170,8 +189,9 @@ export default function ChatPage() {
       } else {
         setSelectedGroupId(null);
       }
-    } catch {
-      setError(t("errors.network"));
+    } catch (error) {
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setError(`${t("errors.network")}${detail}`);
     } finally {
       setLoading(false);
       setGroupsLoading(false);
@@ -180,10 +200,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     void loadOverviewAndGroups();
-  }, [getToken, isSignedIn, t]);
+  }, [apiUrl, getToken, isSignedIn, t]);
 
   async function loadMessages(groupId: string): Promise<void> {
-    if (!overview || !API_URL) {
+    if (!overview || !apiUrl) {
       return;
     }
 
@@ -198,7 +218,7 @@ export default function ChatPage() {
       }
 
       const messagesResponse = await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/messages?limit=100`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/messages?limit=100`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -216,7 +236,7 @@ export default function ChatPage() {
       setMessages(payload.messages);
 
       await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/read`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/read`,
         {
           method: "POST",
           headers: {
@@ -224,8 +244,9 @@ export default function ChatPage() {
           },
         },
       );
-    } catch {
-      setError(t("errors.network"));
+    } catch (error) {
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setError(`${t("errors.network")}${detail}`);
     } finally {
       setMessagesLoading(false);
     }
@@ -241,7 +262,7 @@ export default function ChatPage() {
 
   async function onCreateGroup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !API_URL || !canManageGroups) {
+    if (!overview || !apiUrl || !canManageGroups) {
       return;
     }
 
@@ -253,7 +274,7 @@ export default function ChatPage() {
       }
 
       const response = await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups`,
         {
           method: "POST",
           headers: {
@@ -281,14 +302,15 @@ export default function ChatPage() {
       setSelectedGroupId(created.id);
       setNewGroupName("");
       setNewGroupDescription("");
-    } catch {
-      setError(t("errors.network"));
+    } catch (error) {
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setError(`${t("errors.network")}${detail}`);
     }
   }
 
   async function onUpdateMembers(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !API_URL || !selectedGroup || !canManageGroups) {
+    if (!overview || !apiUrl || !selectedGroup || !canManageGroups) {
       return;
     }
 
@@ -300,7 +322,7 @@ export default function ChatPage() {
       }
 
       const response = await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/members`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/members`,
         {
           method: "PUT",
           headers: {
@@ -323,14 +345,15 @@ export default function ChatPage() {
       setGroups((previous) =>
         previous.map((group) => (group.id === updated.id ? updated : group)),
       );
-    } catch {
-      setError(t("errors.network"));
+    } catch (error) {
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setError(`${t("errors.network")}${detail}`);
     }
   }
 
   async function onSendMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !API_URL || !selectedGroup || !newMessage.trim()) {
+    if (!overview || !apiUrl || !selectedGroup || !newMessage.trim()) {
       return;
     }
 
@@ -342,7 +365,7 @@ export default function ChatPage() {
       }
 
       const response = await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/messages`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/messages`,
         {
           method: "POST",
           headers: {
@@ -365,7 +388,7 @@ export default function ChatPage() {
       setMessages((previous) => [...previous, created]);
       setNewMessage("");
       await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/read`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/read`,
         {
           method: "POST",
           headers: {
@@ -373,8 +396,9 @@ export default function ChatPage() {
           },
         },
       );
-    } catch {
-      setError(t("errors.network"));
+    } catch (error) {
+      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setError(`${t("errors.network")}${detail}`);
     }
   }
 
@@ -413,7 +437,9 @@ export default function ChatPage() {
               style={{ borderColor: "rgb(var(--color-border))" }}
             />
             <div>
-              <p className="mb-2 text-sm text-muted-foreground">{t("fields.participants")}</p>
+              <p className="mb-2 text-sm text-muted-foreground">
+                {t("fields.participants")}
+              </p>
               <div className="grid gap-2 md:grid-cols-2">
                 {overview.members.map((member) => (
                   <label
@@ -452,7 +478,9 @@ export default function ChatPage() {
           {groupsLoading ? (
             <p className="mt-2 text-sm text-muted-foreground">{t("loading")}</p>
           ) : groups.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">{t("emptyGroups")}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("emptyGroups")}
+            </p>
           ) : (
             <ul className="mt-3 space-y-2">
               {groups.map((group) => (
@@ -486,7 +514,9 @@ export default function ChatPage() {
           ) : (
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold">{selectedGroup.name}</h2>
+                <h2 className="text-base font-semibold">
+                  {selectedGroup.name}
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   {selectedGroup.description ?? t("noDescription")}
                 </p>
@@ -498,7 +528,9 @@ export default function ChatPage() {
                   style={{ borderColor: "rgb(var(--color-border))" }}
                   onSubmit={onUpdateMembers}
                 >
-                  <p className="text-sm font-medium">{t("manageMembersTitle")}</p>
+                  <p className="text-sm font-medium">
+                    {t("manageMembersTitle")}
+                  </p>
                   <div className="grid gap-2 md:grid-cols-2">
                     {overview.members.map((member) => (
                       <label
@@ -533,9 +565,13 @@ export default function ChatPage() {
                 style={{ borderColor: "rgb(var(--color-border))" }}
               >
                 {messagesLoading ? (
-                  <p className="text-sm text-muted-foreground">{t("loading")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("loading")}
+                  </p>
                 ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("emptyMessages")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("emptyMessages")}
+                  </p>
                 ) : (
                   messages.map((message) => (
                     <div
@@ -544,12 +580,16 @@ export default function ChatPage() {
                       style={{ borderColor: "rgb(var(--color-border))" }}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-medium">{message.sender_email}</p>
+                        <p className="text-sm font-medium">
+                          {message.sender_email}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDateTime(message.created_at)}
                         </p>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{message.content}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {message.content}
+                      </p>
                     </div>
                   ))
                 )}

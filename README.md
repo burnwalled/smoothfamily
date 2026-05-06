@@ -85,6 +85,14 @@ Vanlig felsökning:
 - Om `docker`-kommandot saknas: starta Docker Desktop och öppna ny terminal
 - Om frontend blockeras av execution policy i PowerShell: använd `pnpm.cmd` i stället för `pnpm`
 
+Chatt-felsokning (lokal utveckling):
+
+- Om `POST /api/v1/families/{family_id}/chat/groups` ger `500 Internal Server Error` saknas ofta migration `0006`.
+	- Kor: `cd backend && uv run alembic upgrade head`
+	- Verifiera: `uv run alembic current` ska visa `0006 (head)`
+	- Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt chat_*"`
+- Om frontend visar `Failed to fetch` mot `localhost`: verifiera att backend faktiskt svarar pa samma loopback-adress (IPv4/IPv6 kan skilja i Windows).
+
 Migrationer i backend:
 
 - Kör migration: `uv run alembic upgrade head`
