@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import resend
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -116,3 +117,65 @@ async def create_family_invite(
 
     _send_family_invite_email(invite.invited_email, family.name, token, expires_at)
     return invite
+
+
+async def accept_family_invite_token(
+    db: AsyncSession,
+    user: User,
+    token: str,
+) -> tuple[Family, str, bool]:
+    token_hash = _hash_invite_token(token)
+    invite_result = await db.execute(
+        select(FamilyInvite).where(FamilyInvite.token_hash == token_hash)
+    )
+    invite = invite_result.scalar_one_or_none()
+
+    if invite is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+
+    now = datetime.now(tz=UTC)
+    if invite.accepted_at is not None:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invite already accepted")
+    if invite.expires_at <= now:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invite has expired")
+
+    if user.email.lower().strip() != invite.invited_email.lower().strip():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invite email does not match current user",
+        )
+
+    family_result = await db.execute(select(Family).where(Family.id == invite.family_id))
+    family = family_result.scalar_one_or_none()
+    if family is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family not found")
+
+    membership_result = await db.execute(
+        select(UserFamilyMembership).where(
+            UserFamilyMembership.user_id == user.id,
+            UserFamilyMembership.family_id == family.id,
+        )
+    )
+    existing_membership = membership_result.scalar_one_or_none()
+
+    if existing_membership is None:
+        memberships = await list_user_memberships(db, user.id)
+        membership = UserFamilyMembership(
+            user_id=user.id,
+            family_id=family.id,
+            is_primary=not memberships,
+            role=invite.role,
+            invited_email=invite.invited_email,
+            color_hex=DEFAULT_MEMBER_COLOR,
+        )
+        db.add(membership)
+        resolved_role = invite.role
+        already_member = False
+    else:
+        resolved_role = existing_membership.role
+        already_member = True
+
+    invite.accepted_at = now
+    await db.flush()
+
+    return family, resolved_role, already_member

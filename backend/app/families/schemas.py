@@ -36,3 +36,10 @@ class FamilyInviteCreateResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class FamilyInviteAcceptResponse(BaseModel):
+    family_id: UUID
+    family_name: str
+    role: str
+    already_member: bool

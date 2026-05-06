@@ -67,10 +67,12 @@ async def health() -> dict[str, str]:
 
 
 from app.auth.router import router as auth_router
+from app.families.invite_router import router as invites_router
 from app.families.router import router as families_router
 
 app.include_router(auth_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(families_router, prefix="/api/v1/families", tags=["families"])
+app.include_router(invites_router, prefix="/api/v1/invites", tags=["invites"])
 
 # Future routers (uncomment as modules are implemented):
 # from app.calendar.router import router as calendar_router
