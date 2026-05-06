@@ -16,6 +16,7 @@ type PendingInvite = {
   id: string;
   invited_email: string;
   role: string;
+  status: string;
   expires_at: string;
   created_at: string;
 };
@@ -35,6 +36,22 @@ type FamilyOverview = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function resolveApiUrl(rawValue: string | undefined): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    if (parsed.hostname === "localhost") {
+      parsed.hostname = "127.0.0.1";
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawValue;
+  }
+}
+
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -50,6 +67,7 @@ function formatDate(value: string): string {
 export default function FamilyPage() {
   const t = useTranslations("family");
   const { isSignedIn, getToken } = useAuth();
+  const apiUrl = resolveApiUrl(API_URL);
 
   const [overview, setOverview] = useState<FamilyOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,10 +76,37 @@ export default function FamilyPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("parent");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [memberActionId, setMemberActionId] = useState<string | null>(null);
+
+  function upsertInvite(invite: PendingInvite): void {
+    setOverview((previous) => {
+      if (!previous) {
+        return previous;
+      }
+
+      const existingIndex = previous.pending_invites.findIndex(
+        (entry) => entry.id === invite.id,
+      );
+      if (existingIndex === -1) {
+        return {
+          ...previous,
+          pending_invites: [invite, ...previous.pending_invites],
+        };
+      }
+
+      return {
+        ...previous,
+        pending_invites: previous.pending_invites.map((entry) =>
+          entry.id === invite.id ? invite : entry,
+        ),
+      };
+    });
+  }
 
   useEffect(() => {
     async function loadOverview() {
-      if (!API_URL) {
+      if (!apiUrl) {
         setError("NEXT_PUBLIC_API_URL is not configured.");
         setLoading(false);
         return;
@@ -83,7 +128,7 @@ export default function FamilyPage() {
         }
 
         const response = await fetch(
-          `${API_URL}/api/v1/families/current/overview`,
+          `${apiUrl}/api/v1/families/current/overview`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -110,11 +155,11 @@ export default function FamilyPage() {
     }
 
     void loadOverview();
-  }, [getToken, isSignedIn, t]);
+  }, [apiUrl, getToken, isSignedIn, t]);
 
   async function onInviteSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !API_URL || !inviteEmail.trim()) {
+    if (!overview || !apiUrl || !inviteEmail.trim()) {
       return;
     }
 
@@ -129,7 +174,7 @@ export default function FamilyPage() {
       }
 
       const response = await fetch(
-        `${API_URL}/api/v1/families/${overview.family_id}/invites`,
+        `${apiUrl}/api/v1/families/${overview.family_id}/invites`,
         {
           method: "POST",
           headers: {
@@ -152,29 +197,162 @@ export default function FamilyPage() {
       }
 
       const createdInvite = (await response.json()) as PendingInvite;
-      setOverview((previous) => {
-        if (!previous) {
-          return previous;
-        }
-        return {
-          ...previous,
-          pending_invites: [
-            {
-              id: createdInvite.id,
-              invited_email: createdInvite.invited_email,
-              role: createdInvite.role,
-              expires_at: createdInvite.expires_at,
-              created_at: createdInvite.created_at,
-            },
-            ...previous.pending_invites,
-          ],
-        };
-      });
+      upsertInvite(createdInvite);
       setInviteEmail("");
     } catch {
       setError(t("errors.network"));
     } finally {
       setInviteSubmitting(false);
+    }
+  }
+
+  async function onResendInvite(inviteId: string): Promise<void> {
+    if (!overview || !apiUrl) {
+      return;
+    }
+
+    setInviteActionId(inviteId);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError(t("errors.auth"));
+        return;
+      }
+
+      const response = await fetch(
+        `${apiUrl}/api/v1/families/${overview.family_id}/invites/${inviteId}/resend`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
+        setError(payload.detail ?? t("errors.invite"));
+        return;
+      }
+
+      const updatedInvite = (await response.json()) as PendingInvite;
+      upsertInvite(updatedInvite);
+    } catch {
+      setError(t("errors.network"));
+    } finally {
+      setInviteActionId(null);
+    }
+  }
+
+  async function onRevokeInvite(inviteId: string): Promise<void> {
+    if (!overview || !apiUrl) {
+      return;
+    }
+
+    setInviteActionId(inviteId);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError(t("errors.auth"));
+        return;
+      }
+
+      const response = await fetch(
+        `${apiUrl}/api/v1/families/${overview.family_id}/invites/${inviteId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
+        setError(payload.detail ?? t("errors.invite"));
+        return;
+      }
+
+      const updatedInvite = (await response.json()) as PendingInvite;
+      upsertInvite(updatedInvite);
+    } catch {
+      setError(t("errors.network"));
+    } finally {
+      setInviteActionId(null);
+    }
+  }
+
+  async function onUpdateMemberRole(
+    memberUserId: string,
+    role: string,
+  ): Promise<void> {
+    if (!overview || !apiUrl) {
+      return;
+    }
+
+    setMemberActionId(memberUserId);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError(t("errors.auth"));
+        return;
+      }
+
+      const response = await fetch(
+        `${apiUrl}/api/v1/families/${overview.family_id}/members/${memberUserId}/role`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role }),
+        },
+      );
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
+        setError(payload.detail ?? t("errors.invite"));
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        user_id: string;
+        role: string;
+      };
+      setOverview((previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          members: previous.members.map((member) =>
+            member.user_id === payload.user_id
+              ? {
+                  ...member,
+                  role: payload.role,
+                }
+              : member,
+          ),
+        };
+      });
+    } catch {
+      setError(t("errors.network"));
+    } finally {
+      setMemberActionId(null);
     }
   }
 
@@ -220,7 +398,32 @@ export default function FamilyPage() {
                 />
                 <div>
                   <p className="text-sm font-medium">{member.email}</p>
-                  <p className="text-xs text-muted-foreground">{member.role}</p>
+                  {overview.permissions.can_manage_members ? (
+                    <div className="mt-1 flex items-center gap-2">
+                      <select
+                        value={member.role === "owner" ? "parent" : member.role}
+                        disabled={memberActionId === member.user_id}
+                        onChange={(event) =>
+                          void onUpdateMemberRole(
+                            member.user_id,
+                            event.target.value,
+                          )
+                        }
+                        className="rounded-md border bg-background px-2 py-1 text-xs"
+                        style={{ borderColor: "rgb(var(--color-border))" }}
+                      >
+                        <option value="parent">parent</option>
+                        <option value="child">child</option>
+                      </select>
+                      <span className="text-xs text-muted-foreground">
+                        {member.role}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {member.role}
+                    </p>
+                  )}
                 </div>
               </div>
               {member.is_primary ? (
@@ -294,9 +497,37 @@ export default function FamilyPage() {
               >
                 <p className="font-medium">{invite.invited_email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {invite.role} · {t("expires")}:{" "}
+                  {invite.role} · {invite.status} · {t("expires")}:{" "}
                   {formatDate(invite.expires_at)}
                 </p>
+                {overview.permissions.can_manage_members ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void onResendInvite(invite.id)}
+                      disabled={
+                        inviteActionId === invite.id ||
+                        invite.status !== "pending"
+                      }
+                      className="rounded-md border px-2 py-1 text-xs font-medium"
+                      style={{ borderColor: "rgb(var(--color-border))" }}
+                    >
+                      {t("resendInvite")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onRevokeInvite(invite.id)}
+                      disabled={
+                        inviteActionId === invite.id ||
+                        invite.status !== "pending"
+                      }
+                      className="rounded-md border px-2 py-1 text-xs font-medium"
+                      style={{ borderColor: "rgb(var(--color-border))" }}
+                    >
+                      {t("revokeInvite")}
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

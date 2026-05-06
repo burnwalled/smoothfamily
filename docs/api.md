@@ -45,6 +45,36 @@ Versionering:
 - Auth: Bearer JWT.
 - RBAC: krav pa `can_manage_members` (owner/parent).
 
+### GET /api/v1/families/{family_id}/invites
+
+- Beskrivning: listar familjens inbjudningar med status (`pending`, `accepted`, `expired`, `revoked`).
+- Auth: Bearer JWT.
+- RBAC: krav pa `can_manage_members` (owner/parent).
+
+### POST /api/v1/families/{family_id}/invites/{invite_id}/resend
+
+- Beskrivning: skickar om inbjudan och fornyar token/utgangstid.
+- Auth: Bearer JWT.
+- RBAC: krav pa `can_manage_members` (owner/parent).
+
+### DELETE /api/v1/families/{family_id}/invites/{invite_id}
+
+- Beskrivning: aterkallar inbjudan (soft revoke via `revoked_at`).
+- Auth: Bearer JWT.
+- RBAC: krav pa `can_manage_members` (owner/parent).
+
+### PUT /api/v1/families/{family_id}/members/{member_user_id}/role
+
+- Beskrivning: uppdaterar medlemsroll (`parent` eller `child`).
+- Auth: Bearer JWT.
+- RBAC: krav pa `can_manage_members` (owner/parent).
+- Regel: owner kan aldrig nedgraderas till `child` via API.
+
+### GET /api/v1/families/{family_id}/members/widgets/pending
+
+- Beskrivning: data till dashboard-widget for vantande inbjudningar och senaste medlemsandringar.
+- Auth: Bearer JWT.
+
 ## Invites
 
 ### GET /api/v1/invites/{token}

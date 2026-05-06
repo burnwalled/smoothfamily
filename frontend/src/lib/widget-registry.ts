@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import OpenListsWidget from "@/components/widgets/OpenListsWidget";
+import PendingMembersWidget from "@/components/widgets/PendingMembersWidget";
 import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
@@ -33,5 +34,12 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
     allowedSizes: ["medium", "large", "full"],
     requiredFeatures: ["lists"],
     component: OpenListsWidget,
+  },
+  family_pending: {
+    type: "family_pending",
+    defaultSize: "large",
+    allowedSizes: ["medium", "large", "full"],
+    requiredFeatures: ["family"],
+    component: PendingMembersWidget,
   },
 };

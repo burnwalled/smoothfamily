@@ -115,6 +115,16 @@ function formatEventRange(event: CalendarEvent): string {
   }).format(end)}`;
 }
 
+function getEventRenderKey(event: CalendarEvent, index: number): string {
+  return [
+    event.source_type,
+    event.id,
+    event.start_at,
+    event.member_user_id ?? "none",
+    `${index}`,
+  ].join("-");
+}
+
 export default function CalendarPage() {
   const t = useTranslations("calendar");
   const { isSignedIn, getToken } = useAuth();
@@ -634,9 +644,9 @@ export default function CalendarPage() {
                   >
                     <p className="text-xs font-semibold">{date.getDate()}</p>
                     <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 2).map((event) => (
+                      {dayEvents.slice(0, 2).map((event, index) => (
                         <p
-                          key={event.id}
+                          key={getEventRenderKey(event, index)}
                           className="truncate rounded bg-muted px-1 py-0.5 text-[10px]"
                           style={{
                             borderLeft: event.source_color_hex
@@ -687,9 +697,9 @@ export default function CalendarPage() {
                     {dayEvents.length === 0 ? (
                       <p className="text-xs text-muted-foreground">-</p>
                     ) : (
-                      dayEvents.map((event) => (
+                      dayEvents.map((event, index) => (
                         <div
-                          key={event.id}
+                          key={getEventRenderKey(event, index)}
                           className="w-full rounded bg-muted px-1 py-1 text-left text-[11px]"
                           style={{
                             borderLeft: event.source_color_hex
@@ -725,9 +735,9 @@ export default function CalendarPage() {
             {listEvents.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("empty")}</p>
             ) : (
-              listEvents.map((event) => (
+              listEvents.map((event, index) => (
                 <div
-                  key={event.id}
+                  key={getEventRenderKey(event, index)}
                   className="rounded-md border px-3 py-2"
                   style={{ borderColor: "rgb(var(--color-border))" }}
                 >
@@ -785,9 +795,9 @@ export default function CalendarPage() {
           </p>
         ) : (
           <ul className="space-y-2">
-            {selectedDayEvents.map((event) => (
+            {selectedDayEvents.map((event, index) => (
               <li
-                key={event.id}
+                key={getEventRenderKey(event, index)}
                 className="rounded-md border px-3 py-3"
                 style={{ borderColor: "rgb(var(--color-border))" }}
               >

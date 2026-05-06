@@ -32,7 +32,10 @@ class FamilyInviteCreateResponse(BaseModel):
     family_id: UUID
     invited_email: str
     role: str
+    status: str
     expires_at: datetime
+    revoked_at: datetime | None = None
+    accepted_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -57,8 +60,55 @@ class PendingInviteResponse(BaseModel):
     id: UUID
     invited_email: str
     role: str
+    status: str = "pending"
     expires_at: datetime
     created_at: datetime
+
+
+class FamilyInviteListResponse(BaseModel):
+    invites: list[PendingInviteResponse]
+
+
+class FamilyInviteActionResponse(BaseModel):
+    id: UUID
+    family_id: UUID
+    invited_email: str
+    role: str
+    status: str
+    expires_at: datetime
+    revoked_at: datetime | None = None
+    accepted_at: datetime | None = None
+    created_at: datetime
+
+
+class FamilyMemberRoleUpdateRequest(BaseModel):
+    role: str
+
+
+class FamilyMemberRoleUpdateResponse(BaseModel):
+    user_id: UUID
+    role: str
+
+
+class PendingMembersWidgetInviteResponse(BaseModel):
+    id: UUID
+    invited_email: str
+    role: str
+    expires_at: datetime
+
+
+class PendingMembersWidgetMemberResponse(BaseModel):
+    user_id: UUID
+    email: str
+    role: str
+    joined_at: datetime
+
+
+class PendingMembersWidgetResponse(BaseModel):
+    family_id: UUID
+    pending_invites_count: int
+    invites: list[PendingMembersWidgetInviteResponse]
+    recent_member_changes: list[PendingMembersWidgetMemberResponse]
 
 
 class FamilyPermissionsResponse(BaseModel):

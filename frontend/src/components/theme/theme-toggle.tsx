@@ -52,7 +52,7 @@ export function ThemeToggle() {
           return;
         }
 
-        const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
+        const response = await fetch(`${apiUrl}/api/v1/users/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -80,7 +80,7 @@ export function ThemeToggle() {
         }
 
         if (localPreferenceRef.current !== data.theme_preference) {
-          await fetch(`${apiUrl}/api/v1/auth/me`, {
+          await fetch(`${apiUrl}/api/v1/users/me`, {
             method: "PATCH",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -125,7 +125,7 @@ export function ThemeToggle() {
           return;
         }
 
-        const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
+        const response = await fetch(`${apiUrl}/api/v1/users/me`, {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,

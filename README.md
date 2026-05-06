@@ -13,6 +13,7 @@
 - ✅ Issue #14 klar: Aggregerad kalendervy (familj + externa iCal), filter per källa/medlem, samt widget med samlade kommande events.
 - ✅ Issue #15 klar: Familjechatt med grupper, RBAC-styrd gruppadministration, meddelandeflöde och dashboard-widget för olästa meddelanden.
 - ✅ Issue #16 klar: Delade listor med deltagarstyrd synlighet (medlem + chattgrupp), list-/item-API, lists-sida och dashboard-widget för öppna listor.
+- ✅ Issue #17 klar: Medlemshantering 2.0 med invite-status (pending/accepted/expired/revoked), resend/revoke, rolluppdatering och owner-skydd mot nedgradering.
 
 ## Sprint-status
 
@@ -98,6 +99,8 @@ Chatt-felsokning (lokal utveckling):
   - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt shared_list*"`
 - Incidentnotis (2026-05-06): `POST /api/v1/families/{family_id}/lists` gav `500` eftersom lokal DB lag pa `0006` och saknade `shared_list*`-tabeller. Lost genom `uv run alembic upgrade head` (till `0007`) och verifiering av tabeller i Postgres.
 - Om frontend visar `Failed to fetch` mot `localhost`: verifiera att backend faktiskt svarar pa samma loopback-adress (IPv4/IPv6 kan skilja i Windows).
+- Incidentnotis (2026-05-06): `PATCH /api/v1/users/me` gav `500` och frontend visade CORS-liknande fel. Rotorsak var `MissingGreenlet` vid serialisering av `updated_at` efter `flush()`.
+  - Fix pattern: gor `await db.refresh(user)` innan `UserResponse.model_validate(user)` nar response inkluderar DB-genererade/refresh-kravande falt.
 
 Checklista vid ny backend-modul med nya tabeller:
 

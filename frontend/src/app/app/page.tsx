@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import OpenListsWidget from "@/components/widgets/OpenListsWidget";
+import PendingMembersWidget from "@/components/widgets/PendingMembersWidget";
 import UnreadChatWidget from "@/components/widgets/UnreadChatWidget";
 import UpcomingEventsWidget from "@/components/widgets/UpcomingEventsWidget";
 
@@ -142,6 +143,8 @@ export default async function DashboardPage() {
         <UnreadChatWidget />
 
         <OpenListsWidget />
+
+        <PendingMembersWidget />
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

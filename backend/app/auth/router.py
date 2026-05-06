@@ -34,4 +34,5 @@ async def update_me(
     if body.theme_preference is not None:
         user.theme_preference = body.theme_preference
     await db.flush()
+    await db.refresh(user)
     return UserResponse.model_validate(user)
