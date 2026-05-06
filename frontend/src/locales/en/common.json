@@ -50,6 +50,8 @@
     "pendingInvitesTitle": "Pending invites",
     "pendingInvitesEmpty": "No active invites right now.",
     "expires": "expires",
+    "roleLabel": "Your role",
+    "inviteRestricted": "Your role does not have permission to invite members.",
     "loading": "Loading family overview...",
     "errors": {
       "auth": "Could not verify sign-in.",
@@ -75,6 +77,23 @@
     "comingSoonTitle": "Coming soon",
     "comingSoonItem1": "RBAC for owner, parent, and child",
     "comingSoonItem2": "Calendar integration via iCal links",
-    "comingSoonItem3": "More account settings and family preferences"
+    "comingSoonItem3": "More account settings and family preferences",
+    "loading": "Loading settings...",
+    "rbacRoleLabel": "Your role",
+    "sectionProfile": "Profile",
+    "sectionProfileDescription": "Basic account settings for language, theme, and profile.",
+    "sectionCalendarIntegrations": "Calendar integrations",
+    "sectionCalendarIntegrationsDescription": "Manage external calendars through iCal links.",
+    "sectionFamilyManagement": "Family management",
+    "sectionFamilyManagementDescription": "Invite members and manage family roles.",
+    "sectionFamilyManagementRestricted": "Your role does not have permission to manage family settings.",
+    "accessEdit": "Can edit",
+    "accessViewOnly": "View only",
+    "accessHidden": "Restricted",
+    "errors": {
+      "auth": "Could not verify sign-in.",
+      "load": "Could not load settings.",
+      "network": "Network error. Please try again."
+    }
   }
 }

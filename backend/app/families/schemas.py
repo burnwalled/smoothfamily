@@ -61,8 +61,16 @@ class PendingInviteResponse(BaseModel):
     created_at: datetime
 
 
+class FamilyPermissionsResponse(BaseModel):
+    can_manage_settings: bool
+    can_manage_members: bool
+    can_manage_calendar_integrations: bool
+
+
 class FamilyOverviewResponse(BaseModel):
     family_id: UUID
     family_name: str
+    current_user_role: str
+    permissions: FamilyPermissionsResponse
     members: list[FamilyMemberResponse]
     pending_invites: list[PendingInviteResponse]

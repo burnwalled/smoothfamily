@@ -10,12 +10,18 @@ from app.auth.models import User
 from app.auth.service import get_or_create_user
 from app.core.database import get_db
 from app.families.models import Family, FamilyInvite, UserFamilyMembership
+from app.families.rbac import (
+    normalize_invite_role,
+    permissions_for_role,
+    resolve_effective_family_role,
+)
 from app.families.schemas import (
     FamilyCreateRequest,
     FamilyCreateResponse,
     FamilyInviteCreateRequest,
     FamilyInviteCreateResponse,
     FamilyMemberResponse,
+    FamilyPermissionsResponse,
     FamilyOverviewResponse,
     PendingInviteResponse,
 )
@@ -64,11 +70,38 @@ async def create_family_invite_endpoint(
     if family is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family not found")
 
+    membership_result = await db.execute(
+        select(UserFamilyMembership).where(
+            UserFamilyMembership.family_id == family.id,
+            UserFamilyMembership.user_id == ctx.user_id,
+        )
+    )
+    membership = membership_result.scalar_one_or_none()
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family")
+
+    current_user_role = resolve_effective_family_role(
+        family_owner_user_id=family.owner_user_id,
+        user_id=ctx.user_id,
+        membership_role=membership.role,
+    )
+    permissions = permissions_for_role(current_user_role)
+    if not permissions.can_manage_members:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to invite family members",
+        )
+
+    try:
+        invite_role = normalize_invite_role(body.role)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+
     invite = await create_family_invite(
         db,
         family=family,
         invited_email=body.email,
-        role=body.role,
+        role=invite_role,
     )
 
     return FamilyInviteCreateResponse(
@@ -106,12 +139,23 @@ async def get_current_family_overview(
         FamilyMemberResponse(
             user_id=membership.user_id,
             email=email,
-            role=membership.role,
+            role=resolve_effective_family_role(
+                family_owner_user_id=family.owner_user_id,
+                user_id=membership.user_id,
+                membership_role=membership.role,
+            ),
             is_primary=membership.is_primary,
             color_hex=membership.color_hex,
         )
         for membership, email in members_result.all()
     ]
+
+    caller_membership = next((member for member in members if member.user_id == ctx.user_id), None)
+    if caller_membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family")
+
+    current_user_role = caller_membership.role
+    permissions = permissions_for_role(current_user_role)
 
     invites_result = await db.execute(
         select(FamilyInvite)
@@ -136,6 +180,12 @@ async def get_current_family_overview(
     return FamilyOverviewResponse(
         family_id=family.id,
         family_name=family.name,
+        current_user_role=current_user_role,
+        permissions=FamilyPermissionsResponse(
+            can_manage_settings=permissions.can_manage_settings,
+            can_manage_members=permissions.can_manage_members,
+            can_manage_calendar_integrations=permissions.can_manage_calendar_integrations,
+        ),
         members=members,
         pending_invites=pending_invites,
     )

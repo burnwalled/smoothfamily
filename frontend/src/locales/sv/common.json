@@ -50,6 +50,8 @@
     "pendingInvitesTitle": "Pending invites",
     "pendingInvitesEmpty": "Inga aktiva invites just nu.",
     "expires": "gar ut",
+    "roleLabel": "Din roll",
+    "inviteRestricted": "Din roll har inte behörighet att bjuda in medlemmar.",
     "loading": "Laddar familjeoversikt...",
     "errors": {
       "auth": "Kunde inte verifiera inloggning.",
@@ -75,6 +77,23 @@
     "comingSoonTitle": "Kommer snart",
     "comingSoonItem1": "RBAC för owner, parent och child",
     "comingSoonItem2": "Kalenderintegration via iCal-länkar",
-    "comingSoonItem3": "Fler kontoinställningar och familjepreferenser"
+    "comingSoonItem3": "Fler kontoinställningar och familjepreferenser",
+    "loading": "Laddar inställningar...",
+    "rbacRoleLabel": "Din roll",
+    "sectionProfile": "Profil",
+    "sectionProfileDescription": "Grundläggande kontoinställningar för språk, tema och profil.",
+    "sectionCalendarIntegrations": "Kalenderintegrationer",
+    "sectionCalendarIntegrationsDescription": "Hantera externa kalendrar via iCal-länkar.",
+    "sectionFamilyManagement": "Familjehantering",
+    "sectionFamilyManagementDescription": "Bjud in medlemmar och hantera roller i familjen.",
+    "sectionFamilyManagementRestricted": "Din roll har inte behörighet att ändra familjehantering.",
+    "accessEdit": "Kan redigera",
+    "accessViewOnly": "Endast visning",
+    "accessHidden": "Begränsad",
+    "errors": {
+      "auth": "Kunde inte verifiera inloggning.",
+      "load": "Kunde inte ladda inställningar.",
+      "network": "Nätverksfel. Försök igen."
+    }
   }
 }

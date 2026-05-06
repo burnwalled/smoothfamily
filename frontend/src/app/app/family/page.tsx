@@ -23,6 +23,12 @@ type PendingInvite = {
 type FamilyOverview = {
   family_id: string;
   family_name: string;
+  current_user_role: string;
+  permissions: {
+    can_manage_settings: boolean;
+    can_manage_members: boolean;
+    can_manage_calendar_integrations: boolean;
+  };
   members: FamilyMember[];
   pending_invites: PendingInvite[];
 };
@@ -180,6 +186,7 @@ export default function FamilyPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {overview.family_name}
         </p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("roleLabel")}: {overview.current_user_role}</p>
       </section>
 
       <section className="portal-card space-y-3">
@@ -220,37 +227,41 @@ export default function FamilyPage() {
       <section className="portal-card space-y-3">
         <h2 className="text-base font-semibold">{t("inviteTitle")}</h2>
 
-        <form
-          onSubmit={onInviteSubmit}
-          className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
-        >
-          <input
-            type="email"
-            required
-            value={inviteEmail}
-            onChange={(event) => setInviteEmail(event.target.value)}
-            placeholder={t("emailPlaceholder")}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-            style={{ borderColor: "rgb(var(--color-border))" }}
-          />
-          <select
-            value={inviteRole}
-            onChange={(event) => setInviteRole(event.target.value)}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-            style={{ borderColor: "rgb(var(--color-border))" }}
+        {overview.permissions.can_manage_members ? (
+          <form
+            onSubmit={onInviteSubmit}
+            className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
           >
-            <option value="parent">parent</option>
-            <option value="child">child</option>
-          </select>
-          <button
-            type="submit"
-            disabled={inviteSubmitting}
-            className="rounded-md border px-3 py-2 text-sm font-medium"
-            style={{ borderColor: "rgb(var(--color-border))" }}
-          >
-            {inviteSubmitting ? t("inviting") : t("invite")}
-          </button>
-        </form>
+            <input
+              type="email"
+              required
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder={t("emailPlaceholder")}
+              className="rounded-md border bg-background px-3 py-2 text-sm"
+              style={{ borderColor: "rgb(var(--color-border))" }}
+            />
+            <select
+              value={inviteRole}
+              onChange={(event) => setInviteRole(event.target.value)}
+              className="rounded-md border bg-background px-3 py-2 text-sm"
+              style={{ borderColor: "rgb(var(--color-border))" }}
+            >
+              <option value="parent">parent</option>
+              <option value="child">child</option>
+            </select>
+            <button
+              type="submit"
+              disabled={inviteSubmitting}
+              className="rounded-md border px-3 py-2 text-sm font-medium"
+              style={{ borderColor: "rgb(var(--color-border))" }}
+            >
+              {inviteSubmitting ? t("inviting") : t("invite")}
+            </button>
+          </form>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t("inviteRestricted")}</p>
+        )}
 
         {error ? <p className="text-xs text-red-500">{error}</p> : null}
       </section>
