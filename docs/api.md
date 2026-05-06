@@ -261,6 +261,27 @@ Responsen innehaller source-metadata for rendering/filter:
   - `limit` (default 5, min 1, max 20)
 - Auth: Bearer JWT.
 
+## Dashboard
+
+### GET /api/v1/families/{family_id}/dashboard/layout
+
+- Beskrivning: hamtar dashboard-layout for inloggad anvandare i vald familj.
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+
+### PUT /api/v1/families/{family_id}/dashboard/layout
+
+- Beskrivning: sparar dashboard-layout (ordning, storlek, synlighet) for widgets.
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+- Validering: okanda widget-typer, otillatna storlekar och dubletter returnerar `422`.
+
+### POST /api/v1/families/{family_id}/dashboard/layout/reset
+
+- Beskrivning: aterstaller dashboard-layout till default for inloggad anvandare.
+- Auth: Bearer JWT.
+- Tenant-regel: anvandaren maste vara medlem i `family_id`.
+
 ## Calendar payload (upsert)
 
 `POST` och `PUT` for calendar-events anvander samma body:

@@ -14,6 +14,7 @@
 - ✅ Issue #15 klar: Familjechatt med grupper, RBAC-styrd gruppadministration, meddelandeflöde och dashboard-widget för olästa meddelanden.
 - ✅ Issue #16 klar: Delade listor med deltagarstyrd synlighet (medlem + chattgrupp), list-/item-API, lists-sida och dashboard-widget för öppna listor.
 - ✅ Issue #17 klar: Medlemshantering 2.0 med invite-status (pending/accepted/expired/revoked), resend/revoke, rolluppdatering och owner-skydd mot nedgradering.
+- ✅ Issue #19-#23 klar: Anpassningsbar dashboard med persisterad layout per familj/anvandare, drag-and-drop, widget picker (visa/dolj), storleksregler, reset till default samt tester/docs.
 
 ## Sprint-status
 
@@ -24,7 +25,7 @@
 | Sprint 2     | Familjer + inbjudningar           | ✅ Klar        |
 | Sprint 3     | Kalender bas                      | ✅ Klar        |
 | Sprint 4     | Externa kalender-feeds (iCal)     | ✅ Klar        |
-| Sprint 5     | Anpassningsbar dashboard          | 🔲 Ej påbörjad |
+| Sprint 5     | Anpassningsbar dashboard          | ✅ Klar        |
 | Sprint 6     | Tema, PWA och polish              | 🔲 Ej påbörjad |
 | Sprint 7     | Stripe + prenumerationsflöde      | 🔲 Ej påbörjad |
 | Sprint 8     | Publik sajt + signup              | 🔲 Ej påbörjad |
