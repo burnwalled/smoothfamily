@@ -95,8 +95,12 @@ export default function ListsPage() {
 
   const [newListTitle, setNewListTitle] = useState("");
   const [newListDescription, setNewListDescription] = useState("");
-  const [newListVisibleMembers, setNewListVisibleMembers] = useState<string[]>([]);
-  const [newListVisibleGroups, setNewListVisibleGroups] = useState<string[]>([]);
+  const [newListVisibleMembers, setNewListVisibleMembers] = useState<string[]>(
+    [],
+  );
+  const [newListVisibleGroups, setNewListVisibleGroups] = useState<string[]>(
+    [],
+  );
   const [newItemTitle, setNewItemTitle] = useState("");
 
   const selectedList = useMemo(
@@ -137,12 +141,15 @@ export default function ListsPage() {
         return;
       }
 
-      const overviewResponse = await fetch(`${apiUrl}/api/v1/families/current/overview`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const overviewResponse = await fetch(
+        `${apiUrl}/api/v1/families/current/overview`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
         },
-        cache: "no-store",
-      });
+      );
 
       if (!overviewResponse.ok) {
         setError(t("errors.load"));
@@ -153,7 +160,9 @@ export default function ListsPage() {
       setOverview(overviewPayload);
 
       if (newListVisibleMembers.length === 0) {
-        setNewListVisibleMembers(overviewPayload.members.map((member) => member.user_id));
+        setNewListVisibleMembers(
+          overviewPayload.members.map((member) => member.user_id),
+        );
       }
 
       const [listsResponse, groupsResponse] = await Promise.all([
@@ -163,12 +172,15 @@ export default function ListsPage() {
           },
           cache: "no-store",
         }),
-        fetch(`${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        fetch(
+          `${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
           },
-          cache: "no-store",
-        }),
+        ),
       ]);
 
       if (!listsResponse.ok || !groupsResponse.ok) {
@@ -178,12 +190,15 @@ export default function ListsPage() {
 
       const listsPayload = (await listsResponse.json()) as SharedListsResponse;
       setLists(listsPayload.lists);
-      setSelectedListId((current) => current ?? listsPayload.lists[0]?.id ?? null);
+      setSelectedListId(
+        (current) => current ?? listsPayload.lists[0]?.id ?? null,
+      );
 
       const groupsPayload = (await groupsResponse.json()) as ChatGroupsResponse;
       setChatGroups(groupsPayload.groups);
     } catch (loadError) {
-      const detail = loadError instanceof Error ? ` (${loadError.message})` : "";
+      const detail =
+        loadError instanceof Error ? ` (${loadError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     } finally {
       setLoading(false);
@@ -227,7 +242,8 @@ export default function ListsPage() {
       const payload = (await response.json()) as SharedListItemsResponse;
       setItems(payload.items);
     } catch (loadError) {
-      const detail = loadError instanceof Error ? ` (${loadError.message})` : "";
+      const detail =
+        loadError instanceof Error ? ` (${loadError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     } finally {
       setItemsLoading(false);
@@ -242,7 +258,9 @@ export default function ListsPage() {
     }
   }, [selectedListId]);
 
-  async function onCreateList(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function onCreateList(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
     if (!overview || !apiUrl || !canManageLists || !newListTitle.trim()) {
       return;
@@ -255,22 +273,27 @@ export default function ListsPage() {
         return;
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/families/${overview.family_id}/lists`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${apiUrl}/api/v1/families/${overview.family_id}/lists`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: newListTitle.trim(),
+            description: newListDescription.trim() || null,
+            visible_member_user_ids: newListVisibleMembers,
+            visible_chat_group_ids: newListVisibleGroups,
+          }),
         },
-        body: JSON.stringify({
-          title: newListTitle.trim(),
-          description: newListDescription.trim() || null,
-          visible_member_user_ids: newListVisibleMembers,
-          visible_chat_group_ids: newListVisibleGroups,
-        }),
-      });
+      );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
         setError(payload.detail ?? t("errors.save"));
         return;
       }
@@ -282,7 +305,8 @@ export default function ListsPage() {
       setNewListDescription("");
       setNewListVisibleGroups([]);
     } catch (saveError) {
-      const detail = saveError instanceof Error ? ` (${saveError.message})` : "";
+      const detail =
+        saveError instanceof Error ? ` (${saveError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
@@ -310,12 +334,16 @@ export default function ListsPage() {
       );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
         setError(payload.detail ?? t("errors.save"));
         return;
       }
 
-      setLists((previous) => previous.filter((entry) => entry.id !== selectedList.id));
+      setLists((previous) =>
+        previous.filter((entry) => entry.id !== selectedList.id),
+      );
       setSelectedListId((current) => {
         if (current !== selectedList.id) {
           return current;
@@ -324,12 +352,15 @@ export default function ListsPage() {
         return next?.id ?? null;
       });
     } catch (saveError) {
-      const detail = saveError instanceof Error ? ` (${saveError.message})` : "";
+      const detail =
+        saveError instanceof Error ? ` (${saveError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
 
-  async function onCreateItem(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function onCreateItem(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
     if (!overview || !apiUrl || !selectedList || !newItemTitle.trim()) {
       return;
@@ -355,7 +386,9 @@ export default function ListsPage() {
       );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
         setError(payload.detail ?? t("errors.save"));
         return;
       }
@@ -375,7 +408,8 @@ export default function ListsPage() {
       );
       setNewItemTitle("");
     } catch (saveError) {
-      const detail = saveError instanceof Error ? ` (${saveError.message})` : "";
+      const detail =
+        saveError instanceof Error ? ` (${saveError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
@@ -409,13 +443,17 @@ export default function ListsPage() {
       );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
         setError(payload.detail ?? t("errors.save"));
         return;
       }
 
       const updated = (await response.json()) as SharedListItem;
-      setItems((previous) => previous.map((entry) => (entry.id === updated.id ? updated : entry)));
+      setItems((previous) =>
+        previous.map((entry) => (entry.id === updated.id ? updated : entry)),
+      );
       setLists((previous) =>
         previous.map((entry) => {
           if (entry.id !== selectedList.id) {
@@ -424,7 +462,8 @@ export default function ListsPage() {
 
           const wasCompleted = item.is_completed;
           const nowCompleted = updated.is_completed;
-          const openDelta = wasCompleted === nowCompleted ? 0 : wasCompleted ? 1 : -1;
+          const openDelta =
+            wasCompleted === nowCompleted ? 0 : wasCompleted ? 1 : -1;
 
           return {
             ...entry,
@@ -433,7 +472,8 @@ export default function ListsPage() {
         }),
       );
     } catch (saveError) {
-      const detail = saveError instanceof Error ? ` (${saveError.message})` : "";
+      const detail =
+        saveError instanceof Error ? ` (${saveError.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
@@ -474,7 +514,9 @@ export default function ListsPage() {
             />
 
             <div>
-              <p className="mb-2 text-sm text-muted-foreground">{t("fields.visibleMembers")}</p>
+              <p className="mb-2 text-sm text-muted-foreground">
+                {t("fields.visibleMembers")}
+              </p>
               <div className="grid gap-2 md:grid-cols-2">
                 {overview.members.map((member) => (
                   <label
@@ -499,7 +541,9 @@ export default function ListsPage() {
 
             {chatGroups.length > 0 ? (
               <div>
-                <p className="mb-2 text-sm text-muted-foreground">{t("fields.visibleGroups")}</p>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  {t("fields.visibleGroups")}
+                </p>
                 <div className="grid gap-2 md:grid-cols-2">
                   {chatGroups.map((group) => (
                     <label
@@ -538,7 +582,9 @@ export default function ListsPage() {
         <article className="portal-card">
           <h2 className="text-base font-semibold">{t("listsTitle")}</h2>
           {lists.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">{t("emptyLists")}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("emptyLists")}
+            </p>
           ) : (
             <ul className="mt-3 space-y-2">
               {lists.map((sharedList) => (
@@ -576,7 +622,9 @@ export default function ListsPage() {
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold">{selectedList.title}</h2>
+                  <h2 className="text-base font-semibold">
+                    {selectedList.title}
+                  </h2>
                   <p className="text-sm text-muted-foreground">
                     {selectedList.description || t("noDescription")}
                   </p>
@@ -618,9 +666,13 @@ export default function ListsPage() {
                 style={{ borderColor: "rgb(var(--color-border))" }}
               >
                 {itemsLoading ? (
-                  <p className="text-sm text-muted-foreground">{t("loading")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("loading")}
+                  </p>
                 ) : items.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("emptyItems")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("emptyItems")}
+                  </p>
                 ) : (
                   items.map((item) => (
                     <label
@@ -635,7 +687,13 @@ export default function ListsPage() {
                           void onToggleItem(item);
                         }}
                       />
-                      <span className={item.is_completed ? "line-through text-muted-foreground" : ""}>
+                      <span
+                        className={
+                          item.is_completed
+                            ? "line-through text-muted-foreground"
+                            : ""
+                        }
+                      >
                         {item.title}
                       </span>
                     </label>

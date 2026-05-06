@@ -47,7 +47,10 @@ export default function OpenListsWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canFetch = useMemo(() => Boolean(apiUrl) && isSignedIn, [apiUrl, isSignedIn]);
+  const canFetch = useMemo(
+    () => Boolean(apiUrl) && isSignedIn,
+    [apiUrl, isSignedIn],
+  );
 
   useEffect(() => {
     async function loadWidget(): Promise<void> {
@@ -72,12 +75,15 @@ export default function OpenListsWidget() {
           return;
         }
 
-        const overviewResponse = await fetch(`${apiUrl}/api/v1/families/current/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const overviewResponse = await fetch(
+          `${apiUrl}/api/v1/families/current/overview`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
           },
-          cache: "no-store",
-        });
+        );
 
         if (!overviewResponse.ok) {
           setError(t("errors.load"));
@@ -100,10 +106,12 @@ export default function OpenListsWidget() {
           return;
         }
 
-        const payload = (await widgetResponse.json()) as OpenListsWidgetResponse;
+        const payload =
+          (await widgetResponse.json()) as OpenListsWidgetResponse;
         setLists(payload.lists);
       } catch (loadError) {
-        const detail = loadError instanceof Error ? ` (${loadError.message})` : "";
+        const detail =
+          loadError instanceof Error ? ` (${loadError.message})` : "";
         setError(`${t("errors.network")}${detail}`);
       } finally {
         setLoading(false);

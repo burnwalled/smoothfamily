@@ -299,6 +299,7 @@ Valideringsregler:
 {
   "content": "Jag hamtar efter traningen kl 18"
 }
+```
 
 ## Lists payloads
 
@@ -329,7 +330,6 @@ Valideringsregler:
   "is_completed": true,
   "sort_order": 0
 }
-```
 ```
 
 ## Kalenderaggregation och cache-strategi
