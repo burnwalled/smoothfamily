@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.service import get_or_create_user
 from app.core.database import get_db
 from app.core.settings import get_settings
+from app.families.service import list_user_memberships
 
 settings = get_settings()
 
@@ -130,13 +131,22 @@ async def get_current_context(
 
     email = str(claims.get("email", ""))
     user = await get_or_create_user(db, str(clerk_user_id), email)
+    memberships = await list_user_memberships(db, user.id)
+    family_ids = [membership.family_id for membership in memberships]
 
-    # TODO(sprint-2): Query UserFamilyMembership to populate family_ids and
-    # primary_family_id once the families module is implemented.
+    primary_family_id = None
+    if memberships:
+        primary_family_id = next(
+            (membership.family_id for membership in memberships if membership.is_primary),
+            memberships[0].family_id,
+        )
+
     return AuthContext(
         user_id=user.id,
         clerk_user_id=str(clerk_user_id),
         email=email,
+        family_ids=family_ids,
+        primary_family_id=primary_family_id,
     )
 
 
