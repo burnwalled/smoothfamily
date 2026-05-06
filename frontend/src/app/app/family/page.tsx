@@ -69,12 +69,15 @@ export default function FamilyPage() {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/v1/families/current/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const response = await fetch(
+          `${API_URL}/api/v1/families/current/overview`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
           },
-          cache: "no-store",
-        });
+        );
 
         if (!response.ok) {
           const payload = (await response.json().catch(() => ({}))) as {
@@ -174,7 +177,9 @@ export default function FamilyPage() {
     <div className="space-y-6">
       <section className="portal-card">
         <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{overview.family_name}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {overview.family_name}
+        </p>
       </section>
 
       <section className="portal-card space-y-3">
@@ -215,7 +220,10 @@ export default function FamilyPage() {
       <section className="portal-card space-y-3">
         <h2 className="text-base font-semibold">{t("inviteTitle")}</h2>
 
-        <form onSubmit={onInviteSubmit} className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+        <form
+          onSubmit={onInviteSubmit}
+          className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
+        >
           <input
             type="email"
             required
@@ -251,7 +259,9 @@ export default function FamilyPage() {
         <h2 className="text-base font-semibold">{t("pendingInvitesTitle")}</h2>
 
         {overview.pending_invites.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("pendingInvitesEmpty")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("pendingInvitesEmpty")}
+          </p>
         ) : (
           <ul className="space-y-2">
             {overview.pending_invites.map((invite) => (
@@ -262,7 +272,8 @@ export default function FamilyPage() {
               >
                 <p className="font-medium">{invite.invited_email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {invite.role} · {t("expires")}: {formatDate(invite.expires_at)}
+                  {invite.role} · {t("expires")}:{" "}
+                  {formatDate(invite.expires_at)}
                 </p>
               </li>
             ))}

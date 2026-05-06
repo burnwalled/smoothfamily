@@ -20,7 +20,10 @@ export default async function RootLayout({
   const messages = getMessages(locale);
 
   return (
-    <ClerkProvider afterSignInUrl="/app" afterSignUpUrl="/app">
+    <ClerkProvider
+      signInFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/app"
+    >
       <html lang={locale} suppressHydrationWarning>
         <body className="min-h-screen bg-background font-sans text-foreground antialiased">
           <ThemeProvider>
