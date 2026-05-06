@@ -21,8 +21,8 @@ from app.families.schemas import (
     FamilyInviteCreateRequest,
     FamilyInviteCreateResponse,
     FamilyMemberResponse,
-    FamilyPermissionsResponse,
     FamilyOverviewResponse,
+    FamilyPermissionsResponse,
     PendingInviteResponse,
 )
 from app.families.service import create_family_invite, create_primary_family_for_user
@@ -78,7 +78,9 @@ async def create_family_invite_endpoint(
     )
     membership = membership_result.scalar_one_or_none()
     if membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family"
+        )
 
     current_user_role = resolve_effective_family_role(
         family_owner_user_id=family.owner_user_id,
@@ -95,7 +97,9 @@ async def create_family_invite_endpoint(
     try:
         invite_role = normalize_invite_role(body.role)
     except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
 
     invite = await create_family_invite(
         db,
@@ -152,7 +156,9 @@ async def get_current_family_overview(
 
     caller_membership = next((member for member in members if member.user_id == ctx.user_id), None)
     if caller_membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this family"
+        )
 
     current_user_role = caller_membership.role
     permissions = permissions_for_role(current_user_role)

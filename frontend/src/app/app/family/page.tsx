@@ -61,7 +61,14 @@ export default function FamilyPage() {
 
   useEffect(() => {
     async function loadOverview() {
-      if (!isSignedIn || !API_URL) {
+      if (!API_URL) {
+        setError("NEXT_PUBLIC_API_URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
+      if (!isSignedIn) {
+        setLoading(false);
         return;
       }
 
@@ -186,7 +193,9 @@ export default function FamilyPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {overview.family_name}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{t("roleLabel")}: {overview.current_user_role}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("roleLabel")}: {overview.current_user_role}
+        </p>
       </section>
 
       <section className="portal-card space-y-3">
@@ -260,7 +269,9 @@ export default function FamilyPage() {
             </button>
           </form>
         ) : (
-          <p className="text-sm text-muted-foreground">{t("inviteRestricted")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("inviteRestricted")}
+          </p>
         )}
 
         {error ? <p className="text-xs text-red-500">{error}</p> : null}

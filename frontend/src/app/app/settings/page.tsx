@@ -27,7 +27,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadOverview() {
-      if (!isSignedIn || !API_URL) {
+      if (!API_URL) {
+        setError("NEXT_PUBLIC_API_URL is not configured.");
+        setLoading(false);
+        return;
+      }
+
+      if (!isSignedIn) {
+        setLoading(false);
         return;
       }
 
@@ -41,12 +48,15 @@ export default function SettingsPage() {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/v1/families/current/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const response = await fetch(
+          `${API_URL}/api/v1/families/current/overview`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
           },
-          cache: "no-store",
-        });
+        );
 
         if (!response.ok) {
           const payload = (await response.json().catch(() => ({}))) as {
@@ -81,38 +91,54 @@ export default function SettingsPage() {
   return (
     <div className="space-y-4">
       <section className="portal-card">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("title")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("rbacRoleLabel")}: {overview.current_user_role}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("rbacRoleLabel")}: {overview.current_user_role}
+        </p>
       </section>
 
       <section className="portal-card">
         <h2 className="text-base font-semibold">{t("sectionProfile")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{t("sectionProfileDescription")}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("sectionProfileDescription")}
+        </p>
       </section>
 
       <section className="portal-card">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">{t("sectionCalendarIntegrations")}</h2>
+          <h2 className="text-base font-semibold">
+            {t("sectionCalendarIntegrations")}
+          </h2>
           <span className="rounded-full bg-muted px-2 py-1 text-xs">
-            {permissions.can_manage_calendar_integrations ? t("accessEdit") : t("accessViewOnly")}
+            {permissions.can_manage_calendar_integrations
+              ? t("accessEdit")
+              : t("accessViewOnly")}
           </span>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">{t("sectionCalendarIntegrationsDescription")}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("sectionCalendarIntegrationsDescription")}
+        </p>
       </section>
 
       <section className="portal-card">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">{t("sectionFamilyManagement")}</h2>
+          <h2 className="text-base font-semibold">
+            {t("sectionFamilyManagement")}
+          </h2>
           <span className="rounded-full bg-muted px-2 py-1 text-xs">
-            {permissions.can_manage_members ? t("accessEdit") : t("accessHidden")}
+            {permissions.can_manage_members
+              ? t("accessEdit")
+              : t("accessHidden")}
           </span>
         </div>
         {permissions.can_manage_members ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t("sectionFamilyManagementDescription")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("sectionFamilyManagementDescription")}
+          </p>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">{t("sectionFamilyManagementRestricted")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("sectionFamilyManagementRestricted")}
+          </p>
         )}
       </section>
     </div>
