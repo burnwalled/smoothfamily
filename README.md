@@ -7,6 +7,7 @@
 ## Senaste uppdateringar
 
 - ✅ Issue #2 klar: Tema-system (light/dark), persistens i localStorage, sync mot `User.theme_preference` och toggle i app-headern.
+- ✅ Issue #3 klar: Alembic migration körd mot Postgres och `users`-tabellen verifierad.
 
 ## Sprint-status
 
@@ -63,6 +64,26 @@ Tips för Windows PowerShell: använd `pnpm.cmd` om execution policy blockerar `
 Backend: http://localhost:8000
 API-docs: http://localhost:8000/api/docs
 Frontend: http://localhost:3000
+
+## Dev-miljö (Windows + Docker Desktop)
+
+Rekommenderad setup på Windows är Docker Desktop med WSL 2-backend.
+
+- Docker Desktop installerat och igång
+- WSL 2 aktiverat (rekommenderad backend i Docker Desktop)
+- Kör Compose från repo-roten: `docker compose up -d`
+- Verifiera containers: `docker compose ps`
+
+Vanlig felsökning:
+
+- Om `docker`-kommandot saknas: starta Docker Desktop och öppna ny terminal
+- Om frontend blockeras av execution policy i PowerShell: använd `pnpm.cmd` i stället för `pnpm`
+
+Migrationer i backend:
+
+- Kör migration: `uv run alembic upgrade head`
+- Kontrollera senaste revision: `uv run alembic current`
+- Vid behov, verifiera tabeller i Postgres med `docker compose exec db psql ...`
 
 ## Projektstruktur
 
