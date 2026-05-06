@@ -6,8 +6,8 @@ const mockUseTheme = vi.fn();
 const mockUseAuth = vi.fn();
 const mockUseTranslations = vi.fn();
 
-vi.mock("next-themes", () => ({
-  useTheme: () => mockUseTheme(),
+vi.mock("./theme-provider", () => ({
+  useThemePreference: () => mockUseTheme(),
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -43,7 +43,7 @@ describe("ThemeToggle", () => {
     expect(localStorage.getItem("boet-theme-preference")).toBe("dark");
   });
 
-  it("applies stored localStorage theme when different from current theme", () => {
+  it("does not force-set theme from localStorage in toggle", () => {
     localStorage.setItem("boet-theme-preference", "light");
     const setTheme = vi.fn();
 
@@ -54,7 +54,7 @@ describe("ThemeToggle", () => {
 
     render(<ThemeToggle />);
 
-    expect(setTheme).toHaveBeenCalledWith("light");
+    expect(setTheme).not.toHaveBeenCalled();
   });
 
   it("toggles to the opposite theme on click", () => {

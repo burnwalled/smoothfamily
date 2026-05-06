@@ -2,36 +2,26 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
-import { useTheme } from "next-themes";
 import { useEffect, useRef } from "react";
+import { useThemePreference } from "./theme-provider";
 
 type ThemePreference = "light" | "dark";
 
 const STORAGE_KEY = "boet-theme-preference";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-function isThemePreference(value: string | null | undefined): value is ThemePreference {
+function isThemePreference(
+  value: string | null | undefined,
+): value is ThemePreference {
   return value === "light" || value === "dark";
 }
 
 export function ThemeToggle() {
   const t = useTranslations("settings");
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useThemePreference();
   const { isSignedIn, getToken } = useAuth();
   const localPreferenceRef = useRef<ThemePreference | null>(null);
   const serverPreferenceRef = useRef<ThemePreference | null>(null);
-
-  useEffect(() => {
-    const localPreference = localStorage.getItem(STORAGE_KEY);
-    if (!isThemePreference(localPreference)) {
-      return;
-    }
-
-    localPreferenceRef.current = localPreference;
-    if (theme !== localPreference) {
-      setTheme(localPreference);
-    }
-  }, [setTheme, theme]);
 
   useEffect(() => {
     async function syncFromServer() {
@@ -79,7 +69,9 @@ export function ThemeToggle() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ theme_preference: localPreferenceRef.current }),
+            body: JSON.stringify({
+              theme_preference: localPreferenceRef.current,
+            }),
           });
           serverPreferenceRef.current = localPreferenceRef.current;
         }
@@ -102,7 +94,11 @@ export function ThemeToggle() {
     localStorage.setItem(STORAGE_KEY, currentTheme);
 
     async function syncToServer() {
-      if (!isSignedIn || !API_URL || serverPreferenceRef.current === currentTheme) {
+      if (
+        !isSignedIn ||
+        !API_URL ||
+        serverPreferenceRef.current === currentTheme
+      ) {
         return;
       }
 
