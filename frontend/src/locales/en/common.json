@@ -21,7 +21,20 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "subtitle": "Welcome to Boet."
+    "subtitle": "Welcome to Boet.",
+    "greetingTitle": "Good morning, Anna",
+    "greetingSubtitle": "Tuesday, May 5 · 4 chores and 2 meetings today",
+    "addWidget": "Add widget",
+    "todayLabel": "Today",
+    "choresTitle": "Chores today",
+    "choresProgress": "2 of 4",
+    "chatTitle": "Family chat",
+    "newMessages": "3 new",
+    "shoppingTitle": "Shopping",
+    "shoppingRemaining": "items left",
+    "dinnerTitle": "Dinner",
+    "dinnerSuggestion": "35 min · 4 portions",
+    "pointsTitle": "Points this week"
   },
   "family": {
     "title": "Family",

@@ -9,6 +9,8 @@
     --color-foreground: 26 26 26;
     --color-muted: 245 245 245;
     --color-accent: 55 138 221;
+    --color-border: 232 232 232;
+    --color-surface: 250 250 250;
 
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   }
@@ -18,6 +20,8 @@
     --color-foreground: 245 245 245;
     --color-muted: 38 38 38;
     --color-accent: 100 165 230;
+    --color-border: 53 53 53;
+    --color-surface: 30 30 30;
   }
 
   /* Theme variants will be added here as the theme system is built (Sprint 6) */
@@ -26,7 +30,17 @@
   /* .metro { border-radius: 0; ... } */
 
   body {
-    background-color: rgb(var(--color-background));
+    background:
+      radial-gradient(circle at top right, rgb(var(--color-accent) / 0.12), transparent 35%),
+      rgb(var(--color-background));
     color: rgb(var(--color-foreground));
+  }
+}
+
+@layer components {
+  .portal-card {
+    @apply rounded-xl border p-4 shadow-sm backdrop-blur-sm;
+    border-color: rgb(var(--color-border));
+    background-color: rgb(var(--color-surface) / 0.9);
   }
 }
