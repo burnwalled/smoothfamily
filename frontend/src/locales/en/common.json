@@ -39,7 +39,23 @@
   "family": {
     "title": "Family",
     "members": "Members",
-    "invite": "Invite"
+    "invite": "Invite",
+    "membersTitle": "Family members",
+    "membersCount": "members",
+    "primary": "Primary",
+    "inviteTitle": "Invite a new member",
+    "emailPlaceholder": "name@email.com",
+    "inviting": "Sending...",
+    "pendingInvitesTitle": "Pending invites",
+    "pendingInvitesEmpty": "No active invites right now.",
+    "expires": "expires",
+    "loading": "Loading family overview...",
+    "errors": {
+      "auth": "Could not verify sign-in.",
+      "load": "Could not load family data.",
+      "invite": "Could not create invite.",
+      "network": "Network error. Please try again."
+    }
   },
   "calendar": {
     "title": "Calendar"

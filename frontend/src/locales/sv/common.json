@@ -39,7 +39,23 @@
   "family": {
     "title": "Familj",
     "members": "Medlemmar",
-    "invite": "Bjud in"
+    "invite": "Bjud in",
+    "membersTitle": "Familjemedlemmar",
+    "membersCount": "medlemmar",
+    "primary": "Primar",
+    "inviteTitle": "Bjud in ny medlem",
+    "emailPlaceholder": "namn@email.se",
+    "inviting": "Skickar...",
+    "pendingInvitesTitle": "Pending invites",
+    "pendingInvitesEmpty": "Inga aktiva invites just nu.",
+    "expires": "gar ut",
+    "loading": "Laddar familjeoversikt...",
+    "errors": {
+      "auth": "Kunde inte verifiera inloggning.",
+      "load": "Kunde inte ladda familjedata.",
+      "invite": "Kunde inte skapa invite.",
+      "network": "Natverksfel. Forsok igen."
+    }
   },
   "calendar": {
     "title": "Kalender"

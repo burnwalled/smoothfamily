@@ -1,18 +1,23 @@
 from uuid import UUID
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext, get_current_context
+from app.auth.models import User
 from app.auth.service import get_or_create_user
 from app.core.database import get_db
-from app.families.models import Family
+from app.families.models import Family, FamilyInvite, UserFamilyMembership
 from app.families.schemas import (
     FamilyCreateRequest,
     FamilyCreateResponse,
+    FamilyOverviewResponse,
+    FamilyMemberResponse,
     FamilyInviteCreateRequest,
     FamilyInviteCreateResponse,
+    PendingInviteResponse,
 )
 from app.families.service import create_family_invite, create_primary_family_for_user
 
@@ -73,4 +78,64 @@ async def create_family_invite_endpoint(
         role=invite.role,
         expires_at=invite.expires_at,
         created_at=invite.created_at,
+    )
+
+
+@router.get("/current/overview", response_model=FamilyOverviewResponse)
+async def get_current_family_overview(
+    ctx: AuthContext = Depends(get_current_context),
+    db: AsyncSession = Depends(get_db),
+) -> FamilyOverviewResponse:
+    now = datetime.now(tz=UTC)
+
+    if ctx.primary_family_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No family found")
+
+    family_result = await db.execute(select(Family).where(Family.id == ctx.primary_family_id))
+    family = family_result.scalar_one_or_none()
+    if family is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family not found")
+
+    members_result = await db.execute(
+        select(UserFamilyMembership, User.email)
+        .join(User, User.id == UserFamilyMembership.user_id)
+        .where(UserFamilyMembership.family_id == family.id)
+        .order_by(UserFamilyMembership.is_primary.desc(), UserFamilyMembership.joined_at.asc())
+    )
+    members = [
+        FamilyMemberResponse(
+            user_id=membership.user_id,
+            email=email,
+            role=membership.role,
+            is_primary=membership.is_primary,
+            color_hex=membership.color_hex,
+        )
+        for membership, email in members_result.all()
+    ]
+
+    invites_result = await db.execute(
+        select(FamilyInvite)
+        .where(
+            FamilyInvite.family_id == family.id,
+            FamilyInvite.accepted_at.is_(None),
+            FamilyInvite.expires_at > now,
+        )
+        .order_by(FamilyInvite.created_at.desc())
+    )
+    pending_invites = [
+        PendingInviteResponse(
+            id=invite.id,
+            invited_email=invite.invited_email,
+            role=invite.role,
+            expires_at=invite.expires_at,
+            created_at=invite.created_at,
+        )
+        for invite in invites_result.scalars().all()
+    ]
+
+    return FamilyOverviewResponse(
+        family_id=family.id,
+        family_name=family.name,
+        members=members,
+        pending_invites=pending_invites,
     )

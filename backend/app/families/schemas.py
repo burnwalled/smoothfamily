@@ -43,3 +43,26 @@ class FamilyInviteAcceptResponse(BaseModel):
     family_name: str
     role: str
     already_member: bool
+
+
+class FamilyMemberResponse(BaseModel):
+    user_id: UUID
+    email: str
+    role: str
+    is_primary: bool
+    color_hex: str | None
+
+
+class PendingInviteResponse(BaseModel):
+    id: UUID
+    invited_email: str
+    role: str
+    expires_at: datetime
+    created_at: datetime
+
+
+class FamilyOverviewResponse(BaseModel):
+    family_id: UUID
+    family_name: str
+    members: list[FamilyMemberResponse]
+    pending_invites: list[PendingInviteResponse]
