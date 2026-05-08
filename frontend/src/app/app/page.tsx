@@ -4,10 +4,10 @@ import { useAuth } from "@clerk/nextjs";
 import {
   closestCenter,
   DndContext,
-  type DragEndEvent,
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -21,8 +21,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   reorderVisibleWidgets,
   resizeWidget,
-  toLayoutUpdatePayload,
   toggleWidgetVisibility,
+  toLayoutUpdatePayload,
   type DashboardWidgetLayout,
   type DashboardWidgetSize,
 } from "@/lib/dashboard-layout";
@@ -116,7 +116,10 @@ function SortableWidgetCard({
           <select
             value={widget.size}
             onChange={(event) =>
-              onResize(widget.widget_type, event.target.value as DashboardWidgetSize)
+              onResize(
+                widget.widget_type,
+                event.target.value as DashboardWidgetSize,
+              )
             }
             className="rounded border px-2 py-1 text-xs"
             style={{ borderColor: "rgb(var(--color-border))" }}
@@ -142,7 +145,9 @@ function SortableWidgetCard({
         <WidgetComponent />
       ) : (
         <section className="portal-card">
-          <p className="text-sm text-muted-foreground">Missing widget component.</p>
+          <p className="text-sm text-muted-foreground">
+            Missing widget component.
+          </p>
         </section>
       )}
     </article>
@@ -156,7 +161,9 @@ export default function DashboardPage() {
 
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [widgets, setWidgets] = useState<DashboardWidgetLayout[]>([]);
-  const [availableWidgets, setAvailableWidgets] = useState<AvailableWidget[]>([]);
+  const [availableWidgets, setAvailableWidgets] = useState<AvailableWidget[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -171,16 +178,24 @@ export default function DashboardPage() {
   );
 
   const visibleWidgets = useMemo(
-    () => widgets.filter((widget) => widget.is_visible).sort((a, b) => a.position - b.position),
+    () =>
+      widgets
+        .filter((widget) => widget.is_visible)
+        .sort((a, b) => a.position - b.position),
     [widgets],
   );
 
   const hiddenWidgets = useMemo(
-    () => widgets.filter((widget) => !widget.is_visible).sort((a, b) => a.position - b.position),
+    () =>
+      widgets
+        .filter((widget) => !widget.is_visible)
+        .sort((a, b) => a.position - b.position),
     [widgets],
   );
 
-  async function persistLayout(nextWidgets: DashboardWidgetLayout[]): Promise<void> {
+  async function persistLayout(
+    nextWidgets: DashboardWidgetLayout[],
+  ): Promise<void> {
     if (!apiUrl || !familyId) {
       return;
     }
@@ -196,17 +211,22 @@ export default function DashboardPage() {
         return;
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/families/${familyId}/dashboard/layout`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${apiUrl}/api/v1/families/${familyId}/dashboard/layout`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ widgets: toLayoutUpdatePayload(nextWidgets) }),
         },
-        body: JSON.stringify({ widgets: toLayoutUpdatePayload(nextWidgets) }),
-      });
+      );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+        const payload = (await response.json().catch(() => ({}))) as {
+          detail?: string;
+        };
         setError(payload.detail ?? t("settings.errors.load"));
         return;
       }
@@ -243,12 +263,15 @@ export default function DashboardPage() {
           return;
         }
 
-        const overviewResponse = await fetch(`${apiUrl}/api/v1/families/current/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const overviewResponse = await fetch(
+          `${apiUrl}/api/v1/families/current/overview`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
           },
-          cache: "no-store",
-        });
+        );
         if (!overviewResponse.ok) {
           setError(t("settings.errors.load"));
           return;
@@ -272,7 +295,8 @@ export default function DashboardPage() {
           return;
         }
 
-        const payload = (await layoutResponse.json()) as DashboardLayoutResponse;
+        const payload =
+          (await layoutResponse.json()) as DashboardLayoutResponse;
         setWidgets(payload.widgets);
         setAvailableWidgets(payload.available_widgets);
       } catch {
@@ -377,14 +401,18 @@ export default function DashboardPage() {
           </div>
         </div>
         {saving ? (
-          <p className="mt-2 text-xs text-muted-foreground">{t("dashboard.savingLayout")}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("dashboard.savingLayout")}
+          </p>
         ) : null}
         {error ? <p className="mt-2 text-xs text-red-500">{error}</p> : null}
       </section>
 
       {showPicker ? (
         <section className="portal-card space-y-2">
-          <h2 className="text-base font-semibold">{t("dashboard.widgetPickerTitle")}</h2>
+          <h2 className="text-base font-semibold">
+            {t("dashboard.widgetPickerTitle")}
+          </h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {availableWidgets.map((entry) => {
               const isVisible = !hiddenWidgets.some(
@@ -407,7 +435,9 @@ export default function DashboardPage() {
                     className="mt-2 rounded border px-2 py-1 text-xs"
                     style={{ borderColor: "rgb(var(--color-border))" }}
                   >
-                    {isVisible ? t("dashboard.hideWidget") : t("dashboard.showWidget")}
+                    {isVisible
+                      ? t("dashboard.hideWidget")
+                      : t("dashboard.showWidget")}
                   </button>
                 </div>
               );
@@ -418,7 +448,9 @@ export default function DashboardPage() {
 
       {loading ? (
         <section className="portal-card">
-          <p className="text-sm text-muted-foreground">{t("settings.loading")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("settings.loading")}
+          </p>
         </section>
       ) : (
         <DndContext
@@ -435,10 +467,11 @@ export default function DashboardPage() {
                 const available = availableWidgets.find(
                   (entry) => entry.widget_type === widget.widget_type,
                 );
-                const allowedSizes =
-                  available?.allowed_sizes ??
-                  widgetRegistry[widget.widget_type]?.allowedSizes ??
-                  ["medium", "large"];
+                const allowedSizes = available?.allowed_sizes ??
+                  widgetRegistry[widget.widget_type]?.allowedSizes ?? [
+                    "medium",
+                    "large",
+                  ];
                 return (
                   <SortableWidgetCard
                     key={widget.widget_type}

@@ -57,8 +57,12 @@ def _build_layout_response(
     user_id: UUID,
     widgets: list,
 ) -> DashboardLayoutResponse:
-    ordered = sorted(widgets, key=lambda item: (item.position, item.created_at or datetime.now(tz=UTC)))
-    updated_at_candidates = [widget.updated_at for widget in ordered if widget.updated_at is not None]
+    ordered = sorted(
+        widgets, key=lambda item: (item.position, item.created_at or datetime.now(tz=UTC))
+    )
+    updated_at_candidates = [
+        widget.updated_at for widget in ordered if widget.updated_at is not None
+    ]
     updated_at = max(updated_at_candidates) if updated_at_candidates else None
 
     return DashboardLayoutResponse(

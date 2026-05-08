@@ -14,7 +14,9 @@ type DashboardWidgetUpdate = {
   is_visible: boolean;
 };
 
-function sortByPosition(widgets: DashboardWidgetLayout[]): DashboardWidgetLayout[] {
+function sortByPosition(
+  widgets: DashboardWidgetLayout[],
+): DashboardWidgetLayout[] {
   return [...widgets].sort((left, right) => left.position - right.position);
 }
 
@@ -42,14 +44,21 @@ export function reorderVisibleWidgets(
   const ordered = sortByPosition(widgets);
   const visible = ordered.filter((widget) => widget.is_visible);
   const hidden = ordered.filter((widget) => !widget.is_visible);
-  const fromIndex = visible.findIndex((widget) => widget.widget_type === activeType);
-  const toIndex = visible.findIndex((widget) => widget.widget_type === overType);
+  const fromIndex = visible.findIndex(
+    (widget) => widget.widget_type === activeType,
+  );
+  const toIndex = visible.findIndex(
+    (widget) => widget.widget_type === overType,
+  );
 
   if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
     return ordered;
   }
 
-  return normalizePositions([...arrayMove(visible, fromIndex, toIndex), ...hidden]);
+  return normalizePositions([
+    ...arrayMove(visible, fromIndex, toIndex),
+    ...hidden,
+  ]);
 }
 
 export function toggleWidgetVisibility(
@@ -58,7 +67,9 @@ export function toggleWidgetVisibility(
   isVisible: boolean,
 ): DashboardWidgetLayout[] {
   const ordered = sortByPosition(widgets).map((widget) =>
-    widget.widget_type === widgetType ? { ...widget, is_visible: isVisible } : widget,
+    widget.widget_type === widgetType
+      ? { ...widget, is_visible: isVisible }
+      : widget,
   );
 
   const visible = ordered.filter((widget) => widget.is_visible);
