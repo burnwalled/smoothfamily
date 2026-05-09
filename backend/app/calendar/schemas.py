@@ -87,6 +87,13 @@ class ExternalCalendarFeedCreateRequest(BaseModel):
     provider: str = Field(min_length=2, max_length=20)
     display_name: str = Field(min_length=1, max_length=120)
     ical_url: str = Field(min_length=12, max_length=4000)
+    color_hex: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class ExternalCalendarFeedUpdateRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
+    color_hex: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    enabled: bool | None = None
 
 
 class ExternalCalendarFeedResponse(BaseModel):
@@ -96,6 +103,7 @@ class ExternalCalendarFeedResponse(BaseModel):
     member_email: str
     provider: str
     display_name: str
+    color_hex: str | None
     ical_url_masked: str
     enabled: bool
     last_fetched_at: datetime | None

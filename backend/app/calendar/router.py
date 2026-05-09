@@ -17,21 +17,21 @@ from app.calendar.schemas import (
     ExternalCalendarFeedCreateRequest,
     ExternalCalendarFeedResponse,
     ExternalCalendarFeedsListResponse,
+    ExternalCalendarFeedUpdateRequest,
     UpcomingCalendarEventResponse,
     UpcomingEventsWidgetResponse,
 )
 from app.calendar.service import (
     create_calendar_event,
     create_external_calendar_feed,
-    decrypt_ical_url,
     delete_calendar_event,
     delete_external_calendar_feed,
     get_family_role_for_user,
     list_aggregated_events,
     list_external_calendar_feeds,
     list_visible_events,
-    mask_ical_url,
     update_calendar_event,
+    update_external_calendar_feed,
 )
 from app.core.database import get_db
 
@@ -57,6 +57,12 @@ def to_calendar_event_response(calendar_event: CalendarEvent) -> CalendarEventRe
     )
 
 
+def _mask_url(url: str) -> str:
+    if len(url) <= 20:
+        return "***"
+    return f"{url[:16]}...{url[-8:]}"
+
+
 def to_external_calendar_feed_response(
     *,
     feed: ExternalCalendarFeed,
@@ -69,7 +75,8 @@ def to_external_calendar_feed_response(
         member_email=member_email,
         provider=feed.provider,
         display_name=feed.display_name,
-        ical_url_masked=mask_ical_url(decrypt_ical_url(feed.ical_url_encrypted)),
+        color_hex=feed.color_hex,
+        ical_url_masked=_mask_url(feed.ical_url),
         enabled=feed.enabled,
         last_fetched_at=feed.last_fetched_at,
         last_fetch_status=feed.last_fetch_status,
@@ -337,6 +344,38 @@ async def create_calendar_integration(
     member_email = user_result.scalar_one_or_none() or ""
 
     return to_external_calendar_feed_response(feed=created, member_email=member_email)
+
+
+@router.patch(
+    "/{family_id}/calendar/integrations/{integration_id}",
+    response_model=ExternalCalendarFeedResponse,
+)
+async def update_calendar_integration(
+    family_id: UUID,
+    integration_id: UUID,
+    body: ExternalCalendarFeedUpdateRequest,
+    ctx: AuthContext = Depends(get_current_context),
+    db: AsyncSession = Depends(get_db),
+) -> ExternalCalendarFeedResponse:
+    if not ctx.has_family_access(family_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this family",
+        )
+
+    role = await get_family_role_for_user(db, family_id=family_id, user_id=ctx.user_id)
+    updated = await update_external_calendar_feed(
+        db,
+        family_id=family_id,
+        integration_id=integration_id,
+        role=role,
+        body=body,
+    )
+
+    user_result = await db.execute(select(User.email).where(User.id == updated.member_user_id))
+    member_email = user_result.scalar_one_or_none() or ""
+
+    return to_external_calendar_feed_response(feed=updated, member_email=member_email)
 
 
 @router.delete("/{family_id}/calendar/integrations/{integration_id}", status_code=204)

@@ -52,11 +52,6 @@ class Settings(BaseSettings):
     # --- Sentry ---
     SENTRY_DSN: str = ""
 
-    # --- Security ---
-    FIELD_ENCRYPTION_KEY: SecretStr = Field(
-        ..., description="Fernet key for column-level encryption (iCal URLs etc.)"
-    )
-
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"

@@ -1,4 +1,3 @@
-import base64
 import hashlib
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
@@ -6,7 +5,6 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import httpx
-from cryptography.fernet import Fernet
 from fastapi import HTTPException, status
 from icalendar import Calendar
 from sqlalchemy import delete, select
@@ -19,8 +17,11 @@ from app.calendar.models import (
     CalendarEventMember,
     ExternalCalendarFeed,
 )
-from app.calendar.schemas import CalendarEventUpsertRequest, ExternalCalendarFeedCreateRequest
-from app.core.settings import get_settings
+from app.calendar.schemas import (
+    CalendarEventUpsertRequest,
+    ExternalCalendarFeedCreateRequest,
+    ExternalCalendarFeedUpdateRequest,
+)
 from app.families.models import UserFamilyMembership
 from app.families.rbac import resolve_effective_family_role
 
@@ -70,32 +71,6 @@ def permissions_for_calendar_role(role: str) -> CalendarPermissions:
     )
 
 
-def _build_fernet() -> Fernet:
-    raw_key = get_settings().FIELD_ENCRYPTION_KEY.get_secret_value()
-    try:
-        return Fernet(raw_key.encode("utf-8"))
-    except ValueError:
-        derived_bytes = hashlib.sha256(raw_key.encode("utf-8")).digest()
-        derived_key = base64.urlsafe_b64encode(derived_bytes)
-        return Fernet(derived_key)
-
-
-def encrypt_ical_url(ical_url: str) -> str:
-    fernet = _build_fernet()
-    return fernet.encrypt(ical_url.encode("utf-8")).decode("utf-8")
-
-
-def decrypt_ical_url(value: str) -> str:
-    fernet = _build_fernet()
-    return fernet.decrypt(value.encode("utf-8")).decode("utf-8")
-
-
-def mask_ical_url(ical_url: str) -> str:
-    if len(ical_url) <= 20:
-        return "***"
-    return f"{ical_url[:16]}...{ical_url[-8:]}"
-
-
 def validate_ical_url_format(ical_url: str) -> None:
     parsed = urlparse(ical_url.strip())
     if parsed.scheme not in {"http", "https"}:
@@ -116,7 +91,9 @@ async def validate_ical_feed_reachable(ical_url: str) -> None:
             response = await client.get(ical_url)
             response.raise_for_status()
         Calendar.from_ical(response.text)
-    except (httpx.HTTPError, ValueError):
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Unable to validate iCal feed URL",
@@ -221,9 +198,8 @@ async def _load_external_events_for_feed(
         return cached[1]
 
     try:
-        ical_url = decrypt_ical_url(feed.ical_url_encrypted)
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            response = await client.get(ical_url)
+            response = await client.get(feed.ical_url)
             response.raise_for_status()
 
         feed_events = _iter_external_events_from_calendar(
@@ -548,7 +524,8 @@ async def create_external_calendar_feed(
         member_user_id=body.member_user_id,
         provider=body.provider.strip().lower(),
         display_name=body.display_name.strip(),
-        ical_url_encrypted=encrypt_ical_url(body.ical_url.strip()),
+        ical_url=body.ical_url.strip(),
+        color_hex=body.color_hex,
         enabled=True,
         last_fetched_at=datetime.now(tz=UTC),
         last_fetch_status="active",
@@ -556,6 +533,40 @@ async def create_external_calendar_feed(
     )
     db.add(feed)
     await db.flush()
+    await db.refresh(feed)
+    return feed
+
+
+async def update_external_calendar_feed(
+    db: AsyncSession,
+    *,
+    family_id: UUID,
+    integration_id: UUID,
+    role: str,
+    body: ExternalCalendarFeedUpdateRequest,
+) -> ExternalCalendarFeed:
+    ensure_can_manage_integrations(role)
+    result = await db.execute(
+        select(ExternalCalendarFeed).where(
+            ExternalCalendarFeed.id == integration_id,
+            ExternalCalendarFeed.family_id == family_id,
+        )
+    )
+    feed = result.scalar_one_or_none()
+    if feed is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration not found")
+
+    if "display_name" in body.model_fields_set and body.display_name is not None:
+        feed.display_name = body.display_name.strip()
+    if "color_hex" in body.model_fields_set:
+        feed.color_hex = body.color_hex
+    if "enabled" in body.model_fields_set and body.enabled is not None:
+        feed.enabled = body.enabled
+
+    _external_feed_cache.pop(feed.id, None)
+
+    await db.flush()
+    await db.refresh(feed)
     return feed
 
 
@@ -633,10 +644,11 @@ async def list_aggregated_events(
     for feed in feeds:
         if not feed.enabled:
             continue
+        color = feed.color_hex or member_color_by_user_id.get(feed.member_user_id)
         external_events.extend(
             await _load_external_events_for_feed(
                 feed=feed,
-                member_color_hex=member_color_by_user_id.get(feed.member_user_id),
+                member_color_hex=color,
                 start_at_from=start_at_from,
                 start_at_to=start_at_to,
             )

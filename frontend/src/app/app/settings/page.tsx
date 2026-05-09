@@ -1,8 +1,8 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type SettingsPermissions = {
   can_manage_settings: boolean;
@@ -30,6 +30,7 @@ type ExternalCalendarFeed = {
   member_email: string;
   provider: string;
   display_name: string;
+  color_hex: string | null;
   ical_url_masked: string;
   enabled: boolean;
   last_fetched_at: string | null;
@@ -44,6 +45,8 @@ type ExternalCalendarFeedsResponse = {
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const DEFAULT_COLOR = "#6366f1";
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -62,9 +65,42 @@ function formatDateTime(value: string | null): string {
   }).format(date);
 }
 
+function ColorDot({
+  color,
+  onChange,
+  disabled,
+}: {
+  color: string | null;
+  onChange: (hex: string) => void;
+  disabled?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <label
+      className={`relative flex h-5 w-5 flex-shrink-0 cursor-pointer items-center justify-center ${disabled ? "pointer-events-none" : ""}`}
+      title="Change color"
+    >
+      <span
+        className="block h-5 w-5 rounded-full border border-border"
+        style={{ backgroundColor: color ?? DEFAULT_COLOR }}
+      />
+      <input
+        ref={ref}
+        type="color"
+        value={color ?? DEFAULT_COLOR}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 cursor-pointer opacity-0"
+        disabled={disabled}
+      />
+    </label>
+  );
+}
+
 export default function SettingsPage() {
   const t = useTranslations("settings");
   const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
+  const currentUserEmail = user?.primaryEmailAddress?.emailAddress;
 
   const [overview, setOverview] = useState<FamilyOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +114,7 @@ export default function SettingsPage() {
   const [provider, setProvider] = useState("google");
   const [displayName, setDisplayName] = useState("");
   const [icalUrl, setIcalUrl] = useState("");
+  const [newColor, setNewColor] = useState(DEFAULT_COLOR);
 
   useEffect(() => {
     async function loadOverview() {
@@ -181,9 +218,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!memberUserId && overview?.members?.length) {
-      setMemberUserId(overview.members[0].user_id);
+      const self = currentUserEmail
+        ? overview.members.find((m) => m.email === currentUserEmail)
+        : null;
+      setMemberUserId(self?.user_id ?? overview.members[0].user_id);
     }
-  }, [memberUserId, overview?.members]);
+  }, [memberUserId, overview?.members, currentUserEmail]);
 
   async function onCreateIntegration(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -215,6 +255,7 @@ export default function SettingsPage() {
             provider,
             display_name: displayName.trim(),
             ical_url: icalUrl.trim(),
+            color_hex: newColor,
           }),
         },
       );
@@ -231,10 +272,42 @@ export default function SettingsPage() {
       setIntegrations((previous) => [created, ...previous]);
       setDisplayName("");
       setIcalUrl("");
+      setNewColor(DEFAULT_COLOR);
     } catch {
       setIntegrationError(t("errors.network"));
     } finally {
       setIntegrationsSubmitting(false);
+    }
+  }
+
+  async function onUpdateColor(integrationId: string, colorHex: string) {
+    if (!overview || !API_URL) {
+      return;
+    }
+
+    setIntegrations((previous) =>
+      previous.map((feed) =>
+        feed.id === integrationId ? { ...feed, color_hex: colorHex } : feed,
+      ),
+    );
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      await fetch(
+        `${API_URL}/api/v1/families/${overview.family_id}/calendar/integrations/${integrationId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ color_hex: colorHex }),
+        },
+      );
+    } catch {
+      // color update failure is silent — state stays optimistically updated
     }
   }
 
@@ -321,58 +394,66 @@ export default function SettingsPage() {
 
         {permissions.can_manage_calendar_integrations ? (
           <form
-            className="mt-4 grid gap-2 md:grid-cols-2"
+            className="mt-4 space-y-2"
             onSubmit={onCreateIntegration}
           >
-            <select
-              value={memberUserId}
-              onChange={(event) => setMemberUserId(event.target.value)}
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-              required
-            >
-              {overview.members.map((member) => (
-                <option value={member.user_id} key={member.user_id}>
-                  {member.email}
-                </option>
-              ))}
-            </select>
-            <select
-              value={provider}
-              onChange={(event) => setProvider(event.target.value)}
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-              required
-            >
-              <option value="google">Google</option>
-              <option value="outlook">Outlook</option>
-              <option value="apple">Apple</option>
-              <option value="other">Other</option>
-            </select>
-            <input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder={t("calendar.form.displayName")}
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-              required
-              minLength={1}
-              maxLength={120}
-            />
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                {t("calendar.form.memberLabel")}
+              </label>
+              <select
+                value={memberUserId}
+                onChange={(event) => setMemberUserId(event.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                required
+              >
+                {overview.members.map((member) => (
+                  <option value={member.user_id} key={member.user_id}>
+                    {member.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder={t("calendar.form.displayName")}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                required
+                minLength={1}
+                maxLength={120}
+              />
+              <select
+                value={provider}
+                onChange={(event) => setProvider(event.target.value)}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="google">Google</option>
+                <option value="outlook">Outlook</option>
+                <option value="apple">Apple</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
             <input
               value={icalUrl}
               onChange={(event) => setIcalUrl(event.target.value)}
               placeholder={t("calendar.form.icalUrl")}
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               required
               type="url"
             />
+            <div className="flex items-center gap-2">
+              <ColorDot color={newColor} onChange={setNewColor} />
+              <span className="text-xs text-muted-foreground">
+                {t("calendar.form.colorLabel")}
+              </span>
+            </div>
             <button
               type="submit"
               disabled={integrationsSubmitting || integrationsLoading}
-              className="rounded-md border px-3 py-2 text-sm font-medium md:col-span-2 md:w-fit"
-              style={{ borderColor: "rgb(var(--color-border))" }}
+              className="rounded-md border border-border px-3 py-2 text-sm font-medium"
             >
               {integrationsSubmitting
                 ? t("calendar.form.submitting")
@@ -404,17 +485,25 @@ export default function SettingsPage() {
               {integrations.map((integration) => (
                 <li
                   key={integration.id}
-                  className="rounded-md border px-3 py-2"
-                  style={{ borderColor: "rgb(var(--color-border))" }}
+                  className="rounded-md border border-border px-3 py-2"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {integration.display_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {integration.provider} · {integration.member_email}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <ColorDot
+                        color={integration.color_hex}
+                        onChange={(hex) => onUpdateColor(integration.id, hex)}
+                        disabled={
+                          !permissions.can_manage_calendar_integrations
+                        }
+                      />
+                      <div>
+                        <p className="text-sm font-medium">
+                          {integration.display_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {integration.provider} · {integration.member_email}
+                        </p>
+                      </div>
                     </div>
                     <span className="rounded-full bg-muted px-2 py-1 text-xs">
                       {integration.last_fetch_status}
@@ -436,8 +525,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => onDeleteIntegration(integration.id)}
-                      className="mt-2 rounded-md border px-2 py-1 text-xs"
-                      style={{ borderColor: "rgb(var(--color-border))" }}
+                      className="mt-2 rounded-md border border-border px-2 py-1 text-xs"
                     >
                       {t("calendar.list.remove")}
                     </button>

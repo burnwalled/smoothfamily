@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -245,11 +245,10 @@ async def list_messages(
             ChatMessage.family_id == family_id,
             ChatMessage.group_id == group_id,
         )
-        .order_by(ChatMessage.created_at.desc())
+        .order_by(ChatMessage.created_at.asc())
         .limit(limit)
     )
-    # Return ascending in UI despite querying latest first.
-    return list(reversed(rows.all()))
+    return rows.all()
 
 
 async def create_message(
@@ -320,31 +319,33 @@ async def list_unread_messages(
     if not memberships:
         return 0, []
 
-    unread_filters = []
+    conditions = []
     for membership in memberships:
         cutoff = membership.last_read_at
-        query = select(ChatMessage.id).where(
+        cond = and_(
             ChatMessage.group_id == membership.group_id,
             ChatMessage.sender_user_id != current_user_id,
         )
         if cutoff is not None:
-            query = query.where(ChatMessage.created_at > cutoff)
-        unread_filters.append(query)
+            cond = and_(cond, ChatMessage.created_at > cutoff)
+        conditions.append(cond)
 
-    unread_message_ids: set[UUID] = set()
-    for query in unread_filters:
-        query_rows = await db.execute(query)
-        unread_message_ids.update(query_rows.scalars().all())
+    unread_filter = or_(*conditions)
 
-    if not unread_message_ids:
+    count_result = await db.execute(
+        select(func.count(ChatMessage.id)).where(unread_filter)
+    )
+    total_count = count_result.scalar_one()
+
+    if total_count == 0:
         return 0, []
 
     rows = await db.execute(
         select(ChatMessage, User.email, ChatGroup.name)
         .join(User, User.id == ChatMessage.sender_user_id)
         .join(ChatGroup, ChatGroup.id == ChatMessage.group_id)
-        .where(ChatMessage.id.in_(unread_message_ids))
+        .where(unread_filter)
         .order_by(ChatMessage.created_at.desc())
         .limit(limit)
     )
-    return len(unread_message_ids), rows.all()
+    return total_count, rows.all()

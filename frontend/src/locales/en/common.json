@@ -99,7 +99,8 @@
       "all": "All",
       "family": "Family",
       "external": "External",
-      "members": "Members"
+      "members": "Members",
+      "calendarsLabel": "Visible calendars"
     },
     "hiddenBadge": "Hidden event",
     "empty": "No events yet.",
@@ -152,11 +153,13 @@
     "calendar": {
       "loading": "Loading calendar integrations...",
       "form": {
+        "memberLabel": "Calendar belongs to",
         "displayName": "Integration name (for example: Anna - Work Calendar)",
         "icalUrl": "iCal URL",
         "submit": "Add integration",
         "submitting": "Adding...",
-        "readOnly": "You can view integrations, but your role cannot change them."
+        "readOnly": "You can view integrations, but your role cannot change them.",
+        "colorLabel": "Calendar color"
       },
       "list": {
         "title": "Connected iCal feeds",
@@ -192,6 +195,8 @@
     "emptyUnread": "No unread messages.",
     "widgetTitle": "Unread messages",
     "loading": "Loading chat...",
+    "you": "You",
+    "membersLabel": "members",
     "fields": {
       "groupName": "Group name",
       "groupDescription": "Description (optional)",

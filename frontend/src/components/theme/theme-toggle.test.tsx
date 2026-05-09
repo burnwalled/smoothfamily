@@ -8,6 +8,9 @@ const mockUseTranslations = vi.fn();
 
 vi.mock("./theme-provider", () => ({
   useThemePreference: () => mockUseTheme(),
+  isTheme: (v: unknown) =>
+    ["light", "dark", "forest", "ocean", "sunset", "nordic", "high-contrast", "metro"].includes(v as string),
+  THEMES: ["light", "dark", "forest", "ocean", "sunset", "nordic", "high-contrast", "metro"],
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -16,6 +19,10 @@ vi.mock("@clerk/nextjs", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => mockUseTranslations(),
+}));
+
+vi.mock("@/lib/utils", () => ({
+  cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
 describe("ThemeToggle", () => {
@@ -32,42 +39,40 @@ describe("ThemeToggle", () => {
     vi.clearAllMocks();
   });
 
-  it("writes current theme to localStorage on mount", () => {
-    mockUseTheme.mockReturnValue({
-      theme: "dark",
-      setTheme: vi.fn(),
-    });
-
-    render(<ThemeToggle />);
-
-    expect(localStorage.getItem("boet-theme-preference")).toBe("dark");
-  });
-
-  it("does not force-set theme from localStorage in toggle", () => {
-    localStorage.setItem("boet-theme-preference", "light");
+  it("does not call setTheme on initial render", () => {
     const setTheme = vi.fn();
-
-    mockUseTheme.mockReturnValue({
-      theme: "dark",
-      setTheme,
-    });
-
+    mockUseTheme.mockReturnValue({ theme: "dark", setTheme });
     render(<ThemeToggle />);
-
     expect(setTheme).not.toHaveBeenCalled();
   });
 
-  it("toggles to the opposite theme on click", () => {
-    const setTheme = vi.fn();
-
-    mockUseTheme.mockReturnValue({
-      theme: "dark",
-      setTheme,
-    });
-
+  it("opens theme dropdown on button click", () => {
+    mockUseTheme.mockReturnValue({ theme: "light", setTheme: vi.fn() });
     render(<ThemeToggle />);
-    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByRole("button", { name: /toggleTheme/i }));
+    expect(screen.getByText("Dark")).toBeInTheDocument();
+    expect(screen.getByText("Forest")).toBeInTheDocument();
+  });
 
-    expect(setTheme).toHaveBeenCalledWith("light");
+  it("calls setTheme with chosen theme from dropdown", () => {
+    const setTheme = vi.fn();
+    mockUseTheme.mockReturnValue({ theme: "light", setTheme });
+    render(<ThemeToggle />);
+
+    fireEvent.click(screen.getByRole("button", { name: /toggleTheme/i }));
+    fireEvent.click(screen.getByText("Dark"));
+
+    expect(setTheme).toHaveBeenCalledWith("dark");
+  });
+
+  it("closes dropdown after selecting a theme", () => {
+    const setTheme = vi.fn();
+    mockUseTheme.mockReturnValue({ theme: "light", setTheme });
+    render(<ThemeToggle />);
+
+    fireEvent.click(screen.getByRole("button", { name: /toggleTheme/i }));
+    fireEvent.click(screen.getByText("Forest"));
+
+    expect(screen.queryByText("Ocean")).not.toBeInTheDocument();
   });
 });

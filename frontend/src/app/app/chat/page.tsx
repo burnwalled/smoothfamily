@@ -1,8 +1,11 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { Plus, Send, Settings, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { cn } from "@/lib/utils";
 
 type FamilyMember = {
   user_id: string;
@@ -48,10 +51,7 @@ type ChatMessagesResponse = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function resolveApiUrl(rawValue: string | undefined): string | undefined {
-  if (!rawValue) {
-    return undefined;
-  }
-
+  if (!rawValue) return undefined;
   try {
     const parsed = new URL(rawValue);
     if (parsed.hostname === "localhost") {
@@ -63,10 +63,27 @@ function resolveApiUrl(rawValue: string | undefined): string | undefined {
   }
 }
 
-function formatDateTime(value: string): string {
+function getInitials(email: string): string {
+  return email.charAt(0).toUpperCase();
+}
+
+function getSenderName(email: string): string {
+  return email.split("@")[0];
+}
+
+function formatTime(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
+  if (Number.isNaN(date.getTime())) return "-";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return "Nu";
+  if (diffMins < 60) return `${diffMins} min`;
+  if (diffMs < 86_400_000) {
+    return new Intl.DateTimeFormat("sv-SE", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
   }
   return new Intl.DateTimeFormat("sv-SE", {
     month: "short",
@@ -76,9 +93,16 @@ function formatDateTime(value: string): string {
   }).format(date);
 }
 
+function toggleMember(list: string[], memberId: string): string[] {
+  return list.includes(memberId)
+    ? list.filter((id) => id !== memberId)
+    : [...list, memberId];
+}
+
 export default function ChatPage() {
   const t = useTranslations("chat");
   const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
   const apiUrl = useMemo(() => resolveApiUrl(API_URL), []);
 
   const [overview, setOverview] = useState<FamilyOverview | null>(null);
@@ -86,18 +110,22 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [groupsLoading, setGroupsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const [newGroupMemberIds, setNewGroupMemberIds] = useState<string[]>([]);
-
   const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentUserEmail = user?.primaryEmailAddress?.emailAddress ?? "";
 
   const canManageGroups = useMemo(() => {
     const role = overview?.current_user_role;
@@ -105,33 +133,67 @@ export default function ChatPage() {
   }, [overview?.current_user_role]);
 
   const selectedGroup = useMemo(
-    () => groups.find((group) => group.id === selectedGroupId) ?? null,
+    () => groups.find((g) => g.id === selectedGroupId) ?? null,
     [groups, selectedGroupId],
   );
 
   useEffect(() => {
     setGroupMemberIds(selectedGroup?.member_user_ids ?? []);
-  }, [selectedGroup?.id, selectedGroup?.member_user_ids]);
+    setShowGroupSettings(false);
+  }, [selectedGroup?.id]);
 
-  function toggleMember(list: string[], memberId: string): string[] {
-    if (list.includes(memberId)) {
-      return list.filter((id) => id !== memberId);
-    }
-    return [...list, memberId];
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const loadMessages = useCallback(
+    async (groupId: string, silent = false): Promise<void> => {
+      if (!overview || !apiUrl) return;
+      if (!silent) setMessagesLoading(true);
+      setError(null);
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          setError(t("errors.auth"));
+          return;
+        }
+
+        const [msgResponse] = await Promise.all([
+          fetch(
+            `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/messages?limit=100`,
+            { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+          ),
+          fetch(
+            `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/read`,
+            { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+          ),
+        ]);
+
+        if (!msgResponse.ok) {
+          if (!silent) setError(t("errors.load"));
+          return;
+        }
+
+        const payload = (await msgResponse.json()) as ChatMessagesResponse;
+        setMessages(payload.messages);
+      } catch (err) {
+        if (!silent) {
+          const detail = err instanceof Error ? ` (${err.message})` : "";
+          setError(`${t("errors.network")}${detail}`);
+        }
+      } finally {
+        if (!silent) setMessagesLoading(false);
+      }
+    },
+    [apiUrl, getToken, overview, t],
+  );
 
   async function loadOverviewAndGroups(): Promise<void> {
-    if (!apiUrl) {
-      setError("NEXT_PUBLIC_API_URL is not configured.");
+    if (!apiUrl || !isSignedIn) {
       setLoading(false);
       return;
     }
-
-    if (!isSignedIn) {
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -144,14 +206,8 @@ export default function ChatPage() {
 
       const overviewResponse = await fetch(
         `${apiUrl}/api/v1/families/current/overview`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        },
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
       );
-
       if (!overviewResponse.ok) {
         setError(t("errors.load"));
         return;
@@ -159,24 +215,12 @@ export default function ChatPage() {
 
       const overviewPayload = (await overviewResponse.json()) as FamilyOverview;
       setOverview(overviewPayload);
-      if (newGroupMemberIds.length === 0) {
-        setNewGroupMemberIds(
-          overviewPayload.members.map((member) => member.user_id),
-        );
-      }
+      setNewGroupMemberIds(overviewPayload.members.map((m) => m.user_id));
 
-      setGroupsLoading(true);
       const groupsResponse = await fetch(
         `${apiUrl}/api/v1/families/${overviewPayload.family_id}/chat/groups`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        },
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
       );
-      setGroupsLoading(false);
-
       if (!groupsResponse.ok) {
         setError(t("errors.load"));
         return;
@@ -185,72 +229,22 @@ export default function ChatPage() {
       const groupsPayload = (await groupsResponse.json()) as ChatGroupsResponse;
       setGroups(groupsPayload.groups);
       if (groupsPayload.groups.length > 0) {
-        setSelectedGroupId((current) => current ?? groupsPayload.groups[0].id);
+        setSelectedGroupId((cur) => cur ?? groupsPayload.groups[0].id);
       } else {
         setSelectedGroupId(null);
       }
-    } catch (error) {
-      const detail = error instanceof Error ? ` (${error.message})` : "";
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     } finally {
       setLoading(false);
-      setGroupsLoading(false);
     }
   }
 
   useEffect(() => {
     void loadOverviewAndGroups();
-  }, [apiUrl, getToken, isSignedIn, t]);
-
-  async function loadMessages(groupId: string): Promise<void> {
-    if (!overview || !apiUrl) {
-      return;
-    }
-
-    setMessagesLoading(true);
-    setError(null);
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        setError(t("errors.auth"));
-        return;
-      }
-
-      const messagesResponse = await fetch(
-        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/messages?limit=100`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        },
-      );
-
-      if (!messagesResponse.ok) {
-        setError(t("errors.load"));
-        return;
-      }
-
-      const payload = (await messagesResponse.json()) as ChatMessagesResponse;
-      setMessages(payload.messages);
-
-      await fetch(
-        `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${groupId}/read`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-    } catch (error) {
-      const detail = error instanceof Error ? ` (${error.message})` : "";
-      setError(`${t("errors.network")}${detail}`);
-    } finally {
-      setMessagesLoading(false);
-    }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiUrl, isSignedIn]);
 
   useEffect(() => {
     if (selectedGroupId) {
@@ -258,13 +252,20 @@ export default function ChatPage() {
     } else {
       setMessages([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    const interval = setInterval(() => {
+      void loadMessages(selectedGroupId, true);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [selectedGroupId, loadMessages]);
 
   async function onCreateGroup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !apiUrl || !canManageGroups) {
-      return;
-    }
+    if (!overview || !apiUrl || !canManageGroups) return;
 
     try {
       const token = await getToken();
@@ -298,21 +299,20 @@ export default function ChatPage() {
       }
 
       const created = (await response.json()) as ChatGroup;
-      setGroups((previous) => [...previous, created]);
+      setGroups((prev) => [...prev, created]);
       setSelectedGroupId(created.id);
       setNewGroupName("");
       setNewGroupDescription("");
-    } catch (error) {
-      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setShowCreateGroup(false);
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
 
   async function onUpdateMembers(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !apiUrl || !selectedGroup || !canManageGroups) {
-      return;
-    }
+    if (!overview || !apiUrl || !selectedGroup || !canManageGroups) return;
 
     try {
       const token = await getToken();
@@ -342,25 +342,27 @@ export default function ChatPage() {
       }
 
       const updated = (await response.json()) as ChatGroup;
-      setGroups((previous) =>
-        previous.map((group) => (group.id === updated.id ? updated : group)),
-      );
-    } catch (error) {
-      const detail = error instanceof Error ? ` (${error.message})` : "";
+      setGroups((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
+      setShowGroupSettings(false);
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.message})` : "";
       setError(`${t("errors.network")}${detail}`);
     }
   }
 
   async function onSendMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!overview || !apiUrl || !selectedGroup || !newMessage.trim()) {
-      return;
-    }
+    const content = newMessage.trim();
+    if (!overview || !apiUrl || !selectedGroup || !content || sendingMessage) return;
+
+    setSendingMessage(true);
+    setNewMessage("");
 
     try {
       const token = await getToken();
       if (!token) {
         setError(t("errors.auth"));
+        setSendingMessage(false);
         return;
       }
 
@@ -372,7 +374,7 @@ export default function ChatPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ content: newMessage.trim() }),
+          body: JSON.stringify({ content }),
         },
       );
 
@@ -381,244 +383,351 @@ export default function ChatPage() {
           detail?: string;
         };
         setError(payload.detail ?? t("errors.save"));
+        setNewMessage(content);
         return;
       }
 
       const created = (await response.json()) as ChatMessage;
-      setMessages((previous) => [...previous, created]);
-      setNewMessage("");
-      await fetch(
+      setMessages((prev) => [...prev, created]);
+
+      void fetch(
         `${apiUrl}/api/v1/families/${overview.family_id}/chat/groups/${selectedGroup.id}/read`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
       );
-    } catch (error) {
-      const detail = error instanceof Error ? ` (${error.message})` : "";
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.message})` : "";
       setError(`${t("errors.network")}${detail}`);
+      setNewMessage(content);
+    } finally {
+      setSendingMessage(false);
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      const form = event.currentTarget.closest("form");
+      if (form) form.requestSubmit();
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-sm text-muted-foreground">{t("loading")}</p>
+      </div>
+    );
   }
 
   if (!overview) {
-    return <p className="text-sm text-red-500">{error ?? t("errors.load")}</p>;
+    return (
+      <div className="portal-card">
+        <p className="text-sm text-destructive">{error ?? t("errors.load")}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <section className="portal-card">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
+    <div className="flex h-[calc(100dvh-12rem)] flex-col gap-3">
+      {/* Compact header */}
+      <section className="portal-card flex items-center justify-between py-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
+          <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </section>
 
-      {canManageGroups ? (
-        <section className="portal-card">
-          <h2 className="text-base font-semibold">{t("groupCreateTitle")}</h2>
-          <form className="mt-3 space-y-3" onSubmit={onCreateGroup}>
-            <input
-              value={newGroupName}
-              onChange={(event) => setNewGroupName(event.target.value)}
-              placeholder={t("fields.groupName")}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-              required
-            />
-            <input
-              value={newGroupDescription}
-              onChange={(event) => setNewGroupDescription(event.target.value)}
-              placeholder={t("fields.groupDescription")}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            />
-            <div>
-              <p className="mb-2 text-sm text-muted-foreground">
-                {t("fields.participants")}
+      {/* Main chat layout */}
+      <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[260px_1fr]">
+        {/* Group sidebar */}
+        <aside className="portal-card flex flex-col overflow-hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">{t("groupsTitle")}</h2>
+            {canManageGroups && (
+              <button
+                type="button"
+                onClick={() => setShowCreateGroup((v) => !v)}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                {showCreateGroup ? (
+                  <X className="h-3.5 w-3.5" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Create group form */}
+          {showCreateGroup && canManageGroups && (
+            <form
+              onSubmit={onCreateGroup}
+              className="mb-3 space-y-2 rounded-lg bg-muted/60 p-3"
+            >
+              <p className="text-xs font-medium text-muted-foreground">
+                {t("groupCreateTitle")}
               </p>
-              <div className="grid gap-2 md:grid-cols-2">
+              <input
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder={t("fields.groupName")}
+                className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs"
+                required
+              />
+              <input
+                value={newGroupDescription}
+                onChange={(e) => setNewGroupDescription(e.target.value)}
+                placeholder={t("fields.groupDescription")}
+                className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs"
+              />
+              <div className="space-y-1.5">
                 {overview.members.map((member) => (
                   <label
-                    key={`new-group-${member.user_id}`}
-                    className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                    style={{ borderColor: "rgb(var(--color-border))" }}
+                    key={`new-${member.user_id}`}
+                    className="flex items-center gap-2 text-xs"
                   >
                     <input
                       type="checkbox"
                       checked={newGroupMemberIds.includes(member.user_id)}
                       onChange={() =>
-                        setNewGroupMemberIds((previous) =>
-                          toggleMember(previous, member.user_id),
+                        setNewGroupMemberIds((prev) =>
+                          toggleMember(prev, member.user_id),
                         )
                       }
                     />
-                    <span>{member.email}</span>
+                    <span className="truncate">{getSenderName(member.email)}</span>
                   </label>
                 ))}
               </div>
-            </div>
-            <button
-              type="submit"
-              className="rounded-md border px-3 py-2 text-sm font-medium"
-              style={{ borderColor: "rgb(var(--color-border))" }}
-            >
-              {t("createGroup")}
-            </button>
-          </form>
-        </section>
-      ) : null}
+              <button
+                type="submit"
+                className="w-full rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground"
+              >
+                {t("createGroup")}
+              </button>
+            </form>
+          )}
 
-      <section className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <article className="portal-card">
-          <h2 className="text-base font-semibold">{t("groupsTitle")}</h2>
-          {groupsLoading ? (
-            <p className="mt-2 text-sm text-muted-foreground">{t("loading")}</p>
-          ) : groups.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("emptyGroups")}
-            </p>
+          {/* Group list */}
+          {groups.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t("emptyGroups")}</p>
           ) : (
-            <ul className="mt-3 space-y-2">
+            <ul className="flex-1 space-y-0.5 overflow-y-auto">
               {groups.map((group) => (
                 <li key={group.id}>
                   <button
                     type="button"
-                    className="w-full rounded-md border px-3 py-2 text-left text-sm"
-                    style={{
-                      borderColor: "rgb(var(--color-border))",
-                      backgroundColor:
-                        group.id === selectedGroupId
-                          ? "rgb(var(--color-accent) / 0.12)"
-                          : "transparent",
-                    }}
                     onClick={() => setSelectedGroupId(group.id)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
+                      group.id === selectedGroupId
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                    )}
                   >
-                    <p className="font-medium">{group.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {group.description ?? t("noDescription")}
-                    </p>
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                      {group.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{group.name}</p>
+                      <p className="truncate text-xs opacity-60">
+                        {group.member_user_ids.length} {t("membersLabel")}
+                      </p>
+                    </div>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-        </article>
+        </aside>
 
-        <article className="portal-card">
+        {/* Messages panel */}
+        <article className="portal-card flex min-h-0 flex-col overflow-hidden">
           {!selectedGroup ? (
-            <p className="text-sm text-muted-foreground">{t("selectGroup")}</p>
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-sm text-muted-foreground">{t("selectGroup")}</p>
+            </div>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-base font-semibold">
-                  {selectedGroup.name}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {selectedGroup.description ?? t("noDescription")}
-                </p>
+            <>
+              {/* Group header */}
+              <div className="mb-3 flex items-start justify-between border-b pb-3">
+                <div>
+                  <h2 className="font-semibold">{selectedGroup.name}</h2>
+                  {selectedGroup.description && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedGroup.description}
+                    </p>
+                  )}
+                </div>
+                {canManageGroups && (
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupSettings((v) => !v)}
+                    className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+                      showGroupSettings
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                    )}
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
-              {canManageGroups ? (
+              {/* Group settings panel */}
+              {showGroupSettings && canManageGroups && (
                 <form
-                  className="space-y-2 rounded-md border p-3"
-                  style={{ borderColor: "rgb(var(--color-border))" }}
                   onSubmit={onUpdateMembers}
+                  className="mb-3 space-y-2 rounded-lg bg-muted/60 p-3"
                 >
-                  <p className="text-sm font-medium">
+                  <p className="text-xs font-medium text-muted-foreground">
                     {t("manageMembersTitle")}
                   </p>
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {overview.members.map((member) => (
                       <label
-                        key={`edit-group-${member.user_id}`}
-                        className="flex items-center gap-2 text-sm"
+                        key={`edit-${member.user_id}`}
+                        className="flex items-center gap-2 text-xs"
                       >
                         <input
                           type="checkbox"
                           checked={groupMemberIds.includes(member.user_id)}
                           onChange={() =>
-                            setGroupMemberIds((previous) =>
-                              toggleMember(previous, member.user_id),
+                            setGroupMemberIds((prev) =>
+                              toggleMember(prev, member.user_id),
                             )
                           }
                         />
-                        <span>{member.email}</span>
+                        <span className="truncate">{getSenderName(member.email)}</span>
                       </label>
                     ))}
                   </div>
                   <button
                     type="submit"
-                    className="rounded-md border px-3 py-2 text-sm font-medium"
-                    style={{ borderColor: "rgb(var(--color-border))" }}
+                    className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground"
                   >
                     {t("saveMembers")}
                   </button>
                 </form>
-              ) : null}
+              )}
 
-              <div
-                className="max-h-[420px] space-y-2 overflow-auto rounded-md border p-3"
-                style={{ borderColor: "rgb(var(--color-border))" }}
-              >
+              {/* Message list */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-1">
                 {messagesLoading ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("loading")}
-                  </p>
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-sm text-muted-foreground">{t("loading")}</p>
+                  </div>
                 ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("emptyMessages")}
-                  </p>
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-sm text-muted-foreground">
+                      {t("emptyMessages")}
+                    </p>
+                  </div>
                 ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="rounded-md border px-3 py-2"
-                      style={{ borderColor: "rgb(var(--color-border))" }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-medium">
-                          {message.sender_email}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDateTime(message.created_at)}
-                        </p>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {message.content}
-                      </p>
-                    </div>
-                  ))
+                  <>
+                    {messages.map((message, index) => {
+                      const isOwn = message.sender_email === currentUserEmail;
+                      const prevMsg = messages[index - 1];
+                      const isSameSender =
+                        prevMsg?.sender_user_id === message.sender_user_id;
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "flex items-end gap-2",
+                            isOwn ? "flex-row-reverse" : "flex-row",
+                            isSameSender ? "mt-0.5" : "mt-4",
+                          )}
+                        >
+                          {/* Avatar (others only) */}
+                          {!isOwn && (
+                            <div
+                              className={cn(
+                                "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                                isSameSender
+                                  ? "invisible"
+                                  : "bg-accent text-accent-foreground",
+                              )}
+                            >
+                              {getInitials(message.sender_email)}
+                            </div>
+                          )}
+
+                          <div
+                            className={cn(
+                              "flex max-w-[72%] flex-col gap-0.5",
+                              isOwn ? "items-end" : "items-start",
+                            )}
+                          >
+                            {/* Sender name (first in group) */}
+                            {!isSameSender && (
+                              <p className="px-1 text-xs text-muted-foreground">
+                                {isOwn
+                                  ? t("you")
+                                  : getSenderName(message.sender_email)}
+                              </p>
+                            )}
+
+                            {/* Bubble */}
+                            <div
+                              className={cn(
+                                "rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                                isOwn
+                                  ? "rounded-tr-sm bg-primary text-primary-foreground"
+                                  : "rounded-tl-sm bg-muted text-foreground",
+                              )}
+                            >
+                              {message.content}
+                            </div>
+
+                            {/* Timestamp */}
+                            <p className="px-1 text-[10px] text-muted-foreground/60">
+                              {formatTime(message.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} className="h-2" />
+                  </>
                 )}
               </div>
 
-              <form className="flex gap-2" onSubmit={onSendMessage}>
-                <input
+              {/* Send form */}
+              <form
+                onSubmit={onSendMessage}
+                className="mt-3 flex items-end gap-2 border-t pt-3"
+              >
+                <textarea
                   value={newMessage}
-                  onChange={(event) => setNewMessage(event.target.value)}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder={t("fields.message")}
-                  className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border))" }}
+                  className="flex-1 resize-none overflow-auto rounded-xl border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  rows={1}
                   maxLength={4000}
-                  required
+                  style={{ maxHeight: "7rem" }}
                 />
                 <button
                   type="submit"
-                  className="rounded-md border px-3 py-2 text-sm font-medium"
-                  style={{ borderColor: "rgb(var(--color-border))" }}
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className={cn(
+                    "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors",
+                    newMessage.trim() && !sendingMessage
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "cursor-not-allowed bg-muted text-muted-foreground",
+                  )}
                 >
-                  {t("send")}
+                  <Send className="h-4 w-4" />
                 </button>
               </form>
-            </div>
+            </>
           )}
         </article>
-      </section>
-
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      </div>
     </div>
   );
 }

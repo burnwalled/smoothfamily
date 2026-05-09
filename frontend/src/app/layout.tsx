@@ -25,7 +25,7 @@ export default async function RootLayout({
       signUpFallbackRedirectUrl="/app"
     >
       <html lang={locale} suppressHydrationWarning>
-        <body className="min-h-screen bg-background font-sans text-foreground antialiased">
+        <body className="min-h-screen font-sans antialiased">
           <ThemeProvider>
             <NextIntlClientProvider locale={locale} messages={messages}>
               {children}

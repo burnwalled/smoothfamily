@@ -1,8 +1,10 @@
 import { UserButton } from "@clerk/nextjs";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { FamilyBootstrap } from "../../components/families/family-bootstrap";
-import { ThemeToggle } from "../../components/theme/theme-toggle";
+
+import { MobileNav, SidebarNav } from "@/components/app-nav";
+import { FamilyBootstrap } from "@/components/families/family-bootstrap";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export default async function AppLayout({
   children,
@@ -23,87 +25,47 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[220px_1fr]">
       <FamilyBootstrap />
-      <aside
-        className="hidden border-r px-3 py-5 lg:flex lg:flex-col"
-        style={{
-          borderColor: "rgb(var(--color-border))",
-          backgroundColor: "rgb(var(--color-surface) / 0.92)",
-        }}
-      >
-        <div
-          className="mb-4 flex items-center gap-2 border-b px-2 pb-4"
-          style={{ borderColor: "rgb(var(--color-border))" }}
-        >
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold"
-            style={{
-              backgroundColor: "rgb(var(--color-accent) / 0.2)",
-              color: "rgb(var(--color-accent))",
-            }}
-          >
+
+      {/* Desktop sidebar */}
+      <aside className="hidden border-r bg-card/95 px-3 py-5 lg:flex lg:flex-col">
+        <div className="mb-5 flex items-center gap-2.5 border-b px-2 pb-4">
+          <div className="flex h-7 w-7 items-center justify-center bg-primary/15 text-xs font-bold text-primary"
+            style={{ borderRadius: "var(--radius)" }}>
             B
           </div>
-          <Link href="/app" className="text-base font-semibold tracking-tight">
+          <Link
+            href="/app"
+            className="text-sm font-semibold tracking-tight text-foreground"
+          >
             {t("common.appName")}
           </Link>
         </div>
-        <nav className="flex-1 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center rounded-md border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              style={{
-                borderColor: "transparent",
-                backgroundColor: "transparent",
-              }}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+
+        <SidebarNav items={navItems} />
       </aside>
 
+      {/* Main content column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header
-          className="sticky top-0 z-10 border-b backdrop-blur-sm"
-          style={{
-            borderColor: "rgb(var(--color-border))",
-            backgroundColor: "rgb(var(--color-background) / 0.82)",
-          }}
-        >
-          <div className="flex h-16 items-center justify-between gap-3 px-5 lg:justify-end lg:px-8">
+        <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur-sm">
+          <div className="flex h-14 items-center justify-between gap-3 px-5 lg:justify-end lg:px-8">
             <Link
               href="/app"
-              className="text-sm font-semibold tracking-tight lg:hidden"
+              className="text-sm font-semibold tracking-tight text-foreground lg:hidden"
             >
               {t("common.appName")}
             </Link>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <ThemeToggle />
               <UserButton />
             </div>
           </div>
 
-          <nav
-            className="flex gap-2 overflow-x-auto border-t px-5 py-2 lg:hidden"
-            style={{ borderColor: "rgb(var(--color-border))" }}
-          >
-            {navItems.map((item) => (
-              <Link
-                key={`mobile-${item.href}`}
-                href={item.href}
-                className="whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                style={{
-                  borderColor: "rgb(var(--color-border))",
-                  backgroundColor: "rgb(var(--color-surface))",
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          {/* Mobile tab bar */}
+          <div className="lg:hidden">
+            <MobileNav items={navItems} />
+          </div>
         </header>
+
         <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-8">
           {children}
         </main>

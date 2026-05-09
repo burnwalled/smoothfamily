@@ -99,7 +99,8 @@
       "all": "Alla",
       "family": "Familj",
       "external": "Extern",
-      "members": "Medlemmar"
+      "members": "Medlemmar",
+      "calendarsLabel": "Synliga kalendrar"
     },
     "hiddenBadge": "Dolt event",
     "empty": "Inga events ännu.",
@@ -152,11 +153,13 @@
     "calendar": {
       "loading": "Laddar kalenderintegrationer...",
       "form": {
+        "memberLabel": "Kalender tillhör",
         "displayName": "Integrationsnamn (t.ex. Anna - Jobbkalender)",
         "icalUrl": "iCal-URL",
         "submit": "Lägg till integration",
         "submitting": "Lägger till...",
-        "readOnly": "Du kan se integrationer, men din roll kan inte ändra dem."
+        "readOnly": "Du kan se integrationer, men din roll kan inte ändra dem.",
+        "colorLabel": "Kalenderfärg"
       },
       "list": {
         "title": "Anslutna iCal-flöden",
@@ -192,6 +195,8 @@
     "emptyUnread": "Inga olästa meddelanden.",
     "widgetTitle": "Olästa meddelanden",
     "loading": "Laddar chatt...",
+    "you": "Du",
+    "membersLabel": "deltagare",
     "fields": {
       "groupName": "Gruppnamn",
       "groupDescription": "Beskrivning (valfritt)",

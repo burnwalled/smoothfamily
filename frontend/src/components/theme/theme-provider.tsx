@@ -9,52 +9,59 @@ import {
   useState,
 } from "react";
 
-type ThemePreference = "light" | "dark";
+export const THEMES = [
+  "light",
+  "dark",
+  "forest",
+  "ocean",
+  "sunset",
+  "nordic",
+  "high-contrast",
+  "metro",
+] as const;
+
+export type Theme = (typeof THEMES)[number];
 
 type ThemeContextValue = {
-  theme: ThemePreference;
-  setTheme: (theme: ThemePreference) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 };
 
 const STORAGE_KEY = "boet-theme-preference";
 
+const THEME_CLASSES = THEMES.filter((t) => t !== "light");
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function isThemePreference(value: string | null): value is ThemePreference {
-  return value === "light" || value === "dark";
+export function isTheme(value: string | null | undefined): value is Theme {
+  return THEMES.includes(value as Theme);
 }
 
-type ThemeProviderProps = {
-  children: React.ReactNode;
-};
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("light");
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemePreference>("light");
-
-  const setTheme = useCallback((nextTheme: ThemePreference) => {
-    setThemeState((previousTheme) =>
-      previousTheme === nextTheme ? previousTheme : nextTheme,
-    );
+  const setTheme = useCallback((nextTheme: Theme) => {
+    setThemeState((prev) => (prev === nextTheme ? prev : nextTheme));
   }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (isThemePreference(stored)) {
+    if (isTheme(stored)) {
       setThemeState(stored);
     }
   }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
+    THEME_CLASSES.forEach((c) => root.classList.remove(c));
+    if (theme !== "light") {
+      root.classList.add(theme);
+    }
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      setTheme,
-    }),
+    () => ({ theme, setTheme }),
     [setTheme, theme],
   );
 
