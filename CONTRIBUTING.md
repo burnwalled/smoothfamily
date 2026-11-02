@@ -65,7 +65,17 @@ sh scripts/e2e.sh                   # browser tests on a throwaway stack
 
 ## Pull requests
 
-1. Fork, branch from `beta`, make the change with its tests and texts.
+1. Fork, and work from `beta`: when you fork, untick **Copy the `main` branch only** (or fetch it
+   later with `git fetch upstream beta`), then branch from `beta` and make the change with its
+   tests and texts:
+
+   ```sh
+   git clone https://github.com/<you>/smoothfamily.git && cd smoothfamily
+   git remote add upstream https://github.com/burnwalled/smoothfamily.git
+   git fetch upstream beta
+   git switch -c my-change upstream/beta
+   ```
+
 2. Make sure the backend tests, `npx tsc --noEmit`, `npm test` and the e2e tests pass.
 3. Open the pull request against `beta` and fill in its form.
 
