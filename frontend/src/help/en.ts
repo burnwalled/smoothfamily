@@ -545,7 +545,8 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Children can suggest tasks; an adult turns them into tasks or declines.",
           "Points go to the shop and the allowance – see those topics.",
-          "A task several can do together shares its points between those who did it: choose who when it's ticked off."
+          "A task several can do together shares its points between those who did it: choose who when it's ticked off.",
+          "Taking a task away keeps the points already earned with it – and the times it was done."
         ]
       }
     ]

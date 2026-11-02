@@ -545,7 +545,8 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Barn kan föreslå uppgifter; en vuxen gör om dem till uppgifter eller tackar nej.",
           "Poängen går till butiken och veckopengen – se de ämnena.",
-          "En uppgift som flera kan göra tillsammans delar poängen mellan dem som gjorde den: välj vilka när den bockas av."
+          "En uppgift som flera kan göra tillsammans delar poängen mellan dem som gjorde den: välj vilka när den bockas av.",
+          "Tar du bort en uppgift finns poängen som redan tjänats in kvar – och gångerna den gjordes."
         ]
       }
     ]
