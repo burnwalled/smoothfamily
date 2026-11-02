@@ -1,12 +1,12 @@
 # Multi-arch build stage (arm64 on Raspberry Pi, amd64 on regular servers)
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /srv/app
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /srv/app
 ENV NODE_ENV=production
 COPY --from=builder /srv/app/.next/standalone ./
