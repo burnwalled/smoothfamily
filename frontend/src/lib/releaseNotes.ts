@@ -10,8 +10,8 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: "3.3.0-beta.1",
-    date: "2026-11-03",
+    version: "3.3.0",
+    date: "2026-11-02",
     items: {
       sv: ["Smooth Family kan uppdatera sig själv. Välj en kanal under Serverinställningar → Uppdateringar → Smooth Family själv: Stabil följer releaserna, Beta varje ändring så fort den är klar. Bara versioner som projektet har signerat läggs in, databasen sparas först, och om den nya versionen inte startar kommer den gamla tillbaka. Avstängt tills du väljer.", "En ny server kan installeras utan att bygga något: hämta releasens filer från GitHub och kör install.sh, så laddas appen ned färdig."],
       en: ["Smooth Family can update itself. Choose a channel under Server settings → Updates → Smooth Family itself: Stable follows the releases, Beta every change as soon as it is done. Only versions signed by the project are put in, the database is saved first, and if the new version doesn't start, the old one comes back. Off until you choose.", "A new server can be installed without building anything: download the release's files from GitHub and run install.sh – the app is downloaded ready-made."],
