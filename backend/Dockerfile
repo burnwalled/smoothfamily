@@ -20,6 +20,9 @@ COPY . .
 # Not root (2.9.0): the app only writes to /data (media, backups) and /tmp. The file system can be
 # mounted read-only, so no bytecode is written next to the code.
 ENV PYTHONDONTWRITEBYTECODE=1
+# The commit the image was built from (3.3.0) – a server compares it with the newest build.
+ARG APP_BUILD=""
+ENV APP_BUILD=$APP_BUILD
 RUN adduser -D -H -u 10001 app
 USER 10001
 

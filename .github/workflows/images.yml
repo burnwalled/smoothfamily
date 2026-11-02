@@ -1,0 +1,172 @@
+# Smooth Family's own images (3.3.0), for servers that update themselves (Server settings → Updates).
+#
+#   a push to beta        → ghcr.io/burnwalled/smoothfamily-{backend,frontend}:beta, and the beta
+#                           channel's manifest, signed here with the beta key, on the "channel-beta"
+#                           pre-release (moves with every change)
+#   a tag v3.3.0-beta.1   → :3.3.0-beta.1, a pre-release with its manifest signed here (beta key)
+#   a tag v3.3.0          → :3.3.0 and :latest; the manifest is attached to the release and signed
+#                           on the maintainer's computer (scripts/sign-release.py) – no key for the
+#                           stable channel lives here
+#
+# Built natively for amd64 (servers, Synology) and arm64 (Raspberry Pi), pushed by digest, then
+# joined into one multi-arch image per part. The manifest names the images by digest, so a server
+# installs exactly what was built and signed.
+name: Images
+
+on:
+  push:
+    branches: [beta]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  OWNER: burnwalled
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        part: [backend, frontend]
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.part }}
+          platforms: linux/${{ matrix.arch }}
+          build-args: APP_BUILD=${{ github.sha }}
+          outputs: type=image,name=ghcr.io/${{ env.OWNER }}/smoothfamily-${{ matrix.part }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.part }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.part }}-${{ matrix.arch }}
+      - name: Keep the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          NAME: ${{ matrix.part }}-${{ matrix.arch }}
+        run: |
+          mkdir -p digests
+          echo "$DIGEST" > "digests/$NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.part }}-${{ matrix.arch }}
+          path: digests/*
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: kind
+        name: Which channel
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          case "$REF_TYPE:$REF_NAME" in
+            tag:*-*) echo "channel=beta" >> "$GITHUB_OUTPUT"; echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT" ;;
+            tag:*) echo "channel=stable" >> "$GITHUB_OUTPUT"; echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT" ;;
+            *) echo "channel=beta" >> "$GITHUB_OUTPUT"; echo "tag=" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: One multi-arch image per part, tagged for its channel
+        env:
+          TAG: ${{ steps.kind.outputs.tag }}
+          CHANNEL: ${{ steps.kind.outputs.channel }}
+        run: |
+          set -eu
+          if [ -n "$TAG" ]; then
+            tags="${TAG#v}"
+            [ "$CHANNEL" = stable ] && tags="$tags latest"
+          else
+            tags="beta"
+          fi
+          for part in backend frontend; do
+            image="ghcr.io/$OWNER/smoothfamily-$part"
+            args=""
+            for t in $tags; do args="$args -t $image:$t"; done
+            docker buildx imagetools create $args \
+              "$image@$(cat digests/$part-amd64)" "$image@$(cat digests/$part-arm64)"
+            # The joined image's own digest: what the manifest names.
+            first=$(echo "$tags" | cut -d' ' -f1)
+            docker buildx imagetools inspect "$image:$first" --format '{{json .Manifest.Digest}}' | tr -d '"' > "digests/$part"
+          done
+      - name: The manifest
+        env:
+          CHANNEL: ${{ steps.kind.outputs.channel }}
+          TAG: ${{ steps.kind.outputs.tag }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          python3 scripts/release-manifest.py --channel "$CHANNEL" --tag "$TAG" \
+            --build "$RUN_NUMBER" --commit "$GITHUB_SHA" \
+            --backend "ghcr.io/$OWNER/smoothfamily-backend@$(cat digests/backend)" \
+            --frontend "ghcr.io/$OWNER/smoothfamily-frontend@$(cat digests/frontend)" > manifest.json
+          cat manifest.json
+      - name: Beta – signed here with the beta key
+        if: steps.kind.outputs.channel == 'beta'
+        env:
+          BETA_SIGNING_KEY: ${{ secrets.BETA_SIGNING_KEY }}
+        run: |
+          pip install --quiet cryptography
+          python3 scripts/sign-release.py --key-env BETA_SIGNING_KEY manifest.json
+      - name: A beta build – on the beta channel's pre-release
+        if: github.ref_type != 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view channel-beta > /dev/null 2>&1 || gh release create channel-beta --prerelease --target beta \
+            --title "Beta channel" --notes "The newest beta build, for servers that follow the beta channel. It moves with every change to the beta branch."
+          gh release upload channel-beta manifest.json manifest.sig --clobber
+      - name: A tagged release – its manifest attached (a stable one is signed on the maintainer's computer)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.kind.outputs.tag }}
+          CHANNEL: ${{ steps.kind.outputs.channel }}
+        run: |
+          pre=""; [ "$CHANNEL" = beta ] && pre="--prerelease"
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --verify-tag --draft $pre \
+            --title "Smooth Family ${TAG#v}" --notes "Release notes to follow."
+          gh release upload "$TAG" manifest.json --clobber
+          [ ! -f manifest.sig ] || gh release upload "$TAG" manifest.sig --clobber
+          # The files to install it with (the images come from the registry): copy to the server, run install.sh.
+          dir="smooth-family-${TAG#v}"
+          mkdir -p "$dir"
+          for f in docker-compose.yml Caddyfile .env.example install.sh backup.sh update.sh; do
+            sed 's/\r$//' "deploy/synology/$f" > "$dir/$f"
+          done
+          sed 's/\r$//' deploy/searxng/settings.yml > "$dir/searxng.yml"
+          echo "${TAG#v}" > "$dir/VERSION"
+          tar -czf "$dir.tar.gz" "$dir"
+          gh release upload "$TAG" "$dir.tar.gz" --clobber

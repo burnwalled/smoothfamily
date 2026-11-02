@@ -1132,7 +1132,7 @@ const texts: Record<string, TopicText> = {
   },
   "serverupdates": {
     "title": "Päivitykset",
-    "summary": "Palvelimen osien tietoturvakorjaukset itsestään – ja yhdyskäytävien versiot.",
+    "summary": "Smooth Family ja palvelimen osat itsestään – ja yhdyskäytävien versiot.",
     "blocks": [
       {
         "p": "Tietokanta, Redis, verkkopalvelin ja hakukone saavat tietoturvakorjauksia Smooth Familyn julkaisujen välillä. Valitse, asennetaanko ne itsestään viikoittaisessa ikkunassa vai hyväksyntäsi jälkeen. Ensin tehdään varmuuskopio, ja jos uudet versiot eivät käynnisty, vanhat palautetaan."
@@ -1140,6 +1140,12 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "serverupdates",
         "caption": "Versiot, ikkuna ja yhdyskäytävät."
+      },
+      {
+        "h": "Smooth Family itse"
+      },
+      {
+        "p": "Valitse kanava kohdassa Smooth Family itse, niin palvelin päivittää myös sovelluksen muiden kanssa samaan aikaan: Vakaa seuraa julkaisuja, Beta jokaista muutosta heti valmistuttuaan. Vain projektin allekirjoittamat versiot asennetaan, tietokanta tallennetaan ensin, ja jos uusi versio ei käynnisty, vanha tietokantoineen palautetaan. Pois päältä, kunnes valitset – etsiminen on kutsu GitHubiin."
       },
       {
         "p": "Yhdyskäytävät-kortti näyttää jokaisen palvelimen yhdyskäytävän, kunkin ilmoittaman version ja sen, päivittyykö se itse – joten näet, että kaikki ovat ajan tasalla."

@@ -9,8 +9,10 @@ touches Docker – the two talk through files in the updates folder (DATA_DIR/up
 
 Only patches and minor versions within the same major (Postgres 16.x, Redis 7.x, Caddy 2.x); a new
 major version of Postgres needs a dump and restore and is never done here. A version must have been
-out for a week before it is used. Smooth Family's own images come with a release from the admin's
-computer, as before.
+out for a week before it is used.
+
+Smooth Family itself (3.3.0) is updated the same way when the admin has chosen a channel – stable or
+beta: services/app_updates.py finds the signed build, and update.sh pulls its two images by digest.
 """
 import json
 import re
@@ -26,11 +28,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import AppSetting, Family, User
+from app.services import app_updates
 from app.services.notify import notify
 
 SETTING = "updates"
 STATUS = "updates_status"
-DEFAULTS = {"mode": "approve", "day": 6, "hour": 4}  # Sunday 04:00, asked first
+# Sunday 04:00, asked first; Smooth Family itself only when a channel is chosen (an outgoing call).
+DEFAULTS = {"mode": "approve", "day": 6, "hour": 4, "channel": "off"}
 MIN_AGE = timedelta(days=7)
 CHECK_EVERY = timedelta(hours=6)
 
@@ -151,8 +155,8 @@ async def _put(db: AsyncSession, key: str, value: dict) -> None:
     await db.commit()
 
 
-async def set_settings(db: AsyncSession, mode: str, day: int, hour: int) -> dict:
-    value = {"mode": mode, "day": day, "hour": hour}
+async def set_settings(db: AsyncSession, mode: str, day: int, hour: int, channel: str = "off") -> dict:
+    value = {"mode": mode, "day": day, "hour": hour, "channel": channel}
     await _put(db, SETTING, value)
     return value
 
@@ -186,6 +190,17 @@ async def check(db: AsyncSession, now: datetime | None = None, fetch=hub_tags) -
         candidate = newer(name, version, tags, now)
         if candidate:
             found[name] = candidate
+    # Smooth Family itself, on the chosen channel.
+    channel = (await get_settings_(db)).get("channel", "off")
+    status.pop("app_error", None)
+    if channel != "off":
+        try:
+            app = await app_updates.available(channel)
+        except app_updates.AppUpdateError as e:
+            status["app_error"] = str(e)
+        else:
+            if app:
+                found["app"] = app
     status.update(seen=True, checked_at=now.isoformat(), state_at=state.get("checked_at"), running=running, available=found)
     await _put(db, STATUS, status)
     return status
@@ -202,13 +217,17 @@ def next_window(settings: dict, now: datetime) -> datetime:
     return start.astimezone(timezone.utc)
 
 
-def write_plan(available: dict[str, str], not_before: datetime) -> str:
+def write_plan(available: dict, not_before: datetime) -> str:
     """The plan update.sh carries out: the new images, and not before when. update.sh checks every
-    value against a strict pattern and writes the compose override itself."""
+    value against a strict pattern and writes the compose override itself. Smooth Family's own two
+    images come by digest, as the signed manifest names them."""
     run_id = uuid.uuid4().hex[:12]
     out = folder()
     out.mkdir(parents=True, exist_ok=True)
-    images = {name: f"{TRACKS[name].repo.removeprefix('library/')}:{tag}" for name, tag in available.items()}
+    images = {name: f"{TRACKS[name].repo.removeprefix('library/')}:{tag}" for name, tag in available.items() if name in TRACKS}
+    if "app" in available:
+        images["backend"] = available["app"]["backend"]
+        images["frontend"] = available["app"]["frontend"]
     env = [f"RUN_ID={run_id}", f"NOT_BEFORE={int(not_before.timestamp())}", f"PULL=\"{' '.join(sorted(images.values()))}\""]
     tmp = out / "plan.env.tmp"
     tmp.write_text("\n".join(env) + "\n", encoding="utf-8")

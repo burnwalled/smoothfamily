@@ -122,7 +122,9 @@ first account becomes the administrator. Keep a copy of `.env` somewhere safe.
 - **Storage**: [docs/STORAGE.md](docs/STORAGE.md) – where the data lives, and moving it.
 - **Local AI**: [docs/LOCAL_AI.md](docs/LOCAL_AI.md).
 
-To update: `git pull && docker compose up -d --build` – the database is migrated on start.
+To update: `git pull && docker compose up -d --build` – the database is migrated on start. With
+the production stack ([docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – it runs on any Linux
+with Docker), the server can update itself: choose Stable or Beta under Server settings → Updates.
 
 ### Stable or beta
 

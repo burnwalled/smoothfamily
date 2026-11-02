@@ -1,7 +1,9 @@
 # Smooth Family – production stack for Synology DSM (Docker package).
 #
-# Uses prebuilt images (built on a PC with scripts/build-release.sh and loaded
-# with `docker load`), because a NAS is usually too small to build Next.js.
+# Uses prebuilt images – from GitHub's registry (ghcr.io), or built on a PC with
+# scripts/build-release.sh and loaded with `docker load` – because a NAS is usually too small to build
+# Next.js. Updates put in from Server settings → Updates (update.sh) are pinned by digest in
+# docker-compose.override.yml, next to this file.
 # File format 2.4 so it also works with the older docker-compose v1 that DSM 6
 # ships. Caddy terminates HTTPS (Let's Encrypt) on NAS port 8443 – DSM itself
 # already uses 80/443 – so forward WAN 443 -> NAS:8443 in the router.
@@ -72,7 +74,6 @@ services:
       MEDIA_ROOT: /data/media
       DATA_DIR: ${DATA_DIR}
       BACKUP_DIR: /data/backup
-      APP_VERSION: ${APP_VERSION}
       SEARXNG_URL: http://searxng:8080
     volumes:
       - ${DATA_DIR}/media:/data/media

@@ -60,6 +60,11 @@ sh scripts/e2e.sh                   # browser tests on a throwaway stack
   who follow the beta channel. In "What's new" the version is `3.3.0-beta.1` while it is in
   beta and `3.3.0` when it reaches `main`.
 - **An urgent fix** for a release goes to `beta` and is released from there at once.
+- **Builds:** every merge to `beta` builds the images (`ghcr.io/burnwalled/smoothfamily-*:beta`)
+  and a beta manifest signed with the beta key – servers on the beta channel update to it. A tag
+  `vX.Y.Z` on `main` builds the release's images and attaches its manifest to a draft release;
+  the maintainer then signs it with the stable key, which only exists on their computer, and that
+  publishes it: `python scripts/sign-release.py release vX.Y.Z`.
 - `main` and `beta` can't be deleted or force-pushed. Forks are welcome – that is how you
   contribute: fork, branch from `beta`, open the pull request against `beta`.
 

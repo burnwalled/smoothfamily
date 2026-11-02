@@ -1132,7 +1132,7 @@ const texts: Record<string, TopicText> = {
   },
   "serverupdates": {
     "title": "Updates",
-    "summary": "Security fixes for the server's parts, by themselves – and the gateways' versions.",
+    "summary": "Smooth Family and the server's parts, by themselves – and the gateways' versions.",
     "blocks": [
       {
         "p": "The database, Redis, the web server and the search engine get security fixes between Smooth Family's releases. Choose whether they go in by themselves in a weekly window or after your approval. A backup is made first, and if the new versions don't come up the old ones are put back."
@@ -1140,6 +1140,12 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "serverupdates",
         "caption": "Versions, the window and the gateways."
+      },
+      {
+        "h": "Smooth Family itself"
+      },
+      {
+        "p": "Choose a channel under Smooth Family itself, and the server updates the app too, at the same time as the rest: Stable follows the releases, Beta every change as soon as it is done. Only versions signed by the project are put in, the database is saved first, and if the new version doesn't start, the old one and its database come back. Off until you choose – looking is a call to GitHub."
       },
       {
         "p": "The Gateways card shows every gateway on the server, the version each reported and whether it updates itself – so you see that all are up to date."

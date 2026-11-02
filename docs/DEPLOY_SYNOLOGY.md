@@ -11,8 +11,8 @@ phone ──https──> family.example.com (CNAME → yourname.myds.me)
                     └─ /*     → frontend:3000 (Next.js)
 ```
 
-Images are built on a PC and copied over – a NAS is usually too small to build
-the Next.js frontend.
+The images come ready-made – from GitHub's registry (since 3.3.0), or built on a
+PC and copied over. A NAS is usually too small to build the Next.js frontend.
 
 ## 0. Requirements and checks
 
@@ -29,15 +29,22 @@ the Next.js frontend.
   values in `.env`; delete `MEMORY_PROFILE` to let `install.sh` choose again.
 - DNS: `family.example.com  CNAME  yourname.myds.me` (or the UniFi DDNS name).
 
-## 1. Build a release (on the PC)
+## 1. Get a release
+
+**From GitHub (since 3.3.0)** – download `smooth-family-<version>.tar.gz` from the
+[release](https://github.com/burnwalled/smoothfamily/releases) and unpack it: the
+compose file, `Caddyfile`, `.env.example`, `install.sh`, `backup.sh`,
+`update.sh` and `VERSION`. `install.sh` downloads the images itself
+(`ghcr.io/burnwalled/smoothfamily-backend` and `-frontend`).
+
+**Or build it on a PC** (for a change of your own):
 
 ```sh
-sh scripts/build-release.sh 3.2.1
+sh scripts/build-release.sh 3.3.0
 ```
 
-This creates `release/smooth-family-3.2.1/` with `images.tar.gz`,
-`docker-compose.yml`, `Caddyfile`, `.env.example`, `install.sh`, `backup.sh`
-and `VERSION`.
+This creates `release/smooth-family-3.3.0/` with the same files plus
+`images.tar.gz`, which `install.sh` loads instead of downloading.
 
 ## 2. Install (on the NAS)
 
@@ -138,7 +145,16 @@ Create → Scheduled Task → User-defined script, user **root**, repeat hourly:
 sh /volumeN/docker/smooth-family/update.sh
 ```
 
-It tells the app what runs; the app looks for newer versions in the same major
+It also puts in **Smooth Family's own updates** (3.3.0) when you choose a channel
+under Server settings → Updates → Smooth Family itself: **Stable** (the releases)
+or **Beta** (every change to the beta branch). The app only plans a build whose
+manifest is signed with the project's key (stable releases are signed on the
+maintainer's computer, beta builds by GitHub's build with a separate key), and
+`update.sh` pulls the two images by digest – exactly what was signed. Before a new
+version starts, the database is saved; if it doesn't come up, the old version
+and that database are put back.
+
+For the other services, it tells the app what runs; the app looks for newer versions in the same major
 (never Postgres 16 → 17) that have been out for a week, and the server admin
 chooses in Server settings → Updates whether they go in by themselves in a
 weekly window or after approval. When it's time, `update.sh` pulls them, makes
@@ -149,11 +165,16 @@ writes which versions it wants, and `update.sh` checks every value.
 
 ## 5. Upgrading
 
+With a channel chosen under Server settings → Updates, the server does it itself.
+By hand:
+
 ```sh
-sh scripts/build-release.sh 3.3.0     # on the PC
-# copy the new release contents to /volumeN/docker/smooth-family (keeps .env and data/)
+# the new release's files (from GitHub, or sh scripts/build-release.sh 3.3.1 on the PC)
+# copied to /volumeN/docker/smooth-family – .env and data/ are kept
 sudo sh backup.sh && sudo sh install.sh   # on the NAS – migrations run automatically
 ```
+
+A release installed by hand takes over from an update the app put in earlier.
 
 ## Recipe search (SearXNG)
 

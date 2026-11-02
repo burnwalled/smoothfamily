@@ -5,13 +5,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.config import get_settings
 from app.deps import DB, ServerAdmin
 from sqlalchemy import select
 
 from app.models import Family, SmarthomeConnection
 from app.services import families as fam
-from app.services import gateway, gateway_release, updates
+from app.services import app_updates, gateway, gateway_release, updates
 
 router = APIRouter(prefix="/api/admin/updates", tags=["updates"])
 
@@ -21,6 +20,8 @@ class SettingsIn(BaseModel):
     mode: str = Field(pattern="^(auto|approve|off)$")
     day: int = Field(ge=0, le=6)
     hour: int = Field(ge=0, le=23)
+    # Smooth Family itself (3.3.0): off, the stable releases, or every beta build.
+    channel: str = Field(default="off", pattern="^(off|stable|beta)$")
 
 
 async def _gateways(db) -> dict:
@@ -52,7 +53,9 @@ async def _overview(db) -> dict:
     status = await updates.get_status(db)
     settings = await updates.get_settings_(db)
     return {
-        "app_version": get_settings().app_version or None,
+        "app_version": app_updates.running()["version"],
+        "app_build": app_updates.running()["commit"][:7] or None,
+        "app_error": status.get("app_error"),
         # update.sh has run (it writes the state); without it nothing can be updated.
         "connected": bool(status.get("seen")),
         "state_at": status.get("state_at"),
@@ -74,7 +77,7 @@ async def get_updates(admin: ServerAdmin, db: DB) -> dict:
 
 @router.put("/settings")
 async def set_update_settings(payload: SettingsIn, admin: ServerAdmin, db: DB) -> dict:
-    await updates.set_settings(db, payload.mode, payload.day, payload.hour)
+    await updates.set_settings(db, payload.mode, payload.day, payload.hour, payload.channel)
     if payload.mode == "off":
         updates.cancel_plan()
         status = await updates.get_status(db)

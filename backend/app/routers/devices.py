@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from app import __version__
 from app.config import get_settings
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import ClientDevice, Family, KioskScreen, Property, SmarthomeConnection, User
@@ -62,19 +63,16 @@ class FamilyDevices(BaseModel):
 
 
 def _parts(version: str | None) -> tuple:
-    try:
-        return tuple(int(p) for p in (version or "").split("."))
-    except ValueError:
-        return ()
+    """Comparable: 3.3.0-beta.1 < 3.3.0 < 3.3.1 (the same order as the app's updates)."""
+    from app.services.app_updates import version_key
+
+    return version_key(version or "")
 
 
 async def expected_app_version(db) -> str | None:
-    """The app version a device should run: the server's own – or, where it isn't set (development),
-    the newest any device has reported."""
-    if get_settings().app_version:
-        return get_settings().app_version
-    versions = (await db.execute(select(ClientDevice.app_version).where(ClientDevice.app_version.is_not(None)).distinct())).scalars().all()
-    return max(versions, key=_parts, default=None)
+    """The app version a device should run: the server's own (3.3.0: from the code, so it follows
+    an update that put in new images)."""
+    return __version__
 
 
 async def family_devices(db, family_id: uuid.UUID, now: datetime | None = None) -> list[DeviceOut]:
