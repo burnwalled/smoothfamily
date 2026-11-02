@@ -41,6 +41,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # A new Python (3.12 → 3.13 …) is a new runtime, not a patch: the libraries need wheels for it
+      # and the server needs testing. It is changed by hand, together with CI's python-version.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor"]
     schedule: { interval: monthly }
     groups:
       images: { patterns: ["*"], update-types: [minor, patch] }
