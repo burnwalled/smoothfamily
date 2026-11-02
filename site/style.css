@@ -258,6 +258,8 @@ footer {
 }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; align-items: center; }
 footer a { color: var(--on-dark); }
+/* The Ko-fi button – a copy on this site, so nothing is fetched from Ko-fi until it is clicked. */
+footer .kofi img { height: 36px; width: auto; border: 0; }
 
 /* --- How it fits together: the drawing follows the page's colours, light and dark ------------- */
 /* On a phone the drawing keeps a readable size and is swiped sideways. */
