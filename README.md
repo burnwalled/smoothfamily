@@ -64,6 +64,13 @@ The app has a help centre in five languages (English, Svenska, Norsk, Dansk, Suo
 and screenshots for every feature – press **?** next to any page's title. The English help is also
 in the **[wiki](https://github.com/burnwalled/smoothfamily/wiki)**, to read before you install.
 
+## Made in the Nordics
+
+Smooth Family is built by a Swedish family and works anywhere, in five languages. A few services it
+can fetch are Nordic, though: the weather comes from SMHI (the Nordic countries), the electricity
+price for Sweden's areas SE1–SE4, the school lunch from Skolmaten and public transport from SL
+(Stockholm). Elsewhere those cards simply stay off – everything else works the same.
+
 ## Privacy by design
 
 - No accounts with us, no telemetry, no tracking, no fonts or scripts from other servers.
@@ -76,8 +83,10 @@ in the **[wiki](https://github.com/burnwalled/smoothfamily/wiki)**, to read befo
 
 ## Install
 
-You need a computer that is always on, with Docker: a NAS, a Raspberry Pi 4/5 (2 GB+, 64-bit), a
-small PC – or Docker Desktop on Windows or Mac to try it.
+You need a computer that is always on, with Docker: a NAS, a Raspberry Pi 4/5 (64-bit), a small PC
+– or Docker Desktop on Windows or Mac to try it. The app is built from source on that computer the
+first time, which needs about 4 GB of memory (it runs in less): on a Raspberry Pi with 2 GB, add
+swap first; on a small NAS, build on a PC and copy the images over, as the Synology guide does.
 
 ```sh
 git clone https://github.com/burnwalled/smoothfamily.git
@@ -85,9 +94,10 @@ cd smoothfamily
 ./scripts/install.sh        # Windows: .\scripts\install.ps1
 ```
 
-The script writes `.env` with fresh secrets and starts the stack. Open `http://<the-computer>:3000`,
-and a setup guide helps you set up the server and the family – the first account becomes the
-administrator.
+The script writes `.env` with fresh secrets and starts the stack. Open `http://<the-computer>:3000`
+and enter the **setup code** the script prints (it is also `SETUP_CODE` in `.env`) – it keeps anyone
+else from claiming a new server. A setup guide then helps you set up the server and the family; the
+first account becomes the administrator. Keep a copy of `.env` somewhere safe.
 
 - **Synology NAS** (DSM 6/7): [docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – prebuilt images,
   HTTPS with Caddy, updates and backups.

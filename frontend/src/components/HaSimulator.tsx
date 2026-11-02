@@ -16,13 +16,13 @@ export default function HaSimulator() {
   const { t } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  // Not a simulated home: 404, and the panel stays away. Moving someone (smarthome) or a live
+  // Not a simulated home: nobody, and the panel stays away. Moving someone (smarthome) or a live
   // presence event refreshes it.
   const people = useApi<SimPerson[]>("/api/smarthome/simulator").data ?? null;
   const [error, setError] = useState("");
 
 
-  if (!people) return null;
+  if (!people?.length) return null;
 
   async function move(person: SimPerson, state: "home" | "not_home", direction: string | null) {
     setError("");

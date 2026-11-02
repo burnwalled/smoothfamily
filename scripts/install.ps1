@@ -18,7 +18,8 @@ function New-HexSecret([int]$bytes) {
 
 if (-not (Test-Path ".env")) {
     Write-Host "Creating .env with generated secrets..."
-    $content = Get-Content ".env.example" -Raw
+    # Git on Windows may check the file out with CRLF; "$" only matches before "\n".
+    $content = (Get-Content ".env.example" -Raw) -replace "`r`n", "`n"
     Write-Host ""
     Write-Host "Choose where app data is stored (Postgres + media)."
     Write-Host "Warning: databases wear out SD cards - prefer a USB SSD path on a Pi."
@@ -26,18 +27,25 @@ if (-not (Test-Path ".env")) {
     if ([string]::IsNullOrWhiteSpace($dataDir)) { $dataDir = "./data" }
     $content = $content -replace "(?m)^SECRET_KEY=$", ("SECRET_KEY=" + (New-HexSecret 32))
     $content = $content -replace "(?m)^POSTGRES_PASSWORD=$", ("POSTGRES_PASSWORD=" + (New-HexSecret 16))
+    $content = $content -replace "(?m)^SEARXNG_SECRET=$", ("SEARXNG_SECRET=" + (New-HexSecret 32))
+    # Needed once, to create the family - so nobody else can claim a fresh install.
+    $content = $content -replace "(?m)^SETUP_CODE=$", ("SETUP_CODE=" + (New-HexSecret 6))
     $content = $content -replace "(?m)^DATA_DIR=.*$", ("DATA_DIR=" + $dataDir)
     # LF + UTF-8 without BOM so docker compose reads the file correctly
     [System.IO.File]::WriteAllText((Join-Path (Get-Location) ".env"), $content)
-    Write-Host "Done: .env created."
+    Write-Host "Done: .env created - keep a copy of it somewhere safe (a password manager)."
 } else {
     Write-Host ".env already exists - keeping it."
 }
 
 Write-Host "Building and starting Smooth Family (the first build takes a few minutes)..."
 docker compose up -d --build
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$port = (Select-String -Path ".env" -Pattern "^PORT=(\d+)").Matches[0].Groups[1].Value
+$port = $env:PORT
+if (-not $port) { $port = (Select-String -Path ".env" -Pattern "^PORT=(\d+)").Matches[0].Groups[1].Value }
 if (-not $port) { $port = "3000" }
+$code = (Select-String -Path ".env" -Pattern "^SETUP_CODE=(\S+)").Matches[0].Groups[1].Value
 Write-Host ""
 Write-Host "Smooth Family is now running. Open http://localhost:$port and create your family."
+Write-Host "Setup code: $code"

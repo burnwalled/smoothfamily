@@ -32,10 +32,10 @@ the Next.js frontend.
 ## 1. Build a release (on the PC)
 
 ```sh
-sh scripts/build-release.sh 1.1.0
+sh scripts/build-release.sh 3.2.1
 ```
 
-This creates `release/smooth-family-1.1.0/` with `images.tar.gz`,
+This creates `release/smooth-family-3.2.1/` with `images.tar.gz`,
 `docker-compose.yml`, `Caddyfile`, `.env.example`, `install.sh`, `backup.sh`
 and `VERSION`.
 
@@ -150,7 +150,7 @@ writes which versions it wants, and `update.sh` checks every value.
 ## 5. Upgrading
 
 ```sh
-sh scripts/build-release.sh 1.2.0     # on the PC
+sh scripts/build-release.sh 3.3.0     # on the PC
 # copy the new release contents to /volumeN/docker/smooth-family (keeps .env and data/)
 sudo sh backup.sh && sudo sh install.sh   # on the NAS – migrations run automatically
 ```

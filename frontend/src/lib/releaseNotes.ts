@@ -10,6 +10,17 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "3.2.1",
+    date: "2026-11-02",
+    items: {
+      sv: ["Installationen från GitHub fungerar nu direkt: skriptet stannade på ett fel, fick inte köras på Linux och fyllde inte i alla hemligheter. Det skapar nu också en uppsättningskod så att ingen annan kan ta över en ny server.", "Fälten när familjen skapas är kopplade till sina rubriker, så att skärmläsare läser upp dem.", "Sidan Smarta hemmet frågar inte längre efter en simulerad hemmiljö som inte finns."],
+      en: ["Installing from GitHub now works straight away: the script stopped on an error, couldn't be run on Linux and didn't fill in every secret. It now also makes a setup code, so nobody else can claim a new server.", "The fields where the family is created are tied to their labels, so screen readers read them out.", "The Smart home page no longer asks for a simulated home that isn't there."],
+      nb: ["Installasjonen fra GitHub fungerer nå med en gang: skriptet stoppet på en feil, kunne ikke kjøres på Linux og fylte ikke inn alle hemmeligheter. Det lager nå også en oppsettkode, så ingen andre kan ta over en ny server.", "Feltene der familien opprettes, er koblet til overskriftene sine, så skjermlesere leser dem opp.", "Smarthjem-siden spør ikke lenger etter et simulert hjem som ikke finnes."],
+      da: ["Installationen fra GitHub virker nu med det samme: scriptet stoppede ved en fejl, kunne ikke køres på Linux og udfyldte ikke alle hemmeligheder. Det laver nu også en opsætningskode, så ingen andre kan overtage en ny server.", "Felterne, hvor familien oprettes, er knyttet til deres overskrifter, så skærmlæsere læser dem op.", "Siden Smart hjem spørger ikke længere efter et simuleret hjem, der ikke findes."],
+      fi: ["Asennus GitHubista toimii nyt heti: skripti pysähtyi virheeseen, sitä ei voinut ajaa Linuxissa eikä se täyttänyt kaikkia salaisuuksia. Nyt se tekee myös asennuskoodin, jottei kukaan muu voi ottaa uutta palvelinta haltuunsa.", "Perheen luomisen kentät on liitetty otsikkoihinsa, joten ruudunlukijat lukevat ne.", "Älykoti-sivu ei enää kysy simuloitua kotia, jota ei ole."],
+    },
+  },
+  {
     version: "3.2.0",
     date: "2026-11-02",
     items: {

@@ -185,8 +185,9 @@ export default function LoginPage() {
               <>
                 {status.requires_code && (
                   <div>
-                    <label className="label">{t("login.setupCode")}</label>
+                    <label className="label" htmlFor="setup-code">{t("login.setupCode")}</label>
                     <input
+                      id="setup-code"
                       className="input font-mono"
                       autoCapitalize="none"
                       autoComplete="off"
@@ -197,16 +198,17 @@ export default function LoginPage() {
                   </div>
                 )}
                 <div>
-                  <label className="label">{t("login.familyName")}</label>
-                  <input className="input" value={familyName} onChange={(e) => setFamilyName(e.target.value)} placeholder={t("login.familyNamePh")} />
+                  <label className="label" htmlFor="setup-family">{t("login.familyName")}</label>
+                  <input id="setup-family" className="input" value={familyName} onChange={(e) => setFamilyName(e.target.value)} placeholder={t("login.familyNamePh")} />
                 </div>
                 <div>
-                  <label className="label">{t("login.yourName")}</label>
-                  <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+                  <label className="label" htmlFor="setup-name">{t("login.yourName")}</label>
+                  <input id="setup-name" className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
                 </div>
                 <div>
-                  <label className="label">{t("login.email")}</label>
+                  <label className="label" htmlFor="setup-email">{t("login.email")}</label>
                   <input
+                    id="setup-email"
                     className="input"
                     type="email"
                     autoComplete="email"
@@ -259,8 +261,8 @@ export default function LoginPage() {
                   </span>
                 </label>
                 <div>
-                  <label className="label">{t("security.totpPolicy")}</label>
-                  <select className="input" value={totpPolicy} onChange={(e) => setTotpPolicy(e.target.value as TotpPolicy)}>
+                  <label className="label" htmlFor="setup-totp">{t("security.totpPolicy")}</label>
+                  <select id="setup-totp" className="input" value={totpPolicy} onChange={(e) => setTotpPolicy(e.target.value as TotpPolicy)}>
                     <option value="off">{t("security.totp.off")}</option>
                     <option value="optional">{t("security.totp.optional")}</option>
                     <option value="required">{t("security.totp.required")}</option>

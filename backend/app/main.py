@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app import __version__
 from app.config import get_settings
 from app.routers import achievements, admin, ai, bank, custody, easy, albums, allowance, auth, backups, birthdays, invite, documents, emergency, flows, guests, kiosk, medicine, pantry, pets, presence, server, trips, week, wish_share, calendar, chat, coparent, dashboard, events, family, feedback, home, lists, meals, mfa, notifications, property, push, rewards, shop, smarthome, tasks, transit, vault, vault_shares, vehicles, web_search, receipts, gateway, economy, csp, updates, guide, devices
 from app.database import SessionLocal
@@ -32,7 +33,7 @@ async def lifespan(_: FastAPI):
         await task
 
 
-app = FastAPI(title=get_settings().app_name, version="0.4.0", lifespan=lifespan)
+app = FastAPI(title=get_settings().app_name, version=__version__, lifespan=lifespan)
 app.add_middleware(LiveWritesMiddleware)
 
 app.include_router(auth.router)

@@ -203,8 +203,11 @@ async def _sim_conn(db, user) -> SmarthomeConnection:
 
 @router.get("/simulator", response_model=list[SimPerson])
 async def simulator(user: CurrentUser, db: DB) -> list[SimPerson]:
-    """The simulated home's people, to move them home and away."""
-    conn = await _sim_conn(db, user)
+    """The simulated home's people, to move them home and away – none when the home isn't simulated
+    (asked by every Smart home page, so not an error)."""
+    conn = await smarthome_conn.primary(db, user.family_id)
+    if conn is None or not ha_sim.is_sim(conn.base_url):
+        return []
     states = {s["entity_id"]: s for s in await ha.get_states(conn.base_url, "")}
     return [
         SimPerson(

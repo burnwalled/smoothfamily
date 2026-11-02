@@ -20,6 +20,8 @@ async def test_simulated_home(client):
         json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"},
     )
     admin_id = resp.json()["id"]
+    # Not simulated yet: nobody to move – an empty answer, not an error (3.2.1).
+    assert (await client.get("/api/smarthome/simulator")).json() == []
     conn = (await client.post("/api/smarthome/connection/simulated")).json()
     assert conn["simulated"] is True and conn["base_url"] == ""
     devices = {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}

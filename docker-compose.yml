@@ -47,6 +47,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://smooth:${POSTGRES_PASSWORD}@db:5432/smoothfamily
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      SETUP_CODE: ${SETUP_CODE:-}
       DATA_DIR: ${DATA_DIR:-./data}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
