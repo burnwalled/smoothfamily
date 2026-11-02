@@ -284,6 +284,12 @@ const texts: Record<string, TopicText> = {
           "Kalendere dere abonnerer på kan bare leses og oppdateres hvert 15. minutt.",
           "Din egen kalender kan legges inn på telefonen med abonnementslenken under Min profil."
         ]
+      },
+      {
+        "h": "Røde dager"
+      },
+      {
+        "p": "Landets helligdager vises i kalenderen som røde dager, og aftenene som fungerer som helligdager (julaften, nyttårsaften …) i en lysere rød. Velg land – eller slå av – under Familieinnstillinger → Hverdagen. For et annet land legger du til en offentlig helligdagskalender som abonnement."
       }
     ]
   },

@@ -49,6 +49,8 @@ class Family(Base):
     vault_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The electricity price area (SE1–SE4) for the price card and cheap-hour flows.
     electricity_area: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    # The red days in the calendar (3.4.0): SE, NO, DK, FI, GB-ENG, GB-SCT, GB-NIR – or none.
+    holiday_country: Mapped[str | None] = mapped_column(String(6), nullable=True)
     # Local AI: None = the default (on for the family running the server, off for others), else the
     # family admin's choice. A hosted family also needs the server admin to allow it.
     ai_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { CircleCheck, LocateFixed } from "lucide-react";
 import { api, TodaySources } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 
 export default function TodayCardsSettingsPage() {
@@ -123,6 +123,23 @@ export default function TodayCardsSettingsPage() {
             <button className="btn-ghost" onClick={() => saveWeather(true)}>{t("weather.remove")}</button>
           )}
         </div>
+      </section>
+
+      <section className="card mb-4 p-5">
+        <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">{t("holidays.title")}</h2>
+        <p className="mb-3 text-xs text-muted">{t("holidays.help")}</p>
+        <select
+          className="input w-auto"
+          value={sources.holiday_country ?? ""}
+          onChange={(e) => run(() => api.put<TodaySources>("/api/dashboard/sources/holidays", { country: e.target.value || null }), t("home.saved"))}
+          aria-label={t("holidays.title")}
+        >
+          <option value="">{t("holidays.off")}</option>
+          {(["SE", "NO", "DK", "FI", "GB-ENG", "GB-SCT", "GB-NIR"] as const).map((c) => (
+            <option key={c} value={c}>{t(`holidays.country.${c}` as TranslationKey)}</option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-muted">{t("holidays.other")}</p>
       </section>
 
       <section className="card mb-4 p-5">

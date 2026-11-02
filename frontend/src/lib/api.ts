@@ -221,6 +221,9 @@ export type CalendarEvent = {
   // Exactly one is set: feed_id for iCal subscriptions, event_id for events created in the app.
   feed_id: string | null;
   event_id: string | null;
+  // A public holiday of the family's country (3.4.0), or an eve that works like one.
+  holiday?: boolean;
+  holiday_eve?: boolean;
   feed_name: string;
   color: string;
   title: string | null;
@@ -1151,6 +1154,8 @@ export type TodaySources = {
   weather_place: string | null;
   waste_schedules: WasteSchedule[];
   electricity_area: string | null;
+  // The red days in the calendar (3.4.0); null is off.
+  holiday_country: string | null;
 };
 
 export type PriceHour = { start: string; ore: number };

@@ -382,7 +382,8 @@ async def serve_ical(token: str, db: DB) -> str:
     cal.add("x-published-ttl", "PT1H")
 
     for event in await events_between(db, user, today - timedelta(days=7), today + timedelta(days=365)):
-        if event.busy or not event.title or (event.feed_id is not None and event.feed_id in own_feeds):
+        # The phone's calendar has its own holidays.
+        if event.busy or event.holiday or not event.title or (event.feed_id is not None and event.feed_id in own_feeds):
             continue
         drives = user.id in (event.drop_off_by, event.pick_up_by)
         if event.member_ids and user.id not in event.member_ids and not drives:

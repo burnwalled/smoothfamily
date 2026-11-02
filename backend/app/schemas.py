@@ -47,6 +47,8 @@ class SetupRequest(BaseModel):
     # Sign-in policy for the family (can be changed later in Family admin → Security).
     passkeys_enabled: bool = True
     totp_policy: str = Field(default="optional", pattern=r"^(off|optional|required)$")
+    # The language the admin set the family up in – also the first choice of public holidays.
+    language: str | None = Field(default=None, pattern=r"^(en|sv|nb|da|fi)$")
 
 
 class LoginRequest(BaseModel):
@@ -258,6 +260,9 @@ class EventOut(BaseModel):
     vehicle_id: uuid.UUID | None = None
     # A home's maintenance (Property).
     property_id: uuid.UUID | None = None
+    # A public holiday of the family's country (3.4.0) – an eve (julafton) is marked too.
+    holiday: bool = False
+    holiday_eve: bool = False
     # Names the occurrence for who drives and the packing list (not for busy or birthday events).
     key: str | None = None
     needs_ride: bool = False

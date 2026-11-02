@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from app.services import holidays
 from app.services import security_policy
 from app.services.families import delete_family
 from app.config import get_settings
@@ -55,6 +56,7 @@ async def first_run_setup(payload: SetupRequest, response: Response, db: DB) -> 
         passkeys_enabled=payload.passkeys_enabled,
         totp_policy=payload.totp_policy,
         kind="owner",
+        holiday_country=holidays.BY_LANGUAGE.get(payload.language or ""),
     )
     db.add(family)
     await db.flush()
@@ -66,6 +68,7 @@ async def first_run_setup(payload: SetupRequest, response: Response, db: DB) -> 
         password_hash=hash_password(payload.password),
         role="admin",
         is_server_admin=True,
+        language=payload.language or "en",
     )
     db.add(user)
     await db.commit()
