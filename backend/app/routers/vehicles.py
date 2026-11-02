@@ -762,7 +762,7 @@ async def export_vehicle_data(user: CurrentUser, db: DB, vehicle_id: uuid.UUID |
     visible = await _visible_ids(db, user)
     vehicles_q = select(Vehicle).where(Vehicle.id.in_(visible))
     expenses_q = select(VehicleExpense).where(VehicleExpense.vehicle_id.in_(visible))
-    tasks_q = select(Task).where(Task.family_id == user.family_id, Task.vehicle_id.in_(visible))
+    tasks_q = select(Task).where(Task.family_id == user.family_id, Task.vehicle_id.in_(visible), Task.deleted_at.is_(None))
 
     if vehicle_id is not None:
         await _get_vehicle(db, user, vehicle_id)

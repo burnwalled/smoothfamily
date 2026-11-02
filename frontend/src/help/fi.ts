@@ -551,7 +551,8 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Lapset voivat ehdottaa tehtäviä; aikuinen tekee niistä tehtäviä tai kieltäytyy.",
           "Pisteet menevät kauppaan ja viikkorahaan – katso niiden aiheet.",
-          "Tehtävä, jonka useampi voi tehdä yhdessä, jakaa pisteensä tekijöiden kesken: valitse ketkä, kun se kuitataan."
+          "Tehtävä, jonka useampi voi tehdä yhdessä, jakaa pisteensä tekijöiden kesken: valitse ketkä, kun se kuitataan.",
+          "Kun poistat tehtävän, jo ansaitut pisteet – ja kerrat, jolloin se tehtiin – säilyvät."
         ]
       }
     ]
