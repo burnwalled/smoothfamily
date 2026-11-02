@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smooth Family – familjens egen portal</title>
+  <meta name="description" content="Familjens kalender, sysslor och poäng, mat, en köksskärm, det smarta hemmet och familjens dokument – i en app som körs hemma hos er, inte i någons moln.">
+  <meta name="theme-color" content="#182b20">
+  <meta property="og:title" content="Smooth Family – familjens egen portal">
+  <meta property="og:description" content="Egen server, privat, på fem språk. Kalendern, sysslorna, maten, köksskärmen och det smarta hemmet – hemma hos er.">
+  <meta property="og:image" content="https://burnwalled.github.io/smoothfamily/img/sv/kiosk.webp">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="alternate" hreflang="en" href="../">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <nav>
+        <a class="brand" href="./"><img src="../logo-mark-on-dark.svg" alt=""> Smooth Family</a>
+        <div class="nav-links">
+          <a href="#funktioner">Funktioner</a>
+          <a href="#integritet">Integritet</a>
+          <a href="#installera">Installera</a>
+          <a href="https://github.com/burnwalled/smoothfamily/wiki">Hjälp</a>
+          <a class="gh" href="https://github.com/burnwalled/smoothfamily">GitHub</a>
+          <a class="lang" href="../" hreflang="en" lang="en">English</a>
+        </div>
+      </nav>
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Egen server · öppen källkod</span>
+          <h1>Familjens egen portal – <em>hemma hos er</em>, inte i någons moln.</h1>
+          <p class="lead">Den gemensamma kalendern, sysslor med poäng och veckopeng, listor, veckans mat, en köksskärm på väggen, det smarta hemmet och familjens dokument – i en lugn app för hela familjen, från sexåringar till mor- och farföräldrar.</p>
+          <div class="buttons">
+            <a class="btn btn-honey" href="#installera">Kom igång</a>
+            <a class="btn btn-ghost" href="https://github.com/burnwalled/smoothfamily">Se den på GitHub</a>
+          </div>
+          <div class="facts"><span>Inga konton hos oss</span><span>Ingen spårning</span><span>Fem språk</span><span>Gratis, AGPL-3.0</span></div>
+        </div>
+        <img class="hero-shot" src="../img/sv/kiosk.webp" alt="Köksskärmen: dagens kalender, uppgifter som bockas av med ett tryck på ansiktet, middagen och vädret" width="1549" height="1077">
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <h2>Familjens dag, på alla skärmar</h2>
+        <p class="intro">I mobilen, på datorn eller på en surfplatta på väggen – samma familj, uppdaterad överallt. Var och en väljer vad de vill se.</p>
+        <div class="phones">
+          <figure class="phone"><img src="../img/sv/today.webp" alt="Idag: dagen i ett ögonkast" loading="lazy" width="585" height="1266"><figcaption>Dagen i ett ögonkast</figcaption></figure>
+          <figure class="phone"><img src="../img/sv/tasks.webp" alt="Uppgifter med poäng" loading="lazy" width="585" height="1266"><figcaption>Sysslor med poäng</figcaption></figure>
+          <figure class="phone"><img src="../img/sv/food.webp" alt="Veckans måltider" loading="lazy" width="585" height="1266"><figcaption>Veckans mat</figcaption></figure>
+          <figure class="phone"><img src="../img/sv/week.webp" alt="Söndagskollen" loading="lazy" width="585" height="1266"><figcaption>Söndagskollen</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="tint" id="funktioner">
+      <div class="wrap">
+        <h2>Allt en familj håller koll på</h2>
+        <p class="intro">Slå på det familjen använder – resten håller sig undan. Varje funktion har en sida med bilder i <a href="https://github.com/burnwalled/smoothfamily/wiki">hjälpcentret</a> (på engelska; i appen finns den på svenska).</p>
+        <div class="features">
+          <div class="card"><div class="icon" aria-hidden="true">📅</div><h3>Kalendern och veckan</h3><p>Familjens händelser och allas prenumererade kalendrar, vem som kör och vad som ska packas, två hem för barn som bor i två, och Söndagskollen för att blicka bakåt och framåt.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">⭐</div><h3>Sysslor, poäng och veckopeng</h3><p>Uppgifter med poäng, turordning, godkännande av en vuxen, en belöningsbutik, sparburkar – och ett bildläge för de små som inte kan läsa än.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🍲</div><h3>Mat</h3><p>Veckans matsedel med matlådor från storkok, en receptbok som hämtar recept från en länk, ett matlagningsläge i stor stil, och skafferiet och frysen.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🖥️</div><h3>En köksskärm</h3><p>En surfplatta på väggen: dagen, uppgifter som bockas av med ett tryck på ansiktet, middagen, knappar till det smarta hemmet – och en räv som visar vädret när skärmen vilar.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">💡</div><h3>Det smarta hemmet</h3><p>Home Assistant hemma, och i ett annat hem via en gateway som inte behöver någon öppen port. Flöden, närvaro, energi och elpriset.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🔐</div><h3>Familjens valv</h3><p>Foton, dokument och lösenord krypterade med familjens egen nyckel, kvitton med garantier, nödkort och gästlänkar till barnvakten.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🏡</div><h3>Hemmet och bilen</h3><p>Underhåll och påminnelser för hemmet, fordonen, husdjuren och resorna – och hushållets ekonomi, som räknar sig själv.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🤖</div><h3>Lokal AI, om du vill</h3><p>Din egen dator läser kvitton och föreslår veckans mat. Inget skickas till en moln-AI – och den är avstängd tills du slår på den.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">👨‍👩‍👧</div><h3>Flera familjer, en server</h3><p>Låt mormors familj bo hos er också. Serverns administratör ser namn och storlek – aldrig en familjs innehåll.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="integritet">
+      <div class="wrap split">
+        <div>
+          <h2>Privat från grunden</h2>
+          <p class="intro">Smooth Family körs på en dator hemma hos er – en NAS, en Raspberry Pi eller en liten PC. Familjens data stannar där.</p>
+          <ul class="checks">
+            <li>Inga konton hos oss, ingen telemetri, ingen spårning, inga typsnitt eller skript från andra servrar.</li>
+            <li>Det enda som hämtas utifrån är det ni själva slår på – era kalendrar, vädret, en receptsida.</li>
+            <li>Dokument och lösenord krypteras med familjens nyckel; backuper förseglas med en nyckel som bara ni har.</li>
+            <li>Barnen ser det som är tänkt för dem; vuxnas egna mediciner, dokument och lösenord förblir deras.</li>
+          </ul>
+        </div>
+        <img src="../img/sv/vault.webp" alt="Valvet" loading="lazy" width="585" height="1266" style="max-width: 320px; justify-self: center;">
+      </div>
+    </section>
+
+    <section class="tint" id="installera">
+      <div class="wrap">
+        <h2>Igång på några minuter</h2>
+        <p class="intro">Du behöver en dator som alltid är på, med Docker – eller Docker Desktop på Windows eller en Mac för att prova.</p>
+        <div class="steps">
+          <div class="card"><h3>Hämta</h3><p>Klona repot på datorn som ska bli familjens server.</p></div>
+          <div class="card"><h3>Installera</h3><p>Skriptet skapar hemligheterna, bygger appen och skriver ut en uppsättningskod.</p></div>
+          <div class="card"><h3>Skapa familjen</h3><p>Öppna appen, skriv in koden, så tar en guide dig genom servern och familjen.</p></div>
+        </div>
+        <div style="margin-top: 22px">
+<pre><code><span class="c"># Linux, en Raspberry Pi eller en Mac</span>
+git clone https://github.com/burnwalled/smoothfamily.git
+cd smoothfamily
+./scripts/install.sh            <span class="c"># Windows: .\scripts\install.ps1</span></code></pre>
+        </div>
+        <p class="note">Innan du öppnar den mot internet: läs <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ACCESS.md">hur servern nås säkert</a> – hemmanätet, VPN eller HTTPS – och vad varje sätt kostar (på engelska).</p>
+        <div class="links">
+          <a href="https://github.com/burnwalled/smoothfamily#install">Installationsguide</a>
+          <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/DEPLOY_SYNOLOGY.md">På en Synology NAS</a>
+          <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ARCHITECTURE.md">Så hänger det ihop</a>
+          <a href="https://github.com/burnwalled/smoothfamily/wiki">Hjälpcentret</a>
+          <a href="https://github.com/burnwalled/smoothfamily/releases">Versioner</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Smooth Family byggs på fritiden av en familj och delas gratis under <a href="https://github.com/burnwalled/smoothfamily/blob/main/LICENSE">AGPL-3.0</a>. Ingen supportorganisation och inga löften – ärenden och pull requests är välkomna.</span>
+      <span><a href="https://github.com/burnwalled/smoothfamily">GitHub</a> · <a href="https://github.com/burnwalled/smoothfamily/blob/main/SECURITY.md">Säkerhet</a> · <a href="../" hreflang="en" lang="en">English</a></span>
+    </div>
+  </footer>
+</body>
+</html>
