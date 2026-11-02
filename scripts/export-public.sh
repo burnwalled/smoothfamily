@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copy the committed tree (HEAD) into a clone of the public repository – without the private parts –
-# and check it for anything that must not be published. Nothing is committed or pushed: look at the
-# result in the clone, then commit and push there yourself.
+# and check it for anything that must not be published. It is staged, not committed or pushed: look
+# at the result in the clone, then commit and push there yourself.
 #
 #   sh scripts/export-public.sh ../smoothfamily
 #
@@ -16,6 +16,11 @@ cd "$(dirname "$0")/.."
 find "$TARGET" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 git archive HEAD | tar -x -C "$TARGET"
 rm -rf "$TARGET/.ai"
+# Staged, with the executable bit given back: tar on Windows drops it, and a clone there doesn't see it.
+git -C "$TARGET" add -A
+git ls-files -s | awk '$1 == "100755" { print $4 }' | while read -r f; do
+  [ -f "$TARGET/$f" ] && git -C "$TARGET" update-index --chmod=+x -- "$f"
+done
 
 # Stop if anything looks like a secret or a private address.
 found=$(grep -rIlE \
