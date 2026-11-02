@@ -1,0 +1,26 @@
+# A release reaches main only from this repository's beta branch (see CONTRIBUTING → Branches and
+# releases). A pull request from anywhere else fails here – open it against beta instead.
+name: Release source
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  from-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: The pull request comes from beta
+        # Through env, never ${{ }} in the script: a branch name is chosen by whoever opens the PR.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REF" != "beta" ] || [ "$HEAD_REPO" != "$THIS_REPO" ]; then
+            echo "::error::Pull requests to main come from the beta branch of $THIS_REPO. Open this one against beta."
+            exit 1
+          fi
+          echo "A release from beta."

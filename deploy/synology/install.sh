@@ -141,8 +141,33 @@ for d in media backup updates caddy redis; do
 	find "$DATA_DIR/$d" -type f -exec chmod 600 {} +
 done
 
-echo "Loading images (version $VERSION)..."
-gunzip -c images.tar.gz | docker load
+if [ -f images.tar.gz ]; then
+	echo "Loading images (version $VERSION)..."
+	gunzip -c images.tar.gz | docker load
+else
+	# No images in the folder (3.3.0): the same release from GitHub's registry.
+	echo "Downloading images (version $VERSION)..."
+	for part in backend frontend; do
+		docker pull "ghcr.io/burnwalled/smoothfamily-$part:$VERSION"
+		docker tag "ghcr.io/burnwalled/smoothfamily-$part:$VERSION" "smooth-family-$part:$VERSION"
+	done
+fi
+
+# A release installed by hand replaces Smooth Family's own images pinned by an earlier update from
+# the app (update.sh); the other services keep theirs.
+PINS="$DATA_DIR/updates/pins"
+if [ -f "$PINS" ] && grep -Eq '^(backend|frontend)=' "$PINS"; then
+	grep -Ev '^(backend|frontend)=' "$PINS" > "$PINS.tmp" || true
+	mv "$PINS.tmp" "$PINS"
+	{
+		echo "# Written by update.sh (Server settings → Updates) – the versions in use."
+		echo 'version: "2.4"'
+		echo "services:"
+		while IFS='=' read -r svc image; do
+			[ -n "$svc" ] && printf '  %s:\n    image: %s\n' "$svc" "$image"
+		done < "$PINS"
+	} > docker-compose.override.yml
+fi
 
 echo "Starting Smooth Family..."
 $COMPOSE up -d

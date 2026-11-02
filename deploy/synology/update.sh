@@ -1,5 +1,6 @@
 #!/bin/sh
-# Updates of Postgres, Redis, Caddy and SearXNG (2.9.0), planned in Server settings → Updates.
+# Updates of Postgres, Redis, Caddy and SearXNG (2.9.0) – and of Smooth Family itself (3.3.0) –
+# planned in Server settings → Updates.
 # Schedule it every hour in DSM: Control Panel → Task Scheduler → Create → Scheduled Task →
 # User-defined script, user "root", repeat hourly:
 #
@@ -11,7 +12,7 @@
 #
 # The app never touches Docker; this script never runs anything from the app's files. Only a run id,
 # a time and image names are read from plan.env, each checked against a strict pattern, and only
-# these four services' official images can be chosen. The versions in use are kept in
+# these four services' official images, and Smooth Family's own two by digest, can be chosen. The versions in use are kept in
 # DATA_DIR/updates/pins and written as docker-compose.override.yml, which compose reads by itself.
 set -u
 cd "$(dirname "$0")"
@@ -72,13 +73,15 @@ result() {
 	echo "$2"
 }
 
-# The service an image belongs to – only these four, only their official repositories.
+# The service an image belongs to – only these, only their official repositories.
 service_of() {
 	case "$1" in
 		postgres:*) echo db ;;
 		redis:*) echo redis ;;
 		caddy:*) echo caddy ;;
 		searxng/searxng:*) echo searxng ;;
+		ghcr.io/burnwalled/smoothfamily-backend@*) echo backend ;;
+		ghcr.io/burnwalled/smoothfamily-frontend@*) echo frontend ;;
 	esac
 }
 
@@ -96,7 +99,7 @@ write_override() {
 touch "$U/pins"
 cp "$U/pins" "$U/pins.before"
 for image in $PULL; do
-	if ! echo "$image" | grep -Eq '^(postgres|redis|caddy|searxng/searxng):[A-Za-z0-9._-]{1,64}$'; then
+	if ! echo "$image" | grep -Eq '^((postgres|redis|caddy|searxng/searxng):[A-Za-z0-9._-]{1,64}|ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64})$'; then
 		result 0 "Not an allowed image: $image"
 		exit 1
 	fi
@@ -115,6 +118,21 @@ if ! $COMPOSE exec -T backend python -m app.cli backup; then
 	result 0 "The backup before the update failed – nothing was changed"
 	exit 1
 fi
+
+# Smooth Family's own images may change the database on start (its migrations). The database as it
+# was is kept, to be put back if the new version doesn't come up.
+DB_BEFORE=""
+case "$PULL" in
+	*smoothfamily-backend@*)
+		DB_BEFORE="$U/db-before-update.dump"
+		REVISION_BEFORE=$($COMPOSE exec -T db psql -U smooth -d smoothfamily -tAc 'select version_num from alembic_version' 2> /dev/null | tr -d '[:space:]')
+		if ! $COMPOSE exec -T db pg_dump -U smooth -d smoothfamily -Fc > "$DB_BEFORE"; then
+			cp "$U/pins.before" "$U/pins"
+			result 0 "The database couldn't be saved before the update – nothing was changed"
+			exit 1
+		fi
+		;;
+esac
 
 [ -f "$OVERRIDE" ] && cp "$OVERRIDE" "$OVERRIDE.before"
 write_override
@@ -147,10 +165,19 @@ until healthy; do
 	if [ "$i" -ge 60 ]; then
 		cp "$U/pins.before" "$U/pins"
 		write_override
+		# A new version that changed the database: the database as it was comes back with the old one.
+		if [ -n "$DB_BEFORE" ]; then
+			REVISION_NOW=$($COMPOSE exec -T db psql -U smooth -d smoothfamily -tAc 'select version_num from alembic_version' 2> /dev/null | tr -d '[:space:]')
+			if [ "$REVISION_NOW" != "$REVISION_BEFORE" ]; then
+				$COMPOSE stop backend frontend
+				$COMPOSE exec -T db pg_restore -U smooth -d smoothfamily --clean --if-exists < "$DB_BEFORE"
+			fi
+		fi
 		$COMPOSE up -d
 		result 0 "The new versions did not come up – the old ones are back ($PULL)"
 		exit 1
 	fi
 	sleep 3
 done
+[ -z "$DB_BEFORE" ] || rm -f "$DB_BEFORE"
 result 1 "Updated: $PULL"

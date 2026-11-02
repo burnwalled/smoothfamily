@@ -54,13 +54,33 @@ sh scripts/e2e.sh                   # browser tests on a throwaway stack
 - **Your branch** starts from `beta` and goes back to `beta` as a pull request; it is squashed into
   one commit there.
 - **A release** is a pull request from `beta` to `main`, merged with a merge commit (not squashed,
-  so the two branches stay in step). In "What's new" the version is `3.3.0-beta.1` while it is in
+  so the two branches stay in step). A check (`Release source`) stops a pull request to `main`
+  from any other branch.
+- **A pre-release** tags `beta` (`v3.3.0-beta.1`) and is marked *Pre-release* on GitHub, for those
+  who follow the beta channel. In "What's new" the version is `3.3.0-beta.1` while it is in
   beta and `3.3.0` when it reaches `main`.
 - **An urgent fix** for a release goes to `beta` and is released from there at once.
+- **Builds:** every merge to `beta` builds the images (`ghcr.io/burnwalled/smoothfamily-*:beta`)
+  and a beta manifest signed with the beta key – servers on the beta channel update to it. A tag
+  `vX.Y.Z` on `main` builds the release's images and attaches its manifest to a draft release;
+  the maintainer then signs it with the stable key, which only exists on their computer, and that
+  publishes it: `python scripts/sign-release.py release vX.Y.Z`.
+- `main` and `beta` can't be deleted or force-pushed. Forks are welcome – that is how you
+  contribute: fork, branch from `beta`, open the pull request against `beta`.
 
 ## Pull requests
 
-1. Fork, branch from `beta`, make the change with its tests and texts.
+1. Fork, and work from `beta`: when you fork, untick **Copy the `main` branch only** (or fetch it
+   later with `git fetch upstream beta`), then branch from `beta` and make the change with its
+   tests and texts:
+
+   ```sh
+   git clone https://github.com/<you>/smoothfamily.git && cd smoothfamily
+   git remote add upstream https://github.com/burnwalled/smoothfamily.git
+   git fetch upstream beta
+   git switch -c my-change upstream/beta
+   ```
+
 2. Make sure the backend tests, `npx tsc --noEmit`, `npm test` and the e2e tests pass.
 3. Open the pull request against `beta` and fill in its form.
 

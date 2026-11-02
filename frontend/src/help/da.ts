@@ -1132,7 +1132,7 @@ const texts: Record<string, TopicText> = {
   },
   "serverupdates": {
     "title": "Opdateringer",
-    "summary": "Sikkerhedsrettelser til serverens dele, af sig selv – og gatewayernes versioner.",
+    "summary": "Smooth Family og serverens dele, af sig selv – og gatewayenes versioner.",
     "blocks": [
       {
         "p": "Databasen, Redis, webserveren og søgemaskinen får sikkerhedsrettelser mellem Smooth Familys udgivelser. Vælg, om de lægges ind af sig selv i et ugentligt vindue eller efter din godkendelse. Der tages en backup først, og kommer de nye versioner ikke op, sættes de gamle tilbage."
@@ -1140,6 +1140,12 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "serverupdates",
         "caption": "Versioner, vinduet og gatewayerne."
+      },
+      {
+        "h": "Smooth Family selv"
+      },
+      {
+        "p": "Vælg en kanal under Smooth Family selv, så opdaterer serveren også appen, samtidig med resten: Stabil følger udgivelserne, Beta hver ændring, så snart den er færdig. Kun versioner, som projektet har signeret, lægges ind, databasen gemmes først, og hvis den nye version ikke starter, kommer den gamle og dens database tilbage. Slået fra, indtil du vælger – at lede er et kald til GitHub."
       },
       {
         "p": "Kortet Gatewayer viser hver gateway på serveren, den version hver enkelt rapporterede, og om den opdaterer sig selv – så du ser, at alle er opdaterede."
