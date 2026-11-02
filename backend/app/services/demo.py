@@ -10,6 +10,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.holidays import BY_LANGUAGE
 from app.models import (
     ChatMessage,
     Conversation,
@@ -199,6 +200,7 @@ async def create_demo_family(db: AsyncSession, language: str = "en", invitation_
     family = Family(
         name=_t("family", lang), kind="demo", invitation_id=invitation_id, passkeys_enabled=False, totp_policy="off",
         currency="€" if lang == "fi" else "kr", weather_lat=lat, weather_lon=lon, weather_place=place,
+        holiday_country=BY_LANGUAGE.get(lang),
     )
     db.add(family)
     await db.flush()

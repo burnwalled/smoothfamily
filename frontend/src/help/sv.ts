@@ -284,6 +284,12 @@ const texts: Record<string, TopicText> = {
           "Prenumererade kalendrar går bara att läsa och uppdateras var 15:e minut.",
           "Din egen kalender kan läggas in i telefonen med prenumerationslänken under Min profil."
         ]
+      },
+      {
+        "h": "Röda dagar"
+      },
+      {
+        "p": "Landets helgdagar syns i kalendern som röda dagar, och aftnarna som fungerar som helgdagar (julafton, midsommarafton …) i en ljusare röd. Välj land – eller stäng av – under Familjeinställningar → Vardagen. För ett annat land lägger du till en publik helgdagskalender som prenumeration."
       }
     ]
   },

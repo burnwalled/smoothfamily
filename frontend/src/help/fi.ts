@@ -284,6 +284,12 @@ const texts: Record<string, TopicText> = {
           "Tilatut kalenterit ovat vain luettavia ja päivittyvät 15 minuutin välein.",
           "Oman kalenterisi voi lisätä puhelimeen tilauslinkillä kohdassa Oma profiili."
         ]
+      },
+      {
+        "h": "Punaiset päivät"
+      },
+      {
+        "p": "Maan pyhäpäivät näkyvät kalenterissa punaisina päivinä, ja pyhäpäivien tavoin vietetyt aatot (jouluaatto, juhannusaatto …) vaaleammalla punaisella. Valitse maa – tai poista käytöstä – kohdassa Perheen asetukset → Arki. Muun maan pyhäpäivät saat lisäämällä julkisen pyhäpäiväkalenterin tilauksena."
       }
     ]
   },

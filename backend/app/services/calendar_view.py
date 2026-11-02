@@ -150,6 +150,15 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
                 key=app_event_key(event.id),
             )
         )
+    # The red days of the family's country (3.4.0).
+    if family and family.holiday_country:
+        from app.services import holidays
+
+        for day, name, eve in holidays.between(family.holiday_country, start, end):
+            day_start, day_end = all_day_range(day)
+            events.append(
+                EventOut(feed_name="", color="#E07A5F" if eve else "#C0392B", title=name, start=day_start, end=day_end, all_day=True, holiday=True, holiday_eve=eve)
+            )
     if birthdays and "birthdays" in user.apps:
         for person, day in await birthdays_between(db, user.family_id, start, end):
             day_start, day_end = all_day_range(day)
