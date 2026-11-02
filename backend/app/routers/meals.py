@@ -14,6 +14,8 @@ from app.deps import DB, CurrentUser, require_app
 from app.models import Family, ListItem, ListModel, Meal, MealIngredient, MealPlan, Recipe, RecipeIngredient, Task, User
 from app.schemas import (
     ImportResult,
+    MealSettings,
+    PlanMealIn,
     PlanFromRecipe,
     MealPlanImportRequest,
     MealPlanOut,
@@ -142,7 +144,23 @@ async def get_meals_prompt(
     member_count = (
         await db.execute(select(func.count(User.id)).where(User.family_id == user.family_id))
     ).scalar_one()
-    return PromptOut(prompt=meals_prompt(week_start, servings, preferences, member_count, user.language))
+    family = await db.get(Family, user.family_id)
+    return PromptOut(prompt=meals_prompt(week_start, servings, preferences, member_count, user.language, family.meal_lunchboxes, family.meal_weekend_lunch))
+
+
+@router.get("/settings", response_model=MealSettings)
+async def get_meal_settings(user: CurrentUser, db: DB) -> MealSettings:
+    """What the week's plan covers besides dinners (3.2.0)."""
+    family = await db.get(Family, user.family_id)
+    return MealSettings(lunchboxes=family.meal_lunchboxes, weekend_lunch=family.meal_weekend_lunch)
+
+
+@router.put("/settings", response_model=MealSettings)
+async def put_meal_settings(payload: MealSettings, user: CurrentUser, db: DB) -> MealSettings:
+    family = await db.get(Family, user.family_id)
+    family.meal_lunchboxes, family.meal_weekend_lunch = payload.lunchboxes, payload.weekend_lunch
+    await db.commit()
+    return payload
 
 
 @router.get("/plan", response_model=MealPlanOut | None)
@@ -194,6 +212,7 @@ async def import_plan(
             meal_plan_id=plan.id,
             family_id=user.family_id,
             weekday=meal_item.weekday,
+            slot=meal_item.slot,
             name=meal_item.name,
             description=meal_item.description,
             servings=meal_item.servings,
@@ -427,14 +446,15 @@ async def add_meal_from_recipe(recipe_id: uuid.UUID, payload: PlanFromRecipe, us
         await db.flush()
 
     existing_meal = (
-        await db.execute(select(Meal).where(Meal.meal_plan_id == plan.id, Meal.weekday == payload.weekday))
-    ).scalar_one_or_none()
+        await db.execute(select(Meal).where(Meal.meal_plan_id == plan.id, Meal.weekday == payload.weekday, Meal.slot == payload.slot))
+    ).scalars().first()
 
     if existing_meal is None:
         existing_meal = Meal(
             meal_plan_id=plan.id,
             family_id=user.family_id,
             weekday=payload.weekday,
+            slot=payload.slot,
             name=recipe.name,
             description=recipe.description,
             servings=recipe.servings,
@@ -465,6 +485,41 @@ async def add_meal_from_recipe(recipe_id: uuid.UUID, payload: PlanFromRecipe, us
             )
         )
 
+    await db.commit()
+    return await _load_plan(db, user.family_id, week)
+
+
+@router.put("/plan/meal", response_model=MealPlanOut | None)
+async def set_meal(payload: PlanMealIn, user: CurrentUser, db: DB) -> MealPlan | None:
+    """One meal written by hand (3.2.0) – "Tacos" on Friday – or taken away when the name is empty. A
+    recipe of the same name in the book brings its ingredients and steps."""
+    week = _monday(payload.week_start)
+    name = (payload.name or "").strip()
+    recipe = (
+        (await db.execute(select(Recipe).where(Recipe.family_id == user.family_id, func.lower(Recipe.name) == name.lower()))).scalars().first()
+        if name
+        else None
+    )
+    if recipe is not None:
+        return await add_meal_from_recipe(recipe.id, PlanFromRecipe(week_start=week, weekday=payload.weekday, slot=payload.slot), user, db)
+    plan = await _load_plan(db, user.family_id, week)
+    meal = next((m for m in plan.meals if m.weekday == payload.weekday and m.slot == payload.slot), None) if plan else None
+    if not name:
+        if meal is not None:
+            await db.delete(meal)
+            await db.commit()
+        return await _load_plan(db, user.family_id, week)
+    if plan is None:
+        plan = MealPlan(family_id=user.family_id, created_by=user.id, week_start=week)
+        db.add(plan)
+        await db.flush()
+    if meal is None:
+        db.add(Meal(meal_plan_id=plan.id, family_id=user.family_id, weekday=payload.weekday, slot=payload.slot, name=name, steps=[]))
+    elif meal.name != name:
+        # Another dish: what belonged to the old one goes.
+        meal.name, meal.description, meal.steps = name, None, []
+        for row in list(meal.ingredients):
+            await db.delete(row)
     await db.commit()
     return await _load_plan(db, user.family_id, week)
 

@@ -174,7 +174,7 @@ const texts: Record<string, TopicText> = {
         "h": "Vem kör, och vad ska packas"
       },
       {
-        "p": "Öppna en händelse för att säga att skjuts behövs och ta lämningen eller hämtningen. Ge den en packlista: samma lista kommer tillbaka för varje händelse med samma titel, som varje fotbollsträning, och bockas av för varje gång. En vuxen kan välja dagen då det är dags att packa, och den som ska dit får en uppgift den dagen."
+        "p": "Tryck på Skjuts & packning vid en händelse – i kalendern eller i Söndagskollen – för att säga att skjuts behövs och ta lämningen eller hämtningen. Ge den en packlista: samma lista kommer tillbaka för varje händelse med samma titel, som varje fotbollsträning, och bockas av för varje gång. En vuxen kan välja dagen då det är dags att packa, och den som ska dit får en uppgift den dagen."
       },
       {
         "shot": "calendar-month",
@@ -357,6 +357,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Välj något att göra tillsammans och markera kollen som klar: alla får en kort sammanfattning. På söndagseftermiddagen påminns ni om ni inte gjort den."
+      },
+      {
+        "h": "Planera veckan som kommer"
+      },
+      {
+        "p": "Under veckan som kommer trycker du på Skjuts & packning vid en händelse för att ta en lämning eller hämtning och ge den en packlista. Skriv in en dags middag direkt – ett recepts namn tar med ingredienserna till inköpslistan – eller planera hela veckans mat därifrån."
       }
     ]
   },
@@ -440,6 +446,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Tryck Laga på ett recept för stor text, ingredienser att bocka av och steg att trycka sig igenom. Håll skärmen tänd hindrar telefonen från att slockna medan händerna är kladdiga."
+      },
+      {
+        "h": "Matlådor och helglunch"
+      },
+      {
+        "p": "När du planerar veckan kan du bocka i Matlådor på vardagar och välja hur många per dag: middagen kvällen före blir då ett storkok – en gryta, en soppa eller en gratäng som håller och går att värma – och resterna blir nästa dags matlådor. Bocka i Lunch på lördag och söndag för helgens luncher också. Valet sparas till nästa vecka."
       },
       {
         "tips": [

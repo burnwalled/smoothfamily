@@ -174,7 +174,7 @@ const texts: Record<string, TopicText> = {
         "h": "Who drives, and what to pack"
       },
       {
-        "p": "Open an event to say that a ride is needed and take the drop-off or the pick-up. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
+        "p": "Tap Rides & packing next to an event – in the calendar or the Sunday check-in – to say that a ride is needed and take the drop-off or the pick-up. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
       },
       {
         "shot": "calendar-month",
@@ -345,11 +345,11 @@ const texts: Record<string, TopicText> = {
     ]
   },
   "week": {
-    "title": "Söndagskollen – the Sunday check-in",
+    "title": "The Sunday check-in",
     "summary": "A relaxed weekly moment: look back, look ahead and say thank you.",
     "blocks": [
       {
-        "p": "Söndagskollen gathers the family once a week. Look back at the points and this week's top helper, look ahead at the calendar, the meals and whose turn it is – and give each other thank-you stars."
+        "p": "The Sunday check-in gathers the family once a week. Look back at the points and this week's top helper, look ahead at the calendar, the meals and whose turn it is – and give each other thank-you stars."
       },
       {
         "shot": "week",
@@ -357,6 +357,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Pick something to do together, and mark the check-in as done: everyone gets a short summary. On Sunday afternoon you're reminded if you haven't done it."
+      },
+      {
+        "h": "Planning the week ahead"
+      },
+      {
+        "p": "Under the week ahead, tap Rides & packing next to an event to take a drop-off or a pick-up and give it a packing list. Write a day's dinner straight in – a recipe's name brings its ingredients for the shopping list – or plan the whole week's food from there."
       }
     ]
   },
@@ -440,6 +446,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Tap Cook on a recipe for big type, ingredients to tick off and steps to tap through. Keep the screen on stops the phone from going dark while your hands are messy."
+      },
+      {
+        "h": "Lunchboxes and weekend lunch"
+      },
+      {
+        "p": "When you plan the week, tick Lunchboxes on weekdays and say how many a day: the dinner the evening before is then a big batch – a stew, a soup, a bake that keeps and reheats well – and its leftovers become the next day's lunchboxes. Tick Lunch on Saturday and Sunday for the weekend's lunches too. The choice is remembered for next week."
       },
       {
         "tips": [

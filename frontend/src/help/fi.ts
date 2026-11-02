@@ -27,7 +27,7 @@ const texts: Record<string, TopicText> = {
         "h": "Näin löydät perille"
       },
       {
-        "p": "Puhelimessa käytetyimmät sovellukset ovat alareunan palkissa ja muut kohdassa Lisää; tietokoneella ne ovat vasemman reunan valikossa. Yhteen kuuluvat sovellukset ovat välilehtiä sivun yläreunassa – Kalenterissa ovat Matkat, Kaksi kotia ja Söndagskollen, Ruoassa Reseptikirja ja Ruokakomero."
+        "p": "Puhelimessa käytetyimmät sovellukset ovat alareunan palkissa ja muut kohdassa Lisää; tietokoneella ne ovat vasemman reunan valikossa. Yhteen kuuluvat sovellukset ovat välilehtiä sivun yläreunassa – Kalenterissa ovat Matkat, Kaksi kotia ja Sunnuntaikatsaus, Ruoassa Reseptikirja ja Ruokakomero."
       },
       {
         "p": "Asetuksia on kolmella tasolla, kaikki kuvasi takana olevassa valikossa: Oma profiili (omasi), Perheen asetukset (perhettä hoitavalle) ja Palvelimen asetukset (palvelinta hoitavalle)."
@@ -174,7 +174,7 @@ const texts: Record<string, TopicText> = {
         "h": "Kuka ajaa ja mitä pakataan"
       },
       {
-        "p": "Avaa tapahtuma kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
+        "p": "Napauta tapahtuman vieressä Kyydit ja pakkaus – kalenterissa tai sunnuntaikatsauksessa – kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
       },
       {
         "shot": "calendar-month",
@@ -345,11 +345,11 @@ const texts: Record<string, TopicText> = {
     ]
   },
   "week": {
-    "title": "Söndagskollen – sunnuntaikatsaus",
+    "title": "Sunnuntaikatsaus",
     "summary": "Rauhallinen hetki joka viikko: katse taaksepäin, eteenpäin ja kiitos.",
     "blocks": [
       {
-        "p": "Söndagskollen kokoaa perheen kerran viikossa. Katsokaa taaksepäin pisteisiin ja viikon parhaaseen auttajaan, eteenpäin kalenteriin, ruokiin ja siihen, kenen vuoro on – ja antakaa toisillenne kiitostähtiä."
+        "p": "Sunnuntaikatsaus kokoaa perheen kerran viikossa. Katsokaa taaksepäin pisteisiin ja viikon parhaaseen auttajaan, eteenpäin kalenteriin, ruokiin ja siihen, kenen vuoro on – ja antakaa toisillenne kiitostähtiä."
       },
       {
         "shot": "week",
@@ -357,6 +357,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Valitkaa jotain yhteistä tekemistä ja merkitkää katsaus tehdyksi: kaikki saavat lyhyen yhteenvedon. Sunnuntai-iltapäivänä teitä muistutetaan, jos ette ole tehneet sitä."
+      },
+      {
+        "h": "Tulevan viikon suunnittelu"
+      },
+      {
+        "p": "Tulevan viikon kohdalla napauta tapahtuman vieressä Kyydit ja pakkaus ottaaksesi viennin tai haun ja antaaksesi sille pakkauslistan. Kirjoita päivän päivällinen suoraan – reseptin nimi tuo sen ainekset ostoslistaan – tai suunnittele koko viikon ruoat sieltä."
       }
     ]
   },
@@ -440,6 +446,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Napauta reseptissä Kokkaa, niin saat ison tekstin, kuitattavat ainekset ja napautellen etenevät vaiheet. Pidä näyttö päällä estää puhelinta pimenemästä, kun kädet ovat sotkuiset."
+      },
+      {
+        "h": "Eväslaatikot ja viikonlopun lounas"
+      },
+      {
+        "p": "Kun suunnittelet viikkoa, valitse Eväslaatikot arkipäivinä ja montako päivässä: edellisillan päivällinen tehdään silloin isona satsina – pata, keitto tai laatikko, joka säilyy ja lämpenee hyvin – ja tähteet täyttävät seuraavan päivän eväslaatikot. Valitse Lounas lauantaina ja sunnuntaina, niin viikonlopun lounaatkin suunnitellaan. Valinta muistetaan ensi viikkoon."
       },
       {
         "tips": [

@@ -403,7 +403,7 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
             row = (
                 await db.execute(
                     select(Meal.name, Meal.id, Meal.steps).join(MealPlan, MealPlan.id == Meal.meal_plan_id).where(
-                        Meal.family_id == family.id, MealPlan.week_start == week, Meal.weekday == day.weekday()
+                        Meal.family_id == family.id, MealPlan.week_start == week, Meal.weekday == day.weekday(), Meal.slot == "dinner"
                     )
                 )
             ).first()
@@ -416,7 +416,7 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
         monday = today - timedelta(days=today.weekday())
         rows = (
             await db.execute(
-                select(Meal).join(MealPlan, MealPlan.id == Meal.meal_plan_id).where(Meal.family_id == family.id, MealPlan.week_start == monday).order_by(Meal.weekday)
+                select(Meal).join(MealPlan, MealPlan.id == Meal.meal_plan_id).where(Meal.family_id == family.id, MealPlan.week_start == monday, Meal.slot == "dinner").order_by(Meal.weekday)
             )
         ).scalars().all()
         week_meals = [{"date": (monday + timedelta(days=m.weekday)).isoformat(), "name": m.name, "meal_id": str(m.id), "cook": bool(m.steps)} for m in rows]

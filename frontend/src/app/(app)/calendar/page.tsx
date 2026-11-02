@@ -4,8 +4,8 @@
 // the month with what is on each day written out, and the agenda – a card per day (2.7.0).
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
-import { Car, Pencil, Plus } from "lucide-react";
-import EventPlanPanel, { EventPlanBadges } from "@/components/EventPlanPanel";
+import { Plus } from "lucide-react";
+import EventLine from "@/components/calendar/EventLine";
 import FamilyEventForm from "@/components/FamilyEventForm";
 import { CalendarEvent, isoDate, Member } from "@/lib/api";
 import { eventDayKeys, toLocalDateKey } from "@/lib/dateKey";
@@ -35,86 +35,6 @@ function groupByDay(events: CalendarEvent[]): Record<string, CalendarEvent[]> {
     }
     return acc;
   }, {});
-}
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function EventLine({ event, members, dateLocale, busyLabel, allDayLabel, onEdit, onChanged }: {
-  event: CalendarEvent;
-  members: Member[];
-  dateLocale: string;
-  busyLabel: string;
-  allDayLabel: string;
-  onEdit?: (event: CalendarEvent) => void;
-  onChanged?: () => void;
-}) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const tagged = members.filter((m) => event.member_ids?.includes(m.id));
-  const content = (
-    <>
-      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: event.color }} />
-      <span className="font-medium">
-        {event.all_day
-          ? allDayLabel
-          : new Date(event.start).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
-      </span>
-      <span>{event.busy ? busyLabel : event.title}</span>
-      {!event.busy && event.location && <span className="text-xs text-muted">· {event.location}</span>}
-      {/* Subscribed calendars: show which calendar the event comes from. */}
-      {event.feed_id && (
-        <span className="rounded border border-edge px-1.5 text-[11px] leading-5 text-muted">{event.feed_name}</span>
-      )}
-      {tagged.length > 0 && (
-        <span className="flex -space-x-1" aria-label={tagged.map((m) => m.display_name).join(", ")}>
-          {tagged.map((m) => (
-            <span
-              key={m.id}
-              title={m.display_name}
-              className="grid h-5 w-5 place-items-center rounded-full border border-surface text-[9px] font-bold text-white"
-              style={{ background: m.color }}
-            >
-              {initials(m.display_name)}
-            </span>
-          ))}
-        </span>
-      )}
-      <EventPlanBadges event={event} members={members} />
-    </>
-  );
-  return (
-    <li>
-      <div className="flex items-center gap-1">
-        {onEdit ? (
-          <button className="group flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 rounded text-left text-sm hover:bg-base" onClick={() => onEdit(event)}>
-            {content}
-            <Pencil className="ml-auto h-3.5 w-3.5 shrink-0 text-muted opacity-60 group-hover:opacity-100" strokeWidth={2} aria-hidden />
-          </button>
-        ) : (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">{content}</div>
-        )}
-        {event.key && (
-          <button
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md hover:bg-base ${open ? "bg-base text-accent" : "text-muted"}`}
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={t("rides.open", { title: event.title ?? "" })}
-            title={t("rides.open", { title: event.title ?? "" })}
-          >
-            <Car className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-          </button>
-        )}
-      </div>
-      {open && event.key && <EventPlanPanel event={event} members={members} onChanged={onChanged} />}
-    </li>
-  );
 }
 
 export default function CalendarPage() {
@@ -277,7 +197,7 @@ export default function CalendarPage() {
               ) : (
                 <ul className="space-y-1">
                   {selectedDayEvents.map((event, i) => (
-                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} />
+                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} onEdit={editHandler(event)} />
                   ))}
                 </ul>
               )}
@@ -303,7 +223,7 @@ export default function CalendarPage() {
                 ) : (
                   <ul className="space-y-1">
                     {dayEvents.map((event, i) => (
-                      <EventLine key={`${dayKey}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} />
+                      <EventLine key={`${dayKey}-${i}`} event={event} members={members} onEdit={editHandler(event)} />
                     ))}
                   </ul>
                 )}

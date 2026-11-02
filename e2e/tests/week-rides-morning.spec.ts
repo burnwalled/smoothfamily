@@ -33,10 +33,10 @@ test("who drives and the packing list on an event", async ({ adminPage: page, ad
 });
 
 // #68: a thank-you star, the family activity and "done".
-test("Söndagskollen with a star and the family activity", async ({ adminPage: page, adminApi }) => {
+test("the Sunday check-in with a star and the family activity", async ({ adminPage: page, adminApi }) => {
   const thanks = unique("For the dishes");
   await page.goto("/week");
-  await expect(page.getByRole("heading", { name: "Söndagskollen" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sunday check-in" })).toBeVisible();
   const week = await (await adminApi.get("/api/week")).json();
   await adminApi.delete(`/api/week/${week.week_start}/done`);
   await page.reload();
@@ -48,12 +48,33 @@ test("Söndagskollen with a star and the family activity", async ({ adminPage: p
 
   await page.getByLabel("The family's activity this week").fill("Bowling");
   await page.getByRole("button", { name: "We're done!" }).click();
-  await expect(page.getByText(/Söndagskollen is done/)).toBeVisible();
+  await expect(page.getByText(/The Sunday check-in is done/)).toBeVisible();
 
   const after = await (await adminApi.get("/api/week")).json();
   expect(after.activity).toBe("Bowling");
   for (const star of after.stars) await adminApi.delete(`/api/week/stars/${star.id}`);
   await adminApi.delete(`/api/week/${after.week_start}/done`);
+});
+
+// 3.2.0: the week ahead's food is planned in the check-in – a dinner written straight in.
+test("a dinner is planned in the Sunday check-in", async ({ adminPage: page, adminApi }) => {
+  const dinner = unique("Fish tacos");
+  const week = await (await adminApi.get("/api/week")).json();
+  const plan = await (await adminApi.get(`/api/meals/plan?week_start=${week.week_start}`)).json();
+  const monday = plan?.meals.find((m: { weekday: number; slot: string }) => m.weekday === 0 && m.slot === "dinner");
+  if (monday) await adminApi.put("/api/meals/plan/meal", { data: { week_start: week.week_start, weekday: 0, name: null } });
+  try {
+    await page.goto("/week");
+    await page.getByRole("button", { name: "Dinner", exact: true }).first().click();
+    await page.getByRole("combobox", { name: "Dinner" }).fill(dinner);
+    await page.getByRole("combobox", { name: "Dinner" }).press("Enter");
+    await expect(page.getByRole("button", { name: `Dinner: ${dinner}` })).toBeVisible();
+    const saved = await (await adminApi.get(`/api/meals/plan?week_start=${week.week_start}`)).json();
+    expect(saved.meals.some((m: { weekday: number; name: string }) => m.weekday === 0 && m.name === dinner)).toBe(true);
+    await expect(page.getByRole("link", { name: "Plan the week's food" })).toHaveAttribute("href", `/food?week=${week.week_start}`);
+  } finally {
+    await adminApi.put("/api/meals/plan/meal", { data: { week_start: week.week_start, weekday: 0, name: monday?.name ?? null } });
+  }
 });
 
 // #52: the morning summary is chosen per member under Profile.

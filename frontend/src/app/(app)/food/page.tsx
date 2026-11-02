@@ -14,6 +14,10 @@ import PageTitle from "@/components/PageTitle";
 import CookingView from "@/components/CookingView";
 import { AiTextButton, RecipePhotoButton, AiJobButton } from "@/components/LocalAi";
 
+type MealSettings = { lunchboxes: number; weekend_lunch: boolean };
+// Within a day: the lunch first, then the dinner.
+const SLOT_ORDER = ["lunchbox", "lunch", "dinner"];
+
 export default function FoodPage() {
   return (
     <Suspense>
@@ -24,7 +28,9 @@ export default function FoodPage() {
 
 function Food() {
   const { t, dateLocale } = useI18n();
-  const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
+  // The week asked for (?week=, from the Sunday check-in), else this one.
+  const asked = useSearchParams().get("week");
+  const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(asked ? new Date(`${asked}T12:00:00`) : new Date()));
   const [chosenListId, setShoppingListId] = useState("");
   const [showAi, setShowAi] = useState(false);
   const [servings, setServings] = useState(4);
@@ -51,6 +57,13 @@ function Food() {
   const shoppingListId = (lists.some((l) => l.id === chosenListId) ? chosenListId : resolveShoppingList(lists)?.id) ?? "";
   const itemsPath = shoppingListId ? `/api/lists/${shoppingListId}/items` : null;
   const items = useApi<ListItem[]>(itemsPath).data ?? NONE;
+  // What the plan covers besides dinners (3.2.0), remembered for the family.
+  const mealSettings = useApi<MealSettings>("/api/meals/settings").data ?? { lunchboxes: 0, weekend_lunch: false };
+  function saveMealSettings(next: MealSettings) {
+    setApiData<MealSettings>("/api/meals/settings", () => next);
+    setPrompt("");
+    void api.put("/api/meals/settings", next);
+  }
 
   async function fetchPrompt() {
     const result = await api.get<{ prompt: string }>(
@@ -146,6 +159,42 @@ function Food() {
                   placeholder={t("food.preferencesPh")} />
               </div>
             </div>
+            <div className="mb-4 space-y-2 rounded-lg bg-base p-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary-700"
+                    checked={mealSettings.lunchboxes > 0}
+                    onChange={(e) => saveMealSettings({ ...mealSettings, lunchboxes: e.target.checked ? Math.max(1, servings - 2) : 0 })}
+                  />
+                  {t("food.lunchboxes")}
+                </label>
+                {mealSettings.lunchboxes > 0 && (
+                  <label className="flex items-center gap-1.5 whitespace-nowrap text-muted">
+                    <input
+                      className="input h-8 !w-16 py-1"
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={mealSettings.lunchboxes}
+                      onChange={(e) => saveMealSettings({ ...mealSettings, lunchboxes: Math.min(10, Math.max(1, Number(e.target.value) || 1)) })}
+                    />
+                    {t("food.lunchboxesPer")}
+                  </label>
+                )}
+              </div>
+              {mealSettings.lunchboxes > 0 && <p className="text-xs text-muted">{t("food.lunchboxesHint")}</p>}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary-700"
+                  checked={mealSettings.weekend_lunch}
+                  onChange={(e) => saveMealSettings({ ...mealSettings, weekend_lunch: e.target.checked })}
+                />
+                {t("food.weekendLunch")}
+              </label>
+            </div>
             <div className="mb-3">
               <AiJobButton body={{ kind: "meal_plan", week_start: week, servings, preferences }} label={t("food.planLocal")} or={t("ai.orCopy")} />
             </div>
@@ -161,10 +210,7 @@ function Food() {
                   setApiData<MealPlan | null>(planPath, () => imported);
                   setShowAi(false);
                   setPrompt("");
-                  return t("food.shoppingAdded", { n: imported.meals.length }).replace(
-                    t("food.shoppingAdded", { n: imported.meals.length }),
-                    `${imported.meals.length} dinners imported.`
-                  );
+                  return t("food.mealsImported", { n: imported.meals.length });
                 }}
               />
             )}
@@ -175,13 +221,17 @@ function Food() {
           <p className="mt-4 text-sm text-muted">{t("food.noPlan")}</p>
         ) : (
           <ul className="mt-4 space-y-3">
-            {plan.meals.map((meal) => {
+            {plan.meals.slice().sort((a, b) => a.weekday - b.weekday || SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot)).map((meal) => {
               const stepsOpen = expandedMeals.has(meal.id);
               const toggleSteps = () => setExpandedMeals((prev) => { const next = new Set(prev); next.has(meal.id) ? next.delete(meal.id) : next.add(meal.id); return next; });
               return (
                 <li key={meal.id} className="rounded-lg border border-edge p-3">
                   <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-bold">{weekdays[meal.weekday]}: {meal.name}</span>
+                    <span className="text-sm font-bold">
+                      {weekdays[meal.weekday]}
+                      {meal.slot !== "dinner" && <span className="ml-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold">{t(`food.slot.${meal.slot}`)}</span>}
+                      : {meal.name}
+                    </span>
                     <span className="text-xs text-muted flex items-center gap-2">
                       {t("food.servingsShort", { n: meal.servings })}
                       <button className="rounded border border-edge px-2 py-0.5 text-[10px]" onClick={() => saveAsRecipe(meal.id)}>

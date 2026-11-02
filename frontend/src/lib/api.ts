@@ -499,9 +499,13 @@ export type Room = { id: string; name: string; category: string };
 
 export type Ingredient = { name: string; amount: number | null; unit: string | null };
 
+export type MealSlot = "dinner" | "lunchbox" | "lunch";
+
 export type Meal = {
   id: string;
   weekday: number;
+  // dinner, a lunchbox to take along (the evening before's leftovers) or lunch (3.2.0)
+  slot: MealSlot;
   name: string;
   description: string | null;
   servings: number;
@@ -1375,7 +1379,8 @@ export type WeekReview = {
   top_helper: string | null;
   goals: { title: string; points: number; required: number; unlocked: boolean }[];
   stars: { id: string; from_user: string; from_name: string; to_user: string; to_name: string; message: string }[];
-  days: { date: string; events: CalendarEvent[]; meal: string | null }[];
+  // The day's dinner, and its lunch or lunchbox (3.2.0).
+  days: { date: string; events: CalendarEvent[]; meal: string | null; lunch?: string | null }[];
   turns: { title: string; user_id: string | null; name: string | null }[];
 };
 

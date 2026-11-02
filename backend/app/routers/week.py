@@ -34,19 +34,19 @@ _TEXT = {
         "fi": ("Kiitostähti ⭐", "{name} kiittää sinua: {message}"),
     },
     "done": {
-        "en": ("Söndagskollen is done", "Week {week}: {events} in the calendar · {stars} thank-you stars{activity}"),
+        "en": ("The Sunday check-in is done", "Week {week}: {events} in the calendar · {stars} thank-you stars{activity}"),
         "sv": ("Söndagskollen är klar", "Vecka {week}: {events} i kalendern · {stars} tack-stjärnor{activity}"),
-        "nb": ("Söndagskollen er ferdig", "Uke {week}: {events} i kalenderen · {stars} takkestjerner{activity}"),
-        "da": ("Söndagskollen er færdig", "Uge {week}: {events} i kalenderen · {stars} takkestjerner{activity}"),
-        "fi": ("Söndagskollen on valmis", "Viikko {week}: {events} kalenterissa · {stars} kiitostähteä{activity}"),
+        "nb": ("Søndagsmøtet er ferdig", "Uke {week}: {events} i kalenderen · {stars} takkestjerner{activity}"),
+        "da": ("Søndagsmødet er færdigt", "Uge {week}: {events} i kalenderen · {stars} takkestjerner{activity}"),
+        "fi": ("Sunnuntaikatsaus on valmis", "Viikko {week}: {events} kalenterissa · {stars} kiitostähteä{activity}"),
     },
     "activity": {"en": " · This week: {what}", "sv": " · Veckans aktivitet: {what}", "nb": " · Ukens aktivitet: {what}", "da": " · Ugens aktivitet: {what}", "fi": " · Viikon aktiviteetti: {what}"},
     "reminder": {
-        "en": ("Time for Söndagskollen", "Look back at the week together and plan the next one."),
+        "en": ("Time for the Sunday check-in", "Look back at the week together and plan the next one."),
         "sv": ("Dags för Söndagskollen", "Titta tillbaka på veckan tillsammans och planera nästa."),
-        "nb": ("Tid for Söndagskollen", "Se tilbake på uka sammen og planlegg den neste."),
-        "da": ("Tid til Söndagskollen", "Se tilbage på ugen sammen og planlæg den næste."),
-        "fi": ("Söndagskollenin aika", "Katsokaa yhdessä mennyttä viikkoa ja suunnitelkaa seuraava."),
+        "nb": ("Tid for søndagsmøtet", "Se tilbake på uka sammen og planlegg den neste."),
+        "da": ("Tid til søndagsmødet", "Se tilbage på ugen sammen og planlæg den næste."),
+        "fi": ("Sunnuntaikatsauksen aika", "Katsokaa yhdessä mennyttä viikkoa ja suunnitelkaa seuraava."),
     },
 }
 
@@ -88,7 +88,9 @@ class TurnOut(BaseModel):
 class DayOut(BaseModel):
     date: date
     events: list[EventOut]
+    # The day's dinner, and its lunch or lunchbox (3.2.0).
     meal: str | None = None
+    lunch: str | None = None
 
 
 class WeekOut(BaseModel):
@@ -205,11 +207,12 @@ async def get_week(user: CurrentUser, db: DB, start: date | None = None) -> Week
     # Looking ahead.
     by_day = await _local_events(db, user, first) if "calendar" in user.apps else {first + timedelta(days=i): [] for i in range(7)}
     meals: dict[int, str] = {}
+    lunches: dict[int, str] = {}
     if "food" in user.apps:
         plan = (await db.execute(select(MealPlan).where(MealPlan.family_id == user.family_id, MealPlan.week_start == first))).scalar_one_or_none()
         if plan is not None:
             for meal in (await db.execute(select(Meal).where(Meal.meal_plan_id == plan.id).order_by(Meal.weekday))).scalars():
-                meals.setdefault(meal.weekday, meal.name)
+                (meals if meal.slot == "dinner" else lunches).setdefault(meal.weekday, meal.name)
     turns = []
     if "tasks" in user.apps:
         tasks = (await db.execute(select(Task).where(Task.family_id == user.family_id, Task.active == True))).scalars().all()  # noqa: E712
@@ -232,7 +235,7 @@ async def get_week(user: CurrentUser, db: DB, start: date | None = None) -> Week
         top_helper=top.name if top else None,
         goals=goals,
         stars=await _stars(db, user.family_id, first, names),
-        days=[DayOut(date=day, events=events, meal=meals.get(day.weekday())) for day, events in by_day.items()],
+        days=[DayOut(date=day, events=events, meal=meals.get(day.weekday()), lunch=lunches.get(day.weekday())) for day, events in by_day.items()],
         turns=turns,
     )
 

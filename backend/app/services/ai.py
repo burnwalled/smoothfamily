@@ -215,6 +215,7 @@ SCHEMAS = {
                     "type": "object",
                     "properties": {
                         "weekday": {"type": "integer", "minimum": 0, "maximum": 6},
+                        "slot": {"type": "string", "enum": ["dinner", "lunchbox", "lunch"]},
                         "name": {"type": "string"},
                         "description": {"type": ["string", "null"]},
                         "servings": {"type": "integer"},
@@ -413,7 +414,11 @@ async def prompt_for(db: AsyncSession, job: AiJob, language: str) -> str:
         from app.services.prompts import meals_prompt
 
         members = (await db.execute(select(func.count(User.id)).where(User.family_id == job.family_id))).scalar_one()
-        return meals_prompt(date.fromisoformat(data["week_start"]), int(data.get("servings") or 4), str(data.get("preferences") or ""), members, language)
+        family = await db.get(Family, job.family_id)
+        return meals_prompt(
+            date.fromisoformat(data["week_start"]), int(data.get("servings") or 4), str(data.get("preferences") or ""), members, language,
+            family.meal_lunchboxes, family.meal_weekend_lunch,
+        )
     if job.kind == "chores":
         from app.models import HomeProfile, Room
         from app.services.prompts import chores_prompt

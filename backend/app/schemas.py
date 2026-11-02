@@ -759,6 +759,7 @@ class IngredientImport(BaseModel):
 
 class MealImportItem(BaseModel):
     weekday: int = Field(ge=0, le=6)
+    slot: Literal["dinner", "lunchbox", "lunch"] = "dinner"
     name: str = Field(min_length=1, max_length=200)
     description: str | None = None
     servings: int = Field(default=4, ge=1, le=20)
@@ -786,6 +787,7 @@ class IngredientOut(ORMModel):
 class MealOut(ORMModel):
     id: uuid.UUID
     weekday: int
+    slot: str = "dinner"
     name: str
     description: str | None
     servings: int
@@ -857,6 +859,22 @@ class RecipeOut(ORMModel):
 class PlanFromRecipe(BaseModel):
     week_start: date
     weekday: int = Field(ge=0, le=6)
+    slot: Literal["dinner", "lunchbox", "lunch"] = "dinner"
+
+
+class PlanMealIn(BaseModel):
+    """One meal of the week set by hand (3.2.0, e.g. from the Sunday check-in): a name, or nothing to
+    take it away."""
+
+    week_start: date
+    weekday: int = Field(ge=0, le=6)
+    slot: Literal["dinner", "lunchbox", "lunch"] = "dinner"
+    name: str | None = Field(default=None, max_length=200)
+
+
+class MealSettings(BaseModel):
+    lunchboxes: int = Field(default=0, ge=0, le=10)
+    weekend_lunch: bool = False
 
 
 class ListCreate(BaseModel):

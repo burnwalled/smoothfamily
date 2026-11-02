@@ -80,9 +80,9 @@ def chores_prompt(profile: HomeProfile | None, rooms: list[Room], members: list[
     return "\n".join(parts)
 
 
-def meals_prompt(week_start: date, servings: int, preferences: str, member_count: int, language: str) -> str:
+def meals_prompt(week_start: date, servings: int, preferences: str, member_count: int, language: str, lunchboxes: int = 0, weekend_lunch: bool = False) -> str:
     parts = [
-        "You are helping a family plan a week of dinners.",
+        "You are helping a family plan a week of dinners" + (" and lunches." if lunchboxes or weekend_lunch else "."),
         "",
         f"Week starting Monday {week_start.isoformat()}.",
         f"Servings per dinner: {servings} (family of {member_count}).",
@@ -99,6 +99,23 @@ def meals_prompt(week_start: date, servings: int, preferences: str, member_count
         "- Only include ingredients that need to be bought or measured - not salt, pepper or water.",
         '- Each ingredient MUST include "category" using one of: produce, bread, dairy, meat_fish, frozen, pantry, snacks, beverages, household, other.',
         '- Each meal MUST include "steps": 4-8 short numbered instructions, simple enough that a child can cook the dish with light supervision.',
+        '- Each meal has a "slot": "dinner" for the dinners.',
+    ]
+    if lunchboxes:
+        parts += [
+            f"- Lunchboxes: {lunchboxes} per weekday (Monday-Friday), taken to work or school and eaten cold or reheated.",
+            "  The dinner the evening before is cooked as a big batch (Sunday's for Monday, Monday's for Tuesday, and so on to Thursday's for Friday):",
+            "  dishes that keep and reheat well - stews, casseroles, soups, curries, chilli, bolognese, pasta or rice bakes, meatballs, lentil dishes -",
+            f"  not dishes that go soggy or must be eaten at once. Give those dinners servings + {lunchboxes}, with the ingredients for all of it.",
+            f'  Add each lunchbox as its own meal: "slot": "lunchbox", the weekday it is eaten, servings {lunchboxes}, the name of the dinner it comes from,',
+            "  a description saying it is the leftovers from the evening before, no ingredients, and 1-2 steps on packing and reheating.",
+        ]
+    if weekend_lunch:
+        parts += [
+            '- Lunch on Saturday and Sunday too: "slot": "lunch", simple and quick (soups, omelettes, sandwiches, salads, pancakes), '
+            f"servings {servings}, with their own ingredients.",
+        ]
+    parts += [
         "",
         "Reply with ONLY the following JSON, no other text:",
         "",
@@ -107,6 +124,7 @@ def meals_prompt(week_start: date, servings: int, preferences: str, member_count
         '  "meals": [',
         "    {",
         '      "weekday": 0,',
+        '      "slot": "dinner",',
         '      "name": "Pasta carbonara",',
         '      "description": "Weeknight classic, ready in 25 min",',
         f'      "servings": {servings},',

@@ -4,19 +4,71 @@
 // the top helper, family goals), ahead at the coming one (calendar with who drives, meals, whose
 // turn it is), give thank-you stars, pick the family activity – and mark it done.
 import { useEffect, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, HeartHandshake, Repeat, Search, Sparkles, Star, Trophy, UtensilsCrossed } from "lucide-react";
-import { api, Member, WeekReview } from "@/lib/api";
+import Link from "next/link";
+import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, HeartHandshake, Pencil, Plus, Repeat, Search, Sparkles, Star, Trophy, UtensilsCrossed } from "lucide-react";
+import { api, Member, MealSlot, Recipe, WeekReview } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import { getIsoWeek } from "@/lib/week";
-import { EventPlanBadges } from "@/components/EventPlanPanel";
+import EventLine from "@/components/calendar/EventLine";
 import WebSearch, { shortTitle, useWebSearch } from "@/components/WebSearch";
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T12:00:00`);
   d.setDate(d.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** A day's dinner or lunch, written straight in (3.2.0): a recipe of the same name brings its
+ *  ingredients; an empty field takes the meal away. */
+function MealSlotLine({ week, date, slot, name }: { week: string; date: string; slot: MealSlot; name: string | null }) {
+  const { t } = useI18n();
+  const [text, setText] = useState<string | null>(null);
+  const weekday = (new Date(`${date}T12:00:00`).getDay() + 6) % 7;
+  const label = t(`food.slot.${slot}`);
+  async function save() {
+    const next = (text ?? "").trim();
+    setText(null);
+    if (next !== (name ?? "")) await api.put("/api/meals/plan/meal", { week_start: week, weekday, slot, name: next || null });
+  }
+  if (text !== null)
+    return (
+      <form
+        className="flex w-full max-w-md items-center gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <UtensilsCrossed className="h-3.5 w-3.5 shrink-0 text-muted" strokeWidth={2} aria-hidden />
+        <input
+          className="input h-8 min-w-0 flex-1 py-1 text-sm"
+          autoFocus
+          list="week-recipes"
+          value={text}
+          maxLength={200}
+          placeholder={t("week.mealPh", { meal: label.toLowerCase() })}
+          aria-label={label}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => e.key === "Escape" && setText(null)}
+        />
+      </form>
+    );
+  return name ? (
+    <button className="group flex items-center gap-1.5 text-left text-xs text-muted hover:text-ink" onClick={() => setText(name)} aria-label={`${label}: ${name}`}>
+      <UtensilsCrossed className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+      {slot !== "dinner" && <span className="font-semibold">{label}:</span>}
+      {name}
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100" strokeWidth={2} aria-hidden />
+    </button>
+  ) : (
+    <button className="inline-flex items-center gap-1 rounded-full border border-dashed border-edge px-2 py-0.5 text-xs text-muted hover:border-accent hover:text-ink" onClick={() => setText("")}>
+      <Plus className="h-3 w-3" strokeWidth={2} aria-hidden />
+      {label}
+    </button>
+  );
 }
 
 function SectionTitle({ icon: Icon, children }: { icon: typeof Star; children: React.ReactNode }) {
@@ -45,6 +97,10 @@ export default function WeekPage() {
   // so a change in any of them refreshes it.
   const weekQuery = useApi<WeekReview>(start ? `/api/week?start=${start}` : "/api/week");
   const week = weekQuery.data ?? null;
+  // The week's food is planned here too (3.2.0): the recipe book's names to choose from.
+  const food = me.apps.includes("food");
+  const recipes = useApi<Recipe[]>(food ? "/api/meals/recipes" : null).data ?? NONE;
+  const mealSettings = useApi<{ lunchboxes: number; weekend_lunch: boolean }>(food ? "/api/meals/settings" : null).data;
   // The activity field starts from what is saved.
   useEffect(() => {
     if (week) setActivity(week.activity ?? "");
@@ -195,30 +251,53 @@ export default function WeekPage() {
         </section>
 
         <section className="card p-5 lg:col-span-2">
-          <SectionTitle icon={CalendarDays}>{t("week.ahead", { week: weekNo })}</SectionTitle>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <SectionTitle icon={CalendarDays}>{t("week.ahead", { week: weekNo })}</SectionTitle>
+            {food && (
+              <Link href={`/food?week=${first}`} className="btn-ghost border border-edge px-3 py-1 text-xs">
+                <UtensilsCrossed className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                {t("week.planFood")}
+              </Link>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-muted">{t("week.aheadHint")}</p>
+          <datalist id="week-recipes">
+            {recipes.map((r) => (
+              <option key={r.id} value={r.name} />
+            ))}
+          </datalist>
           <ul className="divide-y divide-edge">
             {week.days.map((day) => (
               <li key={day.date} className="flex flex-col gap-1 py-2 sm:flex-row sm:gap-4">
                 <span className="w-32 shrink-0 text-sm font-semibold capitalize">
                   {new Date(`${day.date}T12:00:00`).toLocaleDateString(dateLocale, { weekday: "long", day: "numeric" })}
                 </span>
-                <div className="min-w-0 flex-1 space-y-1">
-                  {day.events.length === 0 && !day.meal && <p className="text-xs text-muted">—</p>}
-                  {day.events.map((event, i) => (
-                    <div key={`${event.key ?? event.title}-${i}`} className="flex flex-wrap items-center gap-x-2 text-sm">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: event.color }} />
-                      <span className="text-muted">
-                        {event.all_day ? t("calendar.allDay") : new Date(event.start).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span>{event.busy ? t("calendar.busy") : event.title}</span>
-                      <EventPlanBadges event={event} members={members} />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {day.events.length === 0 && !day.meal && !food && <p className="text-xs text-muted">—</p>}
+                  {day.events.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {day.events.map((event, i) => (
+                        <EventLine key={`${event.key ?? event.title}-${i}`} event={event} members={members} />
+                      ))}
+                    </ul>
+                  )}
+                  {food ? (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <MealSlotLine week={first} date={day.date} slot="dinner" name={day.meal} />
+                      {(() => {
+                        // A weekday's lunchbox or the weekend's lunch – when the family plans them, or one is set.
+                        const weekend = new Date(`${day.date}T12:00:00`).getDay() % 6 === 0;
+                        const planned = weekend ? mealSettings?.weekend_lunch : (mealSettings?.lunchboxes ?? 0) > 0;
+                        return (day.lunch || planned) && <MealSlotLine week={first} date={day.date} slot={weekend ? "lunch" : "lunchbox"} name={day.lunch ?? null} />;
+                      })()}
                     </div>
-                  ))}
-                  {day.meal && (
-                    <p className="flex items-center gap-1.5 text-xs text-muted">
-                      <UtensilsCrossed className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                      {day.meal}
-                    </p>
+                  ) : (
+                    day.meal && (
+                      <p className="flex items-center gap-1.5 text-xs text-muted">
+                        <UtensilsCrossed className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        {day.meal}
+                      </p>
+                    )
                   )}
                 </div>
               </li>

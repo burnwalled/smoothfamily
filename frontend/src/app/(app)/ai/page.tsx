@@ -196,19 +196,31 @@ function PropertyReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
 /** The week's dinners: choose the days to keep; they become the week's plan in Food. */
 function MealPlanReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
   const { t, dateLocale } = useI18n();
-  const meals = ((job.result?.meals as { weekday: number; name: string; description?: string | null }[]) ?? []).slice().sort((a, b) => a.weekday - b.weekday);
-  const [keep, setKeep] = useState<number[]>(meals.map((m) => m.weekday));
+  const meals = ((job.result?.meals as { weekday: number; slot?: "dinner" | "lunchbox" | "lunch"; name: string; description?: string | null }[]) ?? [])
+    .slice()
+    .sort((a, b) => a.weekday - b.weekday);
+  // A day is kept with its lunch and its dinner (3.2.0).
+  const days = [...new Set(meals.map((m) => m.weekday))];
+  const [keep, setKeep] = useState<number[]>(days);
   const [error, setError] = useState("");
   const weekday = (d: number) => new Date(2024, 0, 1 + d).toLocaleDateString(dateLocale, { weekday: "long" });
   return (
     <div className="space-y-2">
       <ul className="space-y-1">
-        {meals.map((m) => (
-          <li key={m.weekday} className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={keep.includes(m.weekday)} onChange={(e) => setKeep(e.target.checked ? [...keep, m.weekday] : keep.filter((d) => d !== m.weekday))} aria-label={t("ai.keep", { name: m.name })} />
+        {days.map((d) => (
+          <li key={d} className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={keep.includes(d)} onChange={(e) => setKeep(e.target.checked ? [...keep, d] : keep.filter((x) => x !== d))} aria-label={t("ai.keep", { name: meals.filter((m) => m.weekday === d).map((m) => m.name).join(", ") })} />
             <span>
-              <span className="capitalize text-muted">{weekday(m.weekday)}</span> · <span className="font-semibold">{m.name}</span>
-              {m.description && <span className="block text-xs text-muted">{m.description}</span>}
+              <span className="capitalize text-muted">{weekday(d)}</span>
+              {meals
+                .filter((m) => m.weekday === d)
+                .map((m, i) => (
+                  <span key={i} className="block">
+                    {m.slot && m.slot !== "dinner" && <span className="text-xs font-semibold text-muted">{t(`food.slot.${m.slot}`)}: </span>}
+                    <span className="font-semibold">{m.name}</span>
+                    {m.description && <span className="block text-xs text-muted">{m.description}</span>}
+                  </span>
+                ))}
             </span>
           </li>
         ))}

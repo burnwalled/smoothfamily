@@ -27,7 +27,7 @@ const texts: Record<string, TopicText> = {
         "h": "Find rundt"
       },
       {
-        "p": "På telefonen ligger de mest brugte apps i linjen nederst og resten under Mere; på computeren ligger de i menuen til venstre. Apps, der hører sammen, er faner øverst på siden – Kalender har Rejser, To hjem og Söndagskollen, Mad har Opskriftsbogen og Spisekammeret."
+        "p": "På telefonen ligger de mest brugte apps i linjen nederst og resten under Mere; på computeren ligger de i menuen til venstre. Apps, der hører sammen, er faner øverst på siden – Kalender har Rejser, To hjem og Søndagsmødet, Mad har Opskriftsbogen og Spisekammeret."
       },
       {
         "p": "Indstillingerne findes i tre niveauer, alle i menuen bag dit billede: Min profil (dine egne), Familieindstillinger (for den, der styrer familien) og Serverindstillinger (for den, der styrer serveren)."
@@ -174,7 +174,7 @@ const texts: Record<string, TopicText> = {
         "h": "Hvem kører, og hvad skal pakkes"
       },
       {
-        "p": "Åbn en begivenhed for at sige, at der er brug for et lift, og tag afleveringen eller afhentningen. Giv den en pakkeliste: den samme liste kommer igen for hver begivenhed med samme titel, som hver fodboldtræning, og krydses af for hver gang. En voksen kan vælge dagen, hvor det er tid til at pakke, og den, der skal af sted, får en opgave den dag."
+        "p": "Tryk på Kørsel og pakning ved en begivenhed – i kalenderen eller til søndagsmødet – for at sige, at der er brug for et lift, og tag afleveringen eller afhentningen. Giv den en pakkeliste: den samme liste kommer igen for hver begivenhed med samme titel, som hver fodboldtræning, og krydses af for hver gang. En voksen kan vælge dagen, hvor det er tid til at pakke, og den, der skal af sted, får en opgave den dag."
       },
       {
         "shot": "calendar-month",
@@ -345,11 +345,11 @@ const texts: Record<string, TopicText> = {
     ]
   },
   "week": {
-    "title": "Söndagskollen",
+    "title": "Søndagsmødet",
     "summary": "Et roligt øjeblik hver uge: se tilbage, se frem og sig tak.",
     "blocks": [
       {
-        "p": "Söndagskollen samler familien én gang om ugen. Se tilbage på pointene og ugens bedste hjælper, se frem på kalenderen, maden og hvis tur det er – og giv hinanden takkestjerner."
+        "p": "Søndagsmødet samler familien én gang om ugen. Se tilbage på pointene og ugens bedste hjælper, se frem på kalenderen, maden og hvis tur det er – og giv hinanden takkestjerner."
       },
       {
         "shot": "week",
@@ -357,6 +357,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Vælg noget at lave sammen, og markér tjekket som færdigt: alle får en kort oversigt. Søndag eftermiddag bliver I mindet om det, hvis I ikke har gjort det."
+      },
+      {
+        "h": "Planlæg den kommende uge"
+      },
+      {
+        "p": "Under den kommende uge trykker du på Kørsel og pakning ved en begivenhed for at tage en aflevering eller afhentning og give den en pakkeliste. Skriv en dags aftensmad ind direkte – en opskrifts navn tager ingredienserne med til indkøbslisten – eller planlæg hele ugens mad derfra."
       }
     ]
   },
@@ -440,6 +446,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Tryk Lav på en opskrift for stor tekst, ingredienser at krydse af og trin at trykke sig igennem. Hold skærmen tændt forhindrer telefonen i at slukke, mens hænderne er snavsede."
+      },
+      {
+        "h": "Madpakker og weekendfrokost"
+      },
+      {
+        "p": "Når du planlægger ugen, kan du krydse af i Madpakker på hverdage og vælge, hvor mange om dagen: aftensmaden aftenen før bliver så en stor portion – en gryderet, en suppe eller et fad, der holder og kan varmes – og resterne bliver næste dags madpakker. Kryds af i Frokost lørdag og søndag for weekendens frokoster også. Valget huskes til næste uge."
       },
       {
         "tips": [

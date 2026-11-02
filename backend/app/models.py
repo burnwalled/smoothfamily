@@ -27,6 +27,10 @@ class Family(Base):
     shopping_task_points: Mapped[int] = mapped_column(Integer, default=25)
     # Children's completed tasks wait for an adult's approval (on by default).
     child_approval: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # What the meal plan covers besides dinners (3.2.0): lunchboxes per weekday (0 = none), made
+    # from the dinner the evening before, and lunch on Saturday and Sunday.
+    meal_lunchboxes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    meal_weekend_lunch: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # How much the family may keep on the server, set by the server admin (2.8.2); None = no ceiling.
     storage_quota_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Sign-in policy chosen at setup: passkeys on/off, authenticator codes off|optional|required.
@@ -339,6 +343,8 @@ class Meal(Base):
     meal_plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("meal_plans.id"), index=True)
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     weekday: Mapped[int] = mapped_column(Integer)  # 0 = Monday
+    # dinner | lunchbox (taken along, the leftovers of the evening before) | lunch (3.2.0)
+    slot: Mapped[str] = mapped_column(String(10), default="dinner", server_default="dinner")
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     servings: Mapped[int] = mapped_column(Integer, default=4)
