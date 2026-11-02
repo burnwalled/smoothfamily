@@ -1,0 +1,56 @@
+<!-- How Smooth Family fits together – the same drawing as on the website (site/index.html); change both. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img" aria-labelledby="arch-title arch-desc">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .bg { fill: #fbfbf8; }
+    .zone { fill: #f2f1ec; stroke: #d6dfd2; stroke-width: 2; }
+    .zone-out { fill: none; stroke-dasharray: 8 7; }
+    .zone-label { fill: #4e6256; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .node rect { fill: #fbfbf8; stroke: #d6dfd2; stroke-width: 1.5; }
+    .node.optional rect { stroke-dasharray: 6 5; }
+    .server > rect:first-child { fill: #24402f; }
+    .server .name, .server .sub { fill: #f2f1ec; }
+    .chip { fill: rgba(255, 255, 255, 0.12); }
+    .chip-text { fill: #f2f1ec; font-size: 14px; }
+    .name { fill: #16241c; font-size: 15px; font-weight: 700; }
+    .sub { fill: #4e6256; font-size: 13px; }
+    .emoji { font-size: 24px; }
+    .center { text-anchor: middle; }
+    .link { fill: none; stroke: #e09b3d; stroke-width: 2.5; }
+    .link.dashed { stroke-dasharray: 7 6; }
+  </style>
+  <rect class="bg" width="960" height="560" rx="28"/>
+  <title id="arch-title">How Smooth Family fits together</title>
+  <desc id="arch-desc">One server in the home. Phones, computers, the kitchen display and Home Assistant reach it on the home network; an optional local AI computer helps it. From outside, phones away from home, guest links, another home's gateway and calendar apps reach it only if you open the way – a VPN or HTTPS.</desc>
+  <rect class="zone" x="10" y="10" width="620" height="540" rx="24"/>
+  <text class="zone-label" x="34" y="44">Your home network</text>
+  <rect class="zone zone-out" x="650" y="10" width="300" height="540" rx="24"/>
+  <text class="zone-label" x="674" y="44">Outside – if you open it</text>
+
+  <path class="link" d="M268 115 C340 115 340 230 400 240"/>
+  <path class="link" d="M268 235 C340 235 340 260 400 265"/>
+  <path class="link" d="M268 355 C340 355 340 300 400 295"/>
+  <path class="link dashed" d="M268 475 C340 475 340 330 400 320"/>
+  <path class="link dashed" d="M670 115 C635 115 635 240 600 245"/>
+  <path class="link dashed" d="M670 235 C635 235 635 265 600 268"/>
+  <path class="link dashed" d="M670 355 C635 355 635 292 600 292"/>
+  <path class="link dashed" d="M670 475 C635 475 635 318 600 318"/>
+
+  <g class="node"><rect x="36" y="80" width="232" height="70" rx="14"/><text x="56" y="122" class="emoji">📱</text><text x="92" y="111" class="name">Phones and computers</text><text x="92" y="131" class="sub">The app, installable</text></g>
+  <g class="node"><rect x="36" y="200" width="232" height="70" rx="14"/><text x="56" y="242" class="emoji">🖥️</text><text x="92" y="231" class="name">Kitchen display</text><text x="92" y="251" class="sub">A tablet, its own link</text></g>
+  <g class="node"><rect x="36" y="320" width="232" height="70" rx="14"/><text x="56" y="362" class="emoji">💡</text><text x="92" y="351" class="name">Home Assistant</text><text x="92" y="371" class="sub">Lights, presence, flows</text></g>
+  <g class="node optional"><rect x="36" y="440" width="232" height="70" rx="14"/><text x="56" y="482" class="emoji">🤖</text><text x="92" y="471" class="name">Local AI</text><text x="92" y="491" class="sub">Optional – your own PC</text></g>
+
+  <g class="server"><rect x="400" y="180" width="200" height="200" rx="20"/>
+    <text x="500" y="214" class="name center">🏠 The server</text>
+    <text x="500" y="236" class="sub center">NAS · Raspberry Pi · PC</text>
+    <rect class="chip" x="420" y="256" width="160" height="30" rx="8"/><text x="500" y="276" class="chip-text center">The app</text>
+    <rect class="chip" x="420" y="294" width="160" height="30" rx="8"/><text x="500" y="314" class="chip-text center">The family's data</text>
+    <rect class="chip" x="420" y="332" width="160" height="30" rx="8"/><text x="500" y="352" class="chip-text center">Photos, vault, backups</text>
+  </g>
+
+  <g class="node"><rect x="670" y="80" width="262" height="70" rx="14"/><text x="690" y="122" class="emoji">📱</text><text x="726" y="111" class="name">Phones away</text><text x="726" y="131" class="sub">Over a VPN or HTTPS</text></g>
+  <g class="node"><rect x="670" y="200" width="262" height="70" rx="14"/><text x="690" y="242" class="emoji">🔗</text><text x="726" y="231" class="name">Guest and share links</text><text x="726" y="251" class="sub">Babysitter, grandma</text></g>
+  <g class="node"><rect x="670" y="320" width="262" height="70" rx="14"/><text x="690" y="362" class="emoji">🏕️</text><text x="726" y="351" class="name">Another home</text><text x="726" y="371" class="sub">Gateway – connects out</text></g>
+  <g class="node"><rect x="670" y="440" width="262" height="70" rx="14"/><text x="690" y="482" class="emoji">📅</text><text x="726" y="471" class="name">Calendar apps</text><text x="726" y="491" class="sub">Your personal iCal link</text></g>
+          </svg>
