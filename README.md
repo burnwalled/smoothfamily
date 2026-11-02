@@ -126,6 +126,28 @@ To update: `git pull && docker compose up -d --build` – the database is migrat
 the production stack ([docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – it runs on any Linux
 with Docker), the server can update itself: choose Stable or Beta under Server settings → Updates.
 
+### Stable or beta
+
+Smooth Family comes in two channels:
+
+- **Stable** – the `main` branch and the [releases](https://github.com/burnwalled/smoothfamily/releases)
+  (`v3.3.0` …). Fewer, bigger updates that have run in a family's home for a while first. This is
+  what `git clone` gives you, and what most families should run.
+- **Beta** – the `beta` branch and the pre-releases (`v3.3.0-beta.1` …). The newest changes as soon
+  as they are done, tested by the automatic tests but not yet by time. For those who like to try
+  things first and report what they find.
+
+To follow beta, switch once and update as usual:
+
+```sh
+git checkout beta
+git pull && docker compose up -d --build
+```
+
+`git checkout main` takes you back to stable at its next release. (Going back to an older version
+isn't possible once a newer one has changed the database – keep a backup.) For the Home Assistant
+add-on, add `https://github.com/burnwalled/smoothfamily#beta` as the repository instead.
+
 ### Home Assistant in another home
 
 The gateway is a Home Assistant add-on (or a small container) that connects out to your server, so
