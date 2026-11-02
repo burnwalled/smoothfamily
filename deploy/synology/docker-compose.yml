@@ -1,0 +1,169 @@
+# Smooth Family – production stack for Synology DSM (Docker package).
+#
+# Uses prebuilt images (built on a PC with scripts/build-release.sh and loaded
+# with `docker load`), because a NAS is usually too small to build Next.js.
+# File format 2.4 so it also works with the older docker-compose v1 that DSM 6
+# ships. Caddy terminates HTTPS (Let's Encrypt) on NAS port 8443 – DSM itself
+# already uses 80/443 – so forward WAN 443 -> NAS:8443 in the router.
+
+version: "2.4"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Memory sizes come from .env (install.sh picks a profile from the RAM:
+    # "small" for e.g. a DS412+ with 1 GB, "standard" otherwise).
+    command: >
+      postgres -c shared_buffers=${PG_SHARED_BUFFERS:-256MB}
+      -c effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-1GB}
+      -c work_mem=${PG_WORK_MEM:-8MB}
+      -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}
+      -c max_connections=30
+    environment:
+      POSTGRES_USER: smooth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: smoothfamily
+    volumes:
+      - ${DATA_DIR:?Set DATA_DIR in .env}/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smooth -d smoothfamily"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    pids_limit: 200
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Only caches live here, so cap memory and evict the least recently used.
+    command: redis-server --save 60 1 --loglevel warning --maxmemory ${REDIS_MAXMEMORY:-128mb} --maxmemory-policy allkeys-lru
+    # As redis itself: its folder is owner-only (700), which root without capabilities can't read –
+    # the image's start-up chown would fail. install.sh gives the folder to 999.
+    user: "999:999"
+    volumes:
+      - ${DATA_DIR}/redis:/data
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: [CHOWN, SETGID, SETUID]
+    pids_limit: 100
+
+  backend:
+    image: smooth-family-backend:${APP_VERSION:?Set APP_VERSION in .env}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smooth:${POSTGRES_PASSWORD}@db:5432/smoothfamily
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      SETUP_CODE: ${SETUP_CODE:?Set SETUP_CODE in .env}
+      # Passkeys are bound to this host name – don't change the domain later.
+      PUBLIC_URL: https://${DOMAIN:?Set DOMAIN in .env}
+      COOKIE_SECURE: "true"
+      STORAGE_PROVIDER: local
+      MEDIA_ROOT: /data/media
+      DATA_DIR: ${DATA_DIR}
+      BACKUP_DIR: /data/backup
+      APP_VERSION: ${APP_VERSION}
+      SEARXNG_URL: http://searxng:8080
+    volumes:
+      - ${DATA_DIR}/media:/data/media
+      # Backups made from the app (and listed there) – the same folder backup.sh writes to.
+      - ${DATA_DIR}/backup:/data/backup
+      # Updates (2.9.0): shared with update.sh, which does the Docker work.
+      - ${DATA_DIR}/updates:/data/updates
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [default, internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
+
+  frontend:
+    image: smooth-family-frontend:${APP_VERSION}
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+      # The content security policy blocks (3.0.0); "report" only reports to /api/csp-report.
+      CSP_MODE: ${CSP_MODE:-enforce}
+      NODE_OPTIONS: --max-old-space-size=${NODE_MAX_OLD_SPACE_MB:-512}
+    depends_on:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /srv/app/.next/cache:uid=1000,gid=1000
+    pids_limit: 200
+
+  # The recipe search's own search engine (2.8.4): only the backend reaches it, over the internal
+  # network – no port is published. Turned on or off by the server admin in Server settings.
+  searxng:
+    image: searxng/searxng:2026.10.13-22c64b8d3
+    restart: unless-stopped
+    mem_limit: ${SEARXNG_MEMORY:-256m}
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Set SEARXNG_SECRET in .env}
+      FORCE_OWNERSHIP: "false"
+      GRANIAN_BLOCKING_THREADS: "2"
+    volumes:
+      - ./searxng.yml:/etc/searxng/settings.yml:ro
+    user: "977:977"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/searxng:uid=977,gid=977
+    pids_limit: 100
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DATA_DIR}/caddy/data:/data
+      - ${DATA_DIR}/caddy/config:/config
+    depends_on:
+      - frontend
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Binds 443 inside the container.
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 100
+
+networks:
+  # The database and Redis: reached by the backend only, no way out to the internet.
+  internal:
+    internal: true

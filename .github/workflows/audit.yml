@@ -1,0 +1,36 @@
+# Known security holes in the libraries we use (2.9.0). Runs with every change, and every Monday
+# as well: a library already in use can get a newly found hole without anything changing here.
+# Only what ships is checked – the backend, the gateway add-on and the frontend's runtime packages.
+name: Audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - run: pip-audit -r backend/requirements.txt --progress-spinner off
+      - run: pip-audit -r gateway/requirements.txt --progress-spinner off
+
+  npm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm audit --omit=dev --audit-level=moderate

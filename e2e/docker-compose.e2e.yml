@@ -1,0 +1,16 @@
+# Throwaway stack for the browser tests: database and media live in tmpfs, so every run starts
+# from an empty install and nothing is left on disk. Used by scripts/e2e.sh.
+services:
+  db:
+    volumes: !reset []
+    tmpfs:
+      - /var/lib/postgresql/data
+  backend:
+    volumes: !reset []
+    tmpfs:
+      - /data/media
+      - /data/backup
+  frontend:
+    environment:
+      # The policy blocks in the tests: anything it stops fails them (fixtures.ts).
+      CSP_MODE: enforce

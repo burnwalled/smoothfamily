@@ -1,0 +1,42 @@
+# HTTPS entry point for Smooth Family.
+#
+# Certificates come from Let's Encrypt – free, no account or e-mail needed –
+# and are renewed automatically. Only WAN port 443 needs to be forwarded: the
+# TLS-ALPN challenge runs over 443, so port 80 stays closed.
+{
+	cert_issuer acme {
+		disable_http_challenge
+	}
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Media uploads may be up to 500 MB (MEDIA_MAX_SIZE_BYTES).
+	request_body {
+		max_size 520MB
+	}
+
+	# The API goes straight to the backend so it sees the real client IP in
+	# X-Forwarded-For (used by the login brute-force protection). Caddy
+	# overwrites any X-Forwarded-For sent by the client.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

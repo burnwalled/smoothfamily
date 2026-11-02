@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(pnpm dev *)",
-      "Bash(gh repo *)",
-      "PowerShell(gh repo view --json nameWithOwner,url 2>&1)"
-    ]
-  }
-}

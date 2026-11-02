@@ -1,0 +1,25 @@
+# Filled in by Smooth Family itself: Server settings → Reports → Export opens this form with the
+# chosen reports in the text field (the field's id, "reports", is what the app fills in).
+name: Reports from a server admin
+description: Problems and wishes collected on a Smooth Family server, exported without names or families.
+title: "Reports from a Smooth Family server"
+labels: ["from-server-admin"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for passing these on. The text below comes from your server's **Reports** page – read
+        it through before you press **Create**: it has no names or families, but check that the
+        reports themselves don't mention anyone.
+  - type: textarea
+    id: reports
+    attributes:
+      label: The reports
+      description: Pasted by the app, or by you if the text was too long for the link.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Server version
+      description: Server settings → Updates shows it (it's also in the text above).

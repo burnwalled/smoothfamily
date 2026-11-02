@@ -1,66 +1,22 @@
-# Environment
 .env
-.env.local
-.env.*.local
-!.env.example
-!.env.local.example
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-env/
-.uv/
-*.egg-info/
+*.pyc
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-htmlcov/
-.coverage
-
-# Node
+test.db
 node_modules/
 .next/
-out/
-.turbo/
-dist/
-build/
-*.tsbuildinfo
-.pnpm-store/
+next-env.d.ts
+backup/
+data/
+rclone/rclone.conf
+release/
 
-# IDE
-.vscode/
-!.vscode/settings.json.example
-.idea/
-*.swp
-*.swo
+# The development Home Assistant (dev/home-assistant)
+dev/home-assistant/config/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
+# Written by update.sh when the server's software is updated (2.9.0)
 docker-compose.override.yml
+docker-compose.override.yml.before
 
-# Cloud / secrets
-*.pem
-*.key
-service-account-*.json
-gcp-credentials.json
-
-# Logs
-*.log
-logs/
-
-# Test
-coverage/
-.coverage
-*.cover
-
-# Local dev
-*.local
-.cache/
+# Raw help screenshots (scripts/help-shots.sh)
+.help-shots/

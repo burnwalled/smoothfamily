@@ -1,0 +1,8 @@
+# Skriptfiler som körs i Linux-containrar måste ha LF-radslut,
+# annars kraschar de när repot klonas på Windows (CRLF-konvertering).
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+Caddyfile text eol=lf
+.env.example text eol=lf

@@ -2,272 +2,224 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  /* ── Light (default) ─────────────────────────────────────────── */
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 214 89% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 214 89% 52%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 214 89% 52%;
-    --radius: 0.5rem;
-    --bg-gradient-opacity: 0.1;
-
-    /* Legacy RGB tokens – backward compat with remaining inline styles */
-    --color-background: 255 255 255;
-    --color-foreground: 26 26 26;
-    --color-accent: 55 138 221;
-    --color-border: 232 232 232;
-    --color-surface: 250 250 250;
-    --color-muted: 245 245 245;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-      sans-serif;
-  }
-
-  /* ── Dark ────────────────────────────────────────────────────── */
-  .dark {
-    --background: 220 15% 10%;
-    --foreground: 210 20% 96%;
-    --card: 220 15% 13%;
-    --card-foreground: 210 20% 96%;
-    --primary: 214 89% 65%;
-    --primary-foreground: 220 15% 10%;
-    --secondary: 217 20% 18%;
-    --secondary-foreground: 210 20% 96%;
-    --muted: 217 20% 18%;
-    --muted-foreground: 215 14% 60%;
-    --accent: 214 89% 65%;
-    --accent-foreground: 220 15% 10%;
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 217 20% 22%;
-    --input: 217 20% 22%;
-    --ring: 214 89% 65%;
-    --bg-gradient-opacity: 0.08;
-
-    --color-background: 26 26 26;
-    --color-foreground: 245 245 245;
-    --color-accent: 100 165 230;
-    --color-border: 53 53 53;
-    --color-surface: 30 30 30;
-    --color-muted: 38 38 38;
-  }
-
-  /* ── Forest ──────────────────────────────────────────────────── */
-  .forest {
-    --background: 120 20% 97%;
-    --foreground: 140 30% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 140 30% 12%;
-    --primary: 142 65% 38%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 120 10% 93%;
-    --secondary-foreground: 140 30% 12%;
-    --muted: 120 10% 93%;
-    --muted-foreground: 140 15% 42%;
-    --accent: 142 65% 38%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 120 10% 87%;
-    --input: 120 10% 87%;
-    --ring: 142 65% 38%;
-    --radius: 0.625rem;
-    --bg-gradient-opacity: 0.12;
-
-    --color-background: 246 250 246;
-    --color-foreground: 24 46 28;
-    --color-accent: 46 139 87;
-    --color-border: 210 230 210;
-    --color-surface: 240 248 240;
-    --color-muted: 230 242 230;
-  }
-
-  /* ── Ocean ───────────────────────────────────────────────────── */
-  .ocean {
-    --background: 210 50% 97%;
-    --foreground: 210 60% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 60% 12%;
-    --primary: 199 89% 43%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 93%;
-    --secondary-foreground: 210 60% 12%;
-    --muted: 210 20% 93%;
-    --muted-foreground: 210 25% 45%;
-    --accent: 199 89% 43%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 87%;
-    --input: 210 20% 87%;
-    --ring: 199 89% 43%;
-    --radius: 0.625rem;
-    --bg-gradient-opacity: 0.1;
-
-    --color-background: 242 247 253;
-    --color-foreground: 13 37 66;
-    --color-accent: 14 165 233;
-    --color-border: 209 228 246;
-    --color-surface: 235 244 253;
-    --color-muted: 226 239 250;
-  }
-
-  /* ── Sunset ──────────────────────────────────────────────────── */
-  .sunset {
-    --background: 30 50% 98%;
-    --foreground: 20 60% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 20 60% 12%;
-    --primary: 25 95% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 30 15% 93%;
-    --secondary-foreground: 20 60% 12%;
-    --muted: 30 15% 93%;
-    --muted-foreground: 25 20% 45%;
-    --accent: 25 95% 53%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --ring: 25 95% 53%;
-    --radius: 0.75rem;
-    --bg-gradient-opacity: 0.12;
-
-    --color-background: 255 250 245;
-    --color-foreground: 50 26 13;
-    --color-accent: 249 115 22;
-    --color-border: 240 220 205;
-    --color-surface: 254 247 240;
-    --color-muted: 250 240 230;
-  }
-
-  /* ── Nordic (Scandinavian) ───────────────────────────────────── */
-  .nordic {
-    --background: 210 25% 97%;
-    --foreground: 215 30% 18%;
-    --card: 0 0% 100%;
-    --card-foreground: 215 30% 18%;
-    --primary: 215 85% 32%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 93%;
-    --secondary-foreground: 215 30% 18%;
-    --muted: 210 15% 93%;
-    --muted-foreground: 215 15% 48%;
-    --accent: 215 85% 32%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 215 85% 32%;
-    --radius: 0.375rem;
-    --bg-gradient-opacity: 0.08;
-
-    --color-background: 243 247 251;
-    --color-foreground: 32 44 64;
-    --color-accent: 12 74 143;
-    --color-border: 210 222 235;
-    --color-surface: 237 243 249;
-    --color-muted: 228 238 248;
-  }
-
-  /* ── High-contrast ───────────────────────────────────────────── */
-  .high-contrast {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --primary: 0 0% 0%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 0 0% 0%;
-    --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 25%;
-    --accent: 0 0% 0%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 100% 38%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 0%;
-    --input: 0 0% 85%;
-    --ring: 0 0% 0%;
-    --radius: 0.25rem;
-    --bg-gradient-opacity: 0;
-
-    --color-background: 255 255 255;
-    --color-foreground: 0 0 0;
-    --color-accent: 0 0 0;
-    --color-border: 0 0 0;
-    --color-surface: 240 240 240;
-    --color-muted: 237 237 237;
-  }
-
-  /* ── Metro (flat / Windows-inspired) ────────────────────────── */
-  .metro {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 5%;
-    --card: 0 0% 96%;
-    --card-foreground: 0 0% 5%;
-    --primary: 206 100% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 0 0% 5%;
-    --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 206 100% 40%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 5 100% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 206 100% 40%;
-    --radius: 0rem;
-    --bg-gradient-opacity: 0;
-
-    --color-background: 255 255 255;
-    --color-foreground: 13 13 13;
-    --color-accent: 0 120 215;
-    --color-border: 224 224 224;
-    --color-surface: 245 245 245;
-    --color-muted: 237 237 237;
-  }
-
-  *,
-  ::before,
-  ::after {
-    border-color: hsl(var(--border));
-    box-sizing: border-box;
-  }
-
-  body {
-    background: radial-gradient(
-        circle at top right,
-        hsl(var(--accent) / var(--bg-gradient-opacity)),
-        transparent 40%
-      ),
-      hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-  }
+/* Privacy-first: no external fonts – the system stack loads nothing from the network. */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-@layer components {
-  .portal-card {
-    @apply border bg-card/90 p-4 shadow-sm backdrop-blur-sm;
-    border-radius: var(--radius);
+/*
+ * Themes. Each theme defines the full palette as raw RGB triplets so Tailwind
+ * can apply alpha (rgb(var(--c-x) / <alpha>)). "forest" is the default.
+ */
+:root,
+[data-theme="forest"] {
+  --c-base: 222 234 219;
+  --c-surface: 248 251 246;
+  --c-edge: 200 217 196;
+  --c-ink: 22 36 28;
+  --c-muted: 78 98 86;
+  --c-primary-900: 22 36 28;
+  --c-primary-800: 30 51 40;
+  --c-primary-700: 42 69 54;
+  --c-primary-100: 220 229 222;
+  --c-accent: 217 142 43;
+  --c-accent-soft: 246 222 180;
+}
+
+[data-theme="ocean"] {
+  --c-base: 210 230 242;
+  --c-surface: 246 251 254;
+  --c-edge: 184 211 228;
+  --c-ink: 16 42 54;
+  --c-muted: 70 102 120;
+  --c-primary-900: 14 42 56;
+  --c-primary-800: 20 56 74;
+  --c-primary-700: 29 77 99;
+  --c-primary-100: 215 230 238;
+  --c-accent: 240 138 75;
+  --c-accent-soft: 252 218 194;
+}
+
+[data-theme="sunset"] {
+  --c-base: 252 224 204;
+  --c-surface: 255 248 242;
+  --c-edge: 242 196 168;
+  --c-ink: 58 36 24;
+  --c-muted: 130 98 80;
+  --c-primary-900: 74 37 18;
+  --c-primary-800: 107 52 20;
+  --c-primary-700: 140 74 29;
+  --c-primary-100: 246 224 206;
+  --c-accent: 217 79 48;
+  --c-accent-soft: 250 204 190;
+}
+
+[data-theme="lavender"] {
+  --c-base: 230 220 246;
+  --c-surface: 251 248 255;
+  --c-edge: 210 196 236;
+  --c-ink: 43 33 56;
+  --c-muted: 104 92 124;
+  --c-primary-900: 46 33 80;
+  --c-primary-800: 62 45 107;
+  --c-primary-700: 82 62 135;
+  --c-primary-100: 228 220 242;
+  --c-accent: 201 154 46;
+  --c-accent-soft: 242 226 182;
+}
+
+[data-theme="midnight"] {
+  --c-base: 17 22 29;
+  --c-surface: 26 34 44;
+  --c-edge: 42 53 67;
+  --c-ink: 232 237 242;
+  --c-muted: 147 161 176;
+  --c-primary-900: 12 17 23;
+  --c-primary-800: 30 41 54;
+  --c-primary-700: 47 66 88;
+  --c-primary-100: 200 212 224;
+  --c-accent: 229 163 63;
+  --c-accent-soft: 74 58 30;
+}
+
+[data-theme="sand"] {
+  --c-base: 240 228 200;
+  --c-surface: 255 251 240;
+  --c-edge: 222 206 168;
+  --c-ink: 51 48 31;
+  --c-muted: 112 106 84;
+  --c-primary-900: 58 53 32;
+  --c-primary-800: 84 73 31;
+  --c-primary-700: 110 96 41;
+  --c-primary-100: 234 227 203;
+  --c-accent: 194 112 61;
+  --c-accent-soft: 244 214 192;
+}
+
+[data-theme="berry"] {
+  --c-base: 250 222 235;
+  --c-surface: 255 247 251;
+  --c-edge: 238 192 214;
+  --c-ink: 70 20 48;
+  --c-muted: 134 84 110;
+  --c-primary-900: 88 18 58;
+  --c-primary-800: 136 28 88;
+  --c-primary-700: 172 46 114;
+  --c-primary-100: 250 220 236;
+  --c-accent: 18 150 140;
+  --c-accent-soft: 196 238 232;
+}
+
+[data-theme="citrus"] {
+  --c-base: 255 241 190;
+  --c-surface: 255 253 238;
+  --c-edge: 240 218 134;
+  --c-ink: 48 44 10;
+  --c-muted: 110 100 46;
+  --c-primary-900: 28 68 38;
+  --c-primary-800: 42 106 58;
+  --c-primary-700: 58 136 74;
+  --c-primary-100: 224 244 214;
+  --c-accent: 242 124 18;
+  --c-accent-soft: 255 220 176;
+}
+
+[data-theme="aurora"] {
+  --c-base: 15 23 38;
+  --c-surface: 24 36 57;
+  --c-edge: 44 62 92;
+  --c-ink: 230 240 250;
+  --c-muted: 150 170 196;
+  --c-primary-900: 10 16 28;
+  --c-primary-800: 28 58 88;
+  --c-primary-700: 38 88 118;
+  --c-primary-100: 200 230 240;
+  --c-accent: 72 220 178;
+  --c-accent-soft: 28 72 66;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: rgb(var(--c-base));
+  color: rgb(var(--c-ink));
+}
+
+.card {
+  @apply bg-surface rounded-card border border-edge shadow-sm;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-primary { @apply btn bg-primary-800 text-primary-100 hover:bg-primary-700; }
+.btn-accent { @apply btn bg-accent text-white hover:brightness-105; }
+.btn-ghost { @apply btn text-ink hover:bg-edge; }
+
+.input {
+  @apply w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-primary-700 focus:ring-1 focus:ring-primary-700;
+}
+
+.label { @apply block text-xs font-semibold uppercase tracking-wide text-muted mb-1; }
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Big touch-friendly slider (smart home controls). Track colour/gradient is set inline. */
+.sf-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 9999px;
+  background: rgb(var(--c-edge));
+  outline: none;
+  cursor: pointer;
+}
+.sf-range:focus-visible {
+  box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.35);
+}
+.sf-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid rgb(var(--c-accent));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+.sf-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid rgb(var(--c-accent));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+
+/* Tab rows scroll sideways on narrow screens without showing a scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The kitchen display's photos fade in (3.0.3). */
+@keyframes kiosk-fade {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+.kiosk-fade {
+  animation: kiosk-fade 1.2s ease-out;
 }

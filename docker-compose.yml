@@ -1,29 +1,148 @@
+# Smooth Family – self-hosted family portal
+# Runs on Raspberry Pi 4/5 (arm64) or any Docker host (amd64).
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: boet
-      POSTGRES_PASSWORD: boet
-      POSTGRES_DB: boet
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: smooth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: smoothfamily
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${DATA_DIR:-./data}/pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U boet"]
+      test: ["CMD-SHELL", "pg_isready -U smooth -d smoothfamily"]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 10
+    # Only the backend reaches it (2.9.0): an internal network without internet.
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The entrypoint hands the data folder to the postgres user.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    pids_limit: 200
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: [CHOWN, SETGID, SETUID]
+    pids_limit: 100
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://smooth:${POSTGRES_PASSWORD}@db:5432/smoothfamily
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATA_DIR: ${DATA_DIR:-./data}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      MEDIA_ROOT: /data/media
+      BACKUP_DIR: /data/backup
+      SEARXNG_URL: http://searxng:8080
+    volumes:
+      - ${DATA_DIR:-./data}/media:/data/media
+      - ${DATA_DIR:-./data}/backup:/data/backup
+      - ${DATA_DIR:-./data}/updates:/data/updates
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [default, internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 200
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
     ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      - "${PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /srv/app/.next/cache:uid=1000,gid=1000
+    pids_limit: 200
+
+  # The recipe search's own search engine (2.8.4): only the backend reaches it, over the internal
+  # network. Turned on or off by the server admin in Server settings.
+  searxng:
+    image: searxng/searxng:2026.10.13-22c64b8d3
+    restart: unless-stopped
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}
+      FORCE_OWNERSHIP: "false"
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    # Its own user, not root (2.9.0).
+    user: "977:977"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/searxng:uid=977,gid=977
+    pids_limit: 100
+
+  backup-sync:
+    image: rclone/rclone:1.68
+    restart: unless-stopped
+    profiles: ["backup-sync"]
+    environment:
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      RCLONE_SYNC_INTERVAL_SECONDS: ${RCLONE_SYNC_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./backup:/backup:ro
+      - ${DATA_DIR:-./data}/media:/media:ro
+      - ./.env:/source/.env:ro
+      - ./rclone:/config/rclone
+    command: >
+      sh -c '
+      if [ -z "$$RCLONE_REMOTE" ]; then
+        echo "RCLONE_REMOTE must be set (and should point to a crypt remote).";
+        exit 1;
+      fi;
+      while true; do
+        stamp=$$(date +%F);
+        rclone sync /backup "$$RCLONE_REMOTE/backup" --backup-dir "$$RCLONE_REMOTE/versions/$$stamp/backup";
+        rclone sync /media "$$RCLONE_REMOTE/media" --backup-dir "$$RCLONE_REMOTE/versions/$$stamp/media";
+        rclone copy /source/.env "$$RCLONE_REMOTE/env";
+        sleep "$$RCLONE_SYNC_INTERVAL_SECONDS";
+      done'
+
+networks:
+  # The database and Redis: reached by the backend only, no way out to the internet.
+  internal:
+    internal: true
 
 volumes:
-  postgres_data:
+  redisdata:

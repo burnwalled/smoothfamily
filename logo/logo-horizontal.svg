@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 320" role="img" aria-label="Smooth Family">
+  <g transform="translate(40,-30) scale(0.78)">
+    <path d="M 110 244 Q 110 228 122 218 L 230 128 Q 256 106 282 128 L 390 218 Q 402 228 402 244 L 402 350 Q 402 392 360 392 L 152 392 Q 110 392 110 350 Z"
+          fill="none" stroke="#24402F" stroke-width="32" stroke-linejoin="round"/>
+    <circle cx="298" cy="270" r="22" fill="#E09B3D"/>
+    <path d="M 264 352 L 264 344 Q 264 306 298 306 Q 332 306 332 344 L 332 352 Z" fill="#E09B3D"/>
+    <circle cx="226" cy="252" r="30" fill="#24402F"/>
+    <path d="M 180 352 L 180 342 Q 180 298 226 298 Q 272 298 272 342 L 272 352 Z" fill="#24402F"/>
+  </g>
+  <text x="372" y="178" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="104" font-weight="800" letter-spacing="-2" fill="#24402F">Smooth<tspan fill="#E09B3D"> Family</tspan></text>
+  <text x="376" y="232" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="34" font-weight="500" letter-spacing="6" fill="#5A6660">YOUR HOME. YOUR DATA.</text>
+</svg>

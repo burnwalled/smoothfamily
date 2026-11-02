@@ -1,0 +1,29 @@
+# Home Assistant add-on: Smooth Family (the gateway to a Smooth Family server, see README.md).
+name: Smooth Family
+version: "1.3.0"
+slug: smooth_family_gateway
+description: Lets your Smooth Family server reach this Home Assistant – no port is opened, the token stays here.
+arch:
+  - aarch64
+  - amd64
+  - armv7
+init: false
+startup: application
+boot: auto
+homeassistant_api: true
+options:
+  server: ""
+  pairing_code: ""
+  read_domains: []
+  control_domains: []
+  allow_http: false
+  auto_update: true
+schema:
+  server: url
+  pairing_code: str?
+  read_domains:
+    - str?
+  control_domains:
+    - str?
+  allow_http: bool
+  auto_update: bool

@@ -1,0 +1,322 @@
+/* The flip clock screensaver (3.0.3), after Familybrain's "Klockan": a glossy wall-clock case filling the screen. Date flaps along the top (weekday,
+   date, month, year in single-digit windows), the time as two big flaps below. One dark
+   look by day; at night the lights go down and the print turns dim red. */
+.flipclock {
+  --fc-room: #1b1b1c;
+  --fc-case-hi: #2a2a2c;
+  --fc-case: #0b0b0c;
+  --fc-bezel: #6d6f73;
+  --fc-window: #050505;
+  --fc-flap-hi: #1c1c1d;
+  --fc-flap-lo: #141415;
+  --fc-stack: #26262a;
+  --fc-ink: #f4f4f1;
+  --fc-glow: transparent;
+  --fc-weight: 500;
+  /* Sunday red: the weekday card on a day off. */
+  --fc-off-hi: #cc1a20;
+  --fc-off-lo: #b5151b;
+  --fc-off-stack: #6e0d10;
+  --fc-off-ink: #fbf6f0;
+
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  width: 100%;
+  display: grid;
+  padding: 2.4vmin max(2.4vmin, env(safe-area-inset-right, 0px)) 2.4vmin max(2.4vmin, env(safe-area-inset-left, 0px));
+  border: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  background: radial-gradient(ellipse at 50% 30%, color-mix(in oklab, var(--fc-room) 85%, white), var(--fc-room) 70%);
+  transition: background 1.2s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+/* Night (21–06): print in pure dim red, like the red light on military watches. */
+.flipclock.night {
+  --fc-room: #030303;
+  --fc-case-hi: #0d0d0d;
+  --fc-case: #050505;
+  --fc-bezel: #3a0a06;
+  --fc-window: #020202;
+  --fc-flap-hi: #0e0d0d;
+  --fc-flap-lo: #0a0909;
+  --fc-stack: #151313;
+  --fc-ink: #d1160c;
+  --fc-glow: rgb(209 22 12 / 0.35);
+  --fc-weight: 600;
+  --fc-off-hi: #3a0907;
+  --fc-off-lo: #300705;
+  --fc-off-stack: #1c0504;
+  --fc-off-ink: #e0281c;
+}
+.flipclock:focus-visible {
+  outline: none;
+}
+
+.fc-case {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 0.3fr) minmax(0, 1fr);
+  gap: 3vmin;
+  padding: 5vmin;
+  border-radius: 6vmin;
+  background: linear-gradient(170deg, var(--fc-case-hi) 0%, var(--fc-case) 22%, var(--fc-case) 78%, color-mix(in oklab, var(--fc-case) 80%, var(--fc-case-hi)) 100%);
+  box-shadow:
+    0 0.5vmin 0 rgb(255 255 255 / 0.08) inset,
+    0 4vmin 8vmin rgb(0 0 0 / 0.6),
+    0 1vmin 2vmin rgb(0 0 0 / 0.5);
+  transition: background 1.2s;
+}
+/* The thin bright line just inside the case's edge. */
+.fc-case::before {
+  content: "";
+  position: absolute;
+  inset: 2vmin;
+  border-radius: 4.4vmin;
+  border: 0.25vmin solid var(--fc-bezel);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.fc-dates {
+  display: grid;
+  grid-template-columns: 1.9fr 1.4fr 4fr 2.8fr;
+  gap: 2vmin;
+  min-height: 0;
+}
+.fc-year {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8vmin;
+  min-width: 0;
+}
+.fc-time {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3vmin;
+  min-height: 0;
+}
+
+/* The recess each flap sits in. */
+.fc-window {
+  display: block;
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.7vmin 0.7vmin 1.6vmin;
+  border-radius: 1.4vmin;
+  background: var(--fc-window);
+  box-shadow:
+    0 0 0 0.25vmin color-mix(in oklab, var(--fc-case) 70%, var(--fc-case-hi)) inset,
+    0 0.5vmin 1vmin rgb(0 0 0 / 0.6) inset;
+}
+.fc-time .fc-window {
+  padding: 1vmin 1vmin 2.4vmin;
+  border-radius: 2.4vmin;
+}
+
+/* A flap: static top and bottom halves, plus a falling top and a rising bottom while it turns. */
+.fc-flap {
+  display: block;
+  position: relative;
+  height: 100%;
+  container-type: size;
+  perspective: 380cqh;
+  border-radius: 2.4cqh;
+  /* The cards waiting underneath, peeking out at the bottom edge. */
+  box-shadow:
+    0 0.9cqh 0 -0.2cqh var(--fc-stack),
+    0 1.8cqh 0 -0.4cqh color-mix(in oklab, var(--fc-stack) 70%, var(--fc-window)),
+    0 2.7cqh 0 -0.6cqh color-mix(in oklab, var(--fc-stack) 40%, var(--fc-window));
+}
+.fc-flap.off {
+  --fc-flap-hi: var(--fc-off-hi);
+  --fc-flap-lo: var(--fc-off-lo);
+  --fc-stack: var(--fc-off-stack);
+  --fc-ink: var(--fc-off-ink);
+}
+.fc-leaf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+.fc-leaf.top {
+  top: 0;
+  border-radius: 2.4cqh 2.4cqh 0 0;
+  background: linear-gradient(180deg, var(--fc-flap-hi), color-mix(in oklab, var(--fc-flap-hi) 70%, var(--fc-flap-lo)));
+  transform-origin: 50% 100%;
+}
+.fc-leaf.bottom {
+  bottom: 0;
+  border-radius: 0 0 2.4cqh 2.4cqh;
+  background: linear-gradient(180deg, var(--fc-flap-lo), color-mix(in oklab, var(--fc-flap-lo) 75%, black));
+  transform-origin: 50% 0%;
+}
+/* The print is as tall as the whole card; each half shows its half of it. */
+.fc-print {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 200%;
+  display: grid;
+  place-items: center;
+  font-family: "Antonio", "Oswald", "Arial Narrow", sans-serif;
+  font-weight: var(--fc-weight);
+  line-height: 1;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--fc-ink);
+  text-shadow: 0 0 2.5cqh var(--fc-glow);
+  transition: color 1.2s, text-shadow 1.2s;
+}
+.fc-leaf.top .fc-print {
+  top: 0;
+}
+.fc-leaf.bottom .fc-print {
+  bottom: 0;
+}
+.fc-print b {
+  display: block;
+  font-weight: inherit;
+  /* Measured from the top of the capitals to the baseline rather than the font's whole
+     line, so print sits the same distance from a card's top and bottom edges. */
+  text-box: trim-both cap alphabetic;
+}
+@supports not (text-box: trim-both cap alphabetic) {
+  .fc-print b {
+    transform: translateY(0.07em);
+  }
+}
+.fc-time .fc-print {
+  font-size: min(96cqh, 78cqw);
+  letter-spacing: -0.01em;
+}
+.fc-day .fc-print {
+  font-size: min(74cqh, 40cqw);
+  letter-spacing: 0.03em;
+}
+.fc-date .fc-print {
+  font-size: min(88cqh, 68cqw);
+}
+.fc-month .fc-print {
+  font-size: min(74cqh, 24cqw);
+  letter-spacing: 0.03em;
+}
+.fc-digit .fc-print {
+  font-size: min(88cqh, 135cqw);
+}
+
+/* Turning: the old top falls away (darkening), then the new bottom swings down (lightening). */
+.fc-leaf::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: black;
+  opacity: 0;
+  pointer-events: none;
+}
+.fc-leaf.fall {
+  z-index: 3;
+  animation: fc-fall 0.3s var(--delay, 0s) cubic-bezier(0.55, 0, 0.9, 0.4) both;
+}
+.fc-leaf.fall::after {
+  animation: fc-darken 0.3s var(--delay, 0s) ease-in both;
+}
+.fc-leaf.rise {
+  z-index: 3;
+  transform: rotateX(90deg);
+  animation: fc-rise 0.36s calc(var(--delay, 0s) + 0.3s) cubic-bezier(0.2, 0.7, 0.3, 1.25) forwards;
+}
+.fc-leaf.rise::after {
+  opacity: 0.45;
+  animation: fc-lighten 0.36s calc(var(--delay, 0s) + 0.3s) ease-out forwards;
+}
+@keyframes fc-fall {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(-90deg);
+  }
+}
+@keyframes fc-rise {
+  to {
+    transform: rotateX(0deg);
+  }
+}
+@keyframes fc-darken {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+@keyframes fc-lighten {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The split across the middle, with the pin the flaps turn on at each side. */
+.fc-seam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: max(1px, 0.7cqh);
+  transform: translateY(-50%);
+  background: #000;
+  z-index: 5;
+  pointer-events: none;
+}
+.fc-seam::before,
+.fc-seam::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: max(3px, 1.3cqh);
+  height: max(6px, 4.5cqh);
+  transform: translateY(-50%);
+  border-radius: 0.6cqh;
+  background: color-mix(in oklab, var(--fc-stack) 60%, var(--fc-ink) 12%);
+}
+.fc-seam::before {
+  left: 1.2cqh;
+}
+.fc-seam::after {
+  right: 1.2cqh;
+}
+
+@media (orientation: portrait) {
+  .fc-case {
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 6vmin 5vmin;
+  }
+  .fc-dates {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 11vmin;
+  }
+  .fc-time {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-leaf.fall,
+  .fc-leaf.rise,
+  .fc-leaf.fall::after,
+  .fc-leaf.rise::after {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
+}

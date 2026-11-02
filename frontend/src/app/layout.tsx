@@ -1,38 +1,36 @@
-import { ClerkProvider } from "@clerk/nextjs";
-import type { Metadata } from "next";
-import { NextIntlClientProvider } from "next-intl";
-import { ThemeProvider } from "../components/theme/theme-provider";
-import { getLocale, getMessages } from "../lib/i18n";
+import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Boet",
-  description:
-    "Familjeappen som faktiskt hjälper er hålla ordning på vardagen.",
+  title: "Smooth Family",
+  description: "Your family's own portal — runs in your home, not in the cloud.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const locale = await getLocale();
-  const messages = getMessages(locale);
+export const viewport: Viewport = {
+  themeColor: "#1E3328",
+  // Lets the bottom bar pad itself above the phone's home indicator (env(safe-area-inset-bottom)).
+  viewportFit: "cover",
+};
 
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Rendered per request: the page's scripts carry the nonce from middleware.ts.
+  await headers();
   return (
-    <ClerkProvider
-      signInFallbackRedirectUrl="/app"
-      signUpFallbackRedirectUrl="/app"
-    >
-      <html lang={locale} suppressHydrationWarning>
-        <body className="min-h-screen font-sans antialiased">
-          <ThemeProvider>
-            <NextIntlClientProvider locale={locale} messages={messages}>
-              {children}
-            </NextIntlClientProvider>
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" data-theme="forest">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
   );
 }

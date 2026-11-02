@@ -1,0 +1,183 @@
+/* The fox screensaver (3.0.4). Only transforms and opacity move, so a tablet keeps up. In the SVG's
+   own units: 1px here is one unit of its 1600 × 1000 picture. */
+.foxscene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.foxscene.night {
+  filter: brightness(0.8);
+}
+
+.fx-cloud {
+  animation: fx-drift linear infinite;
+}
+@keyframes fx-drift {
+  from { transform: translateX(-350px); }
+  to { transform: translateX(1950px); }
+}
+
+.fx-star {
+  animation: fx-twinkle 4s ease-in-out infinite;
+}
+@keyframes fx-twinkle {
+  50% { opacity: 0.3; }
+}
+
+.fx-glint {
+  animation: fx-twinkle 6s ease-in-out infinite;
+  opacity: 0.55;
+}
+
+.fx-ripple,
+.fx-puddle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-ripple 2s ease-out infinite;
+}
+@keyframes fx-ripple {
+  from { transform: scale(0.2); opacity: 0.9; }
+  to { transform: scale(1.6); opacity: 0; }
+}
+
+.fx-rain {
+  animation: fx-rain linear infinite;
+}
+@keyframes fx-rain {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-90px, 1080px); }
+}
+
+.fx-snow {
+  animation: fx-snow linear infinite;
+}
+@keyframes fx-snow {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(28px, 260px); }
+  50% { transform: translate(-6px, 520px); }
+  75% { transform: translate(26px, 780px); }
+  100% { transform: translate(0, 1040px); }
+}
+
+.fx-leaf {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-leaf linear infinite;
+}
+@keyframes fx-leaf {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(90px, 340px) rotate(160deg); }
+  66% { transform: translate(20px, 700px) rotate(300deg); }
+  100% { transform: translate(120px, 1060px) rotate(480deg); }
+}
+
+.fx-fog {
+  animation: fx-fog 26s ease-in-out infinite alternate;
+}
+@keyframes fx-fog {
+  to { transform: translateX(120px); }
+}
+
+.fx-smoke {
+  animation: fx-smoke 6s ease-out infinite;
+  opacity: 0;
+}
+@keyframes fx-smoke {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0.7; }
+  100% { transform: translate(30px, -110px) scale(2.2); opacity: 0; }
+}
+
+.fx-sway {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: fx-sway 4s ease-in-out infinite alternate;
+}
+@keyframes fx-sway {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}
+
+.fx-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-blink 5.5s infinite;
+}
+@keyframes fx-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+.fx-breathe {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: fx-breathe 4.5s ease-in-out infinite;
+}
+@keyframes fx-breathe {
+  50% { transform: scaleY(1.05); }
+}
+
+.fx-zzz {
+  animation: fx-zzz 3.6s ease-out infinite;
+  opacity: 0;
+}
+@keyframes fx-zzz {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translate(18px, -60px); opacity: 0; }
+}
+
+.fx-page {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: fx-page 9s ease-in-out infinite;
+}
+@keyframes fx-page {
+  0%, 80% { transform: scaleX(1); }
+  90% { transform: scaleX(-1); opacity: 1; }
+  91%, 100% { transform: scaleX(-1); opacity: 0; }
+}
+
+.fx-glowpulse {
+  animation: fx-twinkle 3s ease-in-out infinite;
+}
+
+.fx-butterfly {
+  animation: fx-flutter 9s ease-in-out infinite;
+}
+@keyframes fx-flutter {
+  0% { transform: translate(110px, -250px); }
+  25% { transform: translate(-30px, -320px); }
+  50% { transform: translate(-130px, -220px); }
+  75% { transform: translate(40px, -190px); }
+  100% { transform: translate(110px, -250px); }
+}
+.fx-wing {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-wing 0.25s ease-in-out infinite alternate;
+}
+@keyframes fx-wing {
+  to { transform: scaleX(0.25); }
+}
+
+.fx-flash {
+  animation: fx-flash 9s infinite;
+  opacity: 0;
+}
+.fx-bolt {
+  animation: fx-flash 9s infinite;
+  opacity: 0;
+}
+@keyframes fx-flash {
+  0%, 90%, 93%, 100% { opacity: 0; }
+  91% { opacity: 0.75; }
+  92% { opacity: 0.1; }
+  92.5% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foxscene * {
+    animation: none !important;
+  }
+}

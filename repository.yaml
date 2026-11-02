@@ -1,0 +1,3 @@
+# Lets Home Assistant install the Smooth Family gateway add-on (the gateway/ folder) from this repository.
+name: Smooth Family
+maintainer: Smooth Family

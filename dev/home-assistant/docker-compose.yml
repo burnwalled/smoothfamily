@@ -1,0 +1,25 @@
+# A Home Assistant only for trying Smooth Family's smart home in development – never the family's own.
+#
+#   docker compose -f dev/home-assistant/docker-compose.yml up -d
+#
+# Open http://localhost:8123 (on this computer only) and create a user. In Smooth Family (dev) the
+# address is http://homeassistant:8123 – it joins the dev stack's network – with a long-lived token
+# from the Home Assistant profile. Its configuration lives in dev/home-assistant/config (not in git).
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:2026.10.1
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Stockholm
+    ports:
+      - "127.0.0.1:8123:8123"
+    volumes:
+      - ./config:/config
+    networks:
+      - default
+      - smooth-family
+
+networks:
+  smooth-family:
+    name: smooth-family_default
+    external: true

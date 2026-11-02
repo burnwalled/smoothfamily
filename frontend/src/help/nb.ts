@@ -1,0 +1,1237 @@
+// Help texts (nb): every topic in topics.ts, with the same blocks as en.ts (help.test.ts checks it).
+import type { TopicText } from "./types";
+
+const texts: Record<string, TopicText> = {
+  "start": {
+    "title": "Kom i gang",
+    "summary": "Hva Smooth Family er, hvordan appen er bygget opp og hvor du finner ting.",
+    "blocks": [
+      {
+        "p": "Smooth Family er familiens egen app for kalenderen, listene, oppgavene, maten, hjemmet og smarthuset. Den kjører på en server hjemme hos dere – en NAS eller en liten datamaskin – så bildene, meldingene og planene deres blir hos dere. Ingenting sendes til store selskaper, og AI-en er lokal og bare på hvis dere vil."
+      },
+      {
+        "shot": "today",
+        "caption": "I dag samler dagen: kalenderen, oppgavene, været og mer."
+      },
+      {
+        "h": "Installer den som en app"
+      },
+      {
+        "steps": [
+          "Åpne familiens adresse i telefonens nettleser og logg inn.",
+          "iPhone: trykk Del → Legg til på Hjem-skjerm. Android: trykk ⋮ → Installer app (eller Legg til på startskjermen).",
+          "Åpne Smooth Family fra startskjermen – den starter i fullskjerm og kan sende varsler."
+        ]
+      },
+      {
+        "h": "Finn frem"
+      },
+      {
+        "p": "På telefonen ligger de mest brukte appene i linjen nederst og resten under Mer; på datamaskinen ligger de i menyen til venstre. Apper som hører sammen er faner øverst på siden – Kalender har Reiser, To hjem og Söndagskollen, Mat har Oppskriftsboken og Spiskammeret."
+      },
+      {
+        "p": "Innstillingene finnes i tre nivåer, alle i menyen bak bildet ditt: Min profil (dine egne), Familieinnstillinger (for den som styrer familien) og Serverinnstillinger (for den som styrer serveren)."
+      },
+      {
+        "tips": [
+          "Spørsmålstegnet ved siden av en sides overskrift åpner hjelpen for den siden.",
+          "Endre rekkefølgen i menyen, eller skjul apper du ikke bruker, under Min profil → Meny.",
+          "Hvilke apper hver enkelt ser, velger familiens administrator under Familieinnstillinger → Familiemedlemmer."
+        ]
+      }
+    ]
+  },
+  "signin": {
+    "title": "Logge inn og være trygg",
+    "summary": "Passord, passkeys med Face ID eller fingeravtrykk, og totrinnskoder.",
+    "blocks": [
+      {
+        "p": "Du logger inn med brukernavn og passord. Voksnes passord har minst 12 tegn hvis ikke serverens administrator har valgt noe annet – det er lengden som gjør et passord vanskelig å knekke. Barn kan ha kortere."
+      },
+      {
+        "h": "Passkeys – logg inn med ansiktet eller fingeren"
+      },
+      {
+        "steps": [
+          "Åpne Min profil → Sikkerhet og koblinger.",
+          "Trykk Legg til passkey og følg telefonens eller datamaskinens anvisninger.",
+          "Neste gang velger du Logg inn med passkey på innloggingssiden."
+        ]
+      },
+      {
+        "shot": "signin",
+        "caption": "Passkeys og totrinnskoder under Min profil."
+      },
+      {
+        "h": "Totrinnskoder"
+      },
+      {
+        "p": "Med totrinnskoder skriver du en sekssifret kode fra en app som Microsoft eller Google Authenticator etter passordet. Serverens administrator kan gjøre dem påkrevd for voksne. De virker uten nett – ingen ekstern tjeneste er involvert."
+      },
+      {
+        "tips": [
+          "Glemt passordet? Spør familiens administrator, som setter et nytt under Familieinnstillinger → Familiemedlemmer.",
+          "Mistet telefonen med kodene? Administratoren kan nullstille totrinnsinnloggingen din samme sted.",
+          "En passkey hører til adressen den ble laget på; bytter familien adresse, lager du en ny."
+        ]
+      }
+    ]
+  },
+  "notifications": {
+    "title": "Varsler og morgensammendraget",
+    "summary": "Klokken, varsler på telefonen og et sammendrag av dagen hver morgen.",
+    "blocks": [
+      {
+        "p": "Alt som skjer for deg – en oppgave å godkjenne, en melding, en påminnelse, en medisindose – havner under klokken øverst. Tallet viser hvor mange du ikke har lest. De samme varslene kan også sendes til telefonen."
+      },
+      {
+        "shot": "notifications",
+        "caption": "Varselsenteret tar vare på alt, lest eller ikke."
+      },
+      {
+        "h": "På telefonen"
+      },
+      {
+        "steps": [
+          "Åpne Min profil → Varsler.",
+          "Slå på varsler for denne enheten og tillat dem når telefonen spør.",
+          "Velg hva som skal sendes – resten havner likevel under klokken."
+        ]
+      },
+      {
+        "p": "Morgensammendraget er ett varsel til tiden du velger – hverdager eller hver dag – med dagens hendelser, dine oppgaver og medisiner, skolematen og været."
+      },
+      {
+        "tips": [
+          "iPhone: varsler virker bare når Smooth Family er lagt til på Hjem-skjermen.",
+          "Hver enhet slås på for seg – telefonen og nettbrettet trenger det hver for seg."
+        ]
+      }
+    ]
+  },
+  "offline": {
+    "title": "Uten dekning",
+    "summary": "Lister og oppgaver virker i en butikk uten mottak.",
+    "blocks": [
+      {
+        "p": "Smooth Family tar vare på det du har åpnet, så appen virker når forbindelsen forsvinner. På handlelisten kan du krysse av, legge til og fjerne, og du kan krysse av oppgaver. Endringene vises med en gang og merkes med en liten sky til de er sendt."
+      },
+      {
+        "p": "En markering øverst viser at du er frakoblet og hvor mange endringer som venter. Når forbindelsen kommer tilbake, sendes de av seg selv, i den rekkefølgen du gjorde dem."
+      },
+      {
+        "tips": [
+          "Andre sider viser det som sist ble lastet, men kan ikke endres før du er på nett igjen.",
+          "Hvis noen andre har endret det samme i mellomtiden, gjelder den siste endringen."
+        ]
+      }
+    ]
+  },
+  "today": {
+    "title": "I dag",
+    "summary": "Familiens dag på én side – med kortene du selv velger.",
+    "blocks": [
+      {
+        "p": "I dag er første side. Den viser det som er viktig nå: ukens kalender, oppgavene dine, handlelisten, været, strømprisen, søppeltømmingen, skolematen, det i spiskammeret som bør spises snart, det som skjer for hjemmet og kjøretøyene, hvem som er hjemme – og mer."
+      },
+      {
+        "shot": "today",
+        "caption": "Hvert kort kan flyttes, legges til eller fjernes."
+      },
+      {
+        "steps": [
+          "Trykk Tilpass nederst på I dag.",
+          "Legg til kort med Legg til widget, dra dem i den rekkefølgen du vil, eller fjern dem.",
+          "Trykk Ferdig."
+        ]
+      },
+      {
+        "tips": [
+          "Kortenes kilder – stedet for været, søppeltømmingens kalender og skolen – stilles inn under Familieinnstillinger → Hverdagen.",
+          "Et kort for en app du ikke kan bruke, vises ikke."
+        ]
+      }
+    ]
+  },
+  "calendar": {
+    "title": "Kalenderen",
+    "summary": "Familiens kalender med skolens og lagenes, hvem som kjører og hva som skal pakkes.",
+    "blocks": [
+      {
+        "p": "Kalenderen viser familiens egne hendelser sammen med kalendere dere abonnerer på – skolen, idrettslaget, jobben. Bytt mellom uken time for time, måneden og listen. Hendelser over flere dager er en stripe over dem, og ukenummeret står i kanten."
+      },
+      {
+        "shot": "calendar",
+        "caption": "Uken, time for time."
+      },
+      {
+        "h": "Legg til en hendelse"
+      },
+      {
+        "p": "Trykk + Ny hendelse, gi den en tittel og en tid, og velg hvem den gjelder – eller la den gjelde alle. Familiens hendelser deles med alle i familien."
+      },
+      {
+        "h": "Hvem kjører, og hva skal pakkes"
+      },
+      {
+        "p": "Åpne en hendelse for å si at skyss trengs og ta levering eller henting. Gi den en pakkeliste: den samme listen kommer tilbake for hver hendelse med samme tittel, som hver fotballtrening, og krysses av for hver gang. En voksen kan velge dagen det er tid for å pakke, og den som skal dit, får en oppgave den dagen."
+      },
+      {
+        "shot": "calendar-month",
+        "caption": "Måneden skriver ut hva som skjer hver dag."
+      },
+      {
+        "h": "Abonner på en kalender"
+      },
+      {
+        "p": "Kalendere leses via en privat iCal-lenke. Slik finner du lenken i de vanligste tjenestene:"
+      },
+      {
+        "details": [
+          {
+            "title": "Google Kalender (Gmail)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne calendar.google.com på en datamaskin – lenken finnes ikke i mobilappen.",
+                  "I venstre kolonne under \"Mine kalendere\": hold musepekeren over kalenderen og klikk ⋮ → \"Innstillinger og deling\".",
+                  "Rull ned til \"Integrer kalenderen\".",
+                  "Kopier \"Hemmelig adresse i iCal-format\" (slutter på .ics). Ikke bruk \"Offentlig adresse\" – den fungerer bare hvis kalenderen er offentlig."
+                ]
+              },
+              {
+                "note": "Jobb- eller skolekontoer: administratoren kan ha slått av den hemmelige adressen. Mangler den, spør dem eller bruk en privat konto."
+              }
+            ]
+          },
+          {
+            "title": "Outlook / Microsoft 365",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne outlook.com (privat konto) eller outlook.office.com (jobb/skole) i nettleseren.",
+                  "Klikk tannhjulet (Innstillinger) → Kalender → Delte kalendere.",
+                  "Under \"Publiser en kalender\": velg kalenderen og \"Kan vise alle detaljer\", og klikk Publiser.",
+                  "Kopier ICS-lenken – ikke HTML-lenken."
+                ]
+              },
+              {
+                "note": "Klassisk Outlook for Windows kan ikke publisere kalendere – bruk Outlook på nettet eller nye Outlook. I jobbkontoer kan administratoren ha sperret publisering."
+              }
+            ]
+          },
+          {
+            "title": "iCloud (iPhone / Mac)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne Kalender-appen på iPhone og trykk \"Kalendere\" nederst.",
+                  "Trykk (i) ved siden av kalenderen du vil legge til.",
+                  "Slå på \"Offentlig kalender\" og trykk \"Del lenke…\" → Kopier.",
+                  "Lenken starter med webcal:// – lim den inn som den er."
+                ]
+              },
+              {
+                "note": "\"Offentlig\" betyr at alle som har lenken kan lese kalenderen. Den er ikke oppført noe sted, men hold lenken privat."
+              }
+            ]
+          },
+          {
+            "title": "SportAdmin (klubb- og lagaktiviteter)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne SportAdmin-appen og gå til \"Aktiviteter\".",
+                  "Trykk på kalenderikonet øverst til høyre.",
+                  "Velg å kopiere lenken (abonner direkte legger bare kalenderen til i telefonen din).",
+                  "Lim inn lenken i Smooth Family. Den starter som regel med webcal://cal.sportadmin.se/."
+                ]
+              },
+              {
+                "note": "Vises ingen aktiviteter? Laget må være koblet til klubbens kalender i SportAdmin – spør lagleder. Mange klubbsider har også en \"Abonner\"-knapp på kalendersiden: høyreklikk og kopier lenkeadressen. Legg til ett abonnement per lag og gi hvert sin egen farge."
+              }
+            ]
+          },
+          {
+            "title": "Legg til lenken i Smooth Family",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne profilmenyen (øverst til høyre) → Familieinnstillinger → Kalenderabonnementer.",
+                  "Skriv et navn alle kjenner igjen, f.eks. \"Skolen\" eller \"Edvin – fotball\".",
+                  "Lim inn lenken og velg en farge.",
+                  "Klikk Legg til. Hendelsene vises i kalenderen og på I dag-siden."
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Fungerer noe ikke?",
+            "blocks": [
+              {
+                "tips": [
+                  "Nye hendelser kan ta opptil 15 minutter å dukke opp – kalenderne mellomlagres så tjenestene ikke overbelastes.",
+                  "Feil når du legger til? Sjekk at lenken starter med https:// eller webcal:// og at du kopierte iCal/ICS-lenken, ikke en lenke til en nettside.",
+                  "Har en lenke lekket? Lag en ny hos leverandøren (Google: \"Tilbakestill\" den hemmelige adressen) og bytt den ut her."
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tips": [
+          "Kalendere dere abonnerer på kan bare leses og oppdateres hvert 15. minutt.",
+          "Din egen kalender kan legges inn på telefonen med abonnementslenken under Min profil."
+        ]
+      }
+    ]
+  },
+  "trips": {
+    "title": "Reiser",
+    "summary": "Planlegg reisen sammen: datoer, reiseplan, pakking per person og et budsjett.",
+    "blocks": [
+      {
+        "p": "En reise har datoer og reisemål – den vises i kalenderen – og hvem som skal. Legg til reiseplanen med reiser, overnattinger og aktiviteter (billetter kan lenkes fra hvelvet), et felles budsjett og en sjekkliste før avreise, som å skru av vannet."
+      },
+      {
+        "shot": "trips",
+        "caption": "Pakking per reisende, med ferdige lister."
+      },
+      {
+        "h": "Pakking"
+      },
+      {
+        "p": "Hver reisende har sin egen pakkeliste, pluss en felles. Start fra en mal – strand, ski eller helg – og legg til resten. En voksen kan velge dagen det er tid for å pakke: hver reisende får da en oppgave den dagen, med poeng, og en lenke til sin egen liste."
+      },
+      {
+        "tips": [
+          "Kvelden før avreise påminnes alle som skal, om det som gjenstår å pakke og sjekke.",
+          "Barna ser og pakker sine egne ting; de voksne planlegger resten."
+        ]
+      }
+    ]
+  },
+  "twohomes": {
+    "title": "To hjem",
+    "summary": "For barn som bor hos begge foreldrene: timeplanen, overleveringer og den andre forelderen.",
+    "blocks": [
+      {
+        "p": "Still inn hvilke dager et barn er i hvilket hjem – annenhver uke, 2-2-3, annenhver helg eller egne dager – og legg til unntak for ferier og byttede helger. Kalenderen viser dagene, og barnets oppgaver venter mens barnet er i det andre hjemmet."
+      },
+      {
+        "shot": "twohomes",
+        "caption": "Timeplanen mellom hjemmene."
+      },
+      {
+        "steps": [
+          "Åpne Familieinnstillinger → Familiemedlemmer → barnet.",
+          "Velg barnet, mønsteret og første dag.",
+          "Legg til unntak når planene endres."
+        ]
+      },
+      {
+        "h": "Den andre forelderen"
+      },
+      {
+        "p": "Den andre forelderen kan få en egen konto som bare ser sitt barn: timeplanen, kalenderen, nødkortet og overleveringslisten – og kan skrive med dere. Eller send en lenke som viser det samme uten konto. Kostnader for barnets ting kan deles, så den andre ser beløpet og sin del – aldri bilder eller notater."
+      },
+      {
+        "tips": [
+          "Kvelden før en overlevering påminnes de voksne, med overleveringslisten.",
+          "Fanen To hjem vises i kalenderen når en timeplan er satt opp."
+        ]
+      }
+    ]
+  },
+  "week": {
+    "title": "Söndagskollen",
+    "summary": "En rolig stund hver uke: se tilbake, se fremover og si takk.",
+    "blocks": [
+      {
+        "p": "Söndagskollen samler familien én gang i uken. Se tilbake på poengene og ukens beste hjelper, se fremover på kalenderen, maten og hvem sin tur det er – og gi hverandre takkestjerner."
+      },
+      {
+        "shot": "week",
+        "caption": "Uken som gikk og uken som kommer."
+      },
+      {
+        "p": "Velg noe å gjøre sammen og merk sjekken som ferdig: alle får et kort sammendrag. Søndag ettermiddag blir dere påminnet hvis dere ikke har gjort den."
+      }
+    ]
+  },
+  "chat": {
+    "title": "Chatten",
+    "summary": "Familiens egen chat – med bilder, og bare for dere.",
+    "blocks": [
+      {
+        "p": "Skriv med hele familien eller med én eller noen få. Bilder havner i chattens eget album i hvelvet. Meldingene lagres på serveren deres – ingen andre leser dem."
+      },
+      {
+        "shot": "chat",
+        "caption": "Meldinger gruppert per person, med store emojier."
+      },
+      {
+        "tips": [
+          "GIF-er kan slås på av serverens administrator; de kommer fra GIPHY, det eneste stedet chatten når utenfor.",
+          "Uleste meldinger vises som et tall på chatten og som et kort på I dag."
+        ]
+      }
+    ]
+  },
+  "lists": {
+    "title": "Lister",
+    "summary": "Handlelister og gjøremålslister som oppdateres for alle med en gang.",
+    "blocks": [
+      {
+        "p": "Lag så mange lister dere trenger – maten, byggvarehuset, pakkingen. Alle ser kryss og nye ting med en gang, og listene virker uten dekning. Gi en liste nytt navn med blyanten ved siden av navnet."
+      },
+      {
+        "shot": "lists",
+        "caption": "En handleliste, delt og levende."
+      },
+      {
+        "tips": [
+          "Kjøpte varer kan legges rett i spiskammeret med Legg kjøpte varer i spiskammeret.",
+          "En liste kan sendes til Home Assistant, og derfra til butikkens app – se Handlelister i Home Assistant.",
+          "Ønskelister og gaveplanlegging er også lister – se Ønskelister og gaver."
+        ]
+      }
+    ]
+  },
+  "wishes": {
+    "title": "Ønskelister og gaver",
+    "summary": "Alles ønskelister, hemmelig gaveplanlegging og en lenke til besteforeldrene.",
+    "blocks": [
+      {
+        "p": "Alle i familien har en ønskeliste. Legg til et ønske med lenke og pris – eller søk det opp på nettet. De andre planlegger gaver i hemmelighet: bursdagsbarnet ser aldri hvem som kjøper hva."
+      },
+      {
+        "shot": "wishes",
+        "caption": "En ønskeliste med lenker."
+      },
+      {
+        "h": "Del med slekten"
+      },
+      {
+        "p": "Send en lenke til besteforeldre og andre uten konto. De ser ønskelisten og kan merke hva de kjøper, så ingenting kjøpes to ganger – uten at barnet ser det."
+      },
+      {
+        "tips": [
+          "Seks uker før en bursdag påminnes bursdagsbarnet om å fylle ut listen sin, og en måned før påminnes de andre om å planlegge.",
+          "Fødselsdager: et medlems på medlemmets side under Familiemedlemmer; slekt og venner under Familiemedlemmer → Andre personer."
+        ]
+      }
+    ]
+  },
+  "food": {
+    "title": "Maten og middagsplanen",
+    "summary": "Ukens middager, oppskrifter fra en lenke og matlagingsmodus.",
+    "blocks": [
+      {
+        "p": "Planlegg ukens middager under Mat. Hent en oppskrift fra en lenke – de fleste oppskriftssider virker – eller lim inn teksten hvis en side ikke lar seg lese. Ingrediensene kan legges rett på handlelisten."
+      },
+      {
+        "shot": "food",
+        "caption": "Ukens middager."
+      },
+      {
+        "h": "Matlagingsmodus"
+      },
+      {
+        "p": "Trykk Lag på en oppskrift for stor tekst, ingredienser å krysse av og trinn å trykke seg gjennom. Hold skjermen på hindrer telefonen i å slukke mens hendene er skitne."
+      },
+      {
+        "tips": [
+          "Med den lokale AI-en kan ukens middager foreslås for dere – ut fra det dere liker og det dere har hjemme.",
+          "Når middagen er ferdig, krysser du av hva som gikk med, og spiskammeret teller ned av seg selv."
+        ]
+      }
+    ]
+  },
+  "recipebook": {
+    "title": "Oppskriftsboken",
+    "summary": "Familiens oppskrifter med kategorier, favoritter og stjerner fra alle.",
+    "blocks": [
+      {
+        "p": "Oppskriftsboken tar vare på familiens oppskrifter med kategorier, favoritter og lenke til originalen. Alle i familien gir sine egne stjerner – barna også – så dere ser hva som er populært."
+      },
+      {
+        "shot": "recipebook",
+        "caption": "Oppskrifter med alles stjerner."
+      },
+      {
+        "p": "Kan lages nå viser det som kan lages av det dere har i spiskammeret. Søk nye oppskrifter på nettet via serverens egen søkemotor – bare søkeordene forlater serveren."
+      }
+    ]
+  },
+  "pantry": {
+    "title": "Spiskammeret",
+    "summary": "Det dere har i fryseren, kjøleskapet og spiskammeret – og det som bør spises snart.",
+    "blocks": [
+      {
+        "p": "Hold oversikt over hva dere har, hvor og til når. Det som snart går ut, merkes og vises på I dag, så mindre mat kastes."
+      },
+      {
+        "shot": "pantry",
+        "caption": "Best før, per sted."
+      },
+      {
+        "h": "Skann inn maten"
+      },
+      {
+        "steps": [
+          "Trykk Skann inn varer og hold varene opp mot kameraet én om gangen – den samme varen igjen telles opp.",
+          "Sjekk navn og mengder.",
+          "Legg alt på riktig sted på én gang."
+        ]
+      },
+      {
+        "tips": [
+          "Oppslag av strekkoder kan slås på under Familieinnstillinger → Deling og koblinger; bare strekkoden sendes.",
+          "En kvittering som den lokale AI-en har lest, kan også fylle spiskammeret."
+        ]
+      }
+    ]
+  },
+  "tasks": {
+    "title": "Oppgaver og poeng",
+    "summary": "Gjøremål med poeng, rotasjon, godkjenning – og etterrapportering.",
+    "blocks": [
+      {
+        "p": "Oppgaver kan være engangs eller gjentas hver dag, på valgte ukedager, hver måned eller hvert år. Hver oppgave er verdt poeng. Trykk Ferdig når den er gjort – barnas oppgaver kan vente på at en voksen godkjenner dem."
+      },
+      {
+        "shot": "tasks",
+        "caption": "Dagens oppgaver med poeng."
+      },
+      {
+        "h": "Gå på omgang"
+      },
+      {
+        "p": "Velg hvem som går på omgang med en oppgave: turen går videre når den er gjort, eller hver uke. Listen viser hvem som står for tur."
+      },
+      {
+        "h": "Glemt å krysse av?"
+      },
+      {
+        "p": "Under Oppgaver → I dag går du bakover med pilen – opptil tre dager – og krysser av det som ble gjort, med poeng som vanlig."
+      },
+      {
+        "h": "Oppgaver fra andre apper"
+      },
+      {
+        "p": "Et barns og et kjæledyrs medisindoser blir oppgaver med poeng, og det gjør også pakkingen før en reise eller en hendelse. En voksen kan krysse av et barns dose; poengene går likevel til barnet."
+      },
+      {
+        "tips": [
+          "Barn kan foreslå oppgaver; en voksen gjør dem om til oppgaver eller sier nei.",
+          "Poengene går til butikken og ukepengene – se de temaene.",
+          "En oppgave flere kan gjøre sammen, deler poengene mellom dem som gjorde den: velg hvem når den krysses av."
+        ]
+      }
+    ]
+  },
+  "allowance": {
+    "title": "Ukepenger og sparing",
+    "summary": "Ukepenger fra poeng eller et mål, og sparebøsser.",
+    "blocks": [
+      {
+        "p": "Hvert barn tjener ukepenger enten fra poeng eller ved å nå et ukemål – familien velger per barn. Utbetalinger noteres, så alle ser hva som er betalt."
+      },
+      {
+        "shot": "allowance",
+        "caption": "Ukepengene og sparebøssene."
+      },
+      {
+        "p": "Sparebøsser deler opp pengene: bruke, spare, gi eller et eget mål. Et barn kan foreslå et sparemål med en del av ukepengene; en voksen godkjenner det."
+      }
+    ]
+  },
+  "shop": {
+    "title": "Belønningsbutikken og prestasjoner",
+    "summary": "Bytt poeng mot belønninger, og lås opp prestasjoner.",
+    "blocks": [
+      {
+        "p": "I butikken bytter barna poengene sine mot belønninger de voksne har lagt inn – en time spill, velge fredagsmiddagen. Et kjøp kan vente på en voksens godkjenning. Familiemål er belønninger hele familien sparer til sammen."
+      },
+      {
+        "shot": "shop",
+        "caption": "Belønninger i butikken."
+      },
+      {
+        "p": "Prestasjoner låses opp av seg selv – første oppgave, en uke på rad – og nivået vokser med poengene."
+      }
+    ]
+  },
+  "littleones": {
+    "title": "Lille modus",
+    "summary": "Store bilder i stedet for tekst, for barn som ikke kan lese ennå.",
+    "blocks": [
+      {
+        "p": "I Lille modus ser et barn store bildekort i stedet for appen: morgen- og kveldsrutiner i rekkefølge, barnehagesekken – trykk når det er gjort, for en liten fanfare og et klistremerke."
+      },
+      {
+        "shot": "littleones",
+        "caption": "Rutiner for de minste."
+      },
+      {
+        "steps": [
+          "Åpne Oppgaver → Lille modus.",
+          "Slå på modusen for barnet – et barn på 6 år eller yngre som fødselsdagen ble oppgitt for, starter med den slått på.",
+          "Start fra en ferdig rutine eller lag en egen med bilder."
+        ]
+      },
+      {
+        "tips": [
+          "En voksen kommer ut av modusen ved å holde inne låsen og svare på et regnestykke.",
+          "På kjøkkenskjermen kan hvert barn åpne rutinene sine ved å trykke på ansiktet sitt."
+        ]
+      }
+    ]
+  },
+  "vault": {
+    "title": "Hvelvet",
+    "summary": "Bilder, filer, dokumenter, kvitteringer og passord på ett sted.",
+    "blocks": [
+      {
+        "p": "Hvelvet tar vare på familiens bilder, chatbilder, filer, dokumenter og kvitteringer – alt kryptert på serveren deres. Filtrer per type, søk, og merk noe Bare meg så ingen andre ser det."
+      },
+      {
+        "shot": "vault",
+        "caption": "Alt i hvelvet, med et filter per type."
+      },
+      {
+        "h": "Del med en lenke"
+      },
+      {
+        "p": "Alt i hvelvet kan deles med en lenke som slutter å virke av seg selv – etter timer eller dager, eller når den er åpnet én gang. Velg om mottakeren får laste ned. Word, Excel og PowerPoint vises rett i nettleseren."
+      },
+      {
+        "tips": [
+          "Bilder fra samme dag tidligere år dukker opp som Minner på I dag.",
+          "Serverens administrator bestemmer hvor stor en fil kan være."
+        ]
+      }
+    ]
+  },
+  "documents": {
+    "title": "Dokumenter",
+    "summary": "Pass, ID-kort, forsikringer og avtaler – med påminnelser før de går ut.",
+    "blocks": [
+      {
+        "p": "Ta vare på familiens dokumenter med en skanning: pass, ID-kort, førerkort, forsikringer, garantier, avtaler og vaksinasjoner. Numre vises maskert, og alt krypteres med familiens egen nøkkel."
+      },
+      {
+        "shot": "documents",
+        "caption": "Dokumenter med utløpsdato."
+      },
+      {
+        "p": "En utløpsdato gir en påminnelse i tide og vises i kalenderen, så passet fornyes før ferien."
+      }
+    ]
+  },
+  "passwords": {
+    "title": "Passord",
+    "summary": "Familiens felles innlogginger, kryptert med familiens nøkkel.",
+    "blocks": [
+      {
+        "p": "Ta vare på innlogginger i hvelvets visning Passord: strømmetjenesten, wifi-en, skolens plattform. De krypteres med familiens nøkkel. En voksen velger hvilke voksne en innlogging deles med; barna ser sine egne og de voksne ser barnas."
+      },
+      {
+        "shot": "passwords",
+        "caption": "Innlogginger, med et generert passord."
+      },
+      {
+        "tips": [
+          "Lag et sterkt passord med ett trykk.",
+          "En innlogging som deles med en lenke, vises én gang – så slutter lenken å virke."
+        ]
+      }
+    ]
+  },
+  "receipts": {
+    "title": "Kvitteringer",
+    "summary": "Kvitteringer som den lokale AI-en leser, med påminnelser for retur og garanti.",
+    "blocks": [
+      {
+        "p": "Ta bilde av en kvittering eller velg et skjermbilde, og koble den til en bolig, et kjøretøy eller en kategori. Med den lokale AI-en leses butikk, beløp og dato for deg. Siste returdag og når garantien går ut, gir påminnelser, og reklamasjonsretten vises av seg selv."
+      },
+      {
+        "shot": "receipts",
+        "caption": "Kvitteringer med retur og garanti."
+      },
+      {
+        "tips": [
+          "Søk i kvitteringene, se Året i tall og eksporter dem til Excel.",
+          "En kvittering for et barns ting kan deles med det andre hjemmet.",
+          "Den lokale AI-en kan skrive et reklamasjonsbrev for deg.",
+          "På Android deler du en kvittering fra en annen app rett til Smooth Family."
+        ]
+      }
+    ]
+  },
+  "safety": {
+    "title": "Nødkort og medisiner",
+    "summary": "Det en barnevakt trenger å vite, og medisiner med påminnelser.",
+    "blocks": [
+      {
+        "p": "Nødkortene har det viktigste hvis noe skjer: allergier, medisiner, fastlege, hvem man ringer og rutiner – ett for hver person og ett for hjemmet. De kan leses også uten nett."
+      },
+      {
+        "shot": "safety",
+        "caption": "Nødkortene. Et medlems kort og medisiner håndteres på medlemmets side under Familieinnstillinger → Familiemedlemmer; husstandens kort under Hverdagen."
+      },
+      {
+        "h": "En barnevakt eller besteforeldrene"
+      },
+      {
+        "p": "Lag en gjestelenke under Familieinnstillinger → Deling og koblinger: den viser nødkortene, og det du velger av kalenderen og listene, i noen timer eller dager – så slutter den av seg selv."
+      },
+      {
+        "h": "Medisiner"
+      },
+      {
+        "p": "Legg til en medisin med dose, tider og en sluttdato for en kur. Et barns og et kjæledyrs doser blir oppgaver med poeng; de voksne får beskjed hvis en dose ikke krysses av. En voksens egne medisiner er private – de legges inn under Min profil og gir ingen poeng."
+      }
+    ]
+  },
+  "property": {
+    "title": "Hjemmet",
+    "summary": "Vedlikehold, ting per rom, energi og prosjekter – per bolig.",
+    "blocks": [
+      {
+        "p": "Hver bolig – huset, leiligheten, hytta – har sitt eget kort med vedlikeholdet som skal gjøres, årets kostnader mot fjoråret, energien og de pågående prosjektene med budsjett mot det som er brukt."
+      },
+      {
+        "shot": "property",
+        "caption": "Ett kort per bolig."
+      },
+      {
+        "p": "Vedlikehold som kommer igjen – takrennene, filtre, røykvarsleren – foreslås for typen bolig, påminnes på forhånd og vises i kalenderen; det kan også bli en oppgave. Ting per rom – hvitevarer, varmepumpen – tar vare på merke, pris, bruksanvisning og garanti."
+      },
+      {
+        "tips": [
+          "Strøm, vann og varme kan leses fra Home Assistants sensorer (bare lese).",
+          "Skriv ut en liste over ting og kvitteringer til innboforsikringen."
+        ]
+      }
+    ]
+  },
+  "economy": {
+    "title": "Økonomi",
+    "summary": "Hvor husholdningens penger går – med inntekter, budsjett og bankens fil.",
+    "blocks": [
+      {
+        "p": "Økonomi viser husholdningens utgifter per kategori – mat, boligene, bilen, barna, fritid. Kvitteringer og boligenes, kjøretøyenes og reisenes kostnader telles med av seg selv. Hver voksen legger inn sin egen inntekt, og oversikten viser hva som kommer inn, går ut og blir igjen."
+      },
+      {
+        "shot": "economy",
+        "caption": "Måneden per kategori."
+      },
+      {
+        "h": "Importer fra banken"
+      },
+      {
+        "steps": [
+          "Eksporter kontoens transaksjoner som CSV fra nettbanken.",
+          "Last opp filen under Økonomi → Importer fra banken.",
+          "Sjekk forslaget for hver rad – drivstoff til bilen, strømregningen til boligen – og lagre."
+        ]
+      },
+      {
+        "tips": [
+          "Et budsjett per kategori og måned blir rødt når det sprekker.",
+          "Poster kan være private, så bare du ser dem."
+        ]
+      }
+    ]
+  },
+  "vehicles": {
+    "title": "Kjøretøy",
+    "summary": "EU-kontroll, service, dekk, kostnader og forbruk – for alt med motor eller hjul.",
+    "blocks": [
+      {
+        "p": "Hvert kjøretøy har et kort med det som kommer – EU-kontroll, service, dekkskift, forsikring og avgift – og årets kostnader. Påminnelser går på dato eller kilometerstand, og den neste settes når du merker en som gjort."
+      },
+      {
+        "shot": "vehicles",
+        "caption": "Et kjøretøy med det som kommer."
+      },
+      {
+        "p": "Legg inn tanking eller lading med liter eller kWh, så regnes forbruket ut; lading hjemme bruker dagens strømpris. Ta vare på dekksettene med sesong og mønsterdybde, og lag en rapport til en kjøper med servicehistorikken."
+      },
+      {
+        "tips": [
+          "Et bilde av kvitteringen eller en servicehistorikk som PDF leses av den lokale AI-en.",
+          "Kilometerstanden kan leses fra en sensor i Home Assistant."
+        ]
+      }
+    ]
+  },
+  "pets": {
+    "title": "Kjæledyr",
+    "summary": "Veterinærbesøk, vaksinasjoner, gjøremål og en bursdag.",
+    "blocks": [
+      {
+        "p": "Hvert dyr har sine veterinærbesøk og vaksinasjoner, med påminnelse når de er aktuelle, og en bursdag blant bursdagene. Gjøremål som turer og mating blir oppgaver barna går på omgang med – og medisindoser følger den samme rekkefølgen."
+      },
+      {
+        "shot": "pets",
+        "caption": "Et kjæledyr med stellet sitt."
+      }
+    ]
+  },
+  "smarthome": {
+    "title": "Smarthuset",
+    "summary": "Lys, varme og høyttalere, flyter, hvem som er hjemme og strømprisen.",
+    "blocks": [
+      {
+        "p": "Med Home Assistant koblet til styrer du hjemmets enheter fra Smooth Family – lys, persienner, varmepumpen, robotstøvsugeren, høyttalere – per rom og per bolig. Familiens administrator velger hvilke enheter som vises."
+      },
+      {
+        "shot": "smarthome",
+        "caption": "Enheter per rom."
+      },
+      {
+        "h": "Flyter"
+      },
+      {
+        "p": "Bygg egne automasjoner med Når → Hvis → Gjør: til en tid, med en knapp på I dag, når en enhet endres eller når noen kommer hjem – for eksempel tenn lyset på trappen når det blir mørkt. Flyter kan kjøres i Home Assistant selv, så de virker mens Smooth Family starter på nytt."
+      },
+      {
+        "h": "Hvem er hjemme"
+      },
+      {
+        "p": "Koble familien til personene i Home Assistant, så velger hver enkelt å vise hjemme eller borte – aldri hvor du er. Ingenting lagres."
+      },
+      {
+        "tips": [
+          "Strømprisen: et kort på I dag med dagens timer, og flyter som kjøres de billigste timene.",
+          "Ingen Home Assistant? Prøv alt med det simulerte hjemmet."
+        ]
+      }
+    ]
+  },
+  "homeassistant": {
+    "title": "Koble til Home Assistant",
+    "summary": "Hjemmets Home Assistant direkte – og andre hjem via gatewayen.",
+    "blocks": [
+      {
+        "p": "Home Assistant i samme hjem som Smooth Family-serveren kobles direkte, med adressen og en langtidstoken. Et annet hjem – hytta – kobles i stedet via gatewayen, uten at noen port åpnes der."
+      },
+      {
+        "steps": [
+          "I Home Assistant: profilen din → Sikkerhet → Langtidstilgangstokener → Opprett token. Kopier den.",
+          "I Smooth Family: Familieinnstillinger → Deling og koblinger → Smarthus.",
+          "Skriv adressen, f.eks. http://homeassistant.local:8123, og tokenet, og trykk Koble til.",
+          "Legg til enhetene som skal vises, og koble hjemmet til riktig bolig."
+        ]
+      },
+      {
+        "shot": "homeassistant",
+        "caption": "Hjem og enheter under Familieinnstillinger."
+      },
+      {
+        "p": "Tokenet lagres kryptert på serveren. Smooth Family leser tilstander og styrer det du har lagt til; målere og sensorer for energi og kilometerstand leses bare."
+      },
+      {
+        "tips": [
+          "Bruk en adresse som virker fra serveren – en IP-adresse er tryggest.",
+          "Familier på en annens server kobler alltid via gatewayen."
+        ]
+      }
+    ]
+  },
+  "gateway": {
+    "title": "Gatewayen – Home Assistant i et annet hjem",
+    "summary": "Hyttas Home Assistant uten å åpne en port: som tillegg eller container.",
+    "blocks": [
+      {
+        "p": "Gatewayen kjører ved siden av det andre hjemmets Home Assistant og ringer opp Smooth Family-serveren deres over HTTPS og holder linjen åpen. Ingen port åpnes der, og den virker bak 4G-rutere. Home Assistant-tokenet blir i det hjemmet; serveren kan bare be om tilstander og kall i de tillatte domenene – lås og alarm bare hvis du legger dem til."
+      },
+      {
+        "h": "1. Lag en koblingskode"
+      },
+      {
+        "p": "Familieinnstillinger → Deling og koblinger → Smarthus → Legg til et hjem via tillegget. Gi det et navn og velg bolig; koden på åtte tegn gjelder i 24 timer."
+      },
+      {
+        "shot": "gateway",
+        "caption": "Et hjem via gatewayen, med versjonen."
+      },
+      {
+        "h": "2. Installer – hvilken måte avhenger av Home Assistant"
+      },
+      {
+        "p": "Innstillinger → Om i Home Assistant viser installasjonstypen."
+      },
+      {
+        "details": [
+          {
+            "title": "Home Assistant OS eller Supervised: som tillegg",
+            "blocks": [
+              {
+                "steps": [
+                  "Innstillinger → Tillegg → Tilleggsbutikk → ⋮ → Repositorier, og legg til https://github.com/burnwalled/smoothfamily.",
+                  "Smooth Family vises i butikken: installer det.",
+                  "Fyll inn serverens adresse og paringskoden i alternativene, og start det."
+                ]
+              },
+              {
+                "p": "Tillegget bruker Home Assistants egen token – ingen langtidstoken trengs."
+              }
+            ]
+          },
+          {
+            "title": "Home Assistant Container eller Core: som egen container",
+            "blocks": [
+              {
+                "p": "Tillegg finnes ikke i disse installasjonene, så gatewayen kjører som en Docker-container ved siden av Home Assistant, eller på en Raspberry Pi i det hjemmet. Den trenger en langtidstoken fra profilen din i Home Assistant."
+              },
+              {
+                "steps": [
+                  "Hent gateway-mappen fra https://github.com/burnwalled/smoothfamily og bygg imaget: docker build -t smooth-family-gateway gateway/",
+                  "Start den med SF_SERVER (serverens adresse), SF_PAIRING_CODE, HA_URL og HA_TOKEN, og et volum for /data.",
+                  "Loggen sier Paired as … og så Connected to …."
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "h": "3. Oppdateringer"
+      },
+      {
+        "p": "Gatewayen oppdaterer seg selv fra serveren deres – slått på som standard. Den kjører bare versjoner som er signert på datamaskinen utgivelsene lages på; ikke engang den som tok over serveren, kunne kjøre noe på hytta. Hvis en ny versjon ikke kobler til, kommer den forrige tilbake av seg selv. Hjemmet viser Nyeste versjon når den er oppdatert."
+      },
+      {
+        "tips": [
+          "Bytter du gatewayens datamaskin, eller kan nøkkelen ha lekket? Lag en ny kode – den gamle nøkkelen slutter å virke med en gang.",
+          "Hvis linjen er nede, feiler en kommando med en gang i stedet for å kjøres sent."
+        ]
+      }
+    ]
+  },
+  "halists": {
+    "title": "Handlelister i Home Assistant",
+    "summary": "Send en liste til Home Assistant – og derfra til butikkens app.",
+    "blocks": [
+      {
+        "p": "En liste kan sendes til en av Home Assistants gjøremålslister, eller kobles til en så begge holdes like. Med en butikks integrasjon installert i Home Assistant vises listen så i butikkens egen app. Det som kjøpes der, krysses av her og havner under Nettopp kjøpt i spiskammeret."
+      },
+      {
+        "steps": [
+          "Installer butikkens integrasjon i Home Assistant (lenker i dialogen – laget av andre, på egen risiko).",
+          "Åpne listen i Smooth Family → Home Assistant.",
+          "Velg gjøremålslisten, og send én gang eller koble listene."
+        ]
+      },
+      {
+        "note": "Nytt og ikke fullt testet med butikkene ennå: det virker så godt som butikkens integrasjon synkroniserer kryssene tilbake."
+      }
+    ]
+  },
+  "kiosk": {
+    "title": "Kjøkkenskjermen",
+    "summary": "Et nettbrett på veggen med familiens dag.",
+    "blocks": [
+      {
+        "p": "Koble til et nettbrett med en egen lenke eller QR-kode. Det viser familiens dag: dagens og morgendagens kalender med hvem som kjører, hvem som er hjemme, været, oppgavene, middagen og skolematen, søppeltømmingen og strømprisen – og en knapp for nødkortet. Ingenting privat vises, og skjermen har ingen konto."
+      },
+      {
+        "shot": "kiosk",
+        "caption": "Kjøkkenskjermen."
+      },
+      {
+        "h": "På skjermen"
+      },
+      {
+        "p": "Oppgaver krysses av rett der, med store rader for fingre: trykk på en, så på ansiktet ditt – for en oppgave dere gjorde sammen, alle som hjalp til, og poengene deles. Ukens mat og oppskriftsboken åpner matlagingsmodus: oppskriften i stor skrift, ingredienser å krysse av og trinnene ett om gangen. Smartenhetene som er valgt for skjermen, styres med et trykk."
+      },
+      {
+        "h": "Skjermspareren"
+      },
+      {
+        "p": "Etter minuttene du velger, kommer skjermspareren: familiens bilder, en klaffeklokke, en rolig klokke med været, en mørk skjerm – eller reven, som viser været ute. Den leser når det er grått, flyr drage når skyene drar forbi, holder paraplyen i regnet, bygger snømann når det snør og sover om natten, og dagens oppgaver vises over vannet. Et trykk vekker skjermen."
+      },
+      {
+        "steps": [
+          "Familieinnstillinger → Kjøkkenskjerm → Koble til en skjerm.",
+          "Åpne lenken på nettbrettet (eller skann QR-koden) og legg den til på startskjermen.",
+          "Under skjermen velger du hva den viser, skjermsparer, farger, språk og natt."
+        ]
+      },
+      {
+        "tips": [
+          "Alt om en skjerm finnes under Familieinnstillinger → Kjøkkenskjerm: navnet, skjermspareren (med et bilde av hver), hva den viser, farger og språk, når den dempes om natten, hvilke smartenheter den kan styre og hva den kan gjøre. Én knapp gir alle skjermer de samme innstillingene, og en skjerm henter en endring innen ett minutt.",
+          "Ukens mat og oppskriftsboken velges per skjerm – de er slått av til du slår dem på.",
+          "En lås vises aldri på skjermen, uansett hva du velger.",
+          "En mistet lenke erstattes med Ny lenke; Koble fra stenger lenken helt.",
+          "De små kan åpne bilderutinene sine der ved å trykke på ansiktet sitt.",
+          "Fullskjerm med knappen i hjørnet (på en iPad legger du i stedet skjermen til på startskjermen)."
+        ]
+      }
+    ]
+  },
+  "localai": {
+    "title": "Den lokale AI-en",
+    "summary": "En AI på en datamaskin hjemme – for kvitteringer, oppskrifter og forslag.",
+    "blocks": [
+      {
+        "p": "Smooth Family kan bruke en AI som kjører på en datamaskin i hjemmet deres med Ollama. Den leser kvitteringer og servicehistorikk, gjør tekst eller et bilde om til en oppskrift, foreslår ukens middager og gjøremål, og svarer på spørsmål med nettsøk. Ingenting sendes til en ekstern tjeneste."
+      },
+      {
+        "shot": "localai",
+        "caption": "Jobber for den lokale AI-en."
+      },
+      {
+        "p": "Serverens administrator setter den opp én gang (Serverinnstillinger → AI-maskinen) – den trenger en datamaskin med et brukbart grafikkort. Så velger hver familie å slå den på. Jobbene settes i kø, så maskinen kan sove og vekkes når det er noe å gjøre."
+      },
+      {
+        "tips": [
+          "Alt AI-en foreslår, vises for deg før det lagres.",
+          "Uten AI-en kan du fortsatt kopiere spørsmålet til en AI du selv velger."
+        ]
+      }
+    ]
+  },
+  "websearch": {
+    "title": "Søke på nettet",
+    "summary": "Søk via serverens egen søkemotor – bare ordene forlater serveren.",
+    "blocks": [
+      {
+        "p": "Når serverens administrator har slått på søket, kan du søke på nettet fra Smooth Family: etter ønsker og gaver, oppskrifter, bruksanvisninger for ting i hjemmet, fakta om bilen og ting å finne på. Søket kjører på deres egen server (SearXNG), så bare søkeordene forlater den – ikke hvem som spør."
+      },
+      {
+        "p": "Med den lokale AI-en kan du også stille et spørsmål og få et svar med kilder fra nettet."
+      }
+    ]
+  },
+  "family": {
+    "title": "Familieinnstillinger",
+    "summary": "Medlemmer, hvilke apper hver enkelt ser, og familiens hverdag.",
+    "blocks": [
+      {
+        "p": "Familieinnstillingene er for den som styrer familien. Administratoren legger til medlemmer og velger hvilke apper hver enkelt ser; en voksen administratoren stoler på, kan få lov til å endre hverdagsinnstillingene også."
+      },
+      {
+        "shot": "family",
+        "caption": "Alle i familien; åpne én for alt om personen."
+      },
+      {
+        "h": "Et medlems egen side"
+      },
+      {
+        "p": "Trykk på et medlem for alt om personen på ett sted: navn, farge og bilde, nytt passord og tilbakestilling av totrinnspålogging, hvilke apper personen bruker – og for et barn språket i appen, fødselsdagen, Lille modus, ukepengene, medisinene og nødkortet. En voksens egne medisiner forblir private, og voksne velger sitt eget bilde."
+      },
+      {
+        "h": "Hva finnes hvor"
+      },
+      {
+        "p": "Familiemedlemmer: alle, hver med sin egen side (innlogging, apper, språk, bilde – og for et barn fødselsdag, ukepenger, Lille modus, to hjem, medisin og nødkort), og andre personer uten konto for fødselsdagene deres. Hverdagen: kalendere, hjemmet, Idags kilder, poengreglene, husstandens nødkort og kjæledyrenes medisin. Kjøkkenskjerm. Deling og tilkoblinger: gjestelenker, smarthjemmet og den lokale AI-en. Sikkerhet og data: sikkerhetskopier og eksport."
+      },
+      {
+        "tips": [
+          "Oppgi et barns fødselsdag når du legger det til – et barn på 6 år eller yngre starter i Lille modus.",
+          "Familiens kom i gang-veiledning kan åpnes igjen øverst i Familieinnstillinger.",
+          "Et nytt medlem starter med administratorens språk; en forelder endrer barnets på barnets side."
+        ]
+      }
+    ]
+  },
+  "familydata": {
+    "title": "Familiens data og sikkerhetskopier",
+    "summary": "Eksport, familiens egen nøkkel og å flytte familien.",
+    "blocks": [
+      {
+        "p": "Under Familieinnstillinger → Sikkerhet og data kan administratoren eksportere familiens data og, på en server som drives av andre, velge en egen nøkkel for familien: familiens sikkerhetskopier forsegles da så bare dere kan åpne dem – ikke engang serverens administrator."
+      },
+      {
+        "shot": "familydata",
+        "caption": "Familiens sikkerhetskopier og nøkkel."
+      },
+      {
+        "tips": [
+          "Oppbevar nøkkelen utenfor serveren, som et viktig passord – uten den kan sikkerhetskopiene ikke gjenopprettes.",
+          "Loggen viser innlogginger og endringer i familien."
+        ]
+      }
+    ]
+  },
+  "profile": {
+    "title": "Min profil",
+    "summary": "Navnet ditt, bilde, språk, meny, varsler og sikkerhet.",
+    "blocks": [
+      {
+        "p": "Min profil har fire faner. Om meg: navn, bilde, språk og tema, nødkortet ditt og dine egne medisiner. Meny: appenes rekkefølge og hvilke som er skjult. Varsler: hva som sendes, og morgensammendraget. Sikkerhet og koblinger: passord, passkeys, totrinnskoder og mobilkalenderen din."
+      },
+      {
+        "shot": "profile",
+        "caption": "Min profil."
+      }
+    ]
+  },
+  "server": {
+    "title": "Serverinnstillinger",
+    "summary": "For den som styrer serveren: familier, innloggingsregler, adressen og loggen.",
+    "blocks": [
+      {
+        "p": "Serverens administrator bestemmer det som er likt for alle familier på serveren. Inviter andre familier med en lenke – de kan prøve en demo først – og sett en familie på pause, flytt eller fjern den. Administratoren ser aldri familienes innhold."
+      },
+      {
+        "shot": "server",
+        "caption": "Familiene på serveren."
+      },
+      {
+        "p": "Sikkerhet setter reglene for passkeys, totrinnskoder og hvor lange passord skal være. Adresse og tjenester har serverens adresse på internett, søket og tjenestene for alle familier. Serverens kom i gang-veiledning kan åpnes igjen øverst."
+      }
+    ]
+  },
+  "serverbackups": {
+    "title": "Sikkerhetskopier og nøkkelen",
+    "summary": "Sikkerhetskopi hver natt, forseglet med en nøkkel bare du har.",
+    "blocks": [
+      {
+        "p": "Serveren tar en sikkerhetskopi hver natt og tar vare på 30 dager. Med en nøkkel forsegles de: serveren kan lage dem, men aldri lese dem, og nøkkelen er nok til å få tilbake alt på en ny server."
+      },
+      {
+        "shot": "serverbackups",
+        "caption": "Sikkerhetskopier, forseglet med nøkkelen."
+      },
+      {
+        "steps": [
+          "Serverinnstillinger → Sikkerhetskopier og flytting → Lag nøkkel. Nøkkelen lages i nettleseren din; serveren får bare den offentlige halvdelen.",
+          "Lagre den i en passordbehandler, skriv den ut eller last den ned – og bekreft med de siste tegnene.",
+          "Prøv nøkkelen mot den nyeste sikkerhetskopien med Prøv nøkkelen min."
+        ]
+      },
+      {
+        "note": "Uten nøkkelen kan sikkerhetskopiene ikke gjenopprettes, og ingen kan lage den til deg igjen."
+      }
+    ]
+  },
+  "serverupdates": {
+    "title": "Oppdateringer",
+    "summary": "Sikkerhetsrettinger for serverens deler, av seg selv – og gatewayenes versjoner.",
+    "blocks": [
+      {
+        "p": "Databasen, Redis, webserveren og søkemotoren får sikkerhetsrettinger mellom Smooth Familys utgivelser. Velg om de legges inn av seg selv i et ukentlig vindu eller etter at du har godkjent. En sikkerhetskopi tas først, og hvis de nye versjonene ikke kommer opp, settes de gamle tilbake."
+      },
+      {
+        "shot": "serverupdates",
+        "caption": "Versjoner, vinduet og gatewayene."
+      },
+      {
+        "p": "Kortet Gatewayer viser hver gateway på serveren, versjonen hver enkelt rapporterte og om den oppdaterer seg selv – så du ser at alle er oppdatert."
+      },
+      {
+        "note": "Serverens update.sh må planlegges hver time én gang (på en Synology: Oppgaveplanlegger, bruker root) for at oppdateringer skal legges inn."
+      }
+    ]
+  },
+  "serverservices": {
+    "title": "Tjenester, lokal AI og søk",
+    "summary": "Serverens adresse, søkemotoren, den lokale AI-en og andre tjenester.",
+    "blocks": [
+      {
+        "p": "Adresse og tjenester har adressen serveren nås på – den brukes i alle lenker som sendes ut – oppskriftssøket og nettsøket (SearXNG på serveren selv), Home Assistant for familier på serveren via gatewayen, GIF-er i chatten og å sende tilbakemelding. AI-maskinen stiller inn hvor Ollama kjører, hvilke modeller som brukes, og vekking og hvilemodus for maskinen."
+      },
+      {
+        "shot": "serverservices",
+        "caption": "Serverens tjenester."
+      }
+    ]
+  },
+  "feedback": {
+    "title": "Rapporter et problem",
+    "summary": "Noe som er feil, eller et ønske – til serverens administrator.",
+    "blocks": [
+      {
+        "p": "Funnet noe som ikke virker, eller ønsker du deg noe nytt? Skriv det under Rapporter et problem i profilmenyen. Det går til den som driver serveren, med siden du var på og nettleseren din, og et skjermbilde om du legger til et."
+      },
+      {
+        "steps": [
+          "Åpne profilmenyen → Rapporter et problem.",
+          "Velg Noe er feil eller Ønske, og skriv hva som skjedde eller hva du ønsker deg.",
+          "Legg til et skjermbilde om det hjelper – lim inn, slipp det eller ta et bilde."
+        ]
+      },
+      {
+        "tips": [
+          "Du ser rapportene dine på samme side: mottatt, planlagt, fikset eller ikke planlagt – med en linje fra serveradministratoren når det finnes en.",
+          "Du får et varsel når statusen til en rapport endres.",
+          "Familiens administrator ser hele familiens rapporter."
+        ]
+      }
+    ]
+  },
+  "devices": {
+    "title": "Enheter",
+    "summary": "Hva som er koblet til med familiens konto, og om det står bra til.",
+    "blocks": [
+      {
+        "p": "Familieinnstillinger → Enheter viser hva som snakker med serveren for familien: mobilene og datamaskinene medlemmene logger inn på, kjøkkenskjermene og gatewayene – som Home Assistant-appen eller en egen container. Et kart plasserer dem rundt serveren; listen har hver enhets versjon, når den sist ble sett og hvordan den har det."
+      },
+      {
+        "shot": "devices",
+        "caption": "Familiens enheter rundt serveren."
+      },
+      {
+        "h": "Helse"
+      },
+      {
+        "p": "Grønn: står bra til. Oransje: en gammel versjon – en app som bør åpnes igjen, eller en gateway som skal oppdateres. Grå: et medlems enhet som ikke er brukt på en stund. Rød: en kjøkkenskjerm eller gateway som ikke er der. Under en enhet som ikke står bra til, står det i listen hva du gjør."
+      },
+      {
+        "tips": [
+          "En enhet som ikke er sett på 7 dager, forsvinner fra kartet, men blir i listen; et medlems gamle mobil kan glemmes der.",
+          "Bare typen enhet, nettleser og system, appversjonen og når den sist ble brukt, lagres – ingen adresse, intet sted.",
+          "Serveradministratoren ser enhetene deres som typer, aldri navn, og kan be dere se til en."
+        ]
+      }
+    ]
+  },
+  "serverreports": {
+    "title": "Rapporter fra familiene",
+    "summary": "Les, svar på og send videre feil og ønsker.",
+    "blocks": [
+      {
+        "p": "Alle familienes rapporter om feil og ønsker kommer til Serverinnstillinger → Rapporter, og du får et varsel. Åpne en for å lese den med side, nettleser og skjermbilde; sett status – mottatt, planlagt, fikset eller ikke planlagt – og skriv en linje til den som rapporterte, som får beskjed."
+      },
+      {
+        "h": "Til prosjektet"
+      },
+      {
+        "p": "Kryss av rapportene Smooth Family-prosjektet bør kjenne til, og trykk Eksporter. Du får en anonym tekst – hva og hvor, aldri hvem eller hvilken familie – og GitHubs skjema i prosjektets offentlige repo åpnes utfylt med den og etiketten from-server-admin. Les gjennom og trykk Create der. En tekst som er for lang for lenken, kopieres så du kan lime den inn."
+      },
+      {
+        "tips": [
+          "Serveren sender ingenting: eksporten åpner bare GitHub i nettleseren din.",
+          "Eksporterte rapporter merkes, så du ikke sender dem to ganger."
+        ]
+      }
+    ]
+  },
+  "serverdevices": {
+    "title": "Familienes enheter",
+    "summary": "Hver families enheter etter type, versjoner og helse.",
+    "blocks": [
+      {
+        "p": "Serverinnstillinger → Enheter plasserer serveren i midten med hver familie rundt seg, og rundt hver familie dens typer enheter: mobiler, nettbrett, datamaskiner, kjøkkenskjermer, gatewayer og Home Assistant-apper. Du ser hvor mange, hvilke versjoner de kjører og om de står bra til – aldri hvem de tilhører eller hva de heter."
+      },
+      {
+        "p": "Appens versjon er serverens egen; en gateway skal kjøre den nyeste serveren deler ut. Når en familie har en enhet med gammel versjon eller en som ikke er der, sender Be familien se til et varsel til familiens administratorer om hvilke typer og hvorfor."
+      },
+      {
+        "tips": [
+          "En enhet som ikke er sett på 7 dager, forsvinner fra kartet.",
+          "En gateway oppdaterer seg selv hvis automatisk oppdatering er på – en gammel betyr som regel at den er slått av."
+        ]
+      }
+    ]
+  }
+};
+
+export default texts;

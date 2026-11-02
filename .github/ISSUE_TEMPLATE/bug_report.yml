@@ -1,0 +1,33 @@
+name: Something doesn't work
+description: A bug – something that does the wrong thing, or nothing.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open …
+        2. Tap …
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The profile menu → What's new shows it.
+  - type: input
+    id: where
+    attributes:
+      label: Device and browser
+      placeholder: e.g. iPhone, Safari – or the kitchen display on an Android tablet
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drop one here if it helps – without anyone's private information.

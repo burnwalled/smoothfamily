@@ -1,47 +1,32 @@
 import type { Config } from "tailwindcss";
 
+// All colors come from CSS variables defined in globals.css so that the user's
+// chosen theme (data-theme attribute on <html>) restyles the whole app.
+function v(name: string): string {
+  return `rgb(var(--${name}) / <alpha-value>)`;
+}
+
 const config: Config = {
-  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
-  darkMode: ["class"],
+  content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
+        base: v("c-base"), // page background
+        surface: v("c-surface"), // cards
+        edge: v("c-edge"), // borders
+        ink: v("c-ink"), // main text
+        muted: v("c-muted"), // secondary text
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          900: v("c-primary-900"),
+          800: v("c-primary-800"),
+          700: v("c-primary-700"),
+          100: v("c-primary-100"),
         },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
+        accent: { DEFAULT: v("c-accent"), soft: v("c-accent-soft") },
       },
-      fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-      },
-    },
+      borderRadius: { card: "14px" }
+    }
   },
-  plugins: [],
+  plugins: []
 };
-
 export default config;

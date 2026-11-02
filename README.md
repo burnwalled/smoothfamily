@@ -1,222 +1,143 @@
-# Boet
+# Smooth Family
 
-> En webbapp för svenska familjer: gemensam kalender, gamifierade sysslor, AI-assistent, foton, hälsa, fastighets- och fordonsadministration.
+![Smooth Family](docs/logo-horizontal.png)
 
-**Status:** MVP-utveckling pågår – Sprint 1 (Auth + grundstruktur) klar.
+**A family's own portal – it runs in your home, not in someone's cloud.**
 
-## Senaste uppdateringar
+Smooth Family is a self-hosted app for the whole family: the shared calendar, chores with points
+and allowance, lists, food and recipes, a kitchen display on the wall, the smart home, the family's
+documents and receipts – in five languages, on a phone, a computer or a tablet. It runs on a NAS, a
+Raspberry Pi or any computer with Docker, and the family's data never leaves the house unless you
+send it somewhere yourself.
 
-- ✅ Issue #2 klar: Tema-system (light/dark), persistens i localStorage, sync mot `User.theme_preference` och toggle i app-headern.
-- ✅ Issue #3 klar: Alembic migration körd mot Postgres och `users`-tabellen verifierad.
-- ✅ Issue #12 klar: Intern familjekalender med month/week/list, create/edit/delete och dashboard-widget for kommande events.
-- ✅ Issue #13 klar: iCal-integrationer i inställningar med krypterad URL-lagring, validering och RBAC (owner/parent).
-- ✅ Issue #14 klar: Aggregerad kalendervy (familj + externa iCal), filter per källa/medlem, samt widget med samlade kommande events.
-- ✅ Issue #15 klar: Familjechatt med grupper, RBAC-styrd gruppadministration, meddelandeflöde och dashboard-widget för olästa meddelanden.
-- ✅ Issue #16 klar: Delade listor med deltagarstyrd synlighet (medlem + chattgrupp), list-/item-API, lists-sida och dashboard-widget för öppna listor.
-- ✅ Issue #17 klar: Medlemshantering 2.0 med invite-status (pending/accepted/expired/revoked), resend/revoke, rolluppdatering och owner-skydd mot nedgradering.
-- ✅ Issue #19-#23 klar: Anpassningsbar dashboard med persisterad layout per familj/anvandare, drag-and-drop, widget picker (visa/dolj), storleksregler, reset till default samt tester/docs.
+| Today | Tasks | The kitchen display |
+|---|---|---|
+| ![Today](frontend/public/help/en/today.webp) | ![Tasks](frontend/public/help/en/tasks.webp) | ![Kitchen display](frontend/public/help/en/kiosk.webp) |
 
-## Sprint-status
+## What it does
 
-| Sprint       | Beskrivning                       | Status         |
-| ------------ | --------------------------------- | -------------- |
-| Sprint 0     | Setup – repo, CI, Docker, skelett | ✅ Klar        |
-| Sprint 1     | Auth + grundstruktur              | ✅ Klar        |
-| Sprint 2     | Familjer + inbjudningar           | ✅ Klar        |
-| Sprint 3     | Kalender bas                      | ✅ Klar        |
-| Sprint 4     | Externa kalender-feeds (iCal)     | ✅ Klar        |
-| Sprint 5     | Anpassningsbar dashboard          | ✅ Klar        |
-| Sprint 6     | Tema, PWA och polish              | 🔲 Ej påbörjad |
-| Sprint 7     | Stripe + prenumerationsflöde      | 🔲 Ej påbörjad |
-| Sprint 8     | Publik sajt + signup              | 🔲 Ej påbörjad |
-| Sprint 9     | GDPR + polering                   | 🔲 Ej påbörjad |
-| Sprint 10–11 | Beta + lansering                  | 🔲 Ej påbörjad |
+**The family's day**
+- **Today** – the day at a glance: calendar, weather, tasks, dinner, who's home, waste collection,
+  school lunch, electricity price, birthdays – each member chooses their own cards.
+- **Calendar** – the family's own events and every member's subscribed calendars (Google, Outlook,
+  iCloud), month, week and agenda views; who drives and what to pack, two homes for children who
+  live in two.
+- **Week** – Sunday's look back and ahead: points, the helper of the week, a thank-you star.
+- **Chat**, **lists** (shopping, packing, wish lists and secret gift planning) and **notifications**,
+  live on every device.
 
-## Snabbstart
+**Children and chores**
+- **Tasks** with points, rotation between children, approval by an adult, streaks and achievements;
+  tasks several do together share their points.
+- **Allowance** from points, a **reward shop**, **savings jars** children propose goals for.
+- **The little ones' mode** for children who can't read yet: big pictures, routines step by step,
+  a sticker for each.
 
-### Förutsättningar
+**Food**
+- The week's **meal plan**, the **recipe book** (import from a link), a **cooking mode** in big
+  type, the **pantry and freezer** with barcode scanning, shopping lists to the shops' apps through
+  Home Assistant.
 
-- Python 3.12+ med [uv](https://docs.astral.sh/uv/)
-- Node.js 20+ med [pnpm](https://pnpm.io/)
-- Docker + Docker Compose
-- Konton på: [Clerk](https://clerk.com), [Stripe](https://stripe.com), [Resend](https://resend.com), [Sentry](https://sentry.io)
-- Clerk CLI: `npm install -g clerk`
+**The home**
+- **Kitchen display** – a tablet on the wall with the day, tasks ticked off by tapping your face,
+  dinner and recipes, smart home buttons, and a screensaver (a fox that plays out the weather).
+- **Smart home** – Home Assistant directly, or in another home (the cabin) through a gateway that
+  needs no open port; flows, presence, energy.
+- **Property, vehicles, pets, trips and the household's economy** – maintenance, reminders, costs,
+  receipts with warranties.
 
-### Lokal utveckling
+**Safe keeping**
+- **The vault** – photos, documents (passports, insurance) and passwords, encrypted with the
+  family's own key; **emergency cards**; guest links for a babysitter or grandparents.
 
-```bash
-# 1. Klona repot
-git clone git@github.com:DITT-USERNAME/boet.git
-cd boet
+**Running it**
+- **Several families on one server**, each its own; the server admin never sees a family's content.
+- **Backups** sealed with a key only you hold, **moving** a family to another server, **updates**
+  from the app with a rollback if something goes wrong.
+- **Local AI** (optional): your own computer reads receipts and suggests meals – nothing goes to
+  a cloud AI.
+- **Reports** of problems and wishes go to the server admin, who can pass them on to this project.
+- **Devices** – which phones, computers, kitchen displays and gateways are connected, and whether
+  they're well.
 
-# 2. Starta databas och Redis
-docker compose up -d
+The app has a help centre in five languages (English, Svenska, Norsk, Dansk, Suomi) with a page
+and screenshots for every feature – press **?** next to any page's title.
 
-# 3. Backend
-cd backend
-cp .env.example .env  # fyll i värden
-uv sync
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8000
+## Privacy by design
 
-# 4. Frontend (i separat terminal)
-cd frontend
-cp .env.local.example .env.local  # fyll i värden
-pnpm install
-pnpm dev
+- No accounts with us, no telemetry, no tracking, no fonts or scripts from other servers.
+- The only outgoing calls are the ones you turn on: your calendar feeds, the weather (SMHI), the
+  electricity price, the school lunch, a product's barcode, a recipe page – and the gateway to your
+  own other home.
+- Documents and passwords are encrypted with the family's key; backups are sealed with a key made
+  in your browser that the server never keeps.
+- Children see what is meant for them; adults' own medicines, documents and passwords stay theirs.
+
+## Install
+
+You need a computer that is always on, with Docker: a NAS, a Raspberry Pi 4/5 (2 GB+, 64-bit), a
+small PC – or Docker Desktop on Windows or Mac to try it.
+
+```sh
+git clone https://github.com/burnwalled/smoothfamily.git
+cd smoothfamily
+./scripts/install.sh        # Windows: .\scripts\install.ps1
 ```
 
-Tips för Windows PowerShell: använd `pnpm.cmd` om execution policy blockerar `pnpm`.
+The script writes `.env` with fresh secrets and starts the stack. Open `http://<the-computer>:3000`,
+and a setup guide helps you set up the server and the family – the first account becomes the
+administrator.
 
-Backend: http://localhost:8000
-API-docs: http://localhost:8000/api/docs
-Frontend: http://localhost:3000
+- **Synology NAS** (DSM 6/7): [docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – prebuilt images,
+  HTTPS with Caddy, updates and backups.
+- **Reaching it from outside**: put it behind HTTPS (the Synology guide shows how, with Caddy), or use
+  Tailscale or WireGuard. Behind HTTPS, set `COOKIE_SECURE=true` in `.env`.
+- **Backups**: [docs/BACKUP.md](docs/BACKUP.md) – set them up on day one.
+- **Storage**: [docs/STORAGE.md](docs/STORAGE.md) – where the data lives, and moving it.
+- **Local AI**: [docs/LOCAL_AI.md](docs/LOCAL_AI.md).
 
-Repository API-oversikt: `docs/api.md`
+To update: `git pull && docker compose up -d --build` – the database is migrated on start.
 
-## Dev-miljö (Windows + Docker Desktop)
+### Home Assistant in another home
 
-Rekommenderad setup på Windows är Docker Desktop med WSL 2-backend.
+The gateway is a Home Assistant add-on (or a small container) that connects out to your server, so
+the cabin needs no open port. In Home Assistant OS: **Settings → Add-ons → Add-on store → ⋮ →
+Repositories**, add `https://github.com/burnwalled/smoothfamily`, and install **Smooth Family**.
+See [gateway/README.md](gateway/README.md).
 
-- Docker Desktop installerat och igång
-- WSL 2 aktiverat (rekommenderad backend i Docker Desktop)
-- Kör Compose från repo-roten: `docker compose up -d`
-- Verifiera containers: `docker compose ps`
+## Development
 
-Vanlig felsökning:
+Next.js 15 (App Router) and TypeScript in front; FastAPI with async SQLAlchemy 2, Alembic and
+Pydantic 2 behind; Postgres 16 and Redis; everything in containers (arm64 and amd64).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DESIGN.md](docs/DESIGN.md).
 
-- Om `docker`-kommandot saknas: starta Docker Desktop och öppna ny terminal
-- Om frontend blockeras av execution policy i PowerShell: använd `pnpm.cmd` i stället för `pnpm`
+```sh
+docker compose up -d --build                 # the whole stack on http://localhost:3000
 
-Chatt-felsokning (lokal utveckling):
+cd backend && python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest -q                # backend tests
 
-- Om `POST /api/v1/families/{family_id}/chat/groups` ger `500 Internal Server Error` saknas ofta migration `0006`.
-  - Kor: `cd backend && uv run alembic upgrade head`
-  - Verifiera: `uv run alembic current` ska visa `0006 (head)`
-  - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt chat_*"`
-- Om list-endpoints ger `500 Internal Server Error` lokalt: kontrollera att migration `0007` ar applicerad.
-  - Kor: `cd backend && uv run alembic upgrade head`
-  - Verifiera: `uv run alembic current` ska visa `0007 (head)`
-  - Kontrollera tabeller: `docker exec smoothfamily-db-1 psql -U boet -d boet -c "\\dt shared_list*"`
-- Incidentnotis (2026-05-06): `POST /api/v1/families/{family_id}/lists` gav `500` eftersom lokal DB lag pa `0006` och saknade `shared_list*`-tabeller. Lost genom `uv run alembic upgrade head` (till `0007`) och verifiering av tabeller i Postgres.
-- Om frontend visar `Failed to fetch` mot `localhost`: verifiera att backend faktiskt svarar pa samma loopback-adress (IPv4/IPv6 kan skilja i Windows).
-- Incidentnotis (2026-05-06): `PATCH /api/v1/users/me` gav `500` och frontend visade CORS-liknande fel. Rotorsak var `MissingGreenlet` vid serialisering av `updated_at` efter `flush()`.
-  - Fix pattern: gor `await db.refresh(user)` innan `UserResponse.model_validate(user)` nar response inkluderar DB-genererade/refresh-kravande falt.
+cd frontend && npm ci
+npx tsc --noEmit && npm test                 # types, translations and the help centre
+BACKEND_URL=http://localhost:8000 npm run dev
 
-Checklista vid ny backend-modul med nya tabeller:
-
-- Kor alltid `cd backend && uv run alembic upgrade head` efter att migrationen skapats/merge:ats.
-- Verifiera aktiv revision med `uv run alembic current`.
-- Verifiera att forvantade tabeller finns i Postgres (`docker exec ... psql -c "\\dt <prefix>*"`).
-- Om endpoint returnerar `500` direkt efter featurearbete: kontrollera migration-state fore kodfelsokning.
-
-Migrationer i backend:
-
-- Kör migration: `uv run alembic upgrade head`
-- Kontrollera senaste revision: `uv run alembic current`
-- Vid behov, verifiera tabeller i Postgres med `docker compose exec db psql ...`
-
-## Projektstruktur
-
-```
-boet/
-├── backend/          # FastAPI Python backend
-│   ├── app/          # Applikationskod organiserad i moduler
-│   ├── alembic/      # Databasmigrations
-│   └── tests/        # Pytest-tester
-├── frontend/         # Next.js TypeScript frontend
-│   ├── src/
-│   └── public/
-├── infra/            # Terraform för Google Cloud
-├── docs/             # Projektdokumentation och ADR:er
-├── .github/          # GitHub Actions CI/CD
-├── docker-compose.yml
-├── CLAUDE.md         # Kontext för Claude Code/extension
-└── README.md
+sh scripts/e2e.sh                            # browser tests (Playwright) on a throwaway stack
 ```
 
-## Tech stack
-
-| Lager              | Val                      | Anledning                                       |
-| ------------------ | ------------------------ | ----------------------------------------------- |
-| Frontend framework | Next.js 16 (App Router)  | Server Components, bra DX, inbyggt i18n         |
-| Frontend språk     | TypeScript               | Typsäkerhet end-to-end                          |
-| Styling            | Tailwind + Shadcn/ui     | Snabbt, ingen CSS-fil-rörig                     |
-| Backend framework  | FastAPI                  | Async, OpenAPI auto, Pydantic                   |
-| Backend språk      | Python 3.12              | Bra för både API och AI-integration             |
-| ORM                | SQLAlchemy 2.0 (async)   | Mest moget i Python-världen                     |
-| Databas            | PostgreSQL 16            | Standard, stark i alla scenarios                |
-| Auth               | Clerk                    | Passkeys, social login, gratis upp till 10k MAU |
-| Betalning          | Stripe                   | Branschstandard, Customer Portal                |
-| Email              | Resend                   | Modern API, bra DX                              |
-| Hosting            | Google Cloud (Stockholm) | Skala-till-noll, GDPR, prisvärt                 |
-| Monitoring         | Sentry                   | Error tracking                                  |
-
-## API-design-checklist
-
-För varje nytt endpoint:
-
-- [ ] Versionerat under `/api/v1/`
-- [ ] Resource-orienterat (substantiv, inte verb)
-- [ ] Korrekt HTTP-metod (GET/POST/PUT/PATCH/DELETE)
-- [ ] Pydantic request- och response-modeller (= OpenAPI-doc)
-- [ ] Auth-krav tydligt (kräver JWT? specifik roll?)
-- [ ] **Tenant-isolation: alla endpoints filtrerar på `family_id`**
-- [ ] Pagination för list-endpoints
-- [ ] Idempotens på POST där det är meningsfullt
-- [ ] Felmeddelanden följer RFC 7807 Problem Details
-- [ ] Inga internal-only fält i response (filtrera medvetet)
-- [ ] Tester som verifierar tenant isolation
-
-## Tenant isolation
-
-**Detta är icke-förhandlingsbart.** Familjer får aldrig se varandras data. Vi enforcear det i flera lager:
-
-1. **Datamodell:** Varje tenant-tabell har `family_id` (NOT NULL, indexerad)
-2. **Repository:** All databasaccess kräver `family_id` som obligatorisk parameter
-3. **Endpoint:** Authorization-check att användaren är medlem i `family_id`
-4. **Postgres RLS:** Row-Level Security som extra säkerhetsnät
-
-Se `backend/app/core/repository.py` för basklassen.
-
-## Tester
-
-```bash
-# Backend
-cd backend
-uv run pytest
-
-# Frontend
-cd frontend
-pnpm test
+```
+backend/     FastAPI app, Alembic migrations, tests
+frontend/    Next.js app; src/locales (five languages), src/help (the help centre)
+gateway/     the Home Assistant add-on / container for another home
+deploy/      Synology stack (compose, Caddy, install, backup, update)
+e2e/         Playwright tests
+docs/        architecture, design, translations, backups, storage, local AI
+scripts/     install, backup, browser tests, help screenshots
 ```
 
-Frontend-tester körs med Vitest + Testing Library.
+Translating: [docs/TRANSLATIONS.md](docs/TRANSLATIONS.md). Contributing:
+[CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
-## Tema-system
+## License
 
-Light/dark-tema är implementerat i frontend:
-
-- Tema styrs via CSS-variabler i `frontend/src/app/globals.css`
-- Aktivt tema sparas i `localStorage` (`boet-theme-preference`)
-- För inloggade användare synkas tema även mot backend-fältet `User.theme_preference` via `GET/PATCH /api/v1/users/me`
-- Växlare finns i app-headern (`/app`-layout)
-
-Tester för tenant isolation är obligatoriska för varje endpoint som hanterar familje-data.
-
-## Bidrag
-
-Det här är ett solo-projekt just nu. Konventioner:
-
-- Conventional commits (`feat:`, `fix:`, `chore:`, etc.)
-- Feature branches från `main`
-- PR triggerar CI – allt måste vara grönt innan merge
-- ADR (Architectural Decision Record) för viktiga beslut, sparas i `docs/adr/`
-
-## Licens
-
-Proprietär. Alla rättigheter förbehållna.
-
-## Kontakt
-
-Se `pyproject.toml` för aktuell maintainer.
+[AGPL-3.0](LICENSE). Use it, change it and host it for your family. If you offer Smooth Family as a
+service to others, your source code – with your changes – must be open under the same license.

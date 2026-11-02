@@ -1,0 +1,33 @@
+# SearXNG for Smooth Family's recipe search (2.8.4).
+#
+# It runs next to the app on the same machine and is reached only by the backend over Docker's
+# internal network – no port is published. The server admin turns the search on or off under
+# Server settings → Address and services; until then nothing is searched.
+use_default_settings:
+  engines:
+    # Tor-only engines: they can't load without Tor and only fill the log.
+    remove:
+      - ahmia
+      - torch
+
+general:
+  instance_name: "Smooth Family search"
+  enable_metrics: false
+
+server:
+  # secret_key comes from SEARXNG_SECRET in .env
+  limiter: false
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+search:
+  safe_search: 1
+  autocomplete: ""
+  # Only the JSON API the backend uses – no web page to browse.
+  formats:
+    - json
+
+outgoing:
+  request_timeout: 4.0
+  max_request_timeout: 8.0

@@ -1,0 +1,14 @@
+{
+  "name": "smooth-family-e2e",
+  "private": true,
+  "description": "Browser tests of the key flows, run against a throwaway stack (see scripts/e2e.sh).",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^22",
+    "typescript": "^5"
+  }
+}
