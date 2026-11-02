@@ -117,6 +117,11 @@ async def test_the_kitchen_display_ticks_off_who_did_it(client):
     assert (await client.post(f"/api/kiosk/{token}/tasks/{solo['id']}/done", json={"user_ids": [ids["kid1"]]})).json()["done"] is True
     assert (await client.post(f"/api/kiosk/{token}/tasks/{solo['id']}/done", json={"user_ids": [ids["kid1"]]})).status_code == 409
     assert (await client.post("/api/kiosk/nope/tasks/{}/done".format(solo["id"]), json={"user_ids": [ids["kid1"]]})).status_code == 404
+    # Ticked off by mistake (3.1.1): undone on the screen, and ticked off again.
+    assert (await client.delete(f"/api/kiosk/{token}/tasks/{solo['id']}/done")).status_code == 204
+    assert next(t for t in (await client.get(f"/api/kiosk/{token}")).json()["tasks"] if t["id"] == solo["id"])["done"] is False
+    assert (await client.delete(f"/api/kiosk/{token}/tasks/{solo['id']}/done")).status_code == 404
+    assert (await client.post(f"/api/kiosk/{token}/tasks/{solo['id']}/done", json={"user_ids": [ids["kid1"]]})).json()["done"] is True
 
     from app.database import SessionLocal
     from app.models import TaskCompletion

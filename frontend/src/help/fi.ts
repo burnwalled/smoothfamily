@@ -518,6 +518,12 @@ const texts: Record<string, TopicText> = {
         "p": "Kohdassa Tehtävät → Tänään siirry nuolella taaksepäin – enintään kolme päivää – ja kuittaa tehty, pisteet tavalliseen tapaan."
       },
       {
+        "h": "Merkitsitkö väärän?"
+      },
+      {
+        "p": "Peru tehty tehtävä napauttamalla sen merkkiä – pisteet otetaan takaisin. Lapsi voi perua omansa, kunnes aikuinen on hyväksynyt ne; aikuinen voi perua kaikki. Keittiönäytöllä napauta tehtyä tehtävää ja vahvista."
+      },
+      {
         "h": "Tehtävät muista sovelluksista"
       },
       {

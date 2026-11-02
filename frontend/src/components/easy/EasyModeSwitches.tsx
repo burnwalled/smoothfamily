@@ -2,32 +2,31 @@
 
 // The little ones' mode per child, as switches (3.0.1) – for the family's setup guide. A child of 6
 // or younger whose birthday was given starts with it on; the routines are made under Tasks.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 
 type Child = { id: string; display_name: string; color: string; easy_mode: boolean };
 
 export default function EasyModeSwitches() {
   const { t } = useI18n();
-  const [children, setChildren] = useState<Child[] | null>(null);
+  const childrenQuery = useApi<Child[]>("/api/easy/children");
+  const children = childrenQuery.data ?? (childrenQuery.isError ? NONE : null);
+  const setChildren = (update: (all: Child[] | undefined) => Child[] | undefined) => setApiData<Child[]>("/api/easy/children", update);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.get<Child[]>("/api/easy/children").then(setChildren).catch(() => setChildren([]));
-  }, []);
 
   if (!children) return null;
   if (children.length === 0) return <p className="text-sm text-muted">{t("easy.noChildrenYet")}</p>;
 
   async function toggle(child: Child, on: boolean) {
     setError("");
-    setChildren((all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: on } : c)) ?? null);
+    setChildren((all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: on } : c)));
     try {
       await api.put(`/api/easy/children/${child.id}`, { easy_mode: on });
     } catch (e) {
-      setChildren((all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: !on } : c)) ?? null);
+      setChildren((all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: !on } : c)));
       setError(e instanceof Error ? e.message : t("common.error"));
     }
   }

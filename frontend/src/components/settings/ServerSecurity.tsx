@@ -2,22 +2,20 @@
 
 // Server settings → Security (2.8.2): passkeys, two-step codes and how long passwords must be – the
 // same for every family on the server.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required"; password_min_adult: number; password_min_child: number };
 
 export default function ServerSecurity() {
   const { t } = useI18n();
-  const [policy, setPolicy] = useState<Policy | null>(null);
+  const policy = useApi<Policy>("/api/admin/security-policy").data ?? null;
+  const setPolicy = (next: Policy) => setApiData<Policy>("/api/admin/security-policy", () => next);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.get<Policy>("/api/admin/security-policy").then(setPolicy).catch(() => {});
-  }, []);
 
   async function save(next: Policy) {
     setError("");

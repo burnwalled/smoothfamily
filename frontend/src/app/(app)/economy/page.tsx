@@ -3,12 +3,13 @@
 // The household's economy (2.8.5), for the adults: what the family spends by category – food, the
 // house, the cabin, the car … – gathered from receipts, homes, vehicles and trips, plus incomes
 // (each adult adds their own) and costs of its own, with a budget per category.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Lock, Plus, Repeat, Trash2, Wallet } from "lucide-react";
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 
@@ -34,19 +35,18 @@ export default function EconomyPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const [year, setYear] = useState(new Date().getFullYear());
-  const [view, setView] = useState<Overview | null>(null);
-  const [entries, setEntries] = useState<Entry[]>([]);
+  // From the cache: an entry here, or a receipt, a home's or a vehicle's cost (RELATED), refreshes it.
+  const overview = useApi<Overview>(`/api/economy?year=${year}`, { placeholderData: keepPreviousData });
+  const view = overview.data ?? null;
+  const entries = useApi<Entry[]>(`/api/economy/entries?year=${year}`, { placeholderData: keepPreviousData }).data ?? NONE;
   const [form, setForm] = useState({ kind: "out" as "in" | "out", category: "food", amount: "", day: new Date().toISOString().slice(0, 10), note: "", recurring: "", private: false });
   const [adding, setAdding] = useState(false);
   const [budgets, setBudgets] = useState<Record<string, string> | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Overview>(`/api/economy?year=${year}`).then(setView).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-    api.get<Entry[]>(`/api/economy/entries?year=${year}`).then(setEntries).catch(() => setEntries([]));
-  }, [year, t]);
-  useEffect(load, [load]);
-  useLive(["receipts", "property", "vehicles"], load);
+  useEffect(() => {
+    if (overview.error) setError(overview.error.message);
+  }, [overview.error]);
 
   const money = (v: number) => `${Math.round(v).toLocaleString(dateLocale)} ${view?.currency ?? ""}`.trim();
   const label = (key: string, fallback?: string | null) => {
@@ -64,7 +64,6 @@ export default function EconomyPage() {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

@@ -4,10 +4,11 @@
 // the server. An adult's logins are theirs unless they share one with chosen adults (who may see and
 // copy it, not change it); a child's are seen by the adults, and a child sees only their own. The
 // password is fetched only when shown or copied, never cached, and the clipboard is cleared again.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Eye, EyeOff, KeyRound, Link2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { api, Member, VaultLogin } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import { EmptyState } from "@/components/PageTitle";
 import ShareDialog from "@/components/vault/ShareDialog";
@@ -40,8 +41,10 @@ export default function Passwords({ query }: { query: string }) {
   const { t } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  const [logins, setLogins] = useState<VaultLogin[] | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  // From the cache (kept in memory only – the vault is never saved in the browser).
+  const loginsQuery = useApi<VaultLogin[]>("/api/vault/logins");
+  const logins = loginsQuery.data ?? (loginsQuery.isError ? NONE : null);
+  const members = useApi<Member[]>(adult ? "/api/family/members" : null).data ?? NONE;
   const [shown, setShown] = useState<Record<string, { password: string; notes: string }>>({});
   const [form, setForm] = useState<Form | null>(null);
   const [showNew, setShowNew] = useState(false);
@@ -49,13 +52,6 @@ export default function Passwords({ query }: { query: string }) {
   const [error, setError] = useState("");
   const [sharing, setSharing] = useState<VaultLogin | null>(null);
 
-  const load = useCallback(() => {
-    api.get<VaultLogin[]>("/api/vault/logins").then(setLogins).catch(() => setLogins([]));
-  }, []);
-  useEffect(load, [load]);
-  useEffect(() => {
-    if (adult) api.get<Member[]>("/api/family/members").then(setMembers).catch(() => {});
-  }, [adult]);
   // Nothing revealed stays on screen when leaving the page.
   useEffect(() => () => setShown({}), []);
 
@@ -136,7 +132,6 @@ export default function Passwords({ query }: { query: string }) {
       else await api.post("/api/vault/logins", body);
       setForm(null);
       setShown({});
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -145,7 +140,6 @@ export default function Passwords({ query }: { query: string }) {
   async function remove(row: VaultLogin) {
     if (!confirm(t("vault.confirmDeleteLogin", { name: row.title }))) return;
     await api.del(`/api/vault/logins/${row.id}`).catch(() => {});
-    load();
   }
 
   const nameOf = (id: string) => members.find((m) => m.id === id)?.display_name ?? logins?.find((l) => l.owner_id === id)?.owner_name ?? "";

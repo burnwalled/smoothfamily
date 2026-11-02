@@ -5,10 +5,11 @@
 // shows the family's day and the shared flow buttons – nothing private – picks up a change within a
 // minute, and can be given a new link or be disconnected here at any time. Its colours and the smart
 // home devices it may switch are chosen here too.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, Lightbulb, Link2, MonitorSmartphone, Moon, Palette, Pencil } from "lucide-react";
 import { api, KIOSK_SCREENSAVERS, KIOSK_WIDGETS, KioskScreen } from "@/lib/api";
 import { LOCALES, TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import SaverPreview from "@/components/kiosk/SaverPreview";
 import { THEMES } from "@/lib/theme";
 import { domainIcon } from "@/lib/smarthome";
@@ -22,7 +23,9 @@ type FamilyDevice = { id: string; display_name: string; domain: string };
 
 export default function KioskSettingsPage() {
   const { t, dateLocale } = useI18n();
-  const [screens, setScreens] = useState<KioskScreen[]>([]);
+  // From the cache; a change shows at once and is saved behind.
+  const screens = useApi<KioskScreen[]>("/api/kiosks").data ?? NONE;
+  const setScreens = (update: (all: KioskScreen[]) => KioskScreen[]) => setApiData<KioskScreen[]>("/api/kiosks", (all) => update(all ?? NONE));
   const [name, setName] = useState("");
   const [pantryScan, setPantryScan] = useState(false);
   const [easyMode, setEasyMode] = useState(false);
@@ -31,15 +34,8 @@ export default function KioskSettingsPage() {
   const [applied, setApplied] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   // The family's smart home devices; null without a Home Assistant (the group isn't shown).
-  const [familyDevices, setFamilyDevices] = useState<FamilyDevice[] | null>(null);
-  useEffect(() => {
-    api.get<FamilyDevice[]>("/api/smarthome/devices").then((rows) => setFamilyDevices(rows.filter((d) => KIOSK_DOMAINS.includes(d.domain)))).catch(() => {});
-  }, []);
-
-  const load = useCallback(() => {
-    api.get<KioskScreen[]>("/api/kiosks").then(setScreens).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
+  const devicesQuery = useApi<FamilyDevice[]>("/api/smarthome/devices");
+  const familyDevices = devicesQuery.data ? devicesQuery.data.filter((d) => KIOSK_DOMAINS.includes(d.domain)) : null;
 
   const when = (iso: string) => new Date(iso).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const hour = (h: number) => `${String(h).padStart(2, "0")}:00`;
@@ -49,7 +45,6 @@ export default function KioskSettingsPage() {
     try {
       setCreated(await api.post<KioskScreen>("/api/kiosks", { name: name.trim(), pantry_scan: pantryScan, easy_mode: easyMode }));
       setName("");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -63,7 +58,6 @@ export default function KioskSettingsPage() {
       await api.put(`/api/kiosks/${screen.id}`, patch);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
-      load();
     }
   }
 
@@ -71,7 +65,6 @@ export default function KioskSettingsPage() {
     if (!window.confirm(t("kiosk.newLinkConfirm", { name: screen.name }))) return;
     setCreated(await api.post<KioskScreen>(`/api/kiosks/${screen.id}/link`));
     window.scrollTo({ top: 0, behavior: "smooth" });
-    load();
   }
 
   async function applyToAll(from: KioskScreen) {
@@ -79,7 +72,6 @@ export default function KioskSettingsPage() {
     const same: Change = { pantry_scan, easy_mode, widgets, screensaver, idle_minutes, night_dim, night_from, night_to, language, theme, devices };
     await Promise.all(screens.filter((s) => s.id !== from.id && !s.revoked_at).map((s) => api.put(`/api/kiosks/${s.id}`, same)));
     setApplied(from.id);
-    load();
   }
 
   const active = screens.filter((s) => !s.revoked_at);
@@ -174,7 +166,7 @@ export default function KioskSettingsPage() {
                     <Link2 className="h-3.5 w-3.5" aria-hidden />
                     {t("kiosk.newLink")}
                   </button>
-                  <button className="px-2 text-xs text-red-700 hover:underline" onClick={() => api.del(`/api/kiosks/${s.id}`).then(load)}>
+                  <button className="px-2 text-xs text-red-700 hover:underline" onClick={() => api.del(`/api/kiosks/${s.id}`)}>
                     {t("kiosk.disconnect")}
                   </button>
                 </span>

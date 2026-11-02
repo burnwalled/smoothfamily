@@ -1,17 +1,15 @@
 "use client";
 
 // Today card for the Pantry: what to use first (within 3 days of its date, or past it).
-import { useEffect, useState } from "react";
-import { api, PantryItem } from "@/lib/api";
+import { PantryItem } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 /** Today card: what to use first. */
 export default function PantrySoonWidget() {
   const { t, dateLocale } = useI18n();
-  const [items, setItems] = useState<PantryItem[] | null>(null);
-  useEffect(() => {
-    api.live<PantryItem[]>("/api/pantry/soon", setItems).catch(() => setItems([]));
-  }, []);
+  const soon = useApi<PantryItem[]>("/api/pantry/soon");
+  const items = soon.data ?? (soon.isError ? NONE : null);
   if (items === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (items.length === 0) return <p className="text-sm text-muted">{t("pantry.nothingSoon")}</p>;
   return (

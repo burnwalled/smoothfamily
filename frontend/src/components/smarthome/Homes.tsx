@@ -2,10 +2,11 @@
 
 // Smart home settings → the family's Home Assistants, one per home (2.8.4): link each to a home, and
 // add another home's (the cabin's) through the Smooth Family gateway with a one-time pairing code.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, House, Plus, RefreshCw, Trash2, Wifi, WifiOff, CheckCircle2 } from "lucide-react";
 import { api, Property } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 export type HomeConn = {
   id: string;
@@ -26,18 +27,14 @@ export type HomeConn = {
 
 type Pairing = { connection: HomeConn; code: string; expires_at: string };
 
-export function useHomes(): [HomeConn[], () => void] {
-  const [homes, setHomes] = useState<HomeConn[]>([]);
-  const load = useCallback(() => {
-    api.get<HomeConn[]>("/api/smarthome/connections").then(setHomes).catch(() => setHomes([]));
-  }, []);
-  useEffect(load, [load]);
-  return [homes, load];
+/** The family's Home Assistants (one per home), from the cache. */
+export function useHomes(): HomeConn[] {
+  return useApi<HomeConn[]>("/api/smarthome/connections").data ?? NONE;
 }
 
-export default function Homes({ homes, onChanged }: { homes: HomeConn[]; onChanged: () => void }) {
+export default function Homes({ homes }: { homes: HomeConn[] }) {
   const { t, dateLocale } = useI18n();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const properties = useApi<Property[]>("/api/property/properties").data ?? NONE;
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [propertyId, setPropertyId] = useState("");
@@ -45,15 +42,11 @@ export default function Homes({ homes, onChanged }: { homes: HomeConn[]; onChang
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api.get<Property[]>("/api/property/properties").then(setProperties).catch(() => setProperties([]));
-  }, []);
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

@@ -452,6 +452,8 @@ const fi: Dictionary = {
   "tasks.approvalsTab": "Hyväksynnät",
   "tasks.requiresApproval": "Vaatii hyväksynnän",
   "tasks.waitingApproval": "Odottaa hyväksyntää",
+  "tasks.undo": "Peru",
+  "tasks.undoConfirm": "Perutaanko ”{title}”? Pisteet otetaan takaisin.",
   "tasks.rejected": "Hylätty",
   "tasks.duplicateConfirm": "Saman niminen aktiivinen tehtävä on jo olemassa. Luodaanko silti?",
   "tasks.rejectionNotePrompt": "Valinnainen hylkäyskommentti",

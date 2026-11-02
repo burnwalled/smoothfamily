@@ -2,7 +2,7 @@
 
 // Dashboard: a customizable grid of widgets. Built-ins (today's calendar,
 // today's tasks, leaderboard) plus any number of SL departure boards.
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -85,8 +85,7 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import Link from "next/link";
 import { useMe } from "@/components/Shell";
 import { widgetAllowed } from "@/lib/nav";
-import { useApi } from "@/lib/query";
-import { useLive } from "@/lib/live";
+import { NONE, setApiData, useApi, useApis } from "@/lib/query";
 
 const UPCOMING_EVENTS = 4;
 const OPEN_TASKS = 6;
@@ -116,11 +115,8 @@ function SortableCard({ id, children, disabled }: { id: string; children: React.
 
 export default function DashboardPage() {
   const { t, dateLocale } = useI18n();
-  const [widgets, setWidgets] = useState<Widget[]>([]);
   const [editing, setEditing] = useState(false);
   const twoColumns = useMediaQuery("(min-width: 768px)");
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [tasks, setTasks] = useState<TodayTask[]>([]);
   const me = useMe();
   const meId = me.id;
   // Apps the family admin allows; widgets and data of the others are skipped.
@@ -129,13 +125,27 @@ export default function DashboardPage() {
   const appsKey = apps.join(",");
   // Server admin only: a reminder when the newest backup is old (or there is none).
   const backupStatus = useApi<BackupStatus>(me.role === "admin" ? "/api/admin/backups/status" : null).data;
-  const [members, setMembers] = useState<Member[]>([]);
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
-  const [suggestionCount, setSuggestionCount] = useState(0);
-  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [lists, setLists] = useState<FamilyList[]>([]);
-  const [listItemsById, setListItemsById] = useState<Record<string, ListItem[]>>({});
+  // Everything the cards show, from the cache (lib/query.ts): it refreshes itself after a change here
+  // or a live event from elsewhere in the family. Apps this member doesn't have are never asked for.
+  const widgets = useApi<Widget[]>("/api/dashboard/widgets").data ?? NONE;
+  const [cardStart] = useState(() => new Date());
+  // The rest of the week (the end date is exclusive).
+  const weekEnd = useMemo(() => {
+    const end = calendarCardDays(cardStart).at(-1)!;
+    end.setDate(end.getDate() + 1);
+    return end;
+  }, [cardStart]);
+  const events = useApi<CalendarEvent[]>(has("calendar") ? `/api/calendar/events?start=${isoDate(cardStart)}&end=${isoDate(weekEnd)}` : null).data ?? NONE;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const tasks = useApi<TodayTask[]>(has("tasks") ? "/api/tasks/today" : null).data ?? NONE;
+  // Adults only (403 for children): tasks waiting for approval.
+  const approvals = useApi<ApprovalItem[]>(has("tasks") ? "/api/tasks/approvals" : null).data ?? NONE;
+  const suggestionCount = useApi<TasksAttention>(has("tasks") ? "/api/tasks/attention" : null).data?.suggestions ?? 0;
+  const board = useApi<LeaderboardEntry[]>(has("tasks") ? "/api/tasks/leaderboard" : null).data ?? NONE;
+  const conversations = useApi<ChatConversation[]>(has("chat") ? "/api/chat/conversations" : null).data ?? NONE;
+  const lists = useApi<FamilyList[]>(has("lists") ? "/api/lists" : null).data ?? NONE;
+  const listItems = useApis<ListItem[]>(lists.map((l) => `/api/lists/${l.id}/items`));
+  const listItemsById: Record<string, ListItem[]> = Object.fromEntries(lists.map((l, i) => [l.id, listItems[i] ?? NONE]));
   // Compact cards: a few upcoming events plus a per-day summary; open tasks first.
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [showDoneTasks, setShowDoneTasks] = useState(false);
@@ -145,64 +155,13 @@ export default function DashboardPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const loadWidgets = useCallback(() => {
-    api.live<Widget[]>("/api/dashboard/widgets", setWidgets).catch(() => {});
-  }, []);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["dashboard"], loadWidgets);
-
-  const loadData = useCallback(() => {
-    const today = new Date();
-    // The rest of the week (the end date is exclusive).
-    const end = calendarCardDays(today).at(-1)!;
-    end.setDate(end.getDate() + 1);
-    const allowed = appsKey.split(",");
-    if (allowed.includes("calendar")) {
-      api.live<CalendarEvent[]>(`/api/calendar/events?start=${isoDate(today)}&end=${isoDate(end)}`, setEvents).catch(() => {});
-    }
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    if (allowed.includes("tasks")) {
-      api.live<TodayTask[]>("/api/tasks/today", setTasks).catch(() => {});
-      // Adults only (403 for children): tasks waiting for approval.
-      api.live<ApprovalItem[]>("/api/tasks/approvals", setApprovals).catch(() => setApprovals([]));
-      api.live<TasksAttention>("/api/tasks/attention", (r) => setSuggestionCount(r.suggestions)).catch(() => {});
-      api.live<LeaderboardEntry[]>("/api/tasks/leaderboard", setBoard).catch(() => {});
-    }
-    if (allowed.includes("chat")) {
-      api.live<ChatConversation[]>("/api/chat/conversations", setConversations).catch(() => setConversations([]));
-    }
-    if (!allowed.includes("lists")) return;
-    api
-      .live<FamilyList[]>("/api/lists", setLists)
-      .then((rows) => {
-        for (const lst of rows) {
-          api
-            .live<ListItem[]>(`/api/lists/${lst.id}/items`, (listItems) => setListItemsById((prev) => ({ ...prev, [lst.id]: listItems })))
-            .catch(() => {});
-        }
-      })
-      .catch(() => {
-        setLists([]);
-        setListItemsById({});
-      });
-  }, [appsKey]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["tasks", "calendar", "lists", "chat", "rewards"], loadData);
-
-  useEffect(() => {
-    loadWidgets();
-    loadData();
-  }, [loadWidgets, loadData]);
-
   async function addWidget(type: WidgetType, config: Record<string, unknown> = {}) {
     await api.post("/api/dashboard/widgets", { type, config });
-    loadWidgets();
   }
 
   async function removeWidget(id: string) {
     try {
       await api.del(`/api/dashboard/widgets/${id}`);
-      loadWidgets();
     } catch (e) {
       alert(e instanceof Error ? e.message : t("common.error"));
     }
@@ -221,7 +180,7 @@ export default function DashboardPage() {
   }
 
   async function persistOrder(next: Widget[]) {
-    setWidgets(next);
+    setApiData<Widget[]>("/api/dashboard/widgets", () => next);
     await api.post("/api/dashboard/widgets/reorder", next.map((w, i) => ({ id: w.id, position: i })));
   }
 
@@ -363,7 +322,7 @@ export default function DashboardPage() {
             {mine.length > 0 && open.length === 0 ? (
               <p className="text-sm font-semibold">{t("tasks.allDoneToday")}</p>
             ) : (
-              <TaskList items={shownOpen} onChanged={loadData} members={members} meId={meId} />
+              <TaskList items={shownOpen} members={members} meId={meId} />
             )}
             <div className="flex flex-wrap gap-2">
               {open.length > OPEN_TASKS && (
@@ -377,7 +336,7 @@ export default function DashboardPage() {
                 </button>
               )}
             </div>
-            {showDoneTasks && done.length > 0 && <TaskList items={done} onChanged={loadData} members={members} meId={meId} />}
+            {showDoneTasks && done.length > 0 && <TaskList items={done} members={members} meId={meId} />}
           </div>
         );
       }
@@ -404,9 +363,10 @@ export default function DashboardPage() {
                       type="checkbox"
                       checked={item.done}
                       className="h-4 w-4 accent-primary-700"
-                      onChange={async (e) => {
-                        await api.patch(`/api/lists/${selectedList.id}/items/${item.id}`, { done: e.target.checked });
-                        loadData();
+                      onChange={(e) => {
+                        const done = e.target.checked;
+                        setApiData<ListItem[]>(`/api/lists/${selectedList.id}/items`, (rows) => rows?.map((x) => (x.id === item.id ? { ...x, done } : x)));
+                        void api.patch(`/api/lists/${selectedList.id}/items/${item.id}`, { done });
                       }}
                     />
                     {item.name}

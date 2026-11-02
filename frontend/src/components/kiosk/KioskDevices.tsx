@@ -3,10 +3,11 @@
 // The kitchen display's smart home (3.0.4): big tiles for the devices the family admin chose for this
 // screen – tap one for its main action, the sliders for the rest (dimmer, blinds, thermostat …). The
 // same tiles and panel as the app's, pressed through the screen's own link.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import type { SmarthomeDeviceState } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { refreshApi, setApiData, useApi } from "@/lib/query";
 import { domainIcon, isActive } from "@/lib/smarthome";
 import { DetailPanel, hasMoreControls, mainAction, Send, StatusText } from "@/components/widgets/SmartHomeWidget";
 
@@ -15,29 +16,18 @@ const REFRESH_MS = 15_000;
 
 export default function KioskDevices({ token, initial }: { token: string; initial: Device[] }) {
   const { t } = useI18n();
-  const [devices, setDevices] = useState<Device[]>(initial);
+  // From the cache, read again every 15 s; until then the devices that came with the screen.
+  const path = `/api/kiosk/${token}/devices`;
+  const devices = useApi<Device[]>(path, { refetchInterval: REFRESH_MS }).data ?? initial;
   const [detailId, setDetailId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const later = useRef<number | null>(null);
 
-  const load = useCallback(() => {
-    fetch(`/api/kiosk/${token}/devices`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setDevices)
-      .catch(() => {});
-  }, [token]);
-
-  useEffect(() => setDevices(initial), [initial]);
-  useEffect(() => {
-    const id = window.setInterval(load, REFRESH_MS);
-    return () => window.clearInterval(id);
-  }, [load]);
-
   const send: Send = useCallback(
     async (device, action, value, optimistic) => {
       setError(false);
-      if (optimistic) setDevices((all) => all.map((d) => (d.id === device.id ? { ...d, ...optimistic } : d)));
+      if (optimistic) setApiData<Device[]>(path, (all) => (all ?? initial).map((d) => (d.id === device.id ? { ...d, ...optimistic } : d)));
       const resp = await fetch(`/api/kiosk/${token}/devices/${device.id}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,9 +36,9 @@ export default function KioskDevices({ token, initial }: { token: string; initia
       if (!resp?.ok) setError(true);
       // Home Assistant needs a moment to tell the new state.
       if (later.current) window.clearTimeout(later.current);
-      later.current = window.setTimeout(load, 1500);
+      later.current = window.setTimeout(() => void refreshApi(path), 1500);
     },
-    [token, load],
+    [token, path, initial],
   );
 
   function tap(device: Device) {

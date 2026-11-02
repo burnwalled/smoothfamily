@@ -5,23 +5,26 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Limit = { max_mb: number | null; memory_mb: number | null; suggested_mb: number | null; factor: number };
 
 export default function FileLimit() {
   const { t } = useI18n();
-  const [limit, setLimit] = useState<Limit | null>(null);
+  const limit = useApi<Limit>("/api/admin/file-limit").data ?? null;
+  const setLimit = (l: Limit) => setApiData<Limit>("/api/admin/file-limit", () => l);
   const [none, setNone] = useState(false);
   const [mb, setMb] = useState("");
   const [saved, setSaved] = useState("");
 
+  // The fields start as the saved limit (and follow it when it is saved).
+  const savedMb = limit ? String(limit.max_mb ?? limit.suggested_mb ?? 50) : null;
+  const savedNone = limit?.max_mb === null;
   useEffect(() => {
-    api.get<Limit>("/api/admin/file-limit").then((l) => {
-      setLimit(l);
-      setNone(l.max_mb === null);
-      setMb(String(l.max_mb ?? l.suggested_mb ?? 50));
-    }).catch(() => {});
-  }, []);
+    if (savedMb === null) return;
+    setNone(savedNone);
+    setMb(savedMb);
+  }, [savedMb, savedNone]);
 
   async function save() {
     setSaved("");

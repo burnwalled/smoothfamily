@@ -390,6 +390,8 @@ class TodayTask(BaseModel):
     completion_status: str | None = None
     review_note: str | None = None
     unlocked: list[str] = []
+    # Ticked off by mistake (3.1.1): whether the one asking may undo it.
+    can_undo: bool = False
 
 
 class TaskSuggestionIn(BaseModel):

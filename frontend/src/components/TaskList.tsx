@@ -7,19 +7,17 @@ import { useMe } from "@/components/Shell";
 import WhoDidIt from "@/components/tasks/WhoDidIt";
 import { useI18n } from "@/lib/i18n";
 import { scheduleLabel } from "@/lib/taskSchedule";
-import { CloudOff, CircleCheck, Repeat, Star, Trophy, Users } from "lucide-react";
+import { CloudOff, CircleCheck, Repeat, Star, Trophy, Undo2, Users } from "lucide-react";
 import Confetti from "@/components/Confetti";
 
 export default function TaskList({
   items,
-  onChanged,
   members = [],
   meId = null,
   readOnly = false,
   back = 0,
 }: {
   items: TodayTask[];
-  onChanged: () => void;
   // Used to show who a task is for; tasks for someone else can't be completed by me.
   members?: Member[];
   meId?: string | null;
@@ -51,7 +49,8 @@ export default function TaskList({
           setToastMsg(null);
         }, 4000);
       }
-      onChanged();
+      // The completion invalidates the tasks (and points, allowance …) in the cache: every list of
+      // them refreshes by itself.
     } catch (e) {
       setTicked((prev) => {
         const next = new Set(prev);
@@ -59,6 +58,20 @@ export default function TaskList({
         return next;
       });
       alert(e instanceof Error ? e.message : t("tasks.completeError"));
+    }
+  }
+
+  // Ticked off by mistake (3.1.1): not done after all – the points go back.
+  async function undo(taskId: string) {
+    try {
+      await api.del(`/api/tasks/${taskId}/complete${back ? `?back=${back}` : ""}`);
+      setTicked((prev) => {
+        const next = new Set(prev);
+        next.delete(`${back}:${taskId}`);
+        return next;
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t("common.error"));
     }
   }
 
@@ -76,7 +89,7 @@ export default function TaskList({
         </div>
       )}
       <ul className="space-y-2">
-        {items.map(({ task, done: doneOnServer, done_by, completion_status, review_note, pending }) => {
+        {items.map(({ task, done: doneOnServer, done_by, completion_status, review_note, pending, can_undo }) => {
           const done = doneOnServer || (ticked.has(`${back}:${task.id}`) && completion_status !== "pending");
           const assignee = members.find((m) => m.id === task.assignee_id);
           // An adult may give a child's dose of medicine (the points are still the child's).
@@ -128,7 +141,17 @@ export default function TaskList({
                   </span>
                 </div>
               </div>
-              {done ? (
+              {(done || completion_status === "pending") && can_undo && !readOnly && !pending ? (
+                <button
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded px-2 text-xs text-muted hover:bg-base hover:text-ink"
+                  onClick={() => undo(task.id)}
+                  title={t("tasks.undo")}
+                  aria-label={`${t("tasks.undo")}: ${task.title}`}
+                >
+                  {done ? <CircleCheck className="h-6 w-6 text-accent" strokeWidth={2} aria-hidden /> : t("tasks.waitingApproval")}
+                  <Undo2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+                </button>
+              ) : done ? (
                 <CircleCheck className="h-6 w-6 shrink-0 text-accent" strokeWidth={2} aria-hidden />
               ) : completion_status === "pending" ? (
                 <span className="shrink-0 rounded border border-edge px-2 py-1 text-xs text-muted">{t("tasks.waitingApproval")}</span>

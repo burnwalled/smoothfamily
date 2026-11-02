@@ -25,6 +25,23 @@ test("a child completes a task and an adult approves it", async ({ adminApi, adm
 });
 
 // 2.9.0: done yesterday but not ticked off – reported afterwards, up to three days back.
+// 3.1.1: ticked off by mistake – undone, and to do again.
+test("a task ticked off by mistake is undone", async ({ adminApi, adminPage: page }) => {
+  const title = unique("Walk the dog");
+  const task = await (await adminApi.post("/api/tasks", { data: { title, recurrence: "daily", points: 4 } })).json();
+  try {
+    await page.goto("/tasks");
+    const row = page.getByRole("listitem").filter({ hasText: title });
+    await row.getByRole("button", { name: "Done +4" }).click();
+    await expect(row.getByText(/^Done – /)).toBeVisible();
+    await row.getByRole("button", { name: `Undo: ${title}` }).click();
+    await expect(row.getByRole("button", { name: "Done +4" })).toBeVisible();
+    expect((await (await adminApi.get("/api/tasks/history?days=1")).json()).some((h: { task_id: string }) => h.task_id === task.id)).toBe(false);
+  } finally {
+    await adminApi.delete(`/api/tasks/${task.id}`);
+  }
+});
+
 test("a task is reported afterwards", async ({ adminApi, adminPage: page }) => {
   const title = unique("Water the plants");
   const task = await (await adminApi.post("/api/tasks", { data: { title, recurrence: "daily", points: 3 } })).json();

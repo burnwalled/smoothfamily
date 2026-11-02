@@ -452,6 +452,8 @@ const sv: Dictionary = {
   "tasks.approvalsTab": "Godkännanden",
   "tasks.requiresApproval": "Kräver godkännande",
   "tasks.waitingApproval": "Väntar på godkännande",
+  "tasks.undo": "Ångra",
+  "tasks.undoConfirm": "Ångra ”{title}”? Poängen tas tillbaka.",
   "tasks.rejected": "Avslagen",
   "tasks.duplicateConfirm": "En aktiv uppgift med samma titel finns redan. Skapa ändå?",
   "tasks.rejectionNotePrompt": "Valfri avslagskommentar",

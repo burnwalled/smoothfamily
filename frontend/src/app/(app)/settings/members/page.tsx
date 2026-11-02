@@ -3,11 +3,12 @@
 // Family admin → Members: everyone in the family, and adding someone. Each member opens their own
 // page (3.0.4) with everything about them – sign-in, language, apps, picture, a child's birthday,
 // allowance and medicines, the emergency card.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { api, Member } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { fieldErrors } from "@/lib/fieldErrors";
 import { APP_PAGES } from "@/lib/nav";
 import { COLORS } from "@/lib/colors";
@@ -19,7 +20,7 @@ export default function MembersSettingsPage() {
   const { t } = useI18n();
   // An adult who may manage the family sees the children's pages; accounts are the admin's.
   const admin = useMe().role === "admin";
-  const [members, setMembers] = useState<Member[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [error, setError] = useState("");
   const [memberName, setMemberName] = useState("");
   const [memberUsername, setMemberUsername] = useState("");
@@ -28,11 +29,6 @@ export default function MembersSettingsPage() {
   // A child's birthday (3.0.1): kept in Birthdays; 6 or younger starts in the little ones' mode.
   const [memberBirth, setMemberBirth] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
-
-  useEffect(load, [load]);
 
   async function addMember() {
     setError("");
@@ -49,7 +45,6 @@ export default function MembersSettingsPage() {
       setMemberBirth("");
       setMemberUsername("");
       setMemberPassword("");
-      load();
     } catch (e) {
       setError(fieldErrors(e, t, 4) ?? (e instanceof Error ? e.message : t("settings.memberError")));
     }

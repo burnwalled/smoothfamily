@@ -3,12 +3,13 @@
 // The vault (2.8.1): every file the family keeps – photos and albums, pictures from the chats,
 // receipts and documents – in one place, with a filter per kind. Nothing is moved: each file stays
 // with its app and is shown to those that app shows it to. Photos is the vault's view of the albums.
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FileText, Folder, Link2, Lock, MessageCircle, Play, Search, Upload, X } from "lucide-react";
 import { api, VaultAlbum, VaultItem, VaultShareKind } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, refreshResource, useApi } from "@/lib/query";
 import { APP_PAGES } from "@/lib/nav";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
@@ -100,8 +101,6 @@ function Vault() {
   // Opened on a view with ?view=… (old links to Photos land on the photos).
   const asked = useSearchParams().get("view");
   const [view, setView] = useState<View>((VIEWS as readonly string[]).includes(asked ?? "") ? (asked as View) : "all");
-  const [items, setItems] = useState<VaultItem[] | null>(null);
-  const [albums, setAlbums] = useState<VaultAlbum[]>([]);
   const [album, setAlbum] = useState<VaultAlbum | null>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<VaultItem | null>(null);
@@ -111,12 +110,12 @@ function Vault() {
   const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // From the cache: a change here, or a photo added to an album or a chat elsewhere, refreshes it.
+  const albums = useApi<VaultAlbum[]>("/api/vault/albums").data ?? NONE;
   const photoAlbums = albums.filter((a) => a.kind === "user");
-
-  const loadAlbums = useCallback(() => {
-    api.live<VaultAlbum[]>("/api/vault/albums", setAlbums).catch(() => {});
-  }, []);
-  const loadItems = useCallback(() => {
+  // What the view lists (the albums', passwords' and shares' views list theirs themselves).
+  const itemsPath = useMemo(() => {
+    if ((view === "albums" && !album) || view === "logins" || view === "shares" || view === "document") return null;
     const params = new URLSearchParams();
     if (album) {
       params.set("source", album.kind === "chat" ? "chat" : "photo");
@@ -124,15 +123,10 @@ function Vault() {
     } else if (view !== "all" && view !== "albums") {
       params.set("source", view);
     }
-    if ((view === "albums" && !album) || view === "logins" || view === "shares" || view === "document") {
-      setItems([]);
-      return;
-    }
-    api.live<VaultItem[]>(`/api/vault?${params}`, setItems).catch(() => setItems([]));
+    return `/api/vault?${params}`;
   }, [view, album]);
-
-  useEffect(loadAlbums, [loadAlbums]);
-  useEffect(loadItems, [loadItems]);
+  const itemsQuery = useApi<VaultItem[]>(itemsPath);
+  const items = itemsPath ? (itemsQuery.data ?? (itemsQuery.isError ? NONE : null)) : NONE;
   useEffect(() => {
     if (!uploadTo && photoAlbums.length > 0) setUploadTo(album?.kind === "user" ? album.id : photoAlbums[0].id);
   }, [photoAlbums, uploadTo, album]);
@@ -146,7 +140,6 @@ function Vault() {
   function choose(next: View) {
     setView(next);
     setAlbum(null);
-    setItems(null);
     window.history.replaceState(null, "", next === "all" ? "/vault" : `/vault?view=${next}`);
   }
 
@@ -154,14 +147,12 @@ function Vault() {
     if (!newAlbum.trim()) return;
     await api.post("/api/albums", { name: newAlbum.trim() }).catch(() => {});
     setNewAlbum("");
-    loadAlbums();
   }
 
   async function deleteAlbum(a: VaultAlbum) {
     if (!confirm(t("photos.confirmDeleteAlbum", { name: a.name }))) return;
     await api.del(`/api/albums/${a.id}`).catch(() => {});
     setAlbum(null);
-    loadAlbums();
   }
 
   async function upload(files: FileList | null) {
@@ -177,8 +168,8 @@ function Vault() {
     }
     setProgress(null);
     if (fileRef.current) fileRef.current.value = "";
-    loadAlbums();
-    loadItems();
+    void refreshResource("albums");
+    void refreshResource("vault");
   }
 
   // Any file into the vault (encrypted there), for the family or only for me.
@@ -199,7 +190,7 @@ function Vault() {
     setProgress(null);
     setNotice(failed ? t("vault.uploadFailed", { n: failed }) : "");
     if (anyFileRef.current) anyFileRef.current.value = "";
-    loadItems();
+    void refreshResource("vault");
   }
 
   async function remove(item: VaultItem) {
@@ -207,8 +198,6 @@ function Vault() {
     else if (item.media_id) await api.del(`/api/media/${item.media_id}`).catch(() => {});
     else return;
     setOpen(null);
-    loadItems();
-    loadAlbums();
   }
 
   async function keepIn(item: VaultItem, albumId: string) {
@@ -216,7 +205,6 @@ function Vault() {
     try {
       await api.post(`/api/vault/media/${item.media_id}/copy`, { album_id: albumId });
       setNotice(t("vault.saved", { name: photoAlbums.find((a) => a.id === albumId)?.name ?? "" }));
-      loadAlbums();
     } catch {
       setNotice(t("common.error"));
     }

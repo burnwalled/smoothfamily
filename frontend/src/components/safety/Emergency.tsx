@@ -3,12 +3,12 @@
 // Emergency cards: the important facts per member and for the household, readable offline in the
 // app. Changed in the family's settings (Safety); in the app each member keeps their own card up to
 // date. Guest links (a babysitter, grandparents) are made under the family's settings → Sharing.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, Link2, Pencil, Plus, Siren, Trash2, UserRoundCheck } from "lucide-react";
 import { api, EmergencyCard, EmergencyCards, EmergencyContact, GuestAccess, FamilyList } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import EmergencyCardView from "@/components/EmergencyCardView";
 import SettingsLink from "@/components/SettingsLink";
 
@@ -97,20 +97,12 @@ function CardForm({ card, onSaved, onCancel }: { card: EmergencyCard; onSaved: (
 
 export function GuestLinks() {
   const { t, dateLocale } = useI18n();
-  const [guests, setGuests] = useState<GuestAccess[]>([]);
-  const [lists, setLists] = useState<FamilyList[]>([]);
+  const guests = useApi<GuestAccess[]>("/api/guests").data ?? NONE;
+  const lists = useApi<FamilyList[]>("/api/lists").data ?? NONE;
   const [form, setForm] = useState({ name: "", hours: 4, calendar: true, lists: [] as string[] });
   const [created, setCreated] = useState<GuestAccess | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<GuestAccess[]>("/api/guests", setGuests).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-  useLive(["guests"], load);
-  useEffect(() => {
-    api.live<FamilyList[]>("/api/lists", setLists).catch(() => {});
-  }, []);
 
   const when = (iso: string) => new Date(iso).toLocaleString(dateLocale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const duration = (h: number) => (h < 24 ? t("guests.hours", { n: h }) : h === 24 ? t("guests.day") : h === 168 ? t("guests.week") : t("guests.days", { n: h / 24 }));
@@ -119,7 +111,6 @@ export function GuestLinks() {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -240,14 +231,8 @@ export function GuestLinks() {
 export function MyEmergencyCard() {
   const { t } = useI18n();
   const me = useMe();
-  const [cards, setCards] = useState<EmergencyCards | null>(null);
+  const cards = useApi<EmergencyCards>("/api/emergency").data ?? null;
   const [editing, setEditing] = useState(false);
-
-  const load = useCallback(() => {
-    api.live<EmergencyCards>("/api/emergency", setCards).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-  useLive(["emergency"], load);
 
   const card = cards?.members.find((c) => c.user_id === me.id);
   if (!card) return null;
@@ -266,7 +251,7 @@ export function MyEmergencyCard() {
         <CardForm
           card={card}
           onSaved={(next) => {
-            setCards(next);
+            setApiData<EmergencyCards>("/api/emergency", () => next);
             setEditing(false);
           }}
           onCancel={() => setEditing(false)}
@@ -285,15 +270,10 @@ export default function Emergency({ manage = false, only }: { manage?: boolean; 
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
   const mayManage = me.role === "admin" || !!me.can_manage_family;
-  const [cards, setCards] = useState<EmergencyCards | null>(null);
+  // From the cache: a saved card or a changed medicine (RELATED) refreshes it.
+  const cards = useApi<EmergencyCards>("/api/emergency").data ?? null;
   // "household", a member id, or null
   const [editing, setEditing] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    api.live<EmergencyCards>("/api/emergency", setCards).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-  useLive(["emergency", "medicine"], load);
 
   if (!cards) return <p className="text-sm text-muted">{t("common.loading")}</p>;
 
@@ -334,7 +314,7 @@ export default function Emergency({ manage = false, only }: { manage?: boolean; 
                 <CardForm
                   card={card}
                   onSaved={(next) => {
-                    setCards(next);
+                    setApiData<EmergencyCards>("/api/emergency", () => next);
                     setEditing(null);
                   }}
                   onCancel={() => setEditing(null)}

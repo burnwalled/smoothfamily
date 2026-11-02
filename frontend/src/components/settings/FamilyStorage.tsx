@@ -2,17 +2,14 @@
 
 // Family settings → Security and data: how much the family keeps on the server, and the ceiling the
 // server's admin has set (2.8.2).
-import { useEffect, useState } from "react";
 import { HardDrive } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 
 export default function FamilyStorage() {
   const { t } = useI18n();
-  const [info, setInfo] = useState<{ used_bytes: number; quota_mb: number | null } | null>(null);
-  useEffect(() => {
-    api.get<{ used_bytes: number; quota_mb: number | null }>("/api/family/storage").then(setInfo).catch(() => {});
-  }, []);
+  const info = useApi<{ used_bytes: number; quota_mb: number | null }>("/api/family/storage").data ?? null;
   if (!info) return null;
   const gb = (bytes: number) => (bytes / 1024 ** 3).toFixed(bytes < 1024 ** 3 ? 2 : 1);
   const share = info.quota_mb ? Math.min(1, info.used_bytes / (info.quota_mb * 1024 * 1024)) : null;

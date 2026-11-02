@@ -3,9 +3,10 @@
 // The recipe book on the kitchen display (3.0.4): the family's recipes as big tiles, the favourites
 // first; "All recipes" opens the whole book with a search. A tap opens the cooking mode – the recipe
 // in big type, ingredients to tick off and the steps one at a time.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChefHat, Search, Star, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 export type KioskRecipe = { id: string; name: string; category: string; favorite: boolean; photo: boolean };
 const SHOWN = 6;
@@ -31,16 +32,10 @@ function Tile({ token, recipe, onOpen }: { token: string; recipe: KioskRecipe; o
 
 export default function KioskRecipes({ token, onCook }: { token: string; onCook: (recipe: KioskRecipe) => void }) {
   const { t } = useI18n();
-  const [recipes, setRecipes] = useState<KioskRecipe[] | null>(null);
+  const recipesQuery = useApi<KioskRecipe[]>(`/api/kiosk/${token}/recipes`);
+  const recipes = recipesQuery.data ?? (recipesQuery.isError ? NONE : null);
   const [all, setAll] = useState(false);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    fetch(`/api/kiosk/${token}/recipes`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setRecipes)
-      .catch(() => setRecipes([]));
-  }, [token]);
 
   if (recipes === null) return <p className="text-muted">{t("common.loading")}</p>;
   if (recipes.length === 0) return <p className="text-lg text-muted">{t("kiosk.noRecipes")}</p>;

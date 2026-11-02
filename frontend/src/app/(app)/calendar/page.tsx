@@ -3,18 +3,19 @@
 // The family's calendar: iCal subscriptions and events created in the app. The week over the hours,
 // the month with what is on each day written out, and the agenda – a card per day (2.7.0).
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Car, Pencil, Plus } from "lucide-react";
 import EventPlanPanel, { EventPlanBadges } from "@/components/EventPlanPanel";
 import FamilyEventForm from "@/components/FamilyEventForm";
-import { api, CalendarEvent, isoDate, Member } from "@/lib/api";
+import { CalendarEvent, isoDate, Member } from "@/lib/api";
 import { eventDayKeys, toLocalDateKey } from "@/lib/dateKey";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { formatIsoWeekRange, getIsoWeek, startOfIsoWeek } from "@/lib/week";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import WeekGrid from "@/components/calendar/WeekGrid";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import PageTitle from "@/components/PageTitle";
 
 type CalendarView = "week" | "month" | "agenda";
@@ -124,28 +125,24 @@ export default function CalendarPage() {
     return stored === "month" || stored === "agenda" ? stored : "week";
   });
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const me = useMe();
-  const [members, setMembers] = useState<Member[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   // Two homes: without a schedule, a quiet link for the adults to set one up.
-  const [hasCustody, setHasCustody] = useState(false);
-  useEffect(() => {
-    api.get<unknown[]>("/api/custody").then((rows) => setHasCustody(rows.length > 0)).catch(() => {});
-  }, []);
+  const hasCustody = (useApi<unknown[]>("/api/custody").data?.length ?? 0) > 0;
   // null = no form; { event: undefined } = new event; { event } = editing that event.
   const [form, setForm] = useState<{ event?: CalendarEvent } | null>(null);
 
   useEffect(() => {
     // Shortcut from the dashboard: /calendar?new=1 opens the form right away.
     if (new URLSearchParams(window.location.search).get("new") === "1") setForm({});
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
   }, []);
 
-  const load = useCallback(() => {
+  // The period on screen, from the cache: a saved event (here or elsewhere in the family) refreshes
+  // it. Moving to the next week keeps the last one on screen until it has come.
+  const range = useMemo(() => {
     let start = new Date(weekStart);
     let end = new Date(weekStart);
-
     if (view === "month") {
       start = startOfMonthGrid(weekStart);
       end = new Date(start);
@@ -153,15 +150,9 @@ export default function CalendarPage() {
     } else {
       end.setDate(weekStart.getDate() + 7);
     }
-
-    api
-      .live<CalendarEvent[]>(`/api/calendar/events?start=${isoDate(start)}&end=${isoDate(end)}`, setEvents)
-      .catch(() => setEvents([]));
+    return `start=${isoDate(start)}&end=${isoDate(end)}`;
   }, [weekStart, view]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["calendar"], load);
-
-  useEffect(load, [load]);
+  const events = useApi<CalendarEvent[]>(`/api/calendar/events?${range}`, { placeholderData: keepPreviousData }).data ?? NONE;
 
   useEffect(() => {
     window.localStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -226,7 +217,6 @@ export default function CalendarPage() {
 
   function eventSaved() {
     setForm(null);
-    load();
   }
 
   return (
@@ -287,7 +277,7 @@ export default function CalendarPage() {
               ) : (
                 <ul className="space-y-1">
                   {selectedDayEvents.map((event, i) => (
-                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} onChanged={load} />
+                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} />
                   ))}
                 </ul>
               )}
@@ -313,7 +303,7 @@ export default function CalendarPage() {
                 ) : (
                   <ul className="space-y-1">
                     {dayEvents.map((event, i) => (
-                      <EventLine key={`${dayKey}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} onChanged={load} />
+                      <EventLine key={`${dayKey}-${i}`} event={event} members={members} dateLocale={dateLocale} busyLabel={t("calendar.busy")} allDayLabel={t("calendar.allDay")} onEdit={editHandler(event)} />
                     ))}
                   </ul>
                 )}

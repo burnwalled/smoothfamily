@@ -3,9 +3,8 @@
 // Today card (2.7.0): what is coming up in Vehicles and Property – inspection, service, tyre change,
 // the smoke alarm … – the next 30 days, late ones first.
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 type Upcoming = {
   source: "vehicle" | "property";
@@ -21,10 +20,8 @@ type Upcoming = {
 
 export default function UpcomingWidget() {
   const { t, dateLocale } = useI18n();
-  const [rows, setRows] = useState<Upcoming[] | null>(null);
-  useEffect(() => {
-    api.live<Upcoming[]>("/api/dashboard/upcoming", setRows).catch(() => setRows([]));
-  }, []);
+  const upcoming = useApi<Upcoming[]>("/api/dashboard/upcoming");
+  const rows = upcoming.data ?? (upcoming.isError ? NONE : null);
   if (rows === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (rows.length === 0) return <p className="text-sm text-muted">{t("upcoming.nothing")}</p>;
   const when = (r: Upcoming) => {

@@ -3,26 +3,19 @@
 // My profile → Security and connections: my calendar in my phone (2.8.4). A personal subscription link
 // with what concerns me – the family's events, those I'm in, the rides I drive – for iPhone, Google
 // or Outlook. Read-only there; new things are added in the app.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CalendarPlus, Copy, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export default function PhoneCalendar() {
   const { t } = useI18n();
-  const [url, setUrl] = useState<string | null>(null);
-  const [external, setExternal] = useState(true);
+  const link = useApi<{ token: string; url: string | null }>("/api/calendar/ical/token").data;
+  // Without the server's public address only the address at home works.
+  const external = !link || !!link.url;
+  const url = link ? (link.url ?? `${window.location.origin}/api/calendar/ical/${link.token}.ics`) : null;
   const [notice, setNotice] = useState("");
-
-  function take(r: { token: string; url: string | null }) {
-    // Without the server's public address only the address at home works.
-    setExternal(!!r.url);
-    setUrl(r.url ?? `${window.location.origin}/api/calendar/ical/${r.token}.ics`);
-  }
-
-  useEffect(() => {
-    api.get<{ token: string; url: string | null }>("/api/calendar/ical/token").then(take).catch(() => {});
-  }, []);
 
   async function copy() {
     if (!url) return;
@@ -36,7 +29,8 @@ export default function PhoneCalendar() {
 
   async function renew() {
     if (!confirm(t("phoneCal.renewConfirm"))) return;
-    take(await api.post<{ token: string; url: string | null }>("/api/calendar/ical/token/regenerate"));
+    const next = await api.post<{ token: string; url: string | null }>("/api/calendar/ical/token/regenerate");
+    setApiData<{ token: string; url: string | null }>("/api/calendar/ical/token", () => next);
     setNotice(t("phoneCal.renewed"));
   }
 

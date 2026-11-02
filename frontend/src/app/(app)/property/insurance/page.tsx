@@ -2,11 +2,12 @@
 
 // The home insurance list (2.8.4): the things in one home and the receipts for it – value, when
 // bought, warranty – to print or save as a PDF, before a burglary or a fire rather than after.
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
 import { api, Property, PropertyItem } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import type { ReceiptRow } from "@/components/vault/Receipts";
 
 export default function InsurancePage() {
@@ -20,16 +21,9 @@ export default function InsurancePage() {
 function InsuranceList() {
   const { t, dateLocale } = useI18n();
   const id = useSearchParams().get("id") ?? "";
-  const [home, setHome] = useState<Property | null>(null);
-  const [items, setItems] = useState<PropertyItem[]>([]);
-  const [receipts, setReceipts] = useState<ReceiptRow[]>([]);
-
-  useEffect(() => {
-    if (!id) return;
-    api.get<Property[]>("/api/property/properties").then((rows) => setHome(rows.find((p) => p.id === id) ?? null)).catch(() => {});
-    api.get<PropertyItem[]>(`/api/property/items?property_id=${id}`).then(setItems).catch(() => setItems([]));
-    api.get<ReceiptRow[]>(`/api/receipts?property_id=${id}`).then(setReceipts).catch(() => setReceipts([]));
-  }, [id]);
+  const home = (useApi<Property[]>(id ? "/api/property/properties" : null).data ?? NONE).find((p) => p.id === id) ?? null;
+  const items = useApi<PropertyItem[]>(id ? `/api/property/items?property_id=${id}` : null).data ?? NONE;
+  const receipts = useApi<ReceiptRow[]>(id ? `/api/receipts?property_id=${id}` : null).data ?? NONE;
 
   const day = (iso: string | null | undefined) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString(dateLocale) : "");
   const num = (v: number | null | undefined) => (v === null || v === undefined ? "" : Number(v).toLocaleString(dateLocale, { maximumFractionDigits: 0 }));

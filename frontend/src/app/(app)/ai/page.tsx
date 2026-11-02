@@ -2,12 +2,12 @@
 
 // The member's AI jobs: what waits for the AI computer, and what it came up with – to look at,
 // change and use, or put away. Nothing is saved until the member says so.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bot, Clock, Trash2, TriangleAlert } from "lucide-react";
 import { api, FamilyList, Property, Vehicle } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, refreshApi, useApi } from "@/lib/query";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import { AiJob, AiNote, useAiStatus } from "@/components/LocalAi";
 import { useWebSearch } from "@/components/WebSearch";
@@ -64,7 +64,7 @@ type VehicleRow = { keep: boolean; name: string; amount: string; expense_date: s
 /** A receipt or service history for a vehicle: look over the costs, then into Vehicles. */
 function VehicleReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
   const { t } = useI18n();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const vehicles = useApi<Vehicle[]>("/api/vehicles").data ?? NONE;
   const [vehicleId, setVehicleId] = useState(String(job.input.vehicle_id ?? ""));
   const found = (job.result?.expenses as { name: string; amount: number; expense_date: string | null; category: string; mileage_at: number | null; volume: number | null; volume_unit: "l" | "kWh" | null }[]) ?? [];
   const [rows, setRows] = useState<VehicleRow[]>(
@@ -75,9 +75,6 @@ function VehicleReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
     }))
   );
   const [error, setError] = useState("");
-  useEffect(() => {
-    api.get<Vehicle[]>("/api/vehicles").then(setVehicles).catch(() => setVehicles([]));
-  }, []);
   const set = (n: number, patch: Partial<VehicleRow>) => setRows(rows.map((r, i) => (i === n ? { ...r, ...patch } : r)));
   const n = (v: string) => (v.trim() ? Number(v.replace(",", ".").replace(/\s/g, "")) : null);
   async function apply() {
@@ -142,7 +139,7 @@ type PropertyRow = { keep: boolean; name: string; amount: string; expense_date: 
 /** A receipt or invoice for a home: look over the costs, then into Property. */
 function PropertyReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
   const { t } = useI18n();
-  const [homes, setHomes] = useState<Property[]>([]);
+  const homes = useApi<Property[]>("/api/property/properties").data ?? NONE;
   const [homeId, setHomeId] = useState(String(job.input.property_id ?? ""));
   const found = (job.result?.expenses as { name: string; amount: number; expense_date: string | null; category: string }[]) ?? [];
   const [rows, setRows] = useState<PropertyRow[]>(
@@ -152,9 +149,6 @@ function PropertyReview({ job, onDone }: { job: AiJob; onDone: () => void }) {
     }))
   );
   const [error, setError] = useState("");
-  useEffect(() => {
-    api.get<Property[]>("/api/property/properties").then(setHomes).catch(() => setHomes([]));
-  }, []);
   const set = (n: number, patch: Partial<PropertyRow>) => setRows(rows.map((r, i) => (i === n ? { ...r, ...patch } : r)));
   async function apply() {
     setError("");
@@ -493,18 +487,15 @@ export default function AiJobsPage() {
   const { t, dateLocale } = useI18n();
   const status = useAiStatus();
   const webSearch = useWebSearch();
-  const [jobs, setJobs] = useState<AiJob[] | null>(null);
-  const [lists, setLists] = useState<FamilyList[]>([]);
+  // From the cache: a job finishing tells with a notification (RELATED to ai), and a list made for one
+  // job is there for the next.
+  const jobsQuery = useApi<AiJob[]>("/api/ai/jobs");
+  const jobs = jobsQuery.data ?? (jobsQuery.isError ? NONE : null);
+  const lists = useApi<FamilyList[]>("/api/lists").data ?? NONE;
+  // A review applied (or a job removed) changes the job: read the list again.
+  const refreshJobs = () => void refreshApi("/api/ai/jobs");
   const [focus, setFocus] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    api.get<AiJob[]>("/api/ai/jobs").then(setJobs).catch(() => setJobs([]));
-    // Again each time: a list made for one job is there for the next.
-    api.live<FamilyList[]>("/api/lists", setLists).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-  // A job finishing sends a notification; refresh then too.
-  useLive(["ai", "notifications", "lists"], load);
   useEffect(() => {
     setFocus(new URLSearchParams(window.location.search).get("job"));
   }, []);
@@ -517,7 +508,7 @@ export default function AiJobsPage() {
     <>
       <PageTitle title={t("ai.title")} icon={Bot} />
       {status && (status.available ? <div className="mt-1"><AiNote status={status} /></div> : <p className="mt-1 text-sm text-muted">{t("ai.unavailable")}</p>)}
-      {status?.available && webSearch.enabled && <AskWeb onAsked={load} />}
+      {status?.available && webSearch.enabled && <AskWeb onAsked={refreshJobs} />}
 
       <div className="mt-4 space-y-3">
         {jobs === null ? (
@@ -537,22 +528,22 @@ export default function AiJobsPage() {
                   </span>
                 )}
                 {job.status === "running" && <span className="text-xs font-semibold text-accent">{t("ai.running")}</span>}
-                <button className="ml-auto text-muted hover:text-red-700" onClick={() => api.del(`/api/ai/jobs/${job.id}`).then(load)} aria-label={job.status === "queued" ? t("ai.cancel") : t("ai.dismiss")} title={job.status === "queued" ? t("ai.cancel") : t("ai.dismiss")}>
+                <button className="ml-auto text-muted hover:text-red-700" onClick={() => api.del(`/api/ai/jobs/${job.id}`)} aria-label={job.status === "queued" ? t("ai.cancel") : t("ai.dismiss")} title={job.status === "queued" ? t("ai.cancel") : t("ai.dismiss")}>
                   <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                 </button>
               </div>
               {job.input.text && <p className="mb-2 line-clamp-2 text-xs text-muted">{job.input.text}</p>}
-              {job.status === "done" && job.kind === "receipt" && <ReceiptReview job={job} onDone={load} />}
-              {job.status === "done" && job.kind === "recipe" && <RecipeReview job={job} onDone={load} />}
-              {job.status === "done" && job.kind === "quick_add" && <ListReview job={job} lists={lists} onDone={load} />}
+              {job.status === "done" && job.kind === "receipt" && <ReceiptReview job={job} onDone={refreshJobs} />}
+              {job.status === "done" && job.kind === "recipe" && <RecipeReview job={job} onDone={refreshJobs} />}
+              {job.status === "done" && job.kind === "quick_add" && <ListReview job={job} lists={lists} onDone={refreshJobs} />}
               {job.status === "done" && job.kind === "cook_ideas" && <IdeasView job={job} />}
               {job.status === "done" && job.kind === "web_question" && <WebAnswer job={job} />}
-              {job.status === "done" && job.kind === "receipt_info" && <ReceiptInfoReview job={job} onDone={load} />}
+              {job.status === "done" && job.kind === "receipt_info" && <ReceiptInfoReview job={job} onDone={refreshJobs} />}
               {job.status === "done" && job.kind === "complaint_letter" && <ComplaintView job={job} />}
-              {job.status === "done" && job.kind === "vehicle_receipt" && <VehicleReview job={job} onDone={load} />}
-              {job.status === "done" && job.kind === "property_receipt" && <PropertyReview job={job} onDone={load} />}
-              {job.status === "done" && job.kind === "meal_plan" && <MealPlanReview job={job} onDone={load} />}
-              {job.status === "done" && job.kind === "chores" && <ChoresReview job={job} onDone={load} />}
+              {job.status === "done" && job.kind === "vehicle_receipt" && <VehicleReview job={job} onDone={refreshJobs} />}
+              {job.status === "done" && job.kind === "property_receipt" && <PropertyReview job={job} onDone={refreshJobs} />}
+              {job.status === "done" && job.kind === "meal_plan" && <MealPlanReview job={job} onDone={refreshJobs} />}
+              {job.status === "done" && job.kind === "chores" && <ChoresReview job={job} onDone={refreshJobs} />}
               {job.status === "failed" && (
                 <p className="flex items-start gap-1.5 text-sm text-red-700">
                   <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />

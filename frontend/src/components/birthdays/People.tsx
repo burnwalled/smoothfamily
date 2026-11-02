@@ -3,11 +3,11 @@
 // Whose birthdays the family keeps (2.8.2) – since 3.0.4 under Family members as "Other people":
 // grandma, friends and others without an account (a member's birthday is on their own page). Their
 // wish lists and the gift planning live in Lists.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Cake } from "lucide-react";
 import { api, Member, Person } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 
 type PersonForm = { name: string; user_id: string; month: string; day: string; year: string };
 const EMPTY: PersonForm = { name: "", user_id: "", month: "", day: "", year: "" };
@@ -22,20 +22,13 @@ export function when(p: Person, t: ReturnType<typeof useI18n>["t"]): string {
 
 export default function People({ others = false }: { others?: boolean } = {}) {
   const { t, dateLocale } = useI18n();
-  const [people, setPeople] = useState<Person[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  const everyone = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
+  const people = others ? everyone.filter((p) => !p.user_id) : everyone;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [form, setForm] = useState<PersonForm>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Person[]>("/api/birthdays/people", (rows) => setPeople(others ? rows.filter((p) => !p.user_id) : rows)).catch(() => {});
-  }, [others]);
-  useEffect(() => {
-    load();
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, [load]);
-  useLive(["birthdays"], load);
 
   const monthName = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString(dateLocale, { month: "long" });
   const dateText = (p: Person) =>
@@ -45,7 +38,6 @@ export default function People({ others = false }: { others?: boolean } = {}) {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

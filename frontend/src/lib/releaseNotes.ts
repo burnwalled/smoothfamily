@@ -10,6 +10,17 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "3.1.1",
+    date: "2026-11-02",
+    items: {
+      sv: ["Bockade du av fel uppgift? Tryck på bocken för att ångra – poängen tas tillbaka. På köksskärmen trycker du på den klara uppgiften och bekräftar. Ett barn kan ångra sina egna tills en vuxen har godkänt dem.", "Alla sidor, även köksskärmen och inställningarna, visar nu direkt det de visade senast och uppdateras av sig själva när något ändras. Köksskärmen fortsätter visa sin senaste bild om uppkopplingen försvinner, även efter en omstart."],
+      en: ["Ticked off the wrong task? Tap the tick to undo it – the points go back. On the kitchen display, tap the done task and confirm. A child can undo their own until an adult has approved it.", "Every page, the kitchen display and the settings included, now shows what it showed last right away and refreshes by itself when something changes. The kitchen display keeps showing its last picture if the connection goes, even after a restart."],
+      nb: ["Krysset du av feil oppgave? Trykk på haken for å angre – poengene trekkes tilbake. På kjøkkenskjermen trykker du på den ferdige oppgaven og bekrefter. Et barn kan angre sine egne til en voksen har godkjent dem.", "Alle sider, også kjøkkenskjermen og innstillingene, viser nå med en gang det de viste sist og oppdateres av seg selv når noe endres. Kjøkkenskjermen fortsetter å vise sitt siste bilde hvis forbindelsen blir borte, også etter en omstart."],
+      da: ["Krydsede du den forkerte opgave af? Tryk på fluebenet for at fortryde – pointene trækkes tilbage. På køkkenskærmen trykker du på den færdige opgave og bekræfter. Et barn kan fortryde sine egne, indtil en voksen har godkendt dem.", "Alle sider, også køkkenskærmen og indstillingerne, viser nu straks det, de viste sidst, og opdaterer sig selv, når noget ændres. Køkkenskærmen bliver ved med at vise sit seneste billede, hvis forbindelsen forsvinder, også efter en genstart."],
+      fi: ["Merkitsitkö väärän tehtävän? Peru se napauttamalla merkkiä – pisteet otetaan takaisin. Keittiönäytöllä napauta tehtyä tehtävää ja vahvista. Lapsi voi perua omansa, kunnes aikuinen on hyväksynyt ne.", "Kaikki sivut, myös keittiönäyttö ja asetukset, näyttävät nyt heti sen, mitä ne näyttivät viimeksi, ja päivittyvät itsestään, kun jokin muuttuu. Keittiönäyttö näyttää viimeisimmän kuvansa, jos yhteys katkeaa, myös uudelleenkäynnistyksen jälkeen."],
+    },
+  },
+  {
     version: "3.1.0",
     date: "2026-11-02",
     items: {

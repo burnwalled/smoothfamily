@@ -45,6 +45,13 @@ def after_done(task: Task) -> None:
         task.assignee_id = uuid.UUID(str(task.rotation_user_ids[task.rotation_index]))
 
 
+def before_done(task: Task) -> None:
+    """A completion undone (3.1.1): the turn goes back to the one who had it."""
+    if rotating(task) and task.rotation_mode != "weekly":
+        task.rotation_index = ((task.rotation_index or 0) - 1) % len(task.rotation_user_ids)
+        task.assignee_id = uuid.UUID(str(task.rotation_user_ids[task.rotation_index]))
+
+
 def next_after(task: Task, day: date) -> uuid.UUID | None:
     """Whose turn comes next (shown as "then …")."""
     members = task.rotation_user_ids or []

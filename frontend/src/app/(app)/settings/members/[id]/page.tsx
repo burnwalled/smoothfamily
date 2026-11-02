@@ -4,12 +4,13 @@
 // name, colour and picture, sign-in (a new password, two-step reset), language, which apps they use,
 // and for a child the birthday, the allowance, the little ones' mode and two homes; their medicines
 // and emergency card. Adults keep their own medicines private, and choose their own picture.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, CircleCheck, KeyRound, LayoutGrid, ShieldOff, Trash2 } from "lucide-react";
 import { api, Member } from "@/lib/api";
 import { LOCALES, useI18n } from "@/lib/i18n";
+import { refreshResource, setApiData, useApi } from "@/lib/query";
 import { APP_PAGES } from "@/lib/nav";
 import { COLORS } from "@/lib/colors";
 import { useMe } from "@/components/Shell";
@@ -40,34 +41,32 @@ export default function MemberPage() {
   const router = useRouter();
   const { t } = useI18n();
   const me = useMe();
-  const [member, setMember] = useState<Member | null | undefined>(undefined);
+  // From the cache: the member in the family's list (undefined while it loads, null if gone).
+  const membersQuery = useApi<Member[]>("/api/family/members");
+  const member = membersQuery.data ? (membersQuery.data.find((m) => m.id === id) ?? null) : membersQuery.isError ? null : undefined;
+  // A change shows at once in the list (and so everywhere), then the saved one replaces it.
+  const setMember = (next: Member) => setApiData<Member[]>("/api/family/members", (all) => all?.map((m) => (m.id === next.id ? next : m)));
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [person, setPerson] = useState<Person | null | undefined>(undefined);
   const [birth, setBirth] = useState("");
-  const [easy, setEasy] = useState<boolean | null>(null);
-
-  const load = useCallback(() => {
-    api.get<Member[]>("/api/family/members").then((all) => {
-      const found = all.find((m) => m.id === id) ?? null;
-      setMember(found);
-      if (found) setName(found.display_name);
-    }).catch(() => setMember(null));
-  }, [id]);
-  useEffect(load, [load]);
-
   const child = member?.role === "child";
+  const people = useApi<Person[]>(child ? "/api/birthdays/people" : null).data;
+  const person = people ? (people.find((x) => x.user_id === id) ?? null) : undefined;
+  const easyChildren = useApi<EasyChild[]>(child ? "/api/easy/children" : null).data;
+  const easy = easyChildren ? (easyChildren.find((r) => r.id === id)?.easy_mode ?? false) : null;
+  const setEasy = (on: boolean) => setApiData<EasyChild[]>("/api/easy/children", (rows) => rows?.map((r) => (r.id === id ? { ...r, easy_mode: on } : r)));
+
+  // The name and the birthday fields start from what is saved.
+  const savedName = member?.display_name;
   useEffect(() => {
-    if (!child) return;
-    api.get<Person[]>("/api/birthdays/people").then((people) => {
-      const p = people.find((x) => x.user_id === id) ?? null;
-      setPerson(p);
-      if (p?.birth_month && p.birth_day) setBirth(p.birth_year ? `${p.birth_year}-${String(p.birth_month).padStart(2, "0")}-${String(p.birth_day).padStart(2, "0")}` : "");
-    }).catch(() => setPerson(null));
-    api.get<EasyChild[]>("/api/easy/children").then((rows) => setEasy(rows.find((r) => r.id === id)?.easy_mode ?? false)).catch(() => {});
-  }, [child, id]);
+    if (savedName) setName(savedName);
+  }, [savedName]);
+  const personId = person?.id;
+  useEffect(() => {
+    if (person?.birth_month && person.birth_day) setBirth(person.birth_year ? `${person.birth_year}-${String(person.birth_month).padStart(2, "0")}-${String(person.birth_day).padStart(2, "0")}` : "");
+  }, [personId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(action: () => Promise<unknown>, message = "") {
     setError("");
@@ -75,7 +74,6 @@ export default function MemberPage() {
     try {
       await action();
       if (message) setDone(message);
-      load();
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
@@ -111,6 +109,8 @@ export default function MemberPage() {
     await run(async () => {
       const resp = await fetch(`/api/family/members/${member!.id}/avatar`, { method: "POST", credentials: "same-origin", body: form });
       if (!resp.ok) throw new Error((await resp.json().catch(() => null))?.detail ?? resp.statusText);
+      // The upload went past api.post: read the family again for the new picture.
+      await refreshResource("family");
     });
   }
 
@@ -118,8 +118,6 @@ export default function MemberPage() {
     const [y, m, d] = birth.split("-").map(Number);
     const body = { name: member!.display_name, user_id: member!.id, birth_year: y || null, birth_month: m || null, birth_day: d || null };
     await run(() => (person ? api.patch(`/api/birthdays/people/${person.id}`, body) : api.post("/api/birthdays/people", body)), t("home.saved"));
-    const people = await api.get<Person[]>("/api/birthdays/people").catch(() => []);
-    setPerson(people.find((x) => x.user_id === id) ?? null);
   }
 
   return (

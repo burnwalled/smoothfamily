@@ -1,7 +1,11 @@
 # Security
 
 Smooth Family keeps a family's calendar, documents, passwords and children's information. Security
-problems are taken seriously and handled before anything else.
+problems are taken seriously and come before other work on the project.
+
+Smooth Family is a hobby project, built in spare time and shared for free. There is no company or
+support team behind it, so there are no promised response times – reports are handled on a
+best-effort basis.
 
 ## Reporting a vulnerability
 
@@ -9,13 +13,20 @@ problems are taken seriously and handled before anything else.
 **Security → Report a vulnerability** on this repository
 (<https://github.com/burnwalled/smoothfamily/security/advisories/new>).
 
-Tell us what you found, how to reproduce it and what it lets someone do. You'll get an answer within a
-week; we'll agree on when the fix and the advisory are published, and credit you if you want.
+Tell us what you found, how to reproduce it and what it lets someone do. Please give the project a
+reasonable time to fix it before you publish anything; the advisory is published together with the
+fix, with credit to you if you want it.
 
 ## Supported versions
 
-Fixes go into the newest release. Server admins update from the app (Server settings → Updates) or
-with `git pull && docker compose up -d --build`.
+Only the newest release gets fixes. Server admins update from the app (Server settings → Updates)
+or with `git pull && docker compose up -d --build`.
+
+## Running it safely
+
+How the server is reached matters more than anything else: see [docs/ACCESS.md](docs/ACCESS.md) for
+the choices (home network, VPN, HTTPS on the internet) and a checklist before publishing a server
+on the internet.
 
 ## How the app protects a family
 

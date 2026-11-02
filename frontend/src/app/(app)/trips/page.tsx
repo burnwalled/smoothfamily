@@ -7,8 +7,8 @@ import { ArrowLeft, BedDouble, CheckSquare, Luggage, MapPin, Plane, Plus, Sparkl
 import { api, FamilyDocument, Member, PackTask } from "@/lib/api";
 import PackDay from "@/components/PackDay";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 
 type Summary = {
@@ -51,22 +51,22 @@ function Section({ title, icon: Icon, children }: { title: string; icon: typeof 
 function TripView({ id, members, onBack }: { id: string; members: Member[]; onBack: () => void }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [trip, setTrip] = useState<Detail | null>(null);
-  const [docs, setDocs] = useState<FamilyDocument[]>([]);
   const [item, setItem] = useState({ kind: "activity", title: "", when: "", place: "", document_id: "" });
   const [pack, setPack] = useState<Record<string, string>>({});
   const [expense, setExpense] = useState({ title: "", amount: "" });
   const [check, setCheck] = useState("");
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Detail>(`/api/trips/${id}`, setTrip).catch(() => onBack());
-  }, [id, onBack]);
-  useEffect(load, [load]);
-  useLive(["trips"], load);
+  // From the cache; each change below answers with the whole trip, which goes straight into it.
+  const tripPath = `/api/trips/${id}`;
+  const tripQuery = useApi<Detail>(tripPath);
+  const trip = tripQuery.data ?? null;
+  const setTrip = (next: Detail) => setApiData<Detail>(tripPath, () => next);
+  // A trip that is gone (removed elsewhere): back to the list.
   useEffect(() => {
-    if (me.apps?.includes("documents")) api.get<FamilyDocument[]>("/api/documents").then(setDocs).catch(() => {});
-  }, [me.apps]);
+    if (tripQuery.isError && !tripQuery.data) onBack();
+  }, [tripQuery.isError, tripQuery.data, onBack]);
+  const docs = useApi<FamilyDocument[]>(me.apps?.includes("documents") ? "/api/documents" : null).data ?? NONE;
 
   async function run(action: () => Promise<Detail>) {
     setError("");
@@ -295,25 +295,15 @@ export default function TripsPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  const [trips, setTrips] = useState<Summary[] | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  const tripsQuery = useApi<Summary[]>("/api/trips");
+  const trips = tripsQuery.data ?? (tripsQuery.isError ? NONE : null);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   // A packing task links here with ?trip=…
   const [open, setOpen] = useState<string | null>(() => (typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("trip")));
   const [form, setForm] = useState<{ name: string; destination: string; start: string; end: string; budget: string; members: string[] } | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Summary[]>("/api/trips", setTrips).catch(() => setTrips([]));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["trips"], load);
-  useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
-  const back = useCallback(() => {
-    setOpen(null);
-    load();
-  }, [load]);
+  const back = useCallback(() => setOpen(null), []);
 
   async function create() {
     if (!form) return;

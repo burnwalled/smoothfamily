@@ -518,6 +518,12 @@ const texts: Record<string, TopicText> = {
         "p": "On Tasks → Today, step back with the arrow – up to three days – and tick off what was done, with points as usual."
       },
       {
+        "h": "Ticked off the wrong one?"
+      },
+      {
+        "p": "Tap the tick on a done task to undo it – the points go back. A child can undo their own until an adult has approved it; an adult can undo any. On the kitchen display, tap the done task and confirm."
+      },
+      {
         "h": "Tasks from other apps"
       },
       {

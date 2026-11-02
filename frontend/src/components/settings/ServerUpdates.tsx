@@ -3,10 +3,11 @@
 // Server settings → Updates (2.9.0): what runs, what newer versions there are of Postgres, Redis,
 // Caddy and SearXNG, and when they may be put in – by themselves in a weekly window, or after the
 // admin approves. The server's update.sh does the Docker work; every adult on the server is told.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Overview = {
   app_version: string | null;
@@ -30,14 +31,15 @@ const NAMES: Record<string, string> = { db: "PostgreSQL", redis: "Redis", caddy:
 
 export default function ServerUpdates() {
   const { t, dateLocale } = useI18n();
-  const [view, setView] = useState<Overview | null>(null);
+  const query = useApi<Overview>("/api/admin/updates");
+  const view = query.data ?? null;
+  const setView = (next: Overview) => setApiData<Overview>("/api/admin/updates", () => next);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Overview>("/api/admin/updates").then(setView).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    if (query.error) setError(query.error.message);
+  }, [query.error]);
 
   async function run(action: () => Promise<Overview>) {
     setBusy(true);
@@ -107,7 +109,7 @@ export default function ServerUpdates() {
         {view.planned && (
           <p className="mt-3 flex flex-wrap items-center gap-2 rounded bg-accent-soft/40 p-3 text-sm">
             {t("updates.planned", { when: when(view.planned.at), what: Object.values(view.planned.versions).join(", ") })}
-            <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => run(() => api.del(`/api/admin/updates/plan`) as unknown as Promise<Overview>).then(load)}>{t("updates.cancel")}</button>
+            <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => run(async () => { await api.del("/api/admin/updates/plan"); return api.get<Overview>("/api/admin/updates"); })}>{t("updates.cancel")}</button>
           </p>
         )}
         {view.last_run && (

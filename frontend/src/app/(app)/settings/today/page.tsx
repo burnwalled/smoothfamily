@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CircleCheck, LocateFixed } from "lucide-react";
 import { api, TodaySources } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export default function TodayCardsSettingsPage() {
   const { t, dateLocale } = useI18n();
@@ -17,22 +18,22 @@ export default function TodayCardsSettingsPage() {
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
 
+  // The saved sources from the cache; the fields start from them and follow when they are saved.
+  const saved_ = useApi<TodaySources>("/api/dashboard/sources").data;
   useEffect(() => {
-    api
-      .live<TodaySources>("/api/dashboard/sources", (s) => {
-        setSources(s);
-        setWaste(s.waste_ical_url ?? "");
-        setPlace({ name: s.weather_place ?? "", lat: s.weather_lat?.toString() ?? "", lon: s.weather_lon?.toString() ?? "" });
-        setSchools(Object.fromEntries(s.schools.map((m) => [m.user_id, m.school ? `https://skolmaten.se/${m.school}/` : ""])));
-      })
-      .catch(() => {});
-  }, []);
+    if (!saved_) return;
+    setSources(saved_);
+    setWaste(saved_.waste_ical_url ?? "");
+    setPlace({ name: saved_.weather_place ?? "", lat: saved_.weather_lat?.toString() ?? "", lon: saved_.weather_lon?.toString() ?? "" });
+    setSchools(Object.fromEntries(saved_.schools.map((m) => [m.user_id, m.school ? `https://skolmaten.se/${m.school}/` : ""])));
+  }, [saved_]);
 
   async function run(action: () => Promise<TodaySources>, done: string) {
     setError("");
     setSaved("");
     try {
-      setSources(await action());
+      const next = await action();
+      setApiData<TodaySources>("/api/dashboard/sources", () => next);
       setSaved(done);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

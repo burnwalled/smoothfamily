@@ -3,12 +3,12 @@
 // The simulated Home Assistant's control panel (demo and trying things out): move the family's
 // people home, away or "on the way home" to see who's home and presence flows react. Shown only
 // when the family uses the simulated home.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Car, FlaskConical, House, MapPinOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 
 type SimPerson = { entity_id: string; name: string; state: string; direction: string };
 
@@ -16,22 +16,19 @@ export default function HaSimulator() {
   const { t } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  const [people, setPeople] = useState<SimPerson[] | null>(null);
+  // Not a simulated home: 404, and the panel stays away. Moving someone (smarthome) or a live
+  // presence event refreshes it.
+  const people = useApi<SimPerson[]>("/api/smarthome/simulator").data ?? null;
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    // Not a simulated home: 404, and the panel stays away.
-    api.get<SimPerson[]>("/api/smarthome/simulator").then(setPeople).catch(() => setPeople(null));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["presence"], load);
 
   if (!people) return null;
 
   async function move(person: SimPerson, state: "home" | "not_home", direction: string | null) {
     setError("");
     try {
-      setPeople(await api.post<SimPerson[]>("/api/smarthome/simulator/people", { entity_id: person.entity_id, state, direction }));
+      const next = await api.post<SimPerson[]>("/api/smarthome/simulator/people", { entity_id: person.entity_id, state, direction });
+      setApiData<SimPerson[]>("/api/smarthome/simulator", () => next);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

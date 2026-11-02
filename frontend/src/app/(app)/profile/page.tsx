@@ -6,6 +6,7 @@ import NavPreferences from "@/components/NavPreferences";
 import SecuritySettings from "@/components/SecuritySettings";
 import { Achievement, AchievementsResponse, api, ApiError, Me, NotificationPrefs, PushSubscription } from "@/lib/api";
 import { LOCALES, Locale, TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { THEMES, ThemeId, useTheme } from "@/lib/theme";
 import { useSetMe } from "@/components/Shell";
 import { PresenceSetting } from "@/components/Presence";
@@ -26,15 +27,18 @@ export default function ProfilePage() {
   });
   const { t, locale, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
-  const [me, setLocalMe] = useState<Me | null>(null);
-  const setShellMe = useSetMe();
-  const setMe = (user: Me) => {
-    setLocalMe(user);
-    setShellMe(user);
-  };
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
+  // The same cached answer as the Shell's: a saved change shows everywhere at once.
+  const me = useApi<Me>("/api/auth/me").data ?? null;
+  const setMe = useSetMe();
+  const achievements = useApi<AchievementsResponse>("/api/achievements").data?.achievements ?? NONE;
+  const [displayName, setDisplayName] = useState(me?.display_name ?? "");
+  const [email, setEmail] = useState(me?.email ?? "");
+  const meId = me?.id;
+  useEffect(() => {
+    if (!me) return;
+    setDisplayName(me.display_name);
+    setEmail(me.email ?? "");
+  }, [meId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -48,12 +52,6 @@ export default function ProfilePage() {
   const [subscriptions, setSubscriptions] = useState<PushSubscription[]>([]);
 
   useEffect(() => {
-    api.live<Me>("/api/auth/me", (u) => {
-      setMe(u);
-      setDisplayName(u.display_name);
-      setEmail(u.email ?? "");
-    }).catch(() => {});
-    api.live<AchievementsResponse>("/api/achievements", (r) => setAchievements(r.achievements)).catch(() => {});
 
     const swOk = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
     setPushSupported(swOk);

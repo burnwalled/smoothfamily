@@ -4,10 +4,11 @@
 // a vehicle, a home, or nowhere – and import. The file is read on the server and not kept; choices
 // can be remembered as rules. For adults (the family's economy).
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, Trash2, Upload } from "lucide-react";
 import { api, Property, Vehicle } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 
@@ -26,20 +27,16 @@ const catKey = (kind: string, c: string) => (kind === "vehicle" ? `vehicles.cat.
 export default function BankImportPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [cars, setCars] = useState<Vehicle[]>([]);
-  const [homes, setHomes] = useState<Property[]>([]);
   const [rows, setRows] = useState<Choice[] | null>(null);
-  const [rules, setRules] = useState<Rule[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [showDone, setShowDone] = useState(false);
 
-  useEffect(() => {
-    if (me.apps.includes("vehicles")) api.get<Vehicle[]>("/api/vehicles").then(setCars).catch(() => {});
-    if (me.apps.includes("property")) api.get<Property[]>("/api/property/properties").then(setHomes).catch(() => {});
-    api.get<Rule[]>("/api/bank/rules").then(setRules).catch(() => {});
-  }, [me.apps]);
+  // From the cache; an import refreshes the rules it learned.
+  const cars = useApi<Vehicle[]>(me.apps.includes("vehicles") ? "/api/vehicles" : null).data ?? NONE;
+  const homes = useApi<Property[]>(me.apps.includes("property") ? "/api/property/properties" : null).data ?? NONE;
+  const rules = useApi<Rule[]>("/api/bank/rules").data ?? NONE;
 
   const places = useMemo(
     () => [
@@ -90,7 +87,6 @@ export default function BankImportPage() {
       const result = await api.post<{ imported: number; skipped: number; rules: number }>("/api/bank/import", { rows: body });
       setMessage(t("bank.done", { n: result.imported, rules: result.rules }));
       setRows(null);
-      api.get<Rule[]>("/api/bank/rules").then(setRules).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -207,7 +203,7 @@ export default function BankImportPage() {
               <li key={r.id} className="flex items-center gap-3 py-1.5">
                 <span className="font-mono text-xs">{r.pattern}</span>
                 <span className="flex-1 text-muted">→ {placeName(r.target, r.target_id)}{r.target !== "ignore" && ` · ${t(catKey(r.target, r.category) as TranslationKey)}`}</span>
-                <button className="text-red-700" onClick={() => api.del(`/api/bank/rules/${r.id}`).then(() => setRules(rules.filter((x) => x.id !== r.id)))} aria-label={t("bank.removeRule", { pattern: r.pattern })}>
+                <button className="text-red-700" onClick={() => api.del(`/api/bank/rules/${r.id}`)} aria-label={t("bank.removeRule", { pattern: r.pattern })}>
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </li>

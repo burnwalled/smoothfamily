@@ -3,16 +3,16 @@
 // Allowance: children see what they have earned from approved task points; adults follow how the
 // current week/month is going and record payouts. How each child earns it is set in the family's
 // settings → Children (components/allowance/AllowanceRates.tsx).
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Clock, PiggyBank, Wallet } from "lucide-react";
 import { AllowanceMe, AllowanceOverviewItem, AllowancePayout, api, Jars, Me } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import SavingsJars from "@/components/SavingsJars";
 import SettingsLink from "@/components/SettingsLink";
 import { earningLine, pointsPerUnit } from "@/components/allowance/AllowanceRates";
-import { useLive } from "@/lib/live";
 
 function money(value: number, currency: string, locale: string): string {
   return `${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
@@ -90,15 +90,11 @@ function PayoutList({ payouts, currency }: { payouts: AllowancePayout[]; currenc
 
 function ChildView({ me }: { me: Me }) {
   const { t, dateLocale } = useI18n();
-  const [data, setData] = useState<AllowanceMe | null>(null);
-  const [payouts, setPayouts] = useState<AllowancePayout[]>([]);
-  const [jars, setJars] = useState<Jars | null>(null);
-
-  useEffect(() => {
-    api.live<AllowanceMe>("/api/allowance/me", setData).catch(() => {});
-    api.live<AllowancePayout[]>("/api/allowance/payouts", setPayouts).catch(() => {});
-    api.live<Jars>("/api/allowance/jars", setJars).catch(() => {});
-  }, [me.id]);
+  // From the cache: a payout, a jar or points earned (tasks are RELATED to allowance) refresh it.
+  const data = useApi<AllowanceMe>("/api/allowance/me").data ?? null;
+  const payouts = useApi<AllowancePayout[]>("/api/allowance/payouts").data ?? NONE;
+  const jars = useApi<Jars>("/api/allowance/jars").data ?? null;
+  const setJars = (next: Jars) => setApiData<Jars>("/api/allowance/jars", () => next);
 
   if (!data) return <p className="mt-6 text-sm text-muted">{t("common.loading")}</p>;
   const ppu = pointsPerUnit(data);
@@ -155,31 +151,23 @@ function ChildView({ me }: { me: Me }) {
   );
 }
 
-function ChildCard({ item, onChanged }: { item: AllowanceOverviewItem; onChanged: () => void }) {
+function ChildCard({ item }: { item: AllowanceOverviewItem }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const mayManage = me.role === "admin" || !!me.can_manage_family;
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [payouts, setPayouts] = useState<AllowancePayout[]>([]);
   const [message, setMessage] = useState("");
   const [payError, setPayError] = useState("");
-  const [jars, setJars] = useState<Jars | null>(null);
   // "" = Spend.
   const [payJar, setPayJar] = useState("");
 
-  useEffect(() => {
-    api.live<Jars>(`/api/allowance/jars?user_id=${item.user_id}`, setJars).catch(() => {});
-  }, [item.user_id, item.balance]);
-
-  const loadPayouts = useCallback(() => {
-    api.live<AllowancePayout[]>(`/api/allowance/payouts?user_id=${item.user_id}`, setPayouts).catch(() => {});
-  }, [item.user_id]);
-
-  useEffect(() => {
-    if (showHistory) loadPayouts();
-  }, [showHistory, loadPayouts]);
+  const jarsPath = `/api/allowance/jars?user_id=${item.user_id}`;
+  const jars = useApi<Jars>(jarsPath).data ?? null;
+  const setJars = (next: Jars) => setApiData<Jars>(jarsPath, () => next);
+  // The history is only read once it is opened.
+  const payouts = useApi<AllowancePayout[]>(showHistory ? `/api/allowance/payouts?user_id=${item.user_id}` : null).data ?? NONE;
 
   async function pay() {
     const value = Number(amount.replace(",", "."));
@@ -202,8 +190,6 @@ function ChildCard({ item, onChanged }: { item: AllowanceOverviewItem; onChanged
     setAmount("");
     setNote("");
     setMessage(t("allowance.paidDone", { amount: money(value, item.currency, dateLocale) }));
-    if (showHistory) loadPayouts();
-    onChanged();
   }
 
   return (
@@ -280,20 +266,16 @@ function ChildCard({ item, onChanged }: { item: AllowanceOverviewItem; onChanged
 
 function AdultView() {
   const { t } = useI18n();
-  const [children, setChildren] = useState<AllowanceOverviewItem[] | null>(null);
-  const load = useCallback(() => {
-    api.live<AllowanceOverviewItem[]>("/api/allowance/overview", setChildren).catch(() => setChildren([]));
-  }, []);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["allowance"], load);
-  useEffect(load, [load]);
+  // From the cache: a payout here, or points earned elsewhere in the family, refreshes it.
+  const overview = useApi<AllowanceOverviewItem[]>("/api/allowance/overview");
+  const children = overview.data ?? (overview.isError ? NONE : null);
 
   if (!children) return <p className="mt-6 text-sm text-muted">{t("common.loading")}</p>;
   if (children.length === 0) return <p className="mt-6 text-sm text-muted">{t("allowance.noChildren")}</p>;
   return (
     <div className="mt-6 space-y-4">
       {children.map((item) => (
-        <ChildCard key={item.user_id} item={item} onChanged={load} />
+        <ChildCard key={item.user_id} item={item} />
       ))}
     </div>
   );

@@ -4,11 +4,11 @@
 // an end date. Private by design: an adult's own medicines are only shown to that adult. The
 // children's and the pets' are set up in the family's settings (Safety); in the app each member adds
 // their own and ticks off the doses.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Pill, Plus, Trash2 } from "lucide-react";
 import { api, Medication, Member, Pet } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import SettingsLink from "@/components/SettingsLink";
 
@@ -24,27 +24,18 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
   // The children's and the pets' medicines are added in the family's settings.
   const isAdult = me.role !== "child" && manage;
   const mayManage = me.role === "admin" || !!me.can_manage_family;
-  const [meds, setMeds] = useState<Medication[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [pets, setPets] = useState<Pet[]>([]);
+  // From the cache: what is added or taken here, or elsewhere in the family, refreshes it.
+  const meds = useApi<Medication[]>("/api/medicine").data ?? NONE;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const pets = useApi<Pet[]>(me.apps.includes("pets") ? "/api/pets" : null).data ?? NONE;
   const [form, setForm] = useState<Form | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Medication[]>("/api/medicine", setMeds).catch(() => {});
-  }, []);
-  useEffect(() => {
-    load();
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    if (me.apps.includes("pets")) api.live<Pet[]>("/api/pets", setPets).catch(() => {});
-  }, [load, me.apps]);
-  useLive(["medicine"], load);
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

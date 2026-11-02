@@ -3,18 +3,16 @@
 // Server settings → Address and services: whether hosted families may bring their own Home
 // Assistant through the gateway (2.8.4). Never directly – the server must not call into another
 // family's network. Turning it off also closes their open gateways.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export default function HostedSmartHome() {
   const { t } = useI18n();
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const allowed = useApi<{ allowed: boolean }>("/api/admin/integrations/hosted-smarthome").data?.allowed ?? null;
+  const setAllowed = (next: boolean) => setApiData<{ allowed: boolean }>("/api/admin/integrations/hosted-smarthome", () => ({ allowed: next }));
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.get<{ allowed: boolean }>("/api/admin/integrations/hosted-smarthome").then((r) => setAllowed(r.allowed)).catch(() => {});
-  }, []);
 
   async function change(next: boolean) {
     setError("");

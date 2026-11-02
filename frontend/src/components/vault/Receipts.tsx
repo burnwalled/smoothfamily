@@ -3,11 +3,12 @@
 // The vault's receipts (2.8.4): add a receipt, link it to what it was for (a home, a vehicle, a
 // category), keep the warranty and the last day to return it, let the local AI read it, see the
 // year in numbers and export it.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { BarChart3, Bot, Camera, Download, ImageIcon, MessageSquareWarning, Pencil, Plus, Trash2, Undo2 } from "lucide-react";
 import { api, Member, Property, Vehicle } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { uploadReceipt } from "@/lib/receipts";
 import { useAiStatus } from "@/components/LocalAi";
 import { EmptyState } from "@/components/PageTitle";
@@ -73,14 +74,10 @@ const blank = (): Form => ({ id: null, store: "", amount: "", currency: "", purc
 export default function Receipts({ query, onOpenPhoto }: { query: string; onOpenPhoto: (mediaId: string, title: string) => void }) {
   const { t, dateLocale } = useI18n();
   const ai = useAiStatus();
-  const [rows, setRows] = useState<ReceiptRow[] | null>(null);
   const [show, setShow] = useState<"" | "returns" | "warranty">("");
   const [category, setCategory] = useState("");
   const [home, setHome] = useState("");
   const [vehicle, setVehicle] = useState("");
-  const [homes, setHomes] = useState<Property[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
   const [showStats, setShowStats] = useState(false);
   const [form, setForm] = useState<Form | null>(null);
@@ -88,31 +85,26 @@ export default function Receipts({ query, onOpenPhoto }: { query: string; onOpen
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [duplicates, setDuplicates] = useState<{ added: ReceiptRow; same: ReceiptRow[] } | null>(null);
-  const [children, setChildren] = useState<Member[]>([]);
-  const [shared, setShared] = useState<Shared[]>([]);
   // Let the local AI read a new receipt's photo or screenshot at once.
   const [readWithAi, setReadWithAi] = useState(true);
   const [complaining, setComplaining] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
 
-  const load = useCallback(() => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (show) params.set("show", show);
-    if (category) params.set("category", category);
-    if (home) params.set("property_id", home);
-    if (vehicle) params.set("vehicle_id", vehicle);
-    api.get<ReceiptRow[]>(`/api/receipts?${params}`).then(setRows).catch(() => setRows([]));
-    api.get<Stats>(`/api/receipts/stats?year=${year}`).then(setStats).catch(() => setStats(null));
-    api.get<Shared[]>(`/api/receipts/shared?year=${year}`).then(setShared).catch(() => setShared([]));
-  }, [query, show, category, home, vehicle, year]);
-  useEffect(load, [load]);
-  useLive(["notifications"], load);
-  useEffect(() => {
-    api.get<Property[]>("/api/property/properties").then(setHomes).catch(() => setHomes([]));
-    api.get<Vehicle[]>("/api/vehicles").then(setVehicles).catch(() => setVehicles([]));
-    api.get<Member[]>("/api/family/members").then((m) => setChildren(m.filter((x) => x.role === "child"))).catch(() => setChildren([]));
-  }, []);
+  // From the cache: a saved receipt, or one the local AI has read (it tells with a notification,
+  // RELATED to receipts), refreshes it. Typing in the search keeps the last answer until the next.
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+  if (show) params.set("show", show);
+  if (category) params.set("category", category);
+  if (home) params.set("property_id", home);
+  if (vehicle) params.set("vehicle_id", vehicle);
+  const rowsQuery = useApi<ReceiptRow[]>(`/api/receipts?${params}`, { placeholderData: keepPreviousData });
+  const rows = rowsQuery.data ?? (rowsQuery.isError ? NONE : null);
+  const stats = useApi<Stats>(`/api/receipts/stats?year=${year}`, { placeholderData: keepPreviousData }).data ?? null;
+  const shared = useApi<Shared[]>(`/api/receipts/shared?year=${year}`).data ?? NONE;
+  const homes = useApi<Property[]>("/api/property/properties").data ?? NONE;
+  const vehicles = useApi<Vehicle[]>("/api/vehicles").data ?? NONE;
+  const children = (useApi<Member[]>("/api/family/members").data ?? NONE).filter((x) => x.role === "child");
 
   const currency = stats?.currency ?? "";
   const money = (v: number, cur?: string) => `${v.toLocaleString(dateLocale, { maximumFractionDigits: 2 })} ${cur || currency}`.trim();
@@ -153,7 +145,6 @@ export default function Receipts({ query, onOpenPhoto }: { query: string; onOpen
       }
       setForm(null);
       setPhoto(null);
-      load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -166,7 +157,6 @@ export default function Receipts({ query, onOpenPhoto }: { query: string; onOpen
     try {
       await action();
       if (done) setMessage(done);
-      load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : t("common.error"));
     }

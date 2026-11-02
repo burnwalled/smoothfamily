@@ -2,11 +2,11 @@
 
 // Reward shop: spend your own points on rewards the adults have set up. A purchase waits for an
 // adult (the points are held meanwhile); adults buying for themselves need no approval.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Store, Trash2, X } from "lucide-react";
 import { api, ShopItem, ShopPurchase, ShopWallet } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 
 type ItemForm = { title: string; description: string; price: string; limitCount: string; limitPeriod: "" | "week" | "month" };
@@ -16,20 +16,14 @@ export default function ShopPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const isAdult = me.role !== "child";
-  const [items, setItems] = useState<ShopItem[]>([]);
-  const [wallet, setWallet] = useState<ShopWallet | null>(null);
-  const [purchases, setPurchases] = useState<ShopPurchase[]>([]);
+  // From the cache: a purchase here, or points earned elsewhere (tasks are RELATED to shop), refresh it.
+  const items = useApi<ShopItem[]>("/api/shop/items").data ?? NONE;
+  const wallet = useApi<ShopWallet>("/api/shop/me").data ?? null;
+  const purchases = useApi<ShopPurchase[]>(isAdult ? "/api/shop/purchases" : null).data ?? NONE;
   const [form, setForm] = useState<ItemForm>(EMPTY);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<ShopItem[]>("/api/shop/items", setItems).catch(() => {});
-    api.live<ShopWallet>("/api/shop/me", setWallet).catch(() => {});
-    if (isAdult) api.live<ShopPurchase[]>("/api/shop/purchases", setPurchases).catch(() => {});
-  }, [isAdult]);
-  useEffect(load, [load]);
-  useLive(["shop", "tasks"], load);
 
   async function run(action: () => Promise<unknown>, done?: string) {
     setError("");
@@ -37,7 +31,6 @@ export default function ShopPage() {
     try {
       await action();
       if (done) setMessage(done);
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

@@ -6,6 +6,7 @@ import { ClipboardEvent, DragEvent, FormEvent, useEffect, useRef, useState } fro
 import { Bug, ExternalLink, ImagePlus, Lightbulb } from "lucide-react";
 import { api, FeedbackReport } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle from "@/components/PageTitle";
 
@@ -48,7 +49,9 @@ export default function FeedbackPage() {
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [reports, setReports] = useState<FeedbackReport[] | null>(null);
+  // Own reports (the family admin's: the family's) from the cache; a new one is added at once.
+  const reportsQuery = useApi<FeedbackReport[]>("/api/feedback");
+  const reports = reportsQuery.data ?? null;
   const [listError, setListError] = useState("");
   const [toast, setToast] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,7 +59,6 @@ export default function FeedbackPage() {
   const [page, setPage] = useState("/");
 
   useEffect(() => {
-    api.live<FeedbackReport[]>("/api/feedback", setReports).catch((e) => setListError(e instanceof Error ? e.message : String(e)));
     const from = document.referrer.startsWith(window.location.origin) ? document.referrer.slice(window.location.origin.length) : "";
     setPage(new URLSearchParams(window.location.search).get("from") || from || "/");
   }, []);
@@ -104,7 +106,7 @@ export default function FeedbackPage() {
         viewport: `${window.innerWidth}×${window.innerHeight}`,
         screenshot,
       });
-      setReports((list) => [report, ...(list ?? [])]);
+      setApiData<FeedbackReport[]>("/api/feedback", (list) => [report, ...(list ?? [])]);
       setTitle("");
       setDescription("");
       setScreenshot(null);

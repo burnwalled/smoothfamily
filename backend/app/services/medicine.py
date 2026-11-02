@@ -101,6 +101,22 @@ async def tick_from_task(db: AsyncSession, task: Task, by: User, day: date) -> N
         dose.taken_at, dose.taken_by = datetime.now(timezone.utc), by.id
 
 
+async def untick_from_task(db: AsyncSession, task: Task, day: date) -> None:
+    """A dose task ticked off by mistake was undone: the dose is not taken after all (the caller
+    commits)."""
+    med = await db.get(Medication, task.medication_id)
+    if med is None or not task.dose_time:
+        return
+    at = next((moment for t, moment in dose_times_on(med, day) if t == task.dose_time), None)
+    if at is None:
+        return
+    dose = (
+        await db.execute(select(MedicationDose).where(MedicationDose.medication_id == med.id, MedicationDose.scheduled_at == at))
+    ).scalar_one_or_none()
+    if dose is not None:
+        dose.taken_at = dose.taken_by = None
+
+
 def dose_times_on(med: Medication, day: date) -> list[tuple[str, datetime]]:
     """(local "HH:MM", UTC moment) for each dose on a day; none outside the course or when stopped."""
     if not med.active or day < med.start_date or (med.end_date and day > med.end_date):

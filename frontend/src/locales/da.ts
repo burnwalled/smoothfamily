@@ -452,6 +452,8 @@ const da: Dictionary = {
   "tasks.approvalsTab": "Godkendelser",
   "tasks.requiresApproval": "Kræver godkendelse",
   "tasks.waitingApproval": "Venter på godkendelse",
+  "tasks.undo": "Fortryd",
+  "tasks.undoConfirm": "Fortryd »{title}«? Pointene trækkes tilbage.",
   "tasks.rejected": "Afvist",
   "tasks.duplicateConfirm": "En aktiv opgave med samme titel findes allerede. Opret alligevel?",
   "tasks.rejectionNotePrompt": "Valgfri afvisningskommentar",

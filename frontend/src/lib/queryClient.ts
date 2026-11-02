@@ -36,6 +36,11 @@ export function apiKey(path: string): readonly [string, string, string] {
   return ["api", resource, path] as const;
 }
 
+function goneForGood(error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status;
+  return typeof status === "number" && status >= 400 && status < 500;
+}
+
 const persister =
   typeof window === "undefined"
     ? null
@@ -44,11 +49,12 @@ const persister =
         key: "sf:query-cache",
       });
 
-// The localStorage cache used before 1.7 is no longer read.
+// The localStorage cache used before 1.7 is no longer read…
 if (typeof window !== "undefined") {
   try {
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith("sf:cache:")) localStorage.removeItem(key);
+      // …nor the kitchen display's own copy before 3.1.1.
+      if (key.startsWith("sf:cache:") || key.startsWith("sf.kiosk:")) localStorage.removeItem(key);
     }
   } catch {}
 }
@@ -61,8 +67,12 @@ export const restored: Promise<void> = persister
         persister,
         maxAge: WEEK_MS,
         buster: LATEST_VERSION,
-        // Documents and the vault are only kept in memory, never written to the device.
-        dehydrateOptions: { shouldDehydrateQuery: (query) => query.state.status === "success" && !NOT_SAVED.has(String(query.queryKey[1])) },
+        // Documents and the vault are only kept in memory, never written to the device. What a refresh
+        // failed for is kept (a kitchen display without a connection shows what it had) – but not an
+        // answer that is gone for good (a removed screen's link, 404).
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => query.state.data !== undefined && !goneForGood(query.state.error) && !NOT_SAVED.has(String(query.queryKey[1])),
+        },
       })[1]
     ).catch(() => {})
   : Promise.resolve();

@@ -1,14 +1,15 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import AiAssist from "@/components/AiAssist";
 import { api, FamilyList, ImportResult, isoDate, ListItem, MealPlan, postRaw, Recipe, RecipeIngredient } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { BookOpen, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { formatIsoWeekRange, getIsoWeek, startOfIsoWeek } from "@/lib/week";
-import { useLive } from "@/lib/live";
 import PageTitle from "@/components/PageTitle";
 import CookingView from "@/components/CookingView";
 import { AiTextButton, RecipePhotoButton, AiJobButton } from "@/components/LocalAi";
@@ -24,16 +25,12 @@ export default function FoodPage() {
 function Food() {
   const { t, dateLocale } = useI18n();
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
-  const [plan, setPlan] = useState<MealPlan | null>(null);
-  const [lists, setLists] = useState<FamilyList[]>([]);
-  const [shoppingListId, setShoppingListId] = useState("");
-  const [items, setItems] = useState<ListItem[]>([]);
+  const [chosenListId, setShoppingListId] = useState("");
   const [showAi, setShowAi] = useState(false);
   const [servings, setServings] = useState(4);
   const [preferences, setPreferences] = useState("");
   const [prompt, setPrompt] = useState("");
   const [newItem, setNewItem] = useState("");
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
   // The recipe or dinner open in cooking mode.
   const [cooking, setCooking] = useState<{ name: string; servings: number; ingredients: { name: string; amount: number | null; unit: string | null }[]; steps: string[] } | null>(null);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set());
@@ -45,32 +42,15 @@ function Food() {
     return byName ?? rows[0] ?? null;
   };
 
-  const load = useCallback(() => {
-    api.live<MealPlan | null>(`/api/meals/plan?week_start=${week}`, setPlan).catch(() => setPlan(null));
-    api.live<Recipe[]>("/api/meals/recipes", setRecipes).catch(() => setRecipes([]));
-    api
-      .live<FamilyList[]>("/api/lists", setLists)
-      .then(async (rows) => {
-        const target = shoppingListId && rows.some((lst) => lst.id === shoppingListId)
-          ? rows.find((lst) => lst.id === shoppingListId)!
-          : resolveShoppingList(rows);
-        if (!target) {
-          setShoppingListId("");
-          setItems([]);
-          return;
-        }
-        setShoppingListId(target.id);
-        await api.live<ListItem[]>(`/api/lists/${target.id}/items`, setItems);
-      })
-      .catch(() => {
-        setLists([]);
-        setItems([]);
-      });
-  }, [week, shoppingListId]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["meals", "lists"], load);
-
-  useEffect(load, [load]);
+  // From the cache: what is written here, or elsewhere in the family, refreshes it by itself.
+  const planPath = `/api/meals/plan?week_start=${week}`;
+  const plan = useApi<MealPlan | null>(planPath, { placeholderData: keepPreviousData }).data ?? null;
+  const recipes = useApi<Recipe[]>("/api/meals/recipes").data ?? NONE;
+  const lists = useApi<FamilyList[]>("/api/lists").data ?? NONE;
+  // The list chosen, or the one called Shopping (else the first).
+  const shoppingListId = (lists.some((l) => l.id === chosenListId) ? chosenListId : resolveShoppingList(lists)?.id) ?? "";
+  const itemsPath = shoppingListId ? `/api/lists/${shoppingListId}/items` : null;
+  const items = useApi<ListItem[]>(itemsPath).data ?? NONE;
 
   async function fetchPrompt() {
     const result = await api.get<{ prompt: string }>(
@@ -89,7 +69,6 @@ function Food() {
   async function generateShoppingList() {
     const result = await api.post<ImportResult>(`/api/meals/plan/shopping-list?week_start=${week}`);
     alert(t("food.shoppingAdded", { n: result.imported }));
-    load();
   }
 
   async function addItem() {
@@ -101,7 +80,6 @@ function Food() {
     }
     await api.post(`/api/lists/${targetId}/items`, { name: newItem.trim(), category: "other" });
     setNewItem("");
-    load();
   }
 
 
@@ -110,7 +88,6 @@ function Food() {
 
   async function saveAsRecipe(mealId: string) {
     await api.post(`/api/meals/recipes/from-meal/${mealId}`);
-    load();
   }
 
 
@@ -180,7 +157,8 @@ function Food() {
                 importLabel={t("food.planWithAi")}
                 onImport={async (raw) => {
                   const imported = await postRaw<MealPlan>(`/api/meals/import?week_start=${week}`, raw);
-                  setPlan(imported);
+                  // The import doesn't go through api.post: put the plan in the cache by hand.
+                  setApiData<MealPlan | null>(planPath, () => imported);
                   setShowAi(false);
                   setPrompt("");
                   return t("food.shoppingAdded", { n: imported.meals.length }).replace(
@@ -264,7 +242,7 @@ function Food() {
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("shopping.title")}</h2>
           {items.some((i) => i.done) && (
             <button className="btn-ghost px-3 py-1 text-xs"
-              onClick={async () => { if (shoppingListId) await api.del(`/api/lists/${shoppingListId}/done`); load(); }}>
+              onClick={async () => { if (shoppingListId) await api.del(`/api/lists/${shoppingListId}/done`); }}>
               {t("shopping.clearCompleted")}
             </button>
           )}
@@ -281,11 +259,16 @@ function Food() {
             <li key={item.id} className="flex items-center justify-between gap-2">
               <label className={`flex flex-1 cursor-pointer items-center gap-2 text-sm ${item.done ? "line-through opacity-60" : ""}`}>
                 <input type="checkbox" checked={item.done} className="h-4 w-4 accent-primary-700"
-                  onChange={async (e) => { if (shoppingListId) await api.patch(`/api/lists/${shoppingListId}/items/${item.id}`, { done: e.target.checked }); load(); }} />
+                  onChange={(e) => {
+                    const done = e.target.checked;
+                    if (!itemsPath) return;
+                    setApiData<ListItem[]>(itemsPath, (rows) => rows?.map((x) => (x.id === item.id ? { ...x, done } : x)));
+                    void api.patch(`${itemsPath}/${item.id}`, { done });
+                  }} />
                 {item.name}
               </label>
               <button className="text-xs text-red-700 hover:underline"
-                onClick={async () => { if (shoppingListId) await api.del(`/api/lists/${shoppingListId}/items/${item.id}`); load(); }}>
+                onClick={async () => { if (shoppingListId) await api.del(`/api/lists/${shoppingListId}/items/${item.id}`); }}>
                 {t("shopping.remove")}
               </button>
             </li>

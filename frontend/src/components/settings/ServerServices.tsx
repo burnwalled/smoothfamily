@@ -4,20 +4,19 @@
 // home for hosted families). Reports of problems stay on the server since 3.1.0 (Server → Reports).
 import HostedSmartHome from "@/components/settings/HostedSmartHome";
 import RecipeSearchSetting from "@/components/settings/RecipeSearchSetting";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export default function ServerServices() {
   const { t } = useI18n();
-  const [giphyConfigured, setGiphyConfigured] = useState<boolean | null>(null);
+  const giphyConfigured = useApi<{ configured: boolean }>("/api/admin/integrations/giphy").data?.configured ?? null;
+  const setGiphyConfigured = (configured: boolean) => setApiData<{ configured: boolean }>("/api/admin/integrations/giphy", () => ({ configured }));
   const [giphyKey, setGiphyKey] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api.live<{ configured: boolean }>("/api/admin/integrations/giphy", (r) => setGiphyConfigured(r.configured)).catch(() => {});
-  }, []);
 
   async function saveGiphyKey() {
     setError("");

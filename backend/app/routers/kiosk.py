@@ -564,6 +564,20 @@ async def kiosk_task_done(token: str, task_id: uuid.UUID, payload: TaskDoneIn, r
     )
 
 
+@router.delete("/kiosk/{token}/tasks/{task_id}/done", status_code=status.HTTP_204_NO_CONTENT)
+async def kiosk_task_undo(token: str, task_id: uuid.UUID, request: Request, db: DB) -> None:
+    """Ticked off by mistake on the kitchen display (3.1.1) – not once an adult has approved it."""
+    from app.routers.tasks import undo_for
+
+    screen, family = await _open(db, token, request)
+    if "tasks" not in shows(screen):
+        raise HTTPException(status_code=404, detail="This screen doesn't show the tasks")
+    task = await db.get(Task, task_id)
+    if task is None or task.family_id != family.id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await undo_for(db, task, datetime.now(timezone.utc).astimezone(el._zone()).date(), None)
+
+
 @router.get("/kiosk/{token}/emergency", response_model=EmergencyOut)
 async def kiosk_emergency(token: str, request: Request, db: DB) -> EmergencyOut:
     screen, family = await _open(db, token, request)

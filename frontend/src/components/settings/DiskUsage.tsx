@@ -1,9 +1,9 @@
 "use client";
 
 // Server → Storage: where the data lives and how full the disk is.
-import { useEffect, useState } from "react";
 import { api, StorageInfo } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 B";
@@ -19,10 +19,7 @@ function formatBytes(bytes: number): string {
 
 export default function DiskUsage() {
   const { t } = useI18n();
-  const [storage, setStorage] = useState<StorageInfo | null>(null);
-  useEffect(() => {
-    api.live<StorageInfo>("/api/admin/storage", setStorage).catch(() => {});
-  }, []);
+  const storage = useApi<StorageInfo>("/api/admin/storage").data ?? null;
   return (
       <section className="card mt-4 p-5">
         <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">{t("settings.storageTitle")}</h2>

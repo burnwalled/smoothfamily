@@ -1,13 +1,12 @@
 "use client";
 
 // Live updates: one Server-Sent Events stream (/api/events) per open app. Each event names the
-// resources that changed ("tasks"); their cached queries are refreshed and pages listening with
-// `useLive` reload. Polling stays as a slow fallback, faster while the stream is down.
-import { useEffect, useRef, useSyncExternalStore } from "react";
+// resources that changed ("tasks"); their cached queries are invalidated, and every page reading them
+// through useApi (lib/query.ts) refreshes by itself. Polling stays as a slow fallback.
+import { useSyncExternalStore } from "react";
 import { relatedResources } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 
-const LIVE_EVENT = "sf:live";
 const MAX_RETRY_MS = 60_000;
 
 let connected = false;
@@ -41,7 +40,6 @@ export function startLiveUpdates(): () => void {
       }
       const all = [...new Set(resources.flatMap((r) => [r, ...relatedResources(r)]))];
       for (const r of all) void queryClient.invalidateQueries({ queryKey: ["api", r] }, { cancelRefetch: false });
-      window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: all }));
     };
     source.onerror = () => {
       setConnected(false);
@@ -74,21 +72,4 @@ export function useLiveConnected(): boolean {
     () => connected,
     () => false
   );
-}
-
-/** Calls `onChange` when one of `resources` changes anywhere in the family. */
-export function useLive(resources: string[], onChange: () => unknown) {
-  const callback = useRef(onChange);
-  callback.current = onChange;
-  const key = resources.join(",");
-  useEffect(() => {
-    const wanted = key.split(",");
-    const handler = (e: Event) => {
-      if (!(e as CustomEvent<string[]>).detail.some((r) => wanted.includes(r))) return;
-      // A failed refresh is retried by the next event or poll.
-      Promise.resolve(callback.current()).catch(() => {});
-    };
-    window.addEventListener(LIVE_EVENT, handler);
-    return () => window.removeEventListener(LIVE_EVENT, handler);
-  }, [key]);
 }

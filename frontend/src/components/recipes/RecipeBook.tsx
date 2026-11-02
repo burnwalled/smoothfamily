@@ -3,13 +3,13 @@
 // The recipe book (2.8.4): every recipe the family keeps, sorted by kind, with each member's own
 // stars, favourites, the link to the original, and what can be made with what's at home. New
 // recipes come from a link, a web search, pasted text, the local AI or by hand.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ExternalLink, Heart, Info, Search, Star } from "lucide-react";
 import { api, isoDate, Recipe, RecipeIngredient } from "@/lib/api";
 import { startOfIsoWeek } from "@/lib/week";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, refreshApi, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import CookingView from "@/components/CookingView";
 import RecipeSearch from "@/components/RecipeSearch";
@@ -66,14 +66,20 @@ function Stars({ value, onChange, label }: { value: number; onChange: (stars: nu
   );
 }
 
+const NOTHING_AT_HOME: AtHome = {};
+const NO_SITES: Record<string, string> = {};
+
 export default function RecipeBook() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const adult = me.role !== "child";
   const searchFor = useSearchParams().get("search") ?? "";
-  const [recipes, setRecipes] = useState<Recipe[] | null>(null);
-  const [atHome, setAtHome] = useState<AtHome>({});
-  const [notImportableSites, setNotImportableSites] = useState<Record<string, string>>({});
+  // From the cache: a saved, imported or rated recipe (here or elsewhere) refreshes the book, and a
+  // change in the pantry what is at home.
+  const book = useApi<Recipe[]>("/api/meals/recipes");
+  const recipes = book.data ?? (book.isError ? NONE : null);
+  const atHome = useApi<AtHome>("/api/meals/recipes/at-home").data ?? NOTHING_AT_HOME;
+  const notImportableSites = useApi<{ not_importable?: Record<string, string> }>("/api/meals/recipes/search/status").data?.not_importable ?? NO_SITES;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [favorites, setFavorites] = useState(false);
@@ -94,15 +100,6 @@ export default function RecipeBook() {
   const [draftIngredients, setDraftIngredients] = useState<RecipeIngredient[]>([]);
   const [ing, setIng] = useState({ name: "", amount: "", unit: "", category: "other" });
 
-  const load = useCallback(() => {
-    api.live<Recipe[]>("/api/meals/recipes", setRecipes).catch(() => setRecipes([]));
-    api.get<AtHome>("/api/meals/recipes/at-home").then(setAtHome).catch(() => setAtHome({}));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["meals"], load);
-  useEffect(() => {
-    api.get<{ not_importable?: Record<string, string> }>("/api/meals/recipes/search/status").then((s) => setNotImportableSites(s.not_importable ?? {})).catch(() => {});
-  }, []);
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -124,7 +121,6 @@ export default function RecipeBook() {
     try {
       await action();
       if (done) setMessage(done);
-      load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : t("common.error"));
     }
@@ -142,7 +138,6 @@ export default function RecipeBook() {
         ok: true,
         text: t("food.importedFromUrl", { name: recipe.name, n: recipe.ingredients.length }) + (recipe.steps.length === 0 ? ` ${t("food.importedNoSteps")}` : ""),
       });
-      load();
     } catch (e) {
       setUrlResult({ ok: false, text: `${e instanceof Error ? e.message : t("common.error")}. ${t("food.importFailedPaste")}` });
       setPaste({ name: nameFromUrl(recipeUrl), servings: 4, ingredients: "", steps: "", source: recipeUrl.trim() });
@@ -158,7 +153,6 @@ export default function RecipeBook() {
       setPaste(null);
       setRecipeUrl("");
       setUrlResult({ ok: true, text: t("food.importedFromUrl", { name: recipe.name, n: recipe.ingredients.length }) });
-      load();
     } catch (e) {
       setUrlResult({ ok: false, text: e instanceof Error ? e.message : t("common.error") });
     }
@@ -178,7 +172,6 @@ export default function RecipeBook() {
     data.append("file", file);
     const resp = await fetch(`/api/meals/recipes/${recipeId}/photo`, { method: "POST", body: data, credentials: "same-origin" });
     if (!resp.ok) setMessage(await resp.text());
-    load();
   }
 
   const weekdays = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(dateLocale, { weekday: "long", timeZone: "UTC" }));
@@ -245,7 +238,7 @@ export default function RecipeBook() {
             )}
           </form>
 
-          <RecipeSearch initial={searchFor} notImportable={notImportableSites} onImported={() => load()} />
+          <RecipeSearch initial={searchFor} notImportable={notImportableSites} onImported={() => void refreshApi("/api/meals/recipes")} />
 
           {paste && (
             <div className="mt-3 rounded border border-accent p-3">

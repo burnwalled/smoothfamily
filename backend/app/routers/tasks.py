@@ -227,11 +227,13 @@ async def today_tasks(user: CurrentUser, db: DB, back: int = 0) -> list[TodayTas
 
     current_map: dict[uuid.UUID, tuple[TaskCompletion, str]] = {}
     rejected_map: dict[uuid.UUID, TaskCompletion] = {}
+    current_rows: dict[uuid.UUID, list[TaskCompletion]] = {}
     for completion, display_name in completion_rows:
         if completion.status == "rejected":
             rejected_map.setdefault(completion.task_id, completion)
             continue
         current_map.setdefault(completion.task_id, (completion, display_name))
+        current_rows.setdefault(completion.task_id, []).append(completion)
 
     from app.routers.custody import away_today
 
@@ -256,6 +258,7 @@ async def today_tasks(user: CurrentUser, db: DB, back: int = 0) -> list[TodayTas
                         done_by=who if completion.status == "approved" else None,
                         completion_status=completion.status,
                         review_note=completion.review_note,
+                        can_undo=may_undo(user, current_rows[task.id]),
                     )
                 )
                 continue
@@ -719,6 +722,49 @@ async def complete_for(db: AsyncSession, task: Task, user: User, today: date, ti
         completion_status=status_value,
         unlocked=unlocked,
     )
+
+
+def may_undo(by: User | None, rows: list[TaskCompletion]) -> bool:
+    """Who may undo a completion ticked off by mistake: an adult always; a child (or the kitchen
+    display, `by` None) one of their own that no adult has looked at yet."""
+    if by is not None and by.role in ("admin", "adult"):
+        return True
+    if any(r.reviewed_by is not None for r in rows):
+        return False
+    return by is None or any(r.user_id == by.id for r in rows)
+
+
+async def undo_for(db: AsyncSession, task: Task, day: date, by: User | None) -> None:
+    """Undo a completion (3.1.1): the points go (they are the completions' sum), the turn goes back,
+    a one-off task comes back and a dose of medicine is no longer marked as taken."""
+    rows = list(
+        (
+            await db.execute(
+                select(TaskCompletion).where(TaskCompletion.task_id == task.id, TaskCompletion.completed_date == day, TaskCompletion.status != "rejected")
+            )
+        ).scalars()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="The task isn't completed that day")
+    if not may_undo(by, rows):
+        raise HTTPException(status_code=403, detail="Only an adult can undo this")
+    for row in rows:
+        await db.delete(row)
+    if task.recurrence == "none":
+        task.active = True
+    rotation.before_done(task)
+    if task.medication_id is not None:
+        await medicine.untick_from_task(db, task, day)
+    await db.commit()
+
+
+@router.delete("/{task_id}/complete", status_code=status.HTTP_204_NO_CONTENT)
+async def undo_task(task_id: uuid.UUID, user: CurrentUser, db: DB, back: int = 0) -> None:
+    """Ticked off by mistake: not done after all."""
+    task = await db.get(Task, task_id)
+    if task is None or task.family_id != user.family_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await undo_for(db, task, _report_day(back), user)
 
 
 @router.get("/approvals", response_model=list[ApprovalOut])

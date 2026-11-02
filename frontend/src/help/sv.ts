@@ -518,6 +518,12 @@ const texts: Record<string, TopicText> = {
         "p": "Under Uppgifter → Idag stegar du bakåt med pilen – upp till tre dagar – och bockar av det som gjordes, med poäng som vanligt."
       },
       {
+        "h": "Bockade av fel?"
+      },
+      {
+        "p": "Tryck på bocken vid en klar uppgift för att ångra – poängen tas tillbaka. Ett barn kan ångra sina egna tills en vuxen har godkänt dem; en vuxen kan ångra alla. På köksskärmen trycker du på den klara uppgiften och bekräftar."
+      },
+      {
         "h": "Uppgifter från andra appar"
       },
       {

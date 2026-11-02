@@ -3,12 +3,12 @@
 // The vault's documents (2.8.1, before that under Safety): passports, ID cards, insurance, warranties, vaccinations … with a reminder before
 // they expire. Numbers are masked until shown; numbers and files are encrypted on the server and
 // never saved on this device (the list is kept in memory only, see lib/queryClient.ts).
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarClock, Eye, EyeOff, FileText, Link2, Lock, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, DocumentKind, FamilyDocument, Member } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 
 const KINDS: DocumentKind[] = ["passport", "id_card", "driving_licence", "insurance", "warranty", "contract", "vaccination", "health", "other"];
 const DEFAULT_REMIND: Partial<Record<DocumentKind, number>> = { passport: 90, id_card: 60, driving_licence: 60, vaccination: 14 };
@@ -46,20 +46,17 @@ export default function Documents({ embedded = false, onOpenFile, onShareFile }:
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  const [docs, setDocs] = useState<FamilyDocument[] | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  // From the cache (kept in memory only – documents are never saved in the browser).
+  const docsQuery = useApi<FamilyDocument[]>("/api/documents");
+  const docs = docsQuery.data ?? null;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [shown, setShown] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<FamilyDocument[]>("/api/documents", setDocs).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
-  useLive(["documents"], load);
   useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
+    if (docsQuery.error) setError(docsQuery.error.message);
+  }, [docsQuery.error]);
 
   const kindLabel = (kind: DocumentKind) => t(`documents.kind.${kind}` as TranslationKey);
   const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
@@ -83,7 +80,6 @@ export default function Documents({ embedded = false, onOpenFile, onShareFile }:
       if (draft.id) await api.put(`/api/documents/${draft.id}`, body);
       else await api.post("/api/documents", body);
       setDraft(null);
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -109,14 +105,12 @@ export default function Documents({ embedded = false, onOpenFile, onShareFile }:
       const body = await resp.json().catch(() => ({}));
       setError(typeof body.detail === "string" ? body.detail : t("common.error"));
     }
-    load();
   }
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

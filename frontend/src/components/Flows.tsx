@@ -3,12 +3,12 @@
 // Flows (#44): the member's own automations in the Smart home app – When → If → Do, built from
 // cards. Smooth Family runs them through the family's Home Assistant; a flow can only use devices
 // its owner may control. Button flows can be starred for the Today card.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronRight, Music, Pause, Play, Plus, Star, Trash2, Workflow, Zap } from "lucide-react";
 import { api, Member, SmarthomeDeviceState } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 
 type Trigger =
   | { type: "time"; at: string; days: number[] }
@@ -505,30 +505,24 @@ export default function Flows() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
-  const [flows, setFlows] = useState<Flow[] | null>(null);
-  const [devices, setDevices] = useState<SmarthomeDeviceState[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  // From the cache: a saved or run flow, or a device that changes (live), refreshes it.
+  const flowsQuery = useApi<Flow[]>("/api/smarthome/flows");
+  const flows = flowsQuery.data ?? null;
+  const devices = useApi<SmarthomeDeviceState[]>("/api/smarthome/my-devices").data ?? NONE;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const haAvailable = useApi<{ available: boolean }>("/api/smarthome/flows/ha").data?.available ?? false;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
-  const [haAvailable, setHaAvailable] = useState(false);
   const summary = useSummary(devices, members);
 
-  const load = useCallback(() => {
-    api.live<Flow[]>("/api/smarthome/flows", setFlows).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
-  useLive(["smarthome"], load);
   useEffect(() => {
-    api.live<SmarthomeDeviceState[]>("/api/smarthome/my-devices", setDevices).catch(() => {});
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    api.get<{ available: boolean }>("/api/smarthome/flows/ha").then((r) => setHaAvailable(r.available)).catch(() => {});
-  }, []);
+    if (flowsQuery.error) setError(flowsQuery.error.message);
+  }, [flowsQuery.error]);
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -543,7 +537,6 @@ export default function Flows() {
         haAvailable={haAvailable}
         onSaved={() => {
           setDraft(null);
-          load();
         }}
         onCancel={() => setDraft(null)}
       />
@@ -627,13 +620,8 @@ export default function Flows() {
 /** Starred button flows on the Today card's smart home widget. */
 export function FlowButtons() {
   const { t } = useI18n();
-  const [flows, setFlows] = useState<Flow[]>([]);
+  const flows = useApi<Flow[]>("/api/smarthome/flows/today").data ?? NONE;
   const [ran, setRan] = useState<string | null>(null);
-  const load = useCallback(() => {
-    api.live<Flow[]>("/api/smarthome/flows/today", setFlows).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-  useLive(["smarthome"], load);
   if (flows.length === 0) return null;
   return (
     <div className="mb-3 flex flex-wrap gap-2">

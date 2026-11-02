@@ -1,20 +1,16 @@
 "use client";
 
 // Memories (#71): photos from this day in earlier years. Only the family's photo albums count.
-import { useEffect, useState } from "react";
 import { Images } from "lucide-react";
-import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 type MemoryYear = { year: number; years_ago: number; items: { id: string; original_name: string }[] };
 
 export default function Memories({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
-  const [years, setYears] = useState<MemoryYear[] | null>(null);
-
-  useEffect(() => {
-    api.live<MemoryYear[]>("/api/albums/memories", setYears).catch(() => setYears([]));
-  }, []);
+  const memories = useApi<MemoryYear[]>("/api/albums/memories");
+  const years = memories.data ?? (memories.isError ? NONE : null);
 
   if (years === null) return compact ? <p className="text-sm text-muted">{t("common.loading")}</p> : null;
   if (years.length === 0) return compact ? <p className="text-sm text-muted">{t("memories.none")}</p> : null;

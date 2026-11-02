@@ -2,12 +2,12 @@
 
 // Pets: each animal with its care (vet, vaccinations … with the next due date – the adults are
 // reminded), its chores (tasks, with members taking turns) and a link to its medicines.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { PawPrint, Plus, Repeat, Trash2 } from "lucide-react";
 import { api, Member, Pet } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 
 const SPECIES = ["dog", "cat", "rabbit", "guinea_pig", "hamster", "bird", "fish", "horse", "reptile", "other"] as const;
@@ -18,27 +18,19 @@ export default function PetsPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const isAdult = me.role !== "child";
-  const [pets, setPets] = useState<Pet[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  // From the cache: a change here, or a pet chore ticked off (tasks are RELATED), refreshes it.
+  const pets = useApi<Pet[]>("/api/pets").data ?? NONE;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [newPet, setNewPet] = useState({ name: "", species: "dog", birth: "" });
   const [care, setCare] = useState<Record<string, { kind: string; title: string; date: string; next: string }>>({});
   const [chore, setChore] = useState<Record<string, { title: string; turns: string[] }>>({});
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Pet[]>("/api/pets", setPets).catch(() => {});
-  }, []);
-  useEffect(() => {
-    load();
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, [load]);
-  useLive(["pets", "tasks"], load);
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

@@ -2,30 +2,26 @@
 
 // Server settings → Families: one family's own backups (2.8.2) – make one now, or put the family
 // back as it was (never your own: it would sign you out in the middle).
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { api, ServerFamily } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 type FamilyBackup = { stamp: string; created_at: string; size: number; sealed?: boolean };
 
 export default function FamilyBackups({ family, onDone }: { family: ServerFamily; onDone: (message: string) => void }) {
   const { t, dateLocale } = useI18n();
-  const [rows, setRows] = useState<FamilyBackup[] | null>(null);
+  const backups = useApi<FamilyBackup[]>(`/api/server/families/${family.id}/backups`);
+  const rows = backups.data ?? (backups.isError ? NONE : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  const load = useCallback(() => {
-    api.get<FamilyBackup[]>(`/api/server/families/${family.id}/backups`).then(setRows).catch(() => setRows([]));
-  }, [family.id]);
-  useEffect(load, [load]);
 
   async function run(action: () => Promise<unknown>, done: string) {
     setBusy(true);
     setError("");
     try {
       await action();
-      load();
       onDone(done);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

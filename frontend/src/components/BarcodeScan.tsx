@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Barcode, CameraOff, Check, Minus, Plus, Trash2, X } from "lucide-react";
 import { api, PantryItem, PantryPlace, ScanLine, ScanProduct, ScanResult } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export type ScanBackend = {
   lookup: (code: string) => Promise<ScanProduct>;
@@ -394,10 +395,7 @@ export default function ScanSession({ backend, onClose, onSaved, large = false }
 /** Family admin → Integrations: look up unknown barcodes in Open Food Facts (off by default). */
 export function BarcodeLookupSetting() {
   const { t } = useI18n();
-  const [on, setOn] = useState<boolean | null>(null);
-  useEffect(() => {
-    api.get<{ barcode_lookup: boolean }>("/api/pantry/settings").then((s) => setOn(s.barcode_lookup)).catch(() => {});
-  }, []);
+  const on = useApi<{ barcode_lookup: boolean }>("/api/pantry/settings").data?.barcode_lookup ?? null;
   if (on === null) return null;
   return (
     <div className="mt-6 border-t border-edge pt-4">
@@ -411,7 +409,10 @@ export function BarcodeLookupSetting() {
           type="checkbox"
           className="h-4 w-4 accent-primary-700"
           checked={on}
-          onChange={async (e) => setOn((await api.put<{ barcode_lookup: boolean }>("/api/pantry/settings", { barcode_lookup: e.target.checked })).barcode_lookup)}
+          onChange={async (e) => {
+            const next = await api.put<{ barcode_lookup: boolean }>("/api/pantry/settings", { barcode_lookup: e.target.checked });
+            setApiData<{ barcode_lookup: boolean }>("/api/pantry/settings", () => next);
+          }}
         />
         {t("scan.lookup")}
       </label>

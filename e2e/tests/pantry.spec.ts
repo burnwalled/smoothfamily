@@ -10,7 +10,8 @@ test("the pantry with the shopping list", async ({ adminPage: page, adminApi }) 
   await adminApi.patch(`/api/lists/${list.id}/items/${item.id}`, { data: { done: true } });
   try {
     await page.goto("/lists");
-    await page.getByRole("button", { name: new RegExp(list.name) }).click();
+    // The list itself (its Rename button has the name too, once it is open).
+    await page.getByRole("button", { name: new RegExp(`^${list.name}`) }).click();
     await page.getByRole("button", { name: "Put bought items in the pantry" }).click();
     await expect(page.getByText(cheese)).toHaveCount(0);
 

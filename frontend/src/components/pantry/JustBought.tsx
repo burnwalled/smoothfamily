@@ -2,34 +2,30 @@
 
 // "Just bought" (2.8.4, not fully tested yet): items ticked off in the shop's app, reached through a
 // list linked to Home Assistant. Into the pantry – where – or not; nothing goes in by itself.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FlaskConical, ShoppingBag } from "lucide-react";
 import { api, PantryPlace } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 
 type Bought = { id: string; list_name: string; name: string; place: PantryPlace; food: boolean };
 
 export default function JustBought({ onAdded }: { onAdded: () => void }) {
   const { t } = useI18n();
-  const [rows, setRows] = useState<Bought[]>([]);
+  // From the cache: ticking things on a list (lists are RELATED to pantry) refreshes it.
+  const rows = useApi<Bought[]>("/api/pantry/bought").data ?? NONE;
   const [answers, setAnswers] = useState<Record<string, { keep: boolean; place: PantryPlace }>>({});
+  // Each bought thing starts as kept (food) in its usual place.
+  useEffect(() => {
+    setAnswers((prev) => Object.fromEntries(rows.map((b) => [b.id, prev[b.id] ?? { keep: b.food, place: b.place }])));
+  }, [rows]);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Bought[]>("/api/pantry/bought").then((r) => {
-      setRows(r);
-      setAnswers(Object.fromEntries(r.map((b) => [b.id, { keep: b.food, place: b.place }])));
-    }).catch(() => setRows([]));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["lists", "pantry"], load);
 
   async function save() {
     setError("");
     try {
       await api.post("/api/pantry/bought", { items: rows.map((b) => ({ item_id: b.id, ...answers[b.id] })) });
-      load();
       onAdded();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

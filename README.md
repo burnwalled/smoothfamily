@@ -61,7 +61,8 @@ send it somewhere yourself.
   they're well.
 
 The app has a help centre in five languages (English, Svenska, Norsk, Dansk, Suomi) with a page
-and screenshots for every feature – press **?** next to any page's title.
+and screenshots for every feature – press **?** next to any page's title. The English help is also
+in the **[wiki](https://github.com/burnwalled/smoothfamily/wiki)**, to read before you install.
 
 ## Privacy by design
 
@@ -90,8 +91,11 @@ administrator.
 
 - **Synology NAS** (DSM 6/7): [docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – prebuilt images,
   HTTPS with Caddy, updates and backups.
-- **Reaching it from outside**: put it behind HTTPS (the Synology guide shows how, with Caddy), or use
-  Tailscale or WireGuard. Behind HTTPS, set `COOKIE_SECURE=true` in `.env`.
+- **Reaching it from outside**: [docs/ACCESS.md](docs/ACCESS.md) – home network only, a VPN, or
+  HTTPS on the internet: what each gives, what it costs, and a checklist before you publish a
+  server on the internet. Read it before you open a port.
+- **How it fits together**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – the server's parts, the
+  devices and what connects where.
 - **Backups**: [docs/BACKUP.md](docs/BACKUP.md) – set them up on day one.
 - **Storage**: [docs/STORAGE.md](docs/STORAGE.md) – where the data lives, and moving it.
 - **Local AI**: [docs/LOCAL_AI.md](docs/LOCAL_AI.md).
@@ -137,7 +141,16 @@ scripts/     install, backup, browser tests, help screenshots
 Translating: [docs/TRANSLATIONS.md](docs/TRANSLATIONS.md). Contributing:
 [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
 
+## About this project
+
+Smooth Family is built in spare time by one person and shared for free with anyone who wants it.
+Issues and pull requests are welcome and read, but there is no support organisation and no promise
+of when an answer or a fix comes.
+
 ## License
 
 [AGPL-3.0](LICENSE). Use it, change it and host it for your family. If you offer Smooth Family as a
 service to others, your source code – with your changes – must be open under the same license.
+
+(The line at the top of the license – "changing it is not allowed" – is about the text of the
+license itself, which nobody may reword. It doesn't limit what you do with Smooth Family's code.)

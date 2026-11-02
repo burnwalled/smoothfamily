@@ -3,22 +3,18 @@
 // Who is home (#60), from Home Assistant. Only members who chose to share are shown, only as home,
 // away or on the way home – never where. The admin links members to Home Assistant people; each
 // member decides in the profile. Only available with the family's own Home Assistant connection.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Car, House, MapPinOff } from "lucide-react";
 import { api, Me, PresenceLinks, PresenceOut } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 
+// Who's home, from the cache – a live event when someone comes or goes refreshes it.
 function usePresence() {
-  const [presence, setPresence] = useState<PresenceOut | null>(null);
-  const [failed, setFailed] = useState(false);
-  const load = useCallback(() => {
-    api.live<PresenceOut>("/api/presence", setPresence).catch(() => setFailed(true));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["presence"], load);
-  return { presence, setPresence, failed };
+  const query = useApi<PresenceOut>("/api/presence");
+  const setPresence = (value: PresenceOut) => setApiData<PresenceOut>("/api/presence", () => value);
+  return { presence: query.data ?? null, setPresence, failed: query.isError && !query.data };
 }
 
 /** The Today card. */
@@ -98,12 +94,11 @@ export function PresenceSetting({ me }: { me: Me }) {
 /** Family admin → Smart home: link members to Home Assistant people. */
 export function PresenceLinksSettings() {
   const { t } = useI18n();
-  const [links, setLinks] = useState<PresenceLinks | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.get<PresenceLinks>("/api/presence/links").then(setLinks).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
+  const query = useApi<PresenceLinks>("/api/presence/links");
+  const links = query.data ?? null;
+  const setLinks = (next: PresenceLinks) => setApiData<PresenceLinks>("/api/presence/links", () => next);
+  const [saveError, setError] = useState("");
+  const error = saveError || (query.isError && !links ? query.error.message : "");
 
   async function link(userId: string, person: string, travel: string) {
     setError("");

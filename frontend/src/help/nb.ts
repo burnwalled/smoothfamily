@@ -518,6 +518,12 @@ const texts: Record<string, TopicText> = {
         "p": "Under Oppgaver → I dag går du bakover med pilen – opptil tre dager – og krysser av det som ble gjort, med poeng som vanlig."
       },
       {
+        "h": "Krysset av feil?"
+      },
+      {
+        "p": "Trykk på haken ved en ferdig oppgave for å angre – poengene trekkes tilbake. Et barn kan angre sine egne til en voksen har godkjent dem; en voksen kan angre alle. På kjøkkenskjermen trykker du på den ferdige oppgaven og bekrefter."
+      },
+      {
         "h": "Oppgaver fra andre apper"
       },
       {

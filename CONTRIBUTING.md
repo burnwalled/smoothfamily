@@ -21,7 +21,8 @@ private, and it should work for a child of six as well as for a grandparent.
   [docs/TRANSLATIONS.md](docs/TRANSLATIONS.md).
 - **The help centre follows the app.** A new feature or a change gets its text in
   `frontend/src/help/<code>.ts` (all five languages, the same blocks) and, where it helps, a
-  screenshot from `sh scripts/help-shots.sh`.
+  screenshot from `sh scripts/help-shots.sh`. The wiki is made from the English help
+  (`frontend/scripts/help-wiki.ts`), so it follows too.
 - **One look everywhere.** See [docs/DESIGN.md](docs/DESIGN.md): the page frame, cards, tabs and
   colours from the theme.
 - **Children see what is meant for them.** Check who may read and change what, in the backend – not

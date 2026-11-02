@@ -6,7 +6,7 @@
 // chosen one, its reminders, costs, meter (km or engine hours), tyres, documents and settings. A
 // receipt photo or a service history PDF can be read by the local AI; everything works by hand too.
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Download, FileText, Gauge, Plus, Printer, Search, Trash2 } from "lucide-react";
 import {
   api,
@@ -24,8 +24,8 @@ import {
 import ReceiptPicker from "@/components/ReceiptPicker";
 import WebSearch, { useWebSearch } from "@/components/WebSearch";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import { AiJob, AiNote, useAiJob, useAiStatus } from "@/components/LocalAi";
 import { uploadReceipt } from "@/lib/receipts";
@@ -42,14 +42,10 @@ const charges = (fuel: string | null | undefined) => fuel === "electric" || fuel
 
 // Family admin: who may see a vehicle, its expenses and exports. None ticked = everyone with the
 // Vehicles app; admins always see every vehicle.
-function VehicleAccess({ vehicle, onSaved }: { vehicle: Vehicle; onSaved: () => void }) {
+function VehicleAccess({ vehicle }: { vehicle: Vehicle }) {
   const { t } = useI18n();
-  const [members, setMembers] = useState<Member[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
 
   const others = members.filter((m) => m.role !== "admin");
   const allowed = vehicle.allowed_user_ids ?? [];
@@ -59,7 +55,6 @@ function VehicleAccess({ vehicle, onSaved }: { vehicle: Vehicle; onSaved: () => 
     const next = allowed.includes(id) ? allowed.filter((x) => x !== id) : [...allowed, id];
     try {
       await api.put<Vehicle>(`/api/vehicles/${vehicle.id}/access`, { allowed_user_ids: next });
-      onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -180,7 +175,7 @@ function OverviewCard({ card, active, onOpen }: { card: VehicleCard; active: boo
 
 type ReminderForm = { id: string; kind: ReminderKind; title: string; due_date: string; due_mileage: string; repeat_months: string; repeat_km: string; remind_days: string };
 
-function RemindersTab({ vehicle, reminders, currency, reload }: { vehicle: Vehicle; reminders: VehicleReminder[]; currency: string; reload: () => void }) {
+function RemindersTab({ vehicle, reminders, currency }: { vehicle: Vehicle; reminders: VehicleReminder[]; currency: string }) {
   const { t } = useI18n();
   const meter = vehicle.meter ?? "km";
   const fmt = useFormat(currency, meter);
@@ -195,7 +190,6 @@ function RemindersTab({ vehicle, reminders, currency, reload }: { vehicle: Vehic
     setError("");
     try {
       await action();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -373,7 +367,7 @@ function RemindersTab({ vehicle, reminders, currency, reload }: { vehicle: Vehic
 
 type ExpenseForm = { id: string; name: string; amount: string; expense_date: string; category: string; mileage_at: string; volume: string; charge_place: "home" | "public"; receipt_media_id: string | null };
 
-function CostsTab({ vehicle, expenses, currency, reload }: { vehicle: Vehicle; expenses: VehicleExpense[]; currency: string; reload: () => void }) {
+function CostsTab({ vehicle, expenses, currency }: { vehicle: Vehicle; expenses: VehicleExpense[]; currency: string }) {
   const { t } = useI18n();
   const meter = vehicle.meter ?? "km";
   const fmt = useFormat(currency, meter);
@@ -410,7 +404,6 @@ function CostsTab({ vehicle, expenses, currency, reload }: { vehicle: Vehicle; e
       else await api.post("/api/vehicles/expenses", body);
       setForm(blank);
       setFile(null);
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -524,7 +517,7 @@ function CostsTab({ vehicle, expenses, currency, reload }: { vehicle: Vehicle; e
               >
                 {t("vehicles.change")}
               </button>
-              <button className="text-red-700" onClick={() => api.del(`/api/vehicles/expenses/${row.id}`).then(reload)} aria-label={t("vehicles.removeExpense", { name: row.name })}>
+              <button className="text-red-700" onClick={() => api.del(`/api/vehicles/expenses/${row.id}`)} aria-label={t("vehicles.removeExpense", { name: row.name })}>
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
             </li>
@@ -535,17 +528,13 @@ function CostsTab({ vehicle, expenses, currency, reload }: { vehicle: Vehicle; e
   );
 }
 
-function MeterTab({ vehicle, currency, reload }: { vehicle: Vehicle; currency: string; reload: () => void }) {
+function MeterTab({ vehicle, currency }: { vehicle: Vehicle; currency: string }) {
   const { t } = useI18n();
   const meter = vehicle.meter ?? "km";
   const fmt = useFormat(currency, meter);
-  const [rows, setRows] = useState<VehicleMileage[]>([]);
+  const rows = useApi<VehicleMileage[]>(`/api/vehicles/${vehicle.id}/mileage`).data ?? NONE;
   const [form, setForm] = useState({ reading_date: today(), mileage: "" });
   const [error, setError] = useState("");
-  const load = useCallback(() => {
-    api.get<VehicleMileage[]>(`/api/vehicles/${vehicle.id}/mileage`).then(setRows).catch(() => setRows([]));
-  }, [vehicle.id]);
-  useEffect(load, [load]);
 
   return (
     <div className="space-y-3">
@@ -560,8 +549,6 @@ function MeterTab({ vehicle, currency, reload }: { vehicle: Vehicle; currency: s
             .post(`/api/vehicles/${vehicle.id}/mileage`, { reading_date: form.reading_date, mileage })
             .then(() => {
               setForm({ reading_date: today(), mileage: "" });
-              load();
-              reload();
             })
             .catch((err) => setError(err instanceof Error ? err.message : t("common.error")));
         }}
@@ -586,7 +573,7 @@ function MeterTab({ vehicle, currency, reload }: { vehicle: Vehicle; currency: s
             {r.from_expense ? (
               <span className="text-xs text-muted">{t("vehicles.fromCost")}</span>
             ) : (
-              <button className="text-red-700" onClick={() => api.del(`/api/vehicles/mileage/${r.id}`).then(() => { load(); reload(); })} aria-label={t("vehicles.removeReading")}>
+              <button className="text-red-700" onClick={() => api.del(`/api/vehicles/mileage/${r.id}`)} aria-label={t("vehicles.removeReading")}>
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
             )}
@@ -599,23 +586,17 @@ function MeterTab({ vehicle, currency, reload }: { vehicle: Vehicle; currency: s
 
 type TyreForm = { id: string; name: string; season: (typeof SEASONS)[number]; size: string; bought: string; tread_mm: string; storage: string };
 
-function TyresTab({ vehicle, reload }: { vehicle: Vehicle; reload: () => void }) {
+function TyresTab({ vehicle }: { vehicle: Vehicle }) {
   const { t, dateLocale } = useI18n();
-  const [rows, setRows] = useState<VehicleTyre[]>([]);
+  const rows = useApi<VehicleTyre[]>(`/api/vehicles/${vehicle.id}/tyres`).data ?? NONE;
   const [form, setForm] = useState<TyreForm | null>(null);
   const [mounting, setMounting] = useState<{ id: string; date: string; mileage: string; storage: string } | null>(null);
   const [error, setError] = useState("");
-  const load = useCallback(() => {
-    api.get<VehicleTyre[]>(`/api/vehicles/${vehicle.id}/tyres`).then(setRows).catch(() => setRows([]));
-  }, [vehicle.id]);
-  useEffect(load, [load]);
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -772,13 +753,9 @@ function VehicleLookup({ vehicle }: { vehicle: Vehicle }) {
 
 function DocumentsTab({ vehicle }: { vehicle: Vehicle }) {
   const { t, dateLocale } = useI18n();
-  const [linked, setLinked] = useState<VehicleDocument[]>([]);
-  const [all, setAll] = useState<VehicleDocument[]>([]);
+  const linked = useApi<VehicleDocument[]>(`/api/vehicles/${vehicle.id}/documents`).data ?? NONE;
+  const all = useApi<VehicleDocument[]>("/api/documents").data ?? NONE;
   const [pick, setPick] = useState("");
-  useEffect(() => {
-    api.get<VehicleDocument[]>(`/api/vehicles/${vehicle.id}/documents`).then(setLinked).catch(() => setLinked([]));
-    api.get<VehicleDocument[]>("/api/documents").then(setAll).catch(() => setAll([]));
-  }, [vehicle.id]);
   const others = all.filter((d) => !linked.some((l) => l.id === d.id));
   return (
     <div className="space-y-3">
@@ -793,7 +770,7 @@ function DocumentsTab({ vehicle }: { vehicle: Vehicle }) {
               <FileText className="h-4 w-4 text-muted" aria-hidden />
               <Link href="/documents" className="flex-1 font-semibold hover:underline">{d.title}</Link>
               {d.expiry_date && <span className="text-xs text-muted">{t("vehicles.docExpires", { date: new Date(`${d.expiry_date}T12:00:00`).toLocaleDateString(dateLocale) })}</span>}
-              <button className="text-xs text-muted hover:underline" onClick={() => api.del(`/api/vehicles/${vehicle.id}/documents/${d.id}`).then((rows) => setLinked(rows as unknown as VehicleDocument[]))}>
+              <button className="text-xs text-muted hover:underline" onClick={() => api.del(`/api/vehicles/${vehicle.id}/documents/${d.id}`)}>
                 {t("vehicles.unlink")}
               </button>
             </li>
@@ -806,7 +783,7 @@ function DocumentsTab({ vehicle }: { vehicle: Vehicle }) {
             <option value="">{t("vehicles.linkDocument")}</option>
             {others.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
           </select>
-          <button className="btn-ghost border border-edge" disabled={!pick} onClick={() => api.put<VehicleDocument[]>(`/api/vehicles/${vehicle.id}/documents/${pick}`, {}).then((rows) => { setLinked(rows); setPick(""); })}>
+          <button className="btn-ghost border border-edge" disabled={!pick} onClick={() => api.put<VehicleDocument[]>(`/api/vehicles/${vehicle.id}/documents/${pick}`, {}).then(() => setPick(""))}>
             {t("vehicles.link")}
           </button>
         </div>
@@ -816,7 +793,7 @@ function DocumentsTab({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
-function SettingsTab({ vehicle, reload, onDeleted }: { vehicle: Vehicle; reload: () => void; onDeleted: () => void }) {
+function SettingsTab({ vehicle, onDeleted }: { vehicle: Vehicle; onDeleted: () => void }) {
   const { t } = useI18n();
   const me = useMe();
   const isAdmin = me.role === "admin";
@@ -844,7 +821,6 @@ function SettingsTab({ vehicle, reload, onDeleted }: { vehicle: Vehicle; reload:
     try {
       await api.patch(`/api/vehicles/${vehicle.id}`, body());
       setSaved(t("vehicles.saved"));
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -926,7 +902,7 @@ function SettingsTab({ vehicle, reload, onDeleted }: { vehicle: Vehicle; reload:
             <div className="flex flex-wrap items-end gap-2">
               <input className="input min-w-0 flex-1 font-mono text-sm" value={form.ha_meter_entity} placeholder="sensor.volvo_odometer" aria-label={t("vehicles.haMeter")} onChange={(e) => set({ ha_meter_entity: e.target.value })} />
               {vehicle.ha_meter_entity && (
-                <button type="button" className="btn-ghost border border-edge" onClick={() => api.post(`/api/vehicles/${vehicle.id}/meter/read`, {}).then(() => { setSaved(t("vehicles.meterRead")); reload(); }).catch((e) => setError(e instanceof Error ? e.message : t("common.error")))}>
+                <button type="button" className="btn-ghost border border-edge" onClick={() => api.post(`/api/vehicles/${vehicle.id}/meter/read`, {}).then(() => setSaved(t("vehicles.meterRead"))).catch((e) => setError(e instanceof Error ? e.message : t("common.error")))}>
                   {t("vehicles.readNow")}
                 </button>
               )}
@@ -944,7 +920,7 @@ function SettingsTab({ vehicle, reload, onDeleted }: { vehicle: Vehicle; reload:
         </div>
         {error && <p className="text-sm text-red-700 sm:col-span-2">{error}</p>}
       </form>
-      {isAdmin && <VehicleAccess vehicle={vehicle} onSaved={reload} />}
+      {isAdmin && <VehicleAccess vehicle={vehicle} />}
       <div className="flex flex-wrap gap-2">
         <Link className="btn-ghost inline-flex items-center gap-1 border border-edge" href={`/vehicle-report/${vehicle.id}`} target="_blank">
           <Printer className="h-4 w-4" aria-hidden />
@@ -972,36 +948,23 @@ type Tab = "reminders" | "costs" | "meter" | "tyres" | "documents" | "settings";
 export default function VehiclesPage() {
   const { t } = useI18n();
   const me = useMe();
-  const [cards, setCards] = useState<VehicleCard[] | null>(null);
-  const [activeId, setActiveId] = useState("");
+  const [chosenId, setActiveId] = useState("");
   const [tab, setTab] = useState<Tab>("reminders");
-  const [expenses, setExpenses] = useState<VehicleExpense[]>([]);
   const [adding, setAdding] = useState(false);
   const [newVehicle, setNewVehicle] = useState({ kind: "car" as VehicleKind, name: "", registration: "", fuel: "petrol" as VehicleFuel | "", mileage: "" });
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api
-      .live<VehicleCard[]>("/api/vehicles/overview", (rows) => {
-        setCards(rows);
-        setActiveId((id) => (rows.some((c) => c.vehicle.id === id) ? id : rows[0]?.vehicle.id ?? ""));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
-  useLive(["vehicles"], load);
-
-  const loadExpenses = useCallback(() => {
-    if (!activeId) return setExpenses([]);
-    api.live<VehicleExpense[]>(`/api/vehicles/expenses?vehicle_id=${activeId}`, setExpenses).catch(() => setExpenses([]));
-  }, [activeId]);
-  useEffect(loadExpenses, [loadExpenses]);
+  // From the cache: any change to a vehicle (here or elsewhere in the family) refreshes it.
+  const overview = useApi<VehicleCard[]>("/api/vehicles/overview");
+  const cards = overview.data ?? null;
+  // The vehicle chosen – the first one until then, or when the chosen one is gone.
+  const activeId = cards?.some((c) => c.vehicle.id === chosenId) ? chosenId : (cards?.[0]?.vehicle.id ?? "");
+  const expenses = useApi<VehicleExpense[]>(activeId ? `/api/vehicles/expenses?vehicle_id=${activeId}` : null).data ?? NONE;
+  useEffect(() => {
+    if (overview.error) setError(overview.error.message);
+  }, [overview.error]);
 
   const active = cards?.find((c) => c.vehicle.id === activeId) ?? null;
-  const reload = () => {
-    load();
-    loadExpenses();
-  };
   const newInfo = kindInfo(newVehicle.kind);
 
   async function create() {
@@ -1015,7 +978,6 @@ export default function VehiclesPage() {
       setAdding(false);
       setActiveId(row.id);
       setTab("reminders");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -1098,12 +1060,12 @@ export default function VehiclesPage() {
               </button>
             ))}
           </div>
-          {current === "reminders" && <RemindersTab vehicle={active.vehicle} reminders={active.reminders} currency={active.currency} reload={reload} />}
-          {current === "costs" && <CostsTab vehicle={active.vehicle} expenses={expenses} currency={active.currency} reload={reload} />}
-          {current === "meter" && <MeterTab vehicle={active.vehicle} currency={active.currency} reload={reload} />}
-          {current === "tyres" && <TyresTab vehicle={active.vehicle} reload={reload} />}
+          {current === "reminders" && <RemindersTab vehicle={active.vehicle} reminders={active.reminders} currency={active.currency} />}
+          {current === "costs" && <CostsTab vehicle={active.vehicle} expenses={expenses} currency={active.currency} />}
+          {current === "meter" && <MeterTab vehicle={active.vehicle} currency={active.currency} />}
+          {current === "tyres" && <TyresTab vehicle={active.vehicle} />}
           {current === "documents" && <DocumentsTab vehicle={active.vehicle} />}
-          {current === "settings" && <SettingsTab key={active.vehicle.id} vehicle={active.vehicle} reload={reload} onDeleted={() => { setActiveId(""); load(); }} />}
+          {current === "settings" && <SettingsTab key={active.vehicle.id} vehicle={active.vehicle} onDeleted={() => setActiveId("")} />}
         </section>
       )}
     </>

@@ -3,10 +3,11 @@
 // A list linked to one of Home Assistant's to-do lists, both ways (2.8.4, not fully tested yet).
 // Home Assistant passes it on to the shop's app through the shop's own integration (ICA, Coop …);
 // Smooth Family never signs in to a shop. A one-off send is still there for a list not linked.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FlaskConical, Link2, RefreshCw, Send, Unlink, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 type Target = { connection_id: string; home: string | null; entity_id: string; name: string };
 type Link = { connection_id: string; entity_id: string; name: string; home: string | null; last_sync: string | null; last_error: string | null };
@@ -16,29 +17,27 @@ const key = (x: { connection_id: string; entity_id: string }) => `${x.connection
 
 export default function SendToHa({ listId, onClose, onSynced }: { listId: string; onClose: () => void; onSynced?: () => void }) {
   const { t, dateLocale } = useI18n();
-  const [link, setLink] = useState<Link | null | undefined>(undefined);
-  const [targets, setTargets] = useState<Target[] | null>(null);
+  // From the cache: sending (under /api/lists) refreshes the link; the targets are asked once.
+  const linkQuery = useApi<Link | null>(`/api/lists/${listId}/ha`);
+  const link = linkQuery.data !== undefined ? linkQuery.data : linkQuery.isError ? null : undefined;
+  const targetsQuery = useApi<Target[]>("/api/lists/ha/targets");
+  const targets = targetsQuery.data ?? (targetsQuery.isError ? NONE : null);
   const [chosen, setChosen] = useState("");
   const [openOnly, setOpenOnly] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Link | null>(`/api/lists/${listId}/ha`).then(setLink).catch(() => setLink(null));
-  }, [listId]);
-  useEffect(load, [load]);
+  // The list chosen last time on this device, else the first.
   useEffect(() => {
-    api.get<Target[]>("/api/lists/ha/targets").then((rows) => {
-      setTargets(rows);
-      let last = "";
-      try {
-        last = localStorage.getItem(LAST) ?? "";
-      } catch {
-        /* private mode */
-      }
-      setChosen(rows.some((r) => key(r) === last) ? last : rows[0] ? key(rows[0]) : "");
-    }).catch(() => setTargets([]));
-  }, []);
+    if (!targets || chosen) return;
+    let last = "";
+    try {
+      last = localStorage.getItem(LAST) ?? "";
+    } catch {
+      /* private mode */
+    }
+    setChosen(targets.some((r) => key(r) === last) ? last : targets[0] ? key(targets[0]) : "");
+  }, [targets, chosen]);
 
   const target = targets?.find((x) => key(x) === chosen);
   const nameOf = (l: Link) => targets?.find((x) => key(x) === key(l))?.name ?? l.entity_id;
@@ -53,7 +52,6 @@ export default function SendToHa({ listId, onClose, onSynced }: { listId: string
       } catch {
         /* private mode */
       }
-      load();
       onSynced?.();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : t("common.error"));

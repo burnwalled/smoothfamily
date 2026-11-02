@@ -1,11 +1,12 @@
 "use client";
 
 // Profile → Security: the user's own passkeys and authenticator app.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { KeyRound, Plus, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import TotpEnrollment, { CodeInput, TotpSetup } from "@/components/TotpEnrollment";
 import { api, ApiError } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import { createPasskey, guessDeviceName, passkeysSupported } from "@/lib/webauthn";
 
 type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
@@ -19,7 +20,7 @@ type Security = {
 
 export default function SecuritySettings() {
   const { t, dateLocale } = useI18n();
-  const [security, setSecurity] = useState<Security | null>(null);
+  const security = useApi<Security>("/api/auth/security").data ?? null;
   const [enrolment, setEnrolment] = useState<TotpSetup | null>(null);
   const [disabling, setDisabling] = useState(false);
   const [disableCode, setDisableCode] = useState("");
@@ -27,13 +28,6 @@ export default function SecuritySettings() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const load = useCallback(() => {
-    api.live<Security>("/api/auth/security", setSecurity).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -63,14 +57,12 @@ export default function SecuritySettings() {
       }
       await api.post("/api/auth/passkeys/register/verify", { challenge_id, credential, name: name.trim() });
       setNotice(t("security.passkeyAdded"));
-      load();
     });
 
   const removePasskey = (passkey: Passkey) =>
     run(async () => {
       if (!confirm(t("common.confirmRemove", { name: passkey.name }))) return;
       await api.del(`/api/auth/passkeys/${passkey.id}`);
-      load();
     });
 
   const startTotp = () =>
@@ -83,7 +75,6 @@ export default function SecuritySettings() {
       await api.post("/api/auth/totp/enable", { code });
       setEnrolment(null);
       setNotice(t("security.totpEnabled"));
-      load();
     });
 
   const disableTotp = () =>
@@ -91,7 +82,6 @@ export default function SecuritySettings() {
       await api.post("/api/auth/totp/disable", { code: disableCode });
       setDisabling(false);
       setDisableCode("");
-      load();
     });
 
   if (!security) return null;

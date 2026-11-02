@@ -2,7 +2,7 @@
 // so the session cookie travels along automatically (same origin).
 
 import { toLocalDateKey } from "@/lib/dateKey";
-import { apiKey, clearQueryCache, queryClient, restored, shouldRetry } from "@/lib/queryClient";
+import { apiKey, clearQueryCache, queryClient, shouldRetry } from "@/lib/queryClient";
 import { canQueue, enqueue, flush, hasPending } from "@/lib/outbox";
 
 export class ApiError extends Error {
@@ -42,23 +42,38 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return resp.json();
 }
 
-// Reads are cached by TanStack Query (lib/queryClient.ts). `api.live` shows the cached answer at
-// once and then the fresh one; `useApi` (lib/query.ts) is the hook form for components.
+// Reads are cached by TanStack Query (lib/queryClient.ts); components read through `useApi`
+// (lib/query.ts), which shows the cached answer at once and refreshes it (#76: no page keeps its own
+// copy any more). `api.get` stays for one-off reads in event handlers.
 // A write invalidates the resource it touched plus the ones it changes on the server, so their
 // cached answers are not shown again until refreshed. Signing in or out clears everything.
 // Server-side side effects: e.g. completing a task gives points (achievements, allowance, goals).
 const RELATED: Record<string, string[]> = {
-  tasks: ["achievements", "allowance", "rewards", "dashboard", "shop"],
+  tasks: ["achievements", "allowance", "rewards", "dashboard", "shop", "week", "pets"],
   lists: ["tasks", "achievements", "allowance", "rewards"],
-  meals: ["lists"],
+  meals: ["lists", "week"],
+  // Bought items move from a list into the pantry; the recipes know what is at home.
+  pantry: ["lists", "meals"],
+  // The simulated home moves people; who's home follows the smart home.
+  smarthome: ["presence"],
+  presence: ["smarthome"],
+  // A routine in the little ones' mode is a task.
+  easy: ["tasks"],
+  // The household's economy counts the receipts (and the homes' and vehicles' costs).
+  receipts: ["economy"],
+  bank: ["economy", "receipts"],
+  // A receipt read by the local AI is told as a notification.
+  notifications: ["receipts", "ai"],
+  // The emergency cards list the medicines.
+  medicine: ["emergency", "tasks"],
   family: ["auth", "tasks", "allowance", "chat", "lists", "smarthome"],
   rewards: ["achievements"],
-  calendar: ["dashboard"],
+  calendar: ["dashboard", "week"],
   home: ["property", "smarthome"],
-  property: ["tasks"],
-  vehicles: ["tasks"],
-  albums: ["media"],
-  media: ["albums"],
+  property: ["tasks", "economy"],
+  vehicles: ["tasks", "economy"],
+  albums: ["media", "vault"],
+  media: ["albums", "vault"],
 };
 export function relatedResources(resource: string): string[] {
   return RELATED[resource] ?? [];
@@ -116,15 +131,6 @@ async function write<T>(path: string, init: RequestInit): Promise<T> {
 
 export const api = {
   get,
-  live: async <T>(path: string, onData: (value: T) => void): Promise<T> => {
-    await restored;
-    const key = apiKey(path);
-    const hit = queryClient.getQueryData<T>(key);
-    if (hit !== undefined && !queryClient.getQueryState(key)?.isInvalidated) onData(hit);
-    const value = await get<T>(path);
-    onData(value);
-    return value;
-  },
   post: <T>(path: string, body?: unknown) =>
     write<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   put: <T>(path: string, body: unknown) =>
@@ -329,6 +335,8 @@ export type TodayTask = {
   completion_status?: "pending" | "approved" | "rejected" | null;
   review_note?: string | null;
   unlocked?: string[];
+  // Ticked off by mistake (3.1.1): whether I may undo it.
+  can_undo?: boolean;
 };
 
 export type WeekDayTasks = {

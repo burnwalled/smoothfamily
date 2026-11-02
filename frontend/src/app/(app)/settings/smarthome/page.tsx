@@ -2,11 +2,12 @@
 
 // Family admin → Smart home: the Home Assistant connection and which devices exist and who may
 // use them. Linked from the Smart home app ("Manage devices").
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Homes, { useHomes } from "@/components/smarthome/Homes";
 import { CircleCheck, FlaskConical } from "lucide-react";
 import { api, Member, SmarthomeConnection, SmarthomeDevice } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import SmartHomeDevices from "@/components/SmartHomeDevices";
 import { SmartHomeUnavailable } from "@/components/widgets/SmartHomeWidget";
 import { useMe } from "@/components/Shell";
@@ -21,22 +22,16 @@ export default function SmartHomeSettingsPage() {
 function SmartHomeSettings() {
   const { t } = useI18n();
   const me = useMe();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [haConn, setHaConn] = useState<SmarthomeConnection | null>(null);
+  // From the cache: connecting, adding a device or a home (all under /api/smarthome) refreshes it.
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const haConn = useApi<SmarthomeConnection | null>("/api/smarthome/connection").data ?? null;
+  const setHaConn = (conn: SmarthomeConnection | null) => setApiData<SmarthomeConnection | null>("/api/smarthome/connection", () => conn);
   const [haUrl, setHaUrl] = useState("");
   const [haToken, setHaToken] = useState("");
   const [haConnecting, setHaConnecting] = useState(false);
   const [haError, setHaError] = useState("");
-  const [haDevices, setHaDevices] = useState<SmarthomeDevice[]>([]);
-  const [homes, loadHomes] = useHomes();
-
-  const load = useCallback(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    api.live<SmarthomeConnection | null>("/api/smarthome/connection", setHaConn).catch(() => {});
-    api.live<SmarthomeDevice[]>("/api/smarthome/devices", setHaDevices).catch(() => {});
-  }, []);
-
-  useEffect(load, [load]);
+  const haDevices = useApi<SmarthomeDevice[]>("/api/smarthome/devices").data ?? NONE;
+  const homes = useHomes();
 
   async function connect() {
     setHaError("");
@@ -59,10 +54,10 @@ function SmartHomeSettings() {
         <p className="text-sm text-muted">{t("homes.hostedHint")}</p>
         {homes.length > 0 && (
           <section className="card p-5">
-            <SmartHomeDevices devices={haDevices} members={members} homes={homes} onChanged={load} />
+            <SmartHomeDevices devices={haDevices} members={members} homes={homes} />
           </section>
         )}
-        <Homes homes={homes} onChanged={() => { loadHomes(); load(); }} />
+        <Homes homes={homes} />
       </>
     );
   }
@@ -82,7 +77,6 @@ function SmartHomeSettings() {
             onClick={async () => {
               await api.del("/api/smarthome/connection");
               setHaConn(null);
-              setHaDevices([]);
             }}
           >
             {t("common.remove")}
@@ -107,7 +101,6 @@ function SmartHomeSettings() {
                 setHaError("");
                 try {
                   setHaConn(await api.post<SmarthomeConnection>("/api/smarthome/connection/simulated", {}));
-                  load();
                 } catch (e) {
                   setHaError(e instanceof Error ? e.message : t("common.error"));
                 }
@@ -120,9 +113,9 @@ function SmartHomeSettings() {
         </div>
       )}
 
-      {(haConn || homes.length > 0) && <SmartHomeDevices devices={haDevices} members={members} homes={homes} onChanged={load} />}
+      {(haConn || homes.length > 0) && <SmartHomeDevices devices={haDevices} members={members} homes={homes} />}
     </section>
-    <Homes homes={homes} onChanged={() => { loadHomes(); load(); }} />
+    <Homes homes={homes} />
     {haConn && <PresenceLinksSettings />}
     </>
   );

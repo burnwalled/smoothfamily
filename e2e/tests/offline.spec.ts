@@ -10,7 +10,7 @@ test("the shopping list works offline", async ({ adminPage: page, adminApi }) =>
   await adminApi.post(`/api/lists/${list.id}/items`, { data: { name: milk } });
   try {
     await page.goto("/lists");
-    await page.getByRole("button", { name: new RegExp(listName) }).click();
+    await page.getByRole("button", { name: new RegExp(`^${listName}`) }).click();
     await expect(page.getByText(milk)).toBeVisible();
 
     await context.setOffline(true);

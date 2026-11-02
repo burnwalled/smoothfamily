@@ -4,10 +4,11 @@
 // server. The server admin reads them, sets their status (the reporter is told, with a note if one
 // is written) and takes the chosen ones to the project's public repository: the export is an
 // anonymous text – what and where, never who or which family – and GitHub's form filled in with it.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bug, Check, Copy, ExternalLink, Lightbulb, Trash2, Upload, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Status = "new" | "planned" | "done" | "declined";
 type Report = {
@@ -41,7 +42,9 @@ export const STATUS_TONE: Record<Status, string> = {
 
 export default function ServerReports() {
   const { t, dateLocale } = useI18n();
-  const [reports, setReports] = useState<Report[] | null>(null);
+  // From the cache: a new report (a live event to the server admin) or a change here refreshes it.
+  const reportsQuery = useApi<Report[]>("/api/feedback/all");
+  const reports = reportsQuery.data ?? null;
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
@@ -50,19 +53,17 @@ export default function ServerReports() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Report[]>("/api/feedback/all").then(setReports).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    if (reportsQuery.error) setError(reportsQuery.error.message);
+  }, [reportsQuery.error]);
 
   async function change(report: Report, body: { status?: Status; admin_note?: string }) {
     setError("");
-    setReports((all) => all?.map((r) => (r.id === report.id ? { ...r, ...body } : r)) ?? null);
+    setApiData<Report[]>("/api/feedback/all", (all) => all?.map((r) => (r.id === report.id ? { ...r, ...body } : r)));
     try {
       await api.patch(`/api/feedback/${report.id}`, body);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
-      load();
     }
   }
 
@@ -74,7 +75,6 @@ export default function ServerReports() {
       setCopied(false);
       await navigator.clipboard?.writeText(out.body).then(() => setCopied(true)).catch(() => {});
       setChosen(new Set());
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -157,7 +157,7 @@ export default function ServerReports() {
                       </button>
                       <button
                         className="ml-auto inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
-                        onClick={() => confirm(t("reports.deleteConfirm", { title: r.title })) && api.del(`/api/feedback/${r.id}`).then(load)}
+                        onClick={() => confirm(t("reports.deleteConfirm", { title: r.title })) && api.del(`/api/feedback/${r.id}`)}
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
                         {t("common.remove")}

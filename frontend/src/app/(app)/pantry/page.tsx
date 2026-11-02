@@ -2,12 +2,12 @@
 
 // Pantry: what the family has in the freezer, fridge and pantry, with best-before dates. The ones to
 // use first are marked; something used up can go straight back onto a shopping list.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Barcode, CalendarClock, Trash2 } from "lucide-react";
 import { api, FamilyList, PantryItem, PantryPlace } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, refreshApi, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import JustBought from "@/components/pantry/JustBought";
 import { AiTextButton, ReceiptButton } from "@/components/LocalAi";
@@ -24,34 +24,22 @@ const PLACES: PantryPlace[] = ["freezer", "fridge", "pantry"];
 export default function PantryPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [items, setItems] = useState<PantryItem[] | null>(null);
-  const [lists, setLists] = useState<FamilyList[]>([]);
   const [tab, setTab] = useState<PantryPlace | "all">("all");
   const [form, setForm] = useState({ name: "", amount: "", unit: "", place: "fridge" as PantryPlace, best_before: "" });
-  const [toList, setToList] = useState("");
+  const [chosenList, setToList] = useState("");
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
 
-  const load = useCallback(() => {
-    api.live<PantryItem[]>("/api/pantry", setItems).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
-  useLive(["pantry"], load);
-  useEffect(() => {
-    if (!me.apps?.includes("lists")) return;
-    api
-      .live<FamilyList[]>("/api/lists", (rows) => {
-        setLists(rows);
-        setToList((current) => current || rows[0]?.id || "");
-      })
-      .catch(() => {});
-  }, [me.apps]);
+  // From the cache: what is written here (or scanned, or bought from a list) refreshes it by itself.
+  const pantry = useApi<PantryItem[]>("/api/pantry");
+  const items = pantry.data ?? null;
+  const lists = useApi<FamilyList[]>(me.apps?.includes("lists") ? "/api/lists" : null).data ?? NONE;
+  const toList = chosenList || lists[0]?.id || "";
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -75,7 +63,7 @@ export default function PantryPage() {
     <>
       <PageTitle title={t("pantry.title")} />
       <p className="mt-1 text-sm text-muted">{t("pantry.intro")}</p>
-      <JustBought onAdded={load} />
+      <JustBought onAdded={() => void refreshApi("/api/pantry")} />
       <div className="mt-3 flex flex-wrap gap-4">
         <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => setScanning(true)}>
           <Barcode className="h-4 w-4" strokeWidth={2} aria-hidden />
@@ -84,8 +72,8 @@ export default function PantryPage() {
         <ReceiptButton />
         <AiTextButton kind="cook_ideas" label={t("ai.cookIdeas")} />
       </div>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-      {scanning && <ScanSession backend={scanBackend} onClose={() => setScanning(false)} onSaved={load} />}
+      {(error || (pantry.isError && !items)) && <p className="mt-2 text-sm text-red-700">{error || pantry.error?.message}</p>}
+      {scanning && <ScanSession backend={scanBackend} onClose={() => setScanning(false)} onSaved={() => void refreshApi("/api/pantry")} />}
 
       <form
         className="card mt-4 grid gap-2 p-4 sm:grid-cols-[1fr_5rem_5rem_8rem_9rem_auto]"

@@ -518,6 +518,12 @@ const texts: Record<string, TopicText> = {
         "p": "Under Opgaver → I dag går du tilbage med pilen – op til tre dage – og krydser det af, der blev gjort, med point som sædvanligt."
       },
       {
+        "h": "Krydsede den forkerte af?"
+      },
+      {
+        "p": "Tryk på fluebenet ved en færdig opgave for at fortryde – pointene trækkes tilbage. Et barn kan fortryde sine egne, indtil en voksen har godkendt dem; en voksen kan fortryde alle. På køkkenskærmen trykker du på den færdige opgave og bekræfter."
+      },
+      {
         "h": "Opgaver fra andre apps"
       },
       {

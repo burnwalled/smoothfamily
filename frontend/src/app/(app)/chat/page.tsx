@@ -2,13 +2,14 @@
 
 // Chat (a nicer look in 2.8.2): conversations with avatars, grouped bubbles, a growing message field.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ChatConversation, ChatMessage, ChatMessagesPage, GifResult, MediaItem, Member, uploadFile } from "@/lib/api";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { House, ImagePlus, Lock, LogOut, MessageCircle, Search, SendHorizontal, Smile, SquarePen, Users, X } from "lucide-react";
 import { useMe } from "@/components/Shell";
-import { useLive, useLiveConnected } from "@/lib/live";
+import { useLiveConnected } from "@/lib/live";
 import PageTitle from "@/components/PageTitle";
 
 // Lightweight emoji picker data
@@ -123,16 +124,13 @@ function dayKey(ts: string): string {
 export default function ChatPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [activePeer, setActivePeer] = useState<string>("family");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [nextBefore, setNextBefore] = useState<string | null>(null);
+  const [chosenPeer, setActivePeer] = useState<string>("family");
+  // Older messages fetched above the newest page (scrolling back), and where the next ones start.
+  const [older, setOlder] = useState<{ peer: string; items: ChatMessage[]; nextBefore: string | null } | null>(null);
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
-  const [gifEnabled, setGifEnabled] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -148,55 +146,50 @@ export default function ChatPage() {
   const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
   const atBottom = useRef(true);
   const olderAnchor = useRef<{ height: number; top: number } | null>(null);
-  const olderLoaded = useRef(false);
   // Phones: the thread box ends right above the bottom menu (or the keyboard) so the
   // message field is always visible. Desktop sizes it with CSS.
   const [threadEl, setThreadEl] = useState<HTMLElement | null>(null);
   const [fitHeight, setFitHeight] = useState<number | null>(null);
+
+  // From the cache: a sent message, a new conversation or a live event refreshes it by itself; a slow
+  // poll stays as the fallback while the live stream is down.
+  const live = useLiveConnected();
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const gifEnabled = useApi<{ enabled: boolean }>("/api/chat/gifs/status").data?.enabled ?? false;
+  const conversationsQuery = useApi<ChatConversation[]>("/api/chat/conversations", { refetchInterval: 15_000 });
+  const conversations = conversationsQuery.data ?? NONE;
+  // The chat chosen – the first one when it is gone (left, or removed elsewhere).
+  const activePeer = !conversationsQuery.data || conversations.some((row) => row.peer_key === chosenPeer) ? chosenPeer : conversations[0]?.peer_key || "family";
+  const newestQuery = useApi<ChatMessagesPage>(`/api/chat/messages?peer=${encodeURIComponent(activePeer)}`, { refetchInterval: live ? 30_000 : 5_000 });
+  const newest = newestQuery.data;
+  const olderHere = older?.peer === activePeer ? older : null;
+  const messages = useMemo(() => {
+    const page = newest?.items ?? NONE;
+    if (!olderHere) return page;
+    const first = page[0];
+    return [...olderHere.items.filter((m) => !first || m.created_at < first.created_at), ...page];
+  }, [newest, olderHere]);
+  const nextBefore = olderHere ? olderHere.nextBefore : (newest?.next_before ?? null);
+  useEffect(() => {
+    if (newestQuery.error) setError(newestQuery.error.message);
+  }, [newestQuery.error]);
+
+  // Read up to the newest message – once per new message, not on every refresh (marking read is a
+  // write, which refreshes the chat).
+  const readUpTo = useRef("");
+  const newestId = newest?.items.at(-1)?.id ?? "";
+  useEffect(() => {
+    const mark = `${activePeer}:${newestId}`;
+    if (!newest || readUpTo.current === mark) return;
+    readUpTo.current = mark;
+    void api.post("/api/chat/read", { peer: activePeer }).catch(() => {});
+  }, [activePeer, newestId, newest]);
 
   const activeConversation = useMemo(
     () => conversations.find((row) => row.peer_key === activePeer) || null,
     [conversations, activePeer]
   );
 
-  const loadConversations = useCallback(async () => {
-    const rows = await api.live<ChatConversation[]>("/api/chat/conversations", setConversations);
-    if (!rows.some((row) => row.peer_key === activePeer)) {
-      setActivePeer(rows[0]?.peer_key || "family");
-    }
-  }, [activePeer]);
-
-  const loadMessages = useCallback(
-    async (peer: string, before?: string, appendOlder?: boolean) => {
-      const query = before ? `?peer=${encodeURIComponent(peer)}&before=${encodeURIComponent(before)}` : `?peer=${encodeURIComponent(peer)}`;
-      if (appendOlder) {
-        const page = await api.get<ChatMessagesPage>(`/api/chat/messages${query}`);
-        olderLoaded.current = true;
-        setNextBefore(page.next_before);
-        setMessages((prev) => [...page.items, ...prev]);
-        return;
-      }
-      // A refresh brings the newest page (cached first); keep older messages already loaded above it.
-      await api.live<ChatMessagesPage>(`/api/chat/messages${query}`, (page) => {
-        if (!olderLoaded.current) setNextBefore(page.next_before);
-        setMessages((prev) => {
-          const first = page.items[0];
-          if (!olderLoaded.current || !first) return page.items;
-          return [...prev.filter((m) => m.created_at < first.created_at), ...page.items];
-        });
-      });
-    },
-    []
-  );
-
-  const markRead = useCallback(async (peer: string) => {
-    await api.post("/api/chat/read", { peer });
-  }, []);
-
-  useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    api.live<{ enabled: boolean }>("/api/chat/gifs/status", (r) => setGifEnabled(r.enabled)).catch(() => {});
-  }, []);
 
   useLayoutEffect(() => {
     const el = bodyRef.current;
@@ -205,21 +198,12 @@ export default function ChatPage() {
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [body]);
 
-  const live = useLiveConnected();
   const pendingPreview = useMemo(() => (pendingImage ? URL.createObjectURL(pendingImage) : null), [pendingImage]);
   useEffect(() => {
     return () => {
       if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     };
   }, [pendingPreview]);
-
-  useEffect(() => {
-    loadConversations().catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-    const timer = window.setInterval(() => {
-      loadConversations().catch(() => {});
-    }, 15000);
-    return () => window.clearInterval(timer);
-  }, [loadConversations, t]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -273,41 +257,17 @@ export default function ChatPage() {
     }
   }, [messages]);
 
+  // Another chat opened: start at its newest messages, at the bottom.
   useEffect(() => {
     setError("");
-    setMessages([]);
+    setOlder(null);
     atBottom.current = true;
-    olderLoaded.current = false;
-    loadMessages(activePeer)
-      .then(() => markRead(activePeer))
-      .then(() => loadConversations())
-      .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-
-    const timer = window.setInterval(() => {
-      loadMessages(activePeer)
-        .then(() => markRead(activePeer))
-        .then(() => loadConversations())
-        .catch(() => {});
-    }, live ? 30_000 : 5000);
-
-    return () => window.clearInterval(timer);
-  }, [activePeer, loadConversations, loadMessages, markRead, t, live]);
-
-  useLive(["chat"], () => {
-    loadMessages(activePeer)
-      .then(() => markRead(activePeer))
-      .then(() => loadConversations())
-      .catch(() => {});
-  });
+  }, [activePeer]);
 
   async function postMessage(payload: { body?: string; media_id?: string; gif_id?: string }) {
     await api.post("/api/chat/messages", { peer: activePeer, ...payload });
+    // The post refreshes the chat in the background, so the next message can be written at once.
     atBottom.current = true;
-    // Refreshed in the background, so the next message can be written and sent at once.
-    loadMessages(activePeer)
-      .then(() => markRead(activePeer))
-      .then(() => loadConversations())
-      .catch(() => {});
   }
 
   async function sendMessage() {
@@ -352,7 +312,8 @@ export default function ChatPage() {
     const list = listRef.current;
     if (list) olderAnchor.current = { height: list.scrollHeight, top: list.scrollTop };
     try {
-      await loadMessages(activePeer, nextBefore, true);
+      const page = await api.get<ChatMessagesPage>(`/api/chat/messages?peer=${encodeURIComponent(activePeer)}&before=${encodeURIComponent(nextBefore)}`);
+      setOlder({ peer: activePeer, items: [...page.items, ...(olderHere?.items ?? NONE)], nextBefore: page.next_before });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -370,7 +331,6 @@ export default function ChatPage() {
       setShowNewConv(false);
       setNewConvName("");
       setNewConvMembers(new Set());
-      await loadConversations();
       setActivePeer(conv.peer_key);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
@@ -382,7 +342,6 @@ export default function ChatPage() {
     if (!conv?.conversation_id) return;
     try {
       await api.post(`/api/chat/conversations/${conv.conversation_id}/leave`, {});
-      await loadConversations();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }

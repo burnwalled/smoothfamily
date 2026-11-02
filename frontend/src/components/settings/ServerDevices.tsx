@@ -4,10 +4,11 @@
 // displays, gateways and Home Assistant apps – on a map around the server and per family, with their
 // versions and health. No names: the server admin sees what kind, not whose. A family with a device
 // that isn't well can be asked to look after it, in their notification centre.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BellRing, Check, Cpu } from "lucide-react";
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import Topology, { HEALTH_COLOR, Health, KIND_ICON, Legend, MapNode, worst } from "@/components/devices/Topology";
 import { ago } from "@/lib/ago";
 
@@ -17,14 +18,14 @@ const KINDS = ["mobile", "tablet", "computer", "kiosk", "gateway", "ha_app"];
 
 export default function ServerDevices() {
   const { t, dateLocale } = useI18n();
-  const [data, setData] = useState<{ app_version: string | null; gateway_version: string | null; families: Family[] } | null>(null);
+  const query = useApi<{ app_version: string | null; gateway_version: string | null; families: Family[] }>("/api/devices/server", { refetchInterval: 60_000 });
+  const data = query.data ?? null;
   const [told, setTold] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<{ app_version: string | null; gateway_version: string | null; families: Family[] }>("/api/devices/server").then(setData).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    if (query.error) setError(query.error.message);
+  }, [query.error]);
 
   async function remind(family: Family) {
     setError("");

@@ -65,7 +65,12 @@ test("the kitchen display's tasks, dinner and screensaver", async ({ adminApi, b
     const who = screen.getByRole("dialog", { name: `Who did it? ${solo.title}` });
     await who.getByRole("button", { name: kid.display_name }).click();
     await expect(who).toHaveCount(0);
-    await expect(screen.getByRole("button", { name: new RegExp(solo.title) })).toBeDisabled();
+    const fish = screen.getByRole("button", { name: new RegExp(solo.title) });
+    await expect(fish.locator(".line-through")).toBeVisible();
+    // Ticked off by mistake (3.1.1): a tap and a yes undo it.
+    screen.once("dialog", (d) => void d.accept());
+    await fish.click();
+    await expect(fish.locator(".line-through")).toHaveCount(0);
 
     // The garden, together: two faces, the points shared.
     await screen.getByRole("button", { name: new RegExp(shared.title) }).click();

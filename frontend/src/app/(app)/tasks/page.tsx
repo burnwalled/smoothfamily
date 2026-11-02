@@ -2,7 +2,7 @@
 
 // Tasks: today's list, the whole week, my points and history, create/manage, approvals.
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import TaskList from "@/components/TaskList";
 import Leaderboard from "@/components/Leaderboard";
@@ -23,7 +23,7 @@ import { useI18n } from "@/lib/i18n";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { scheduleLabel } from "@/lib/taskSchedule";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import PageTitle from "@/components/PageTitle";
 import MedicineDoses from "@/components/safety/MedicineDoses";
 
@@ -31,19 +31,11 @@ export default function TasksPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const [tab, setTab] = useState<"today" | "week" | "manage" | "approvals">("today");
-  const [tasks, setTasks] = useState<TodayTask[]>([]);
   // Reporting afterwards (2.9.0): 0 = today, up to 3 days back.
   const [back, setBack] = useState(0);
   const reportDay = back ? toLocalDateKey(new Date(Date.now() - back * 86_400_000)) : undefined;
-  const [week, setWeek] = useState<WeekDayTasks[]>([]);
-  const [history, setHistory] = useState<TaskHistoryItem[]>([]);
-  const [manageTasks, setManageTasks] = useState<Task[]>([]);
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
-  const [board, setBoard] = useState<LeaderboardEntry[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
   const [showForm, setShowForm] = useState(false);
   // Suggestions: children propose tasks, adults turn them into tasks (or decline).
-  const [suggestions, setSuggestions] = useState<TaskSuggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
   const [suggestTitle, setSuggestTitle] = useState("");
   const [suggestDescription, setSuggestDescription] = useState("");
@@ -54,20 +46,17 @@ export default function TasksPage() {
   const [manageError, setManageError] = useState("");
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    api.live<TodayTask[]>(`/api/tasks/today${back ? `?back=${back}` : ""}`, setTasks).catch(() => {});
-    api.live<WeekDayTasks[]>("/api/tasks/week", setWeek).catch(() => {});
-    api.live<TaskSuggestion[]>("/api/tasks/suggestions", setSuggestions).catch(() => {});
-    api.live<TaskHistoryItem[]>("/api/tasks/history?days=30", setHistory).catch(() => {});
-    api.live<LeaderboardEntry[]>("/api/tasks/leaderboard", setBoard).catch(() => {});
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    api.live<Task[]>("/api/tasks/manage", setManageTasks).catch(() => {});
-    api.live<ApprovalItem[]>("/api/tasks/approvals", setApprovals).catch(() => {});
-  }, [back]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["tasks"], load);
-
-  useEffect(load, [load]);
+  // From the cache: every write below invalidates the tasks, and a live event from elsewhere in the
+  // family does too – the lists refresh by themselves. Children don't ask for what is adults' only.
+  const canManage = me?.role === "admin" || me?.role === "adult";
+  const tasks = useApi<TodayTask[]>(`/api/tasks/today${back ? `?back=${back}` : ""}`).data ?? NONE;
+  const week = useApi<WeekDayTasks[]>("/api/tasks/week").data ?? NONE;
+  const suggestions = useApi<TaskSuggestion[]>("/api/tasks/suggestions").data ?? NONE;
+  const history = useApi<TaskHistoryItem[]>("/api/tasks/history?days=30").data ?? NONE;
+  const board = useApi<LeaderboardEntry[]>("/api/tasks/leaderboard").data ?? NONE;
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const manageTasks = useApi<Task[]>(canManage ? "/api/tasks/manage" : null).data ?? NONE;
+  const approvals = useApi<ApprovalItem[]>(canManage ? "/api/tasks/approvals" : null).data ?? NONE;
 
   // Open a tab from the URL, e.g. /tasks?tab=approvals from the approval push or the dashboard banner.
   useEffect(() => {
@@ -85,7 +74,6 @@ export default function TasksPage() {
         await api.post("/api/tasks?force=true", draft);
       }
       setShowForm(false);
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("tasks.createError"));
     }
@@ -95,7 +83,6 @@ export default function TasksPage() {
     try {
       await api.patch(`/api/tasks/${taskId}`, patch);
       setEditingTaskId(null);
-      load();
     } catch (e) {
       alert(e instanceof Error ? e.message : t("tasks.updateError"));
     }
@@ -105,8 +92,7 @@ export default function TasksPage() {
     setManageError("");
     try {
       await api.del(`/api/tasks/${taskId}`);
-      setManageTasks((prev) => prev.filter((task) => task.id !== taskId));
-      load();
+      setApiData<Task[]>("/api/tasks/manage", (prev) => prev?.filter((task) => task.id !== taskId));
     } catch (e) {
       setManageError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -118,14 +104,12 @@ export default function TasksPage() {
     setSuggestDescription("");
     setShowSuggest(false);
     setSuggestMsg(t("suggest.sent"));
-    load();
   }
 
   async function approveSuggestion(id: string, draft: TaskDraft) {
     try {
       await api.post(`/api/tasks/suggestions/${id}/approve`, draft);
       setApprovingId(null);
-      load();
     } catch (e) {
       alert(e instanceof Error ? e.message : t("common.error"));
     }
@@ -135,16 +119,12 @@ export default function TasksPage() {
     const note = prompt(t("suggest.rejectNotePrompt"));
     if (note === null) return;
     await api.post(`/api/tasks/suggestions/${id}/reject`, { note: note || null });
-    load();
   }
 
   async function review(completionId: string, action: "approve" | "reject") {
     const note = action === "reject" ? prompt(t("tasks.rejectionNotePrompt")) || "" : "";
     await api.post(`/api/tasks/approvals/${completionId}`, { action, note: note || null });
-    load();
   }
-
-  const canManage = me?.role === "admin" || me?.role === "adult";
 
   useEffect(() => {
     // Wait for "me", or a link to ?tab=approvals is reset before we know the user is an adult.
@@ -260,7 +240,7 @@ export default function TasksPage() {
                 </button>
               </div>
               {back > 0 && <p className="mb-3 text-xs text-muted">{t("tasks.reportHint")}</p>}
-              <TaskList items={tasks} onChanged={load} members={members} meId={me?.id ?? null} back={back} />
+              <TaskList items={tasks} members={members} meId={me?.id ?? null} back={back} />
             </section>
             <section className="card p-5">
               <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">{t("widget.leaderboard")}</h2>
@@ -320,7 +300,7 @@ export default function TasksPage() {
                 {items.length === 0 ? (
                   <p className="text-xs text-muted">—</p>
                 ) : (
-                  <TaskList items={items} onChanged={load} members={members} meId={me?.id ?? null} readOnly={!isToday} />
+                  <TaskList items={items} members={members} meId={me?.id ?? null} readOnly={!isToday} />
                 )}
               </section>
             );

@@ -3,11 +3,12 @@
 // Today cards from public sources: the next waste collections (the family's iCal calendar),
 // this week's school lunch per child (skolmaten.se) and the weather (SMHI). Set up under Family
 // admin → Today cards.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, LucideIcon, Sun } from "lucide-react";
-import { api, Electricity, SchoolLunch, WastePickup, Weather, WeatherKind } from "@/lib/api";
+import { Electricity, SchoolLunch, WastePickup, Weather, WeatherKind } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { useMe } from "@/components/Shell";
 
@@ -43,14 +44,10 @@ function SetUpHint({ text }: { text: string }) {
 export function WasteWidget() {
   const { t } = useI18n();
   const label = useDayLabel();
-  const [rows, setRows] = useState<WastePickup[] | null>(null);
-  const [error, setError] = useState(false);
+  const waste = useApi<WastePickup[]>("/api/dashboard/waste");
+  const rows = waste.data ?? null;
 
-  useEffect(() => {
-    api.live<WastePickup[]>("/api/dashboard/waste", setRows).catch(() => setError(true));
-  }, []);
-
-  if (error) return <p className="text-sm text-muted">{t("cards.wasteError")}</p>;
+  if (waste.isError && !rows) return <p className="text-sm text-muted">{t("cards.wasteError")}</p>;
   if (rows === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (rows.length === 0) return <SetUpHint text={t("cards.wasteEmpty")} />;
   const today = toLocalDateKey(new Date());
@@ -72,11 +69,8 @@ export function WasteWidget() {
 export function SchoolLunchWidget() {
   const { t } = useI18n();
   const label = useDayLabel();
-  const [rows, setRows] = useState<SchoolLunch[] | null>(null);
-
-  useEffect(() => {
-    api.live<SchoolLunch[]>("/api/dashboard/school-lunch", setRows).catch(() => setRows([]));
-  }, []);
+  const lunch = useApi<SchoolLunch[]>("/api/dashboard/school-lunch");
+  const rows = lunch.data ?? (lunch.isError ? NONE : null);
 
   if (rows === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (rows.length === 0) return <SetUpHint text={t("cards.lunchEmpty")} />;
@@ -129,14 +123,10 @@ const deg = (value: number | null | undefined) => (value === null || value === u
 
 export function WeatherWidget() {
   const { t, dateLocale } = useI18n();
-  const [info, setInfo] = useState<Weather | null | undefined>(undefined);
-  const [error, setError] = useState(false);
+  const weather = useApi<Weather | null>("/api/dashboard/weather");
+  const info = weather.data;
 
-  useEffect(() => {
-    api.live<Weather | null>("/api/dashboard/weather", setInfo).catch(() => setError(true));
-  }, []);
-
-  if (error) return <p className="text-sm text-muted">{t("weather.error")}</p>;
+  if (weather.isError && info === undefined) return <p className="text-sm text-muted">{t("weather.error")}</p>;
   if (info === undefined) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (info === null) return <SetUpHint text={t("weather.empty")} />;
   const today = info.today;
@@ -182,15 +172,11 @@ export function WeatherWidget() {
 
 export function ElectricityWidget() {
   const { t, dateLocale } = useI18n();
-  const [info, setInfo] = useState<Electricity | null | undefined>(undefined);
-  const [error, setError] = useState(false);
+  const electricity = useApi<Electricity | null>("/api/dashboard/electricity");
+  const info = electricity.data;
   const [day, setDay] = useState<"today" | "tomorrow">("today");
 
-  useEffect(() => {
-    api.live<Electricity | null>("/api/dashboard/electricity", setInfo).catch(() => setError(true));
-  }, []);
-
-  if (error) return <p className="text-sm text-muted">{t("electricity.error")}</p>;
+  if (electricity.isError && info === undefined) return <p className="text-sm text-muted">{t("electricity.error")}</p>;
   if (info === undefined) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (info === null) return <SetUpHint text={t("electricity.empty")} />;
   const hours = day === "today" ? info.today : info.tomorrow ?? [];

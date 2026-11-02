@@ -5,21 +5,22 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Address = { external_url: string | null; env_url: string | null; effective: string | null };
 
 export default function ServerAddress() {
   const { t } = useI18n();
-  const [address, setAddress] = useState<Address | null>(null);
+  const address = useApi<Address>("/api/admin/external-url").data ?? null;
+  const setAddress = (a: Address) => setApiData<Address>("/api/admin/external-url", () => a);
   const [url, setUrl] = useState("");
   const [saved, setSaved] = useState("");
 
+  // The field starts as the saved address (and follows it when it is saved).
+  const savedUrl = address?.external_url ?? "";
   useEffect(() => {
-    api.get<Address>("/api/admin/external-url").then((a) => {
-      setAddress(a);
-      setUrl(a.external_url ?? "");
-    }).catch(() => {});
-  }, []);
+    setUrl(savedUrl);
+  }, [savedUrl]);
 
   async function save(value: string) {
     setSaved("");

@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { api, FamilyList, SlSite, WidgetType } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { Bus, ShoppingBasket } from "lucide-react";
 import { useMe } from "@/components/Shell";
 import { widgetAllowed } from "@/lib/nav";
@@ -24,7 +25,7 @@ export default function AddWidgetPanel({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SlSite[]>([]);
   const [searched, setSearched] = useState(false);
-  const [lists, setLists] = useState<FamilyList[]>([]);
+  const lists = useApi<FamilyList[]>(apps.includes("lists") ? "/api/lists" : null).data ?? NONE;
 
   // Debounced stop search.
   useEffect(() => {
@@ -47,10 +48,6 @@ export default function AddWidgetPanel({
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
-
-  useEffect(() => {
-    if (apps.includes("lists")) api.live<FamilyList[]>("/api/lists", setLists).catch(() => setLists([]));
-  }, [apps.includes("lists")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="card p-5 space-y-4">

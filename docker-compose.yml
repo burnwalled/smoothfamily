@@ -94,7 +94,7 @@ services:
   # The recipe search's own search engine (2.8.4): only the backend reaches it, over the internal
   # network. Turned on or off by the server admin in Server settings.
   searxng:
-    image: searxng/searxng:2026.10.13-22c64b8d3
+    image: searxng/searxng:2026.10.19-d47cb96bf
     restart: unless-stopped
     environment:
       SEARXNG_SECRET: ${SEARXNG_SECRET:-}

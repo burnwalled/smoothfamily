@@ -6,13 +6,15 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 type Setting = { url: string | null; bundled: string | null };
 type Health = { ok: boolean; version: string | null; hits: number | null; unresponsive: { engine: string; reason: string }[]; error: string | null };
 
 export default function RecipeSearchSetting() {
   const { t } = useI18n();
-  const [setting, setSetting] = useState<Setting | null>(null);
+  const setting = useApi<Setting>("/api/admin/integrations/recipe-search").data ?? null;
+  const setSetting = (next: Setting) => setApiData<Setting>("/api/admin/integrations/recipe-search", () => next);
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,12 +36,11 @@ export default function RecipeSearchSetting() {
     check();
   }, []);
 
+  // The field starts as the saved address of another SearXNG (and follows it when it is saved).
+  const savedUrl = setting?.url && setting.url !== setting.bundled ? setting.url : "";
   useEffect(() => {
-    api.get<Setting>("/api/admin/integrations/recipe-search").then((r) => {
-      setSetting(r);
-      setUrl(r.url && r.url !== r.bundled ? r.url : "");
-    }).catch(() => {});
-  }, []);
+    setUrl(savedUrl);
+  }, [savedUrl]);
 
   async function save(next: string | null) {
     setBusy(true);

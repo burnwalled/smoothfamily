@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import FamilyGoals from "@/components/FamilyGoals";
 import { api, Achievement, AchievementsResponse, LevelInfo } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import { CircleCheck, Flame, LucideIcon, Medal, Shapes, Star, Sunrise, Trophy } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 
@@ -113,11 +113,7 @@ function BadgeCard({ ach }: { ach: Achievement }) {
 
 export default function AchievementsPage() {
   const { t } = useI18n();
-  const [data, setData] = useState<AchievementsResponse | null>(null);
-
-  useEffect(() => {
-    api.live<AchievementsResponse>("/api/achievements", setData).catch(() => {});
-  }, []);
+  const data = useApi<AchievementsResponse>("/api/achievements").data ?? null;
 
   if (!data) {
     return (

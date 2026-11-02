@@ -3,10 +3,11 @@
 // Admin picker for Home Assistant entities: search + filter the (often very
 // long) HA entity list, give each device a family-friendly name, choose who
 // may control it, and rename/remove devices that are already exposed.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { api, Member, SmarthomeDevice, SmarthomeEntity } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { refreshApi, useApi } from "@/lib/query";
 import { HomeConn } from "@/components/smarthome/Homes";
 import { domainIcon, isActive, SMART_DOMAINS, SmartDomain } from "@/lib/smarthome";
 
@@ -108,12 +109,10 @@ export default function SmartHomeDevices({
   devices,
   members,
   homes = [],
-  onChanged,
 }: {
   devices: SmarthomeDevice[];
   members: Member[];
   homes?: HomeConn[];
-  onChanged: () => void;
 }) {
   const { t } = useI18n();
   // Which Home Assistant to pick from: the main one ("") or another home's (2.8.4).
@@ -126,9 +125,12 @@ export default function SmartHomeDevices({
     const h = homes.find((x) => x.id === id);
     return h ? h.name || h.property_name || t("homes.main") : null;
   };
-  const [entities, setEntities] = useState<SmarthomeEntity[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  // What the chosen Home Assistant offers, from the cache; Refresh asks it again.
+  const entitiesPath = `/api/smarthome/entities${source ? `?connection_id=${source}` : ""}`;
+  const entitiesQuery = useApi<SmarthomeEntity[]>(entitiesPath);
+  const entities = entitiesQuery.data ?? null;
+  const loading = entitiesQuery.isFetching;
+  const loadError = entitiesQuery.isError && !entitiesQuery.data;
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState<SmartDomain | "all">("all");
   const [adding, setAdding] = useState<string | null>(null); // entity_id being added
@@ -136,22 +138,6 @@ export default function SmartHomeDevices({
   const [form, setForm] = useState<DeviceForm>({ name: "", allowed: [] });
   const [error, setError] = useState("");
 
-  const loadEntities = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      setEntities(await api.get<SmarthomeEntity[]>(`/api/smarthome/entities${source ? `?connection_id=${source}` : ""}`));
-    } catch {
-      setEntities(null);
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [source]);
-
-  useEffect(() => {
-    loadEntities();
-  }, [loadEntities]);
 
   const haNames = useMemo(() => new Map((entities ?? []).map((e) => [e.entity_id, e.name])), [entities]);
 
@@ -190,7 +176,6 @@ export default function SmartHomeDevices({
         connection_id: source || null,
       });
       setAdding(null);
-      onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -207,7 +192,6 @@ export default function SmartHomeDevices({
         allowed_user_ids: form.allowed,
       });
       setEditing(null);
-      onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -216,7 +200,6 @@ export default function SmartHomeDevices({
   async function removeDevice(device: SmarthomeDevice) {
     if (!confirm(t("common.confirmRemove", { name: device.display_name }))) return;
     await api.del(`/api/smarthome/devices/${device.id}`);
-    onChanged();
   }
 
   function stateLabel(state: string): string {
@@ -303,7 +286,7 @@ export default function SmartHomeDevices({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("smarthome.addFromHa")}</h3>
           <button
             className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
-            onClick={loadEntities}
+            onClick={() => void refreshApi(entitiesPath)}
             disabled={loading}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} strokeWidth={2} aria-hidden />

@@ -4,11 +4,11 @@
 // phones and computers, the kitchen displays and the gateways – on a map around the server and in a
 // list, each with its health and what to do when it isn't well. Gone for more than 7 days, a device
 // leaves the map; an old one can be forgotten.
-import { useCallback, useEffect, useState } from "react";
 import { Cpu, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { ago } from "@/lib/ago";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import Topology, { HEALTH_COLOR, Health, KIND_ICON, Legend, MapNode, worst } from "@/components/devices/Topology";
 
 type Device = {
@@ -29,17 +29,10 @@ const ORDER: Record<Health, number> = { offline: 0, outdated: 1, ok: 2, away: 3 
 
 export default function DevicesSettingsPage() {
   const { t, dateLocale } = useI18n();
-  const [data, setData] = useState<{ app_version: string | null; devices: Device[] } | null>(null);
-  const [error, setError] = useState("");
-
-  const load = useCallback(() => {
-    api.get<{ app_version: string | null; devices: Device[] }>("/api/devices").then(setData).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(() => {
-    load();
-    const id = window.setInterval(load, 60_000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  // From the cache, read again every minute (who is online changes without anyone writing anything).
+  const query = useApi<{ app_version: string | null; devices: Device[] }>("/api/devices", { refetchInterval: 60_000 });
+  const data = query.data ?? null;
+  const error = query.isError && !data ? query.error.message : "";
 
   if (!data) return <p className="text-sm text-muted">{error || t("common.loading")}</p>;
   const kind = (k: string) => t(`devices.kind.${k}` as TranslationKey);
@@ -111,7 +104,7 @@ export default function DevicesSettingsPage() {
                 </span>
                 <span className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style={{ background: HEALTH_COLOR[d.status] }}>{t(`devices.health.${d.status}`)}</span>
                 {d.forgettable && (
-                  <button className="btn-ghost p-1.5 text-muted" onClick={() => confirm(t("devices.forgetConfirm", { name: d.name })) && api.del(`/api/devices/${d.id}`).then(load)} aria-label={t("devices.forget", { name: d.name })}>
+                  <button className="btn-ghost p-1.5 text-muted" onClick={() => confirm(t("devices.forgetConfirm", { name: d.name })) && api.del(`/api/devices/${d.id}`)} aria-label={t("devices.forget", { name: d.name })}>
                     <Trash2 className="h-4 w-4" aria-hidden />
                   </button>
                 )}

@@ -1,27 +1,30 @@
 "use client";
 
 // Family admin → Points & allowance: child approval, currency and shopping points.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { AllowanceSettings, api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { setApiData, useApi } from "@/lib/query";
 
 export default function PointsSettingsPage() {
   const { t } = useI18n();
-  const [settings, setSettings] = useState<AllowanceSettings | null>(null);
+  // The saved rules from the cache; while they are being changed, the changes on top of them.
+  const saved_ = useApi<AllowanceSettings>("/api/allowance/settings").data ?? null;
+  const [draft, setSettings] = useState<AllowanceSettings | null>(null);
+  const settings = draft ?? saved_;
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    api.live<AllowanceSettings>("/api/allowance/settings", setSettings).catch(() => {});
-  }, []);
 
   async function save() {
     if (!settings) return;
     setError("");
     setSaved(false);
     try {
-      setSettings(await api.patch<AllowanceSettings>("/api/allowance/settings", settings));
+      const next = await api.patch<AllowanceSettings>("/api/allowance/settings", settings);
+      setApiData<AllowanceSettings>("/api/allowance/settings", () => next);
+      setSettings(null);
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

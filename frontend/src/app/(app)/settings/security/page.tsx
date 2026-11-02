@@ -2,24 +2,18 @@
 
 // Family settings → Security: the sign-in rules (set by the server admin for every family, 2.8.2)
 // and, for a hosted family, what the server's admin has done with it.
-import { useEffect, useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { api, ServerLogRow } from "@/lib/api";
 import { useMe } from "@/components/Shell";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required" };
 
 export default function SecuritySettingsPage() {
   const { t } = useI18n();
   const hosted = useMe().family_kind === "hosted";
-  const [policy, setPolicy] = useState<Policy | null>(null);
-
-  useEffect(() => {
-    api
-      .live<Policy>("/api/auth/security", (r) => setPolicy({ passkeys_enabled: r.passkeys_enabled, totp_policy: r.totp_policy }))
-      .catch(() => {});
-  }, []);
+  const policy = useApi<Policy>("/api/auth/security").data ?? null;
 
   return (
     <>
@@ -49,10 +43,8 @@ export default function SecuritySettingsPage() {
 // For a family hosted on someone else's server: everything the server's admin has done with it.
 function ServerLogForFamily() {
   const { t, dateLocale } = useI18n();
-  const [rows, setRows] = useState<ServerLogRow[] | null>(null);
-  useEffect(() => {
-    api.get<ServerLogRow[]>("/api/server/log/mine").then(setRows).catch(() => setRows([]));
-  }, []);
+  const query = useApi<ServerLogRow[]>("/api/server/log/mine");
+  const rows = query.data ?? (query.isError ? NONE : null);
   return (
     <section className="card mt-4 p-5">
       <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">{t("server.familyLogTitle")}</h2>

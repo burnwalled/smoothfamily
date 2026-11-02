@@ -6,21 +6,18 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
 import { api, Recipe } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 
 type Hit = { title: string; url: string; site: string; snippet: string; importable?: boolean };
 
 export default function RecipeSearch({ initial = "", notImportable = {}, onImported }: { initial?: string; notImportable?: Record<string, string>; onImported: (recipe: Recipe) => void }) {
   const { t } = useI18n();
-  const [enabled, setEnabled] = useState(false);
+  const enabled = useApi<{ enabled: boolean }>("/api/meals/recipes/search/status").data?.enabled ?? false;
   const [query, setQuery] = useState(initial);
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    api.get<{ enabled: boolean }>("/api/meals/recipes/search/status").then((r) => setEnabled(r.enabled)).catch(() => {});
-  }, []);
 
   async function search(words = query) {
     if (words.trim().length < 2) return;

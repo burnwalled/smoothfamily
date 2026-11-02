@@ -1,10 +1,11 @@
 "use client";
 
 // Family admin → Home: dwelling, rooms and AI-suggested chores for them.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { api, HomeProfile, ImportResult, postRaw, Room } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import AiAssist from "@/components/AiAssist";
 import { AiJobButton } from "@/components/LocalAi";
 
@@ -22,25 +23,24 @@ const DWELLINGS: { value: HomeProfile["dwelling_type"]; key: string }[] = [
 
 export default function HomeSettingsPage() {
   const { t } = useI18n();
-  const [profile, setProfile] = useState<HomeProfile>({ dwelling_type: "apartment", has_garden: false, notes: null });
-  const [rooms, setRooms] = useState<Room[]>([]);
+  // The saved home from the cache; while it is being changed, the changes on top of it.
+  const saved = useApi<HomeProfile | null>("/api/home/profile").data;
+  const [draft, setProfile] = useState<HomeProfile | null>(null);
+  const profile: HomeProfile = draft ?? saved ?? { dwelling_type: "apartment", has_garden: false, notes: null };
+  const rooms = useApi<Room[]>("/api/home/rooms").data ?? NONE;
   const [roomName, setRoomName] = useState("");
   const [roomCategory, setRoomCategory] = useState("kitchen");
   const [chorePrompt, setChorePrompt] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.live<HomeProfile | null>("/api/home/profile", (p) => p && setProfile(p)).catch(() => {});
-    api.live<Room[]>("/api/home/rooms", setRooms).catch(() => {});
-  }, []);
-
-  useEffect(load, [load]);
 
   async function saveProfile() {
     setError("");
     try {
-      await api.put("/api/home/profile", profile);
+      const next = await api.put<HomeProfile>("/api/home/profile", profile);
+      setApiData<HomeProfile | null>("/api/home/profile", () => next);
+      setProfile(null);
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
       setChorePrompt("");
@@ -55,7 +55,6 @@ export default function HomeSettingsPage() {
       await api.post("/api/home/rooms", { name: roomName, category: roomCategory });
       setRoomName("");
       setChorePrompt("");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("home.roomError"));
     }
@@ -100,7 +99,7 @@ export default function HomeSettingsPage() {
           <li key={room.id} className="flex items-center gap-2 rounded-full bg-base px-3 py-1 text-xs border border-edge">
             <span className="font-semibold">{room.name}</span>
             <span className="text-muted">{t(`home.roomCategory.${room.category}` as Parameters<typeof t>[0])}</span>
-            <button className="text-red-700" onClick={async () => { await api.del(`/api/home/rooms/${room.id}`); setChorePrompt(""); load(); }}>×</button>
+            <button className="text-red-700" onClick={async () => { await api.del(`/api/home/rooms/${room.id}`); setChorePrompt(""); }}>×</button>
           </li>
         ))}
       </ul>

@@ -2,11 +2,11 @@
 
 // Two homes: the children's other parents (2.8.3) – invite one per child (those who may change the
 // family's settings), see who has joined, close their access, and write with them (all adults).
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy, MessageCircle, UserRoundPlus } from "lucide-react";
 import { api, Member } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 
 type CoParent = { id: string; name: string; child_ids: string[]; joined: boolean; last_seen_at: string | null; revoked: boolean; invite_expires_at: string | null };
@@ -14,18 +14,16 @@ type Message = { id: string; body: string; from_name: string; mine: boolean; cre
 
 function Thread({ coparent }: { coparent: CoParent }) {
   const { t, dateLocale } = useI18n();
-  const [messages, setMessages] = useState<Message[]>([]);
+  // The thread from the cache: a message from the other parent (a live event) refreshes it.
+  const path = `/api/custody/coparents/${coparent.id}/messages`;
+  const messages = useApi<Message[]>(path).data ?? NONE;
   const [body, setBody] = useState("");
-  const load = useCallback(() => {
-    api.get<Message[]>(`/api/custody/coparents/${coparent.id}/messages`).then(setMessages).catch(() => {});
-  }, [coparent.id]);
-  useEffect(load, [load]);
-  useLive(["custody"], load);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
-    setMessages(await api.post<Message[]>(`/api/custody/coparents/${coparent.id}/messages`, { body: body.trim() }));
+    const next = await api.post<Message[]>(path, { body: body.trim() });
+    setApiData<Message[]>(path, () => next);
     setBody("");
   }
 
@@ -64,17 +62,13 @@ export default function CoParents({ children }: { children: Member[] }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const mayManage = me.role === "admin" || !!me.can_manage_family;
-  const [rows, setRows] = useState<CoParent[]>([]);
+  const rows = useApi<CoParent[]>("/api/custody/coparents").data ?? NONE;
   const [childId, setChildId] = useState("");
   const [name, setName] = useState("");
   const [link, setLink] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<CoParent[]>("/api/custody/coparents").then(setRows).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
 
   async function invite(e: React.FormEvent) {
     e.preventDefault();
@@ -83,7 +77,6 @@ export default function CoParents({ children }: { children: Member[] }) {
       const made = await api.post<CoParent & { url: string }>(`/api/custody/${childId || children[0]?.id}/coparents`, { name: name.trim() });
       setLink(made.url);
       setName("");
-      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
     }
@@ -117,7 +110,7 @@ export default function CoParents({ children }: { children: Member[] }) {
                     </button>
                   )}
                   {mayManage && !r.revoked && (
-                    <button className="rounded px-2 py-1 text-xs text-red-700 hover:bg-base" onClick={() => confirm(t("coparent.closeConfirm", { name: r.name })) && api.del(`/api/custody/coparents/${r.id}`).then(load)}>
+                    <button className="rounded px-2 py-1 text-xs text-red-700 hover:bg-base" onClick={() => confirm(t("coparent.closeConfirm", { name: r.name })) && api.del(`/api/custody/coparents/${r.id}`)}>
                       {t("coparent.close")}
                     </button>
                   )}

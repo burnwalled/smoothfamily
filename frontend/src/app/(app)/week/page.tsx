@@ -3,12 +3,12 @@
 // Söndagskollen: a relaxed weekly moment, e.g. at Sunday dinner. Look back at last week (points,
 // the top helper, family goals), ahead at the coming one (calendar with who drives, meals, whose
 // turn it is), give thank-you stars, pick the family activity – and mark it done.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, HeartHandshake, Repeat, Search, Sparkles, Star, Trophy, UtensilsCrossed } from "lucide-react";
 import { api, Member, WeekReview } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import { getIsoWeek } from "@/lib/week";
 import { EventPlanBadges } from "@/components/EventPlanPanel";
 import WebSearch, { shortTitle, useWebSearch } from "@/components/WebSearch";
@@ -33,8 +33,7 @@ export default function WeekPage() {
   const me = useMe();
   const adult = me.role === "admin" || me.role === "adult";
   const [start, setStart] = useState<string | null>(null);
-  const [week, setWeek] = useState<WeekReview | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [activity, setActivity] = useState("");
   const webSearch = useWebSearch();
   const [ideas, setIdeas] = useState(false);
@@ -42,32 +41,25 @@ export default function WeekPage() {
   const [starText, setStarText] = useState("");
   const [error, setError] = useState("");
 
+  // From the cache: tasks, the calendar and the meals all count in the week (RELATED in lib/api.ts),
+  // so a change in any of them refreshes it.
+  const weekQuery = useApi<WeekReview>(start ? `/api/week?start=${start}` : "/api/week");
+  const week = weekQuery.data ?? null;
+  // The activity field starts from what is saved.
   useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
-
-  const load = useCallback(() => {
-    api
-      .live<WeekReview>(start ? `/api/week?start=${start}` : "/api/week", (w) => {
-        setWeek(w);
-        setActivity(w.activity ?? "");
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [start, t]);
-  useEffect(load, [load]);
-  useLive(["week", "calendar", "tasks", "meals"], load);
+    if (week) setActivity(week.activity ?? "");
+  }, [week?.week_start, week?.activity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
   }
 
-  if (!week) return <p className="text-sm text-muted">{error || t("common.loading")}</p>;
+  if (!week) return <p className="text-sm text-muted">{error || weekQuery.error?.message || t("common.loading")}</p>;
 
   const first = week.week_start;
   const weekNo = getIsoWeek(new Date(`${first}T12:00:00`));

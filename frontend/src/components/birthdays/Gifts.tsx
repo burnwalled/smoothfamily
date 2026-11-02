@@ -4,23 +4,20 @@
 // person (or an adult for them) and others mark "I'm buying this" – never shown to the person; it
 // can be shared with relatives through a link. The gift planning is the adults' secret: ideas and
 // who is buying what, never shown to the person it is for.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Lightbulb, Link2, Plus, Search, Trash2 } from "lucide-react";
 import { api, Person, Wish, WishShare } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, refreshApi, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import { when } from "@/components/birthdays/People";
 import WebSearch, { shortTitle, useWebSearch } from "@/components/WebSearch";
 
+// A person's wishes from the cache; a change to them (here or elsewhere) refreshes it by itself.
 function useWishes(personId: string) {
-  const [wishes, setWishes] = useState<Wish[]>([]);
-  const load = useCallback(() => {
-    api.live<Wish[]>(`/api/birthdays/people/${personId}/wishes`, setWishes).catch(() => setWishes([]));
-  }, [personId]);
-  useEffect(load, [load]);
-  useLive(["birthdays"], load);
-  return [wishes, load] as const;
+  const path = `/api/birthdays/people/${personId}/wishes`;
+  const wishes = useApi<Wish[]>(path).data ?? NONE;
+  return [wishes, () => void refreshApi(path)] as const;
 }
 
 function useRun(setError: (e: string) => void, reload: () => void) {
@@ -240,18 +237,12 @@ export function GiftPlan({ person }: { person: Person }) {
 // Adults: share the wish list with relatives outside the app (grandparents …) through a link.
 export function ShareLinks({ personId, name }: { personId: string; name: string }) {
   const { t, dateLocale } = useI18n();
-  const [shares, setShares] = useState<WishShare[]>([]);
+  const shares = useApi<WishShare[]>(`/api/birthdays/people/${personId}/shares`).data ?? NONE;
   const [days, setDays] = useState(90);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(() => {
-    api.get<WishShare[]>(`/api/birthdays/people/${personId}/shares`).then(setShares).catch(() => setShares([]));
-  }, [personId]);
-  useEffect(() => {
-    setLink(null);
-    load();
-  }, [load]);
+  useEffect(() => setLink(null), [personId]);
 
   const active = shares.filter((s) => !s.revoked_at && new Date(s.expires_at) > new Date());
   const when = (iso: string) => new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
@@ -273,7 +264,6 @@ export function ShareLinks({ personId, name }: { personId: string; name: string 
             const created = await api.post<WishShare & { url: string }>(`/api/birthdays/people/${personId}/shares`, { days });
             setLink(created.url.startsWith("http") ? created.url : `${window.location.origin}${created.url}`);
             setCopied(false);
-            load();
           }}
         >
           {t("share.create")}
@@ -294,7 +284,7 @@ export function ShareLinks({ personId, name }: { personId: string; name: string 
           {active.map((s) => (
             <li key={s.id} className="flex items-center gap-2">
               <span className="flex-1 text-muted">{t("share.activeUntil", { date: when(s.expires_at) })}</span>
-              <button className="text-red-700 underline" onClick={() => api.del(`/api/birthdays/shares/${s.id}`).then(load)}>{t("server.revoke")}</button>
+              <button className="text-red-700 underline" onClick={() => api.del(`/api/birthdays/shares/${s.id}`)}>{t("server.revoke")}</button>
             </li>
           ))}
         </ul>

@@ -452,6 +452,8 @@ const nb: Dictionary = {
   "tasks.approvalsTab": "Godkjenninger",
   "tasks.requiresApproval": "Krever godkjenning",
   "tasks.waitingApproval": "Venter på godkjenning",
+  "tasks.undo": "Angre",
+  "tasks.undoConfirm": "Angre «{title}»? Poengene trekkes tilbake.",
   "tasks.rejected": "Avvist",
   "tasks.duplicateConfirm": "En aktiv oppgave med samme tittel finnes allerede. Opprette likevel?",
   "tasks.rejectionNotePrompt": "Valgfri avvisningskommentar",

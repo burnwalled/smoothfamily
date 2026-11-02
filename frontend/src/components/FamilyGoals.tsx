@@ -2,28 +2,22 @@
 
 // Family goals: rewards (bowling, a restaurant …) the whole family unlocks with points together.
 // `compact` is the dashboard card (progress only); the full view lets adults add and finish goals.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Gift, PartyPopper, Trash2 } from "lucide-react";
 import { api, FamilyReward } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 
 export default function FamilyGoals({ compact = false }: { compact?: boolean }) {
   const { t, dateLocale } = useI18n();
-  const [goals, setGoals] = useState<FamilyReward[] | null>(null);
+  const rewards = useApi<FamilyReward[]>("/api/rewards");
+  const goals = rewards.data ?? (rewards.isError ? NONE : null);
   const me = useMe();
   const [title, setTitle] = useState("");
   const [points, setPoints] = useState("500");
   const [error, setError] = useState("");
-
-  const load = useCallback(() => {
-    api.live<FamilyReward[]>("/api/rewards", setGoals).catch(() => setGoals([]));
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load, compact]);
 
   const isAdult = me?.role === "admin" || me?.role === "adult";
 
@@ -32,7 +26,6 @@ export default function FamilyGoals({ compact = false }: { compact?: boolean }) 
     try {
       await api.post("/api/rewards", { title: title.trim(), points_required: Math.round(Number(points)) });
       setTitle("");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -40,13 +33,11 @@ export default function FamilyGoals({ compact = false }: { compact?: boolean }) 
 
   async function redeem(goal: FamilyReward) {
     await api.post(`/api/rewards/${goal.id}/redeem`);
-    load();
   }
 
   async function remove(goal: FamilyReward) {
     if (!confirm(t("common.confirmRemove", { name: goal.title }))) return;
     await api.del(`/api/rewards/${goal.id}`);
-    load();
   }
 
   if (!goals) return <p className="text-sm text-muted">{t("common.loading")}</p>;

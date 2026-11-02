@@ -2,23 +2,17 @@
 
 // An adult's own medicine doses today (2.9.0): private, so not tasks and no points – a child's and a
 // pet's doses are real tasks. Set up under My profile.
-import { useCallback, useEffect, useState } from "react";
 import { Check, Pill } from "lucide-react";
 import { api, Medication } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 
 export default function MedicineDoses() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [meds, setMeds] = useState<Medication[]>([]);
   const allowed = me.apps.includes("medicine");
-  const load = useCallback(() => {
-    if (allowed) api.live<Medication[]>("/api/medicine", setMeds).catch(() => {});
-  }, [allowed]);
-  useEffect(load, [load]);
-  useLive(["medicine"], load);
+  const meds = useApi<Medication[]>(allowed ? "/api/medicine" : null).data ?? NONE;
 
   const due = meds.filter((m) => m.active && m.today.length > 0);
   if (!allowed || due.length === 0) return null;
@@ -26,7 +20,6 @@ export default function MedicineDoses() {
 
   async function take(med: Medication, scheduledAt: string) {
     await api.post(`/api/medicine/${med.id}/take`, { scheduled_at: scheduledAt }).catch(() => {});
-    load();
   }
 
   return (

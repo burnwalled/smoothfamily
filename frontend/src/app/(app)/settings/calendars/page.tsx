@@ -2,10 +2,11 @@
 
 // Family settings → Calendars: subscribed iCal feeds, whose own calendar each is (2.8.4), and who sees
 // them (and their details).
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api, Feed, Member } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { COLOR_NAMES, COLORS } from "@/lib/colors";
 
 function toggleUser(list: string[], userId: string): string[] {
@@ -14,8 +15,8 @@ function toggleUser(list: string[], userId: string): string[] {
 
 export default function CalendarSettingsPage() {
   const { t } = useI18n();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [feeds, setFeeds] = useState<Feed[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const feeds = useApi<Feed[]>("/api/calendar/feeds").data ?? NONE;
   const [error, setError] = useState("");
   const [feedName, setFeedName] = useState("");
   const [feedUrl, setFeedUrl] = useState("");
@@ -23,12 +24,6 @@ export default function CalendarSettingsPage() {
   const [feedMember, setFeedMember] = useState("");
   const [savingFeedId, setSavingFeedId] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-    api.live<Feed[]>("/api/calendar/feeds", setFeeds).catch(() => {});
-  }, []);
-
-  useEffect(load, [load]);
 
   async function addFeed() {
     setError("");
@@ -37,7 +32,6 @@ export default function CalendarSettingsPage() {
       setFeedName("");
       setFeedUrl("");
       setFeedMember("");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("settings.feedError"));
     }
@@ -47,7 +41,6 @@ export default function CalendarSettingsPage() {
     setSavingFeedId(feedId);
     try {
       await api.patch(`/api/calendar/feeds/${feedId}`, patch);
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -109,7 +102,6 @@ export default function CalendarSettingsPage() {
                 onClick={async () => {
                   if (confirm(t("common.confirmRemove", { name: feed.name }))) {
                     await api.del(`/api/calendar/feeds/${feed.id}`);
-                    load();
                   }
                 }}
               >

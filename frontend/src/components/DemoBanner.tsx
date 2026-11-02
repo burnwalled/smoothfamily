@@ -2,11 +2,12 @@
 
 // The demo banner: whose eyes you see the demo through (one tap to switch member), start over
 // with fresh sample data, or leave the demo to create your own family.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { api, Me } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import { clearApiCache } from "@/lib/api";
 
 // The invitation the demo came from, so "Create my own family" can lead back to it.
@@ -17,12 +18,8 @@ type DemoInfo = { members: { id: string; name: string; role: string; color: stri
 export default function DemoBanner({ me }: { me: Me }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [info, setInfo] = useState<DemoInfo | null>(null);
+  const info = useApi<DemoInfo>("/api/demo").data ?? null;
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api.get<DemoInfo>("/api/demo").then(setInfo).catch(() => {});
-  }, [me.family_id]);
 
   async function act(action: () => Promise<unknown>, to = "/") {
     setBusy(true);

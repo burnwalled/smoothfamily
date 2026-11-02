@@ -17,7 +17,8 @@ test("flows and presence wait for Home Assistant", async ({ adminPage: page }) =
 test("a simulated home with a flow and presence", async ({ adminPage: page, adminApi }) => {
   await page.goto("/settings/smarthome");
   await page.getByRole("button", { name: "Use a simulated home" }).click();
-  await expect(page.getByText("Connected to a simulated home (no real devices)")).toBeVisible();
+  // Shown at the top and, at once, in the list of homes too.
+  await expect(page.getByText("Connected to a simulated home (no real devices)").first()).toBeVisible();
   try {
     await page.goto("/smarthome");
     await expect(page.getByRole("region", { name: "Simulated home" })).toBeVisible();

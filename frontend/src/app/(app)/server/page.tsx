@@ -2,13 +2,14 @@
 
 // The server: families on this server, invitations, moving a family, backups and the server log.
 // Only for the server's admin. Shows names, counts and sizes – never another family's content.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageTitle from "@/components/PageTitle";
 import TabNav from "@/components/TabNav";
 import { Copy, Download, Mail, Pause, Play, Server, Sparkles, Trash2, Upload } from "lucide-react";
 import { api, Invitation, ServerFamily, ServerLogRow } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, refreshResource, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import BackupsPanel from "@/components/BackupsPanel";
 import BackupKey from "@/components/settings/BackupKey";
@@ -48,9 +49,10 @@ export default function ServerPage() {
     const wanted = new URLSearchParams(window.location.search).get("tab");
     if (wanted && (SERVER_TABS as readonly string[]).includes(wanted)) setTab(wanted as (typeof SERVER_TABS)[number]);
   }, []);
-  const [families, setFamilies] = useState<ServerFamily[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [log, setLog] = useState<ServerLogRow[]>([]);
+  // From the cache: every change on this page goes through api.* and invalidates the server's data.
+  const families = useApi<ServerFamily[]>("/api/server/families").data ?? NONE;
+  const invitations = useApi<Invitation[]>("/api/server/invitations").data ?? NONE;
+  const log = useApi<ServerLogRow[]>("/api/server/log").data ?? NONE;
   const [label, setLabel] = useState("");
   const [days, setDays] = useState(7);
   const [newLink, setNewLink] = useState<string | null>(null);
@@ -62,20 +64,12 @@ export default function ServerPage() {
   const [backupsFor, setBackupsFor] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api.get<ServerFamily[]>("/api/server/families").then(setFamilies).catch(() => {});
-    api.get<Invitation[]>("/api/server/invitations").then(setInvitations).catch(() => {});
-    api.get<ServerLogRow[]>("/api/server/log").then(setLog).catch(() => {});
-  }, []);
-  useEffect(load, [load]);
-
   async function run(action: () => Promise<unknown>, done = "") {
     setError("");
     setMessage("");
     try {
       await action();
       setMessage(done);
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -116,7 +110,8 @@ export default function ServerPage() {
     a.download = `${f.name.replace(/[^\p{L}\p{N}-]+/gu, "-")}.sfmove`;
     a.click();
     URL.revokeObjectURL(a.href);
-    load();
+    // The export went past api.post: it is in the server's log now.
+    void refreshResource("server");
   }
 
   async function importFamily() {
@@ -145,7 +140,6 @@ export default function ServerPage() {
       </Link>
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
       {message && <p className="mt-3 text-sm text-green-700">{message}</p>}
-
 
       {tab === "families" && (
         <>
@@ -206,7 +200,7 @@ export default function ServerPage() {
                   </>
                 )}
               </span>
-              {backupsFor === f.id && <FamilyBackups family={f} onDone={(m) => { setMessage(m); load(); }} />}
+              {backupsFor === f.id && <FamilyBackups family={f} onDone={(m) => setMessage(m)} />}
             </li>
           ))}
         </ul>

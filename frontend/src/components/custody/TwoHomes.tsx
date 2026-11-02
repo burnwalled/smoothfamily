@@ -4,10 +4,11 @@
 // the pattern, exceptions for holidays, the handover list, and a link for the other parent that
 // shows only this child. The adults set it up; a child sees their own.
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, Copy, Link2, Plus, Trash2 } from "lucide-react";
 import { api, Member } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import SettingsLink from "@/components/SettingsLink";
@@ -222,15 +223,11 @@ export default function TwoHomes({ manage = false, only }: { manage?: boolean; o
   const me = useMe();
   const adult = me.role !== "child" && manage;
   const mayManage = me.role === "admin" || !!me.can_manage_family;
-  const [schedules, setSchedules] = useState<Schedule[] | null>(null);
-  const [children, setChildren] = useState<Member[]>([]);
-  const load = useCallback(() => {
-    api.get<Schedule[]>("/api/custody").then(setSchedules).catch(() => setSchedules([]));
-  }, []);
-  useEffect(load, [load]);
-  useEffect(() => {
-    api.live<Member[]>("/api/family/members", (rows) => setChildren(rows.filter((m) => m.role === "child" && (!only || m.id === only)))).catch(() => {});
-  }, [only]);
+  // From the cache: a saved schedule or exception refreshes it.
+  const schedulesQuery = useApi<Schedule[]>("/api/custody");
+  const schedules = schedulesQuery.data ?? (schedulesQuery.isError ? NONE : null);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const children = members.filter((m) => m.role === "child" && (!only || m.id === only));
   const [adding, setAdding] = useState("");
   if (schedules === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   const withSchedule = new Set(schedules.map((s) => s.user_id));
@@ -257,7 +254,7 @@ export default function TwoHomes({ manage = false, only }: { manage?: boolean; o
       <div className="mt-4 space-y-4">
         {shown.length === 0 && <EmptyState>{me.role !== "child" ? t("custody.empty") : t("custody.emptyChild")}</EmptyState>}
         {shown.map((child) => (
-          <ScheduleCard key={child.id} child={child} schedule={schedules.find((s) => s.user_id === child.id) ?? null} adult={adult} reload={() => { setAdding(""); load(); }} />
+          <ScheduleCard key={child.id} child={child} schedule={schedules.find((s) => s.user_id === child.id) ?? null} adult={adult} reload={() => setAdding("")} />
         ))}
         {adult && others.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">

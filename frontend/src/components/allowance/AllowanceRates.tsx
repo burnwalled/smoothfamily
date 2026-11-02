@@ -3,9 +3,10 @@
 // The family's settings → Children: how each child earns their allowance – points per unit of
 // money, or a fixed amount for a reached point goal – and per week or month (2.8.2; before that in
 // the allowance app).
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { AllowanceOverviewItem, api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 
 // The rate as points per unit; older installs may only have money per point.
 export function pointsPerUnit(item: { points_per_unit: number | null; rate: number | null }): number | null {
@@ -22,7 +23,7 @@ export function earningLine(item: AllowanceOverviewItem, t: (key: TranslationKey
   return ppu ? `${t("allowance.rateLine", { points: ppu, currency: item.currency })} · ${period}` : t("allowance.notSetUp");
 }
 
-function ChildRate({ item, onChanged }: { item: AllowanceOverviewItem; onChanged: () => void }) {
+function ChildRate({ item }: { item: AllowanceOverviewItem }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<"points" | "goal">(item.mode ?? "points");
   const [rate, setRate] = useState(pointsPerUnit(item)?.toString() ?? "");
@@ -48,7 +49,6 @@ function ChildRate({ item, onChanged }: { item: AllowanceOverviewItem; onChanged
       period,
     });
     setMessage(t("home.saved"));
-    onChanged();
   }
 
   return (
@@ -117,11 +117,9 @@ function ChildRate({ item, onChanged }: { item: AllowanceOverviewItem; onChanged
 // `only`: just this child (their page in the family's settings, 3.0.4).
 export default function AllowanceRates({ only }: { only?: string } = {}) {
   const { t } = useI18n();
-  const [children, setChildren] = useState<AllowanceOverviewItem[] | null>(null);
-  const load = useCallback(() => {
-    api.get<AllowanceOverviewItem[]>("/api/allowance/overview").then(setChildren).catch(() => setChildren([]));
-  }, []);
-  useEffect(load, [load]);
+  // From the cache: a saved rate invalidates the allowance, and the overview refreshes.
+  const overview = useApi<AllowanceOverviewItem[]>("/api/allowance/overview");
+  const children = overview.data ?? (overview.isError ? NONE : null);
   return (
     <div className="space-y-3">
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("allowance.title")}</h2>
@@ -130,7 +128,7 @@ export default function AllowanceRates({ only }: { only?: string } = {}) {
       ) : children.length === 0 ? (
         <p className="text-sm text-muted">{t("allowance.noChildren")}</p>
       ) : (
-        children.filter((item) => !only || item.user_id === only).map((item) => <ChildRate key={item.user_id} item={item} onChanged={load} />)
+        children.filter((item) => !only || item.user_id === only).map((item) => <ChildRate key={item.user_id} item={item} />)
       )}
     </div>
   );

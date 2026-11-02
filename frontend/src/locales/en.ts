@@ -458,6 +458,8 @@ const en = {
   "tasks.approvalsTab": "Approvals",
   "tasks.requiresApproval": "Requires approval",
   "tasks.waitingApproval": "Waiting for approval",
+  "tasks.undo": "Undo",
+  "tasks.undoConfirm": "Undo “{title}”? The points are taken back.",
   "tasks.rejected": "Rejected",
   "tasks.duplicateConfirm": "An active task with the same title exists. Create anyway?",
   "tasks.rejectionNotePrompt": "Optional rejection note",

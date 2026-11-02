@@ -4,10 +4,11 @@
 // made here in the browser; only its public half goes to the server, and the private key is shown
 // once – to keep in a password manager or on paper. Used for the server's backups (server admin)
 // and a family's own (the family's admin), and by the getting-started guides.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, Download, KeyRound, Printer, ShieldCheck, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 import { BackupKeyError, newKey, openSealed, supported } from "@/lib/backupKey";
 
 type Scope = "server" | "family";
@@ -15,7 +16,13 @@ type Status = { key_id: string | null; latest?: string | null };
 
 export default function BackupKey({ scope, onSaved }: { scope: Scope; onSaved?: () => void }) {
   const { t } = useI18n();
-  const [status, setStatus] = useState<Status | null>(null);
+  // From the cache: saving or turning off the key (api.put) refreshes it.
+  const server = useApi<{ key_id: string | null; backups: { stamp: string; encrypted: boolean; secrets: string | null }[] }>(scope === "server" ? "/api/admin/backups" : null);
+  const family = useApi<{ key_id: string | null; latest_sealed: string | null }>(scope === "family" ? "/api/family/backup-key" : null);
+  const status: Status | null =
+    scope === "server"
+      ? server.data ? { key_id: server.data.key_id, latest: server.data.backups.find((b) => b.encrypted && b.secrets)?.secrets ?? null } : server.isError ? { key_id: null } : null
+      : family.data ? { key_id: family.data.key_id, latest: family.data.latest_sealed } : family.isError ? { key_id: null } : null;
   const [canMake, setCanMake] = useState(true);
   const [made, setMade] = useState<{ privateText: string; publicKey: string; keyId: string } | null>(null);
   const [confirm, setConfirm] = useState("");
@@ -24,18 +31,6 @@ export default function BackupKey({ scope, onSaved }: { scope: Scope; onSaved?: 
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => {
-    if (scope === "server") {
-      api.get<{ key_id: string | null; backups: { stamp: string; encrypted: boolean; secrets: string | null }[] }>("/api/admin/backups")
-        .then((r) => setStatus({ key_id: r.key_id, latest: r.backups.find((b) => b.encrypted && b.secrets)?.secrets ?? null }))
-        .catch(() => setStatus({ key_id: null }));
-    } else {
-      api.get<{ key_id: string | null; latest_sealed: string | null }>("/api/family/backup-key")
-        .then((r) => setStatus({ key_id: r.key_id, latest: r.latest_sealed }))
-        .catch(() => setStatus({ key_id: null }));
-    }
-  }, [scope]);
-  useEffect(load, [load]);
   useEffect(() => {
     supported().then(setCanMake);
   }, []);
@@ -55,7 +50,6 @@ export default function BackupKey({ scope, onSaved }: { scope: Scope; onSaved?: 
       await api.put(url, { public_key: made.publicKey });
       setMade(null);
       setMessage({ ok: true, text: t("backupKey.saved") });
-      load();
       onSaved?.();
     } catch (e) {
       setMessage({ ok: false, text: e instanceof Error ? e.message : t("common.error") });
@@ -67,7 +61,6 @@ export default function BackupKey({ scope, onSaved }: { scope: Scope; onSaved?: 
   async function turnOff() {
     if (!confirm_(t(scope === "server" ? "backupKey.offConfirmServer" : "backupKey.offConfirmFamily"))) return;
     await api.put(url, { public_key: "" });
-    load();
   }
 
   async function test() {

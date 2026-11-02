@@ -1,7 +1,7 @@
 "use client";
 
 import SendToHa from "@/components/lists/SendToHa";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CloudOff, Gift, Pencil, Lock } from "lucide-react";
 import { api, FamilyList, ListCategory, ListItem, Member, PantryPlace, Person } from "@/lib/api";
@@ -9,7 +9,7 @@ import { GiftPlan, WishList } from "@/components/birthdays/Gifts";
 import { when } from "@/components/birthdays/People";
 import { useI18n } from "@/lib/i18n";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
+import { NONE, refreshApi, setApiData, useApi } from "@/lib/query";
 import PageTitle from "@/components/PageTitle";
 import { AiTextButton } from "@/components/LocalAi";
 
@@ -40,7 +40,6 @@ function Lists() {
   // Wish lists and the gift planning (2.8.2): a person's, opened instead of a family list. A
   // reminder opens one with ?wish=<person> or ?plan=<person>.
   const params = useSearchParams();
-  const [people, setPeople] = useState<Person[]>([]);
   const [gift, setGift] = useState<{ kind: "wish" | "plan"; id: string } | null>(() => {
     const wish = params.get("wish");
     const plan = params.get("plan");
@@ -48,18 +47,24 @@ function Lists() {
   });
   const gifts = me.apps.includes("birthdays");
   const adult = me.role !== "child";
-  useEffect(() => {
-    if (gifts) api.live<Person[]>("/api/birthdays/people", setPeople).catch(() => {});
-  }, [gifts]);
+  // From the cache: the writes below invalidate the lists, and a live event from elsewhere in the
+  // family does too – nothing is reloaded by hand.
+  const people = useApi<Person[]>(gifts ? "/api/birthdays/people" : null).data ?? NONE;
   const giftPerson = gift ? people.find((p) => p.id === gift.id) ?? null : null;
-  const [members, setMembers] = useState<Member[]>([]);
-  const [lists, setLists] = useState<FamilyList[]>([]);
-  const [selectedListId, setSelectedListId] = useState<string>("");
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
+  const listsQuery = useApi<FamilyList[]>("/api/lists");
+  const lists = listsQuery.data ?? NONE;
+  // The list chosen; the first one until then, or when the chosen one is gone.
+  const [chosenListId, setSelectedListId] = useState<string>("");
+  const selectedListId = lists.some((l) => l.id === chosenListId) ? chosenListId : (lists[0]?.id ?? "");
+  const itemsPath = selectedListId ? `/api/lists/${selectedListId}/items` : null;
+  const itemsQuery = useApi<ListItem[]>(itemsPath);
+  const items = itemsQuery.data ?? NONE;
   // Renaming the open list: the new name while typing, else null.
   const [renaming, setRenaming] = useState<string | null>(null);
   const [pantryPlace, setPantryPlace] = useState<PantryPlace>("fridge");
-  const [items, setItems] = useState<ListItem[]>([]);
   const [error, setError] = useState("");
+  const loadError = listsQuery.error ?? itemsQuery.error;
 
   const [newListName, setNewListName] = useState("");
   const [allowedUserIds, setAllowedUserIds] = useState<string[]>([]);
@@ -80,41 +85,6 @@ function Lists() {
     return buckets;
   }, [items]);
 
-  const loadLists = useCallback(async () => {
-    const pick = (rows: FamilyList[]) => {
-      setLists(rows);
-      if (!selectedListId && rows.length > 0) {
-        setSelectedListId(rows[0].id);
-      } else if (selectedListId && !rows.some((l) => l.id === selectedListId)) {
-        setSelectedListId(rows[0]?.id ?? "");
-      }
-    };
-    await Promise.all([
-      api.live<Member[]>("/api/family/members", setMembers),
-      api.live<FamilyList[]>("/api/lists", pick),
-    ]);
-  }, [selectedListId]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["lists"], loadLists);
-
-  const loadItems = useCallback(async () => {
-    if (!selectedListId) {
-      setItems([]);
-      return;
-    }
-    await api.live<ListItem[]>(`/api/lists/${selectedListId}/items`, setItems);
-  }, [selectedListId]);
-  // Changes made elsewhere in the family show up at once.
-  useLive(["lists"], loadItems);
-
-  useEffect(() => {
-    loadLists().catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [loadLists, t]);
-
-  useEffect(() => {
-    loadItems().catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [loadItems, t]);
-
   function toggleAllowedUser(userId: string) {
     setAllowedUserIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
   }
@@ -129,7 +99,6 @@ function Lists() {
       setNewListName("");
       setAllowedUserIds([]);
       setSelectedListId(created.id);
-      await loadLists();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -142,19 +111,18 @@ function Lists() {
       category: newItemCategory,
     });
     setNewItemName("");
-    await loadItems();
   }
 
+  // A tick or a change shows at once; the server's answer follows.
   async function patchItem(itemId: string, patch: Partial<ListItem>) {
-    if (!selectedListId) return;
-    await api.patch<ListItem>(`/api/lists/${selectedListId}/items/${itemId}`, patch);
-    await loadItems();
+    if (!itemsPath) return;
+    setApiData<ListItem[]>(itemsPath, (rows) => rows?.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
+    await api.patch<ListItem>(`${itemsPath}/${itemId}`, patch);
   }
 
   async function clearDone() {
     if (!selectedListId) return;
     await api.del(`/api/lists/${selectedListId}/done`);
-    await loadItems();
   }
 
   // Bought (ticked) items move into the pantry.
@@ -162,13 +130,12 @@ function Lists() {
     if (!selectedListId) return;
     const bought = items.filter((i) => i.done && !i.pending).map((i) => i.id);
     await api.post(`/api/pantry/from-list/${selectedListId}`, { item_ids: bought, place: pantryPlace });
-    await loadItems();
   }
 
   async function deleteItem(itemId: string) {
-    if (!selectedListId) return;
-    await api.del(`/api/lists/${selectedListId}/items/${itemId}`);
-    await loadItems();
+    if (!itemsPath) return;
+    setApiData<ListItem[]>(itemsPath, (rows) => rows?.filter((i) => i.id !== itemId));
+    await api.del(`${itemsPath}/${itemId}`);
   }
 
   async function rename() {
@@ -176,7 +143,6 @@ function Lists() {
     try {
       await api.patch(`/api/lists/${selectedListId}`, { name: renaming.trim() });
       setRenaming(null);
-      await loadLists();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -185,7 +151,6 @@ function Lists() {
   async function deleteList(listId: string) {
     if (!confirm(t("common.confirmRemove", { name: lists.find((l) => l.id === listId)?.name ?? "" }))) return;
     await api.del(`/api/lists/${listId}`);
-    await loadLists();
   }
 
   const [toHa, setToHa] = useState(false);
@@ -206,7 +171,7 @@ function Lists() {
   return (
     <>
       <PageTitle title={t("lists.title")} />
-      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+      {(error || loadError) && <p className="mt-3 text-sm text-red-700">{error || loadError?.message}</p>}
 
       <div className="mt-4 grid gap-4 md:grid-cols-[300px_1fr]">
         <section className="card p-4">
@@ -362,7 +327,7 @@ function Lists() {
                   )}
                 </div>
               </div>
-              {toHa && <SendToHa listId={selectedList.id} onClose={() => setToHa(false)} onSynced={() => void loadItems()} />}
+              {toHa && <SendToHa listId={selectedList.id} onClose={() => setToHa(false)} onSynced={() => itemsPath && void refreshApi(itemsPath)} />}
               <p className="mt-1 text-xs text-muted">{t("lists.autoSaved")}</p>
 
               <div className="mt-3 flex gap-2">

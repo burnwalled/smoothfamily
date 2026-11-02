@@ -3,10 +3,10 @@
 // Live departures for one SL stop/station (Trafiklab SL Transport API,
 // proxied and cached by the backend). A user can add several of these,
 // one per stop they care about.
-import { useCallback, useEffect, useState } from "react";
 import { Bus, CarTaxiFront, LucideIcon, Ship, TrainFront, TrainFrontTunnel, TramFront } from "lucide-react";
-import { api, SlDeparture } from "@/lib/api";
+import { SlDeparture } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useApi } from "@/lib/query";
 
 const MODE_ICONS: Record<string, LucideIcon> = {
   BUS: Bus,
@@ -22,24 +22,10 @@ const REFRESH_MS = 60_000;
 
 export default function SlDeparturesWidget({ siteId }: { siteId: number }) {
   const { t, dateLocale } = useI18n();
-  const [departures, setDepartures] = useState<SlDeparture[] | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  const load = useCallback(() => {
-    api
-      .live<SlDeparture[]>(`/api/transit/sl/departures?site_id=${siteId}`, (deps) => {
-        // Cached departures may include ones that have left; the fresh answer follows.
-        setDepartures(deps.filter((d) => new Date(d.expected).getTime() > Date.now() - 60_000));
-        setFailed(false);
-      })
-      .catch(() => setFailed(true));
-  }, [siteId]);
-
-  useEffect(() => {
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [load]);
+  // From the cache, every minute; departures that have left are not shown.
+  const query = useApi<SlDeparture[]>(`/api/transit/sl/departures?site_id=${siteId}`, { refetchInterval: REFRESH_MS });
+  const departures = query.data ? query.data.filter((d) => new Date(d.expected).getTime() > Date.now() - 60_000) : null;
+  const failed = query.isError && !query.data;
 
   function timeLabel(expected: string): string {
     const minutes = Math.round((new Date(expected).getTime() - Date.now()) / 60_000);

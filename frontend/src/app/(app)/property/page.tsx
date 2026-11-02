@@ -5,7 +5,7 @@
 // maintenance (which can become a task), costs, projects, the things in it, energy, documents and
 // settings. A receipt or invoice can be read by the local AI; everything works by hand too.
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Download, ExternalLink, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
 import {
   api,
@@ -25,8 +25,8 @@ import {
 import ReceiptPicker from "@/components/ReceiptPicker";
 import WebSearch, { useWebSearch } from "@/components/WebSearch";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
-import { useLive } from "@/lib/live";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import { AiJob, AiNote, useAiJob, useAiStatus } from "@/components/LocalAi";
 import { uploadReceipt } from "@/lib/receipts";
@@ -136,23 +136,18 @@ function OverviewCard({ card, active, onOpen }: { card: HomeCard; active: boolea
 
 type UpkeepForm = { id: string; kind: string; title: string; due_date: string; repeat_months: string; remind_days: string; assignee_id: string; task_points: string; item_id: string | null };
 
-function UpkeepTab({ home, reminders, currency, reload }: { home: Property; reminders: PropertyReminder[]; currency: string; reload: () => void }) {
+function UpkeepTab({ home, reminders, currency }: { home: Property; reminders: PropertyReminder[]; currency: string }) {
   const { t } = useI18n();
   const f = useMoney(currency);
-  const [members, setMembers] = useState<Member[]>([]);
+  const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const blank: UpkeepForm = { id: "", kind: "maintenance", title: "", due_date: inMonths(1), repeat_months: "12", remind_days: "14", assignee_id: "", task_points: "10", item_id: null };
   const [form, setForm] = useState<UpkeepForm | null>(null);
   const [doneFor, setDoneFor] = useState<{ id: string; date: string } | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => {
-    api.live<Member[]>("/api/family/members", setMembers).catch(() => {});
-  }, []);
-
   async function run(action: () => Promise<unknown>) {
     setError("");
     try {
       await action();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -306,10 +301,10 @@ function UpkeepTab({ home, reminders, currency, reload }: { home: Property; remi
 
 type CostForm = { id: string; name: string; amount: string; expense_date: string; category: string; project_id: string; receipt_media_id: string | null };
 
-function CostsTab({ home, currency, projects, reload }: { home: Property; currency: string; projects: PropertyProject[]; reload: () => void }) {
+function CostsTab({ home, currency, projects }: { home: Property; currency: string; projects: PropertyProject[] }) {
   const { t } = useI18n();
   const f = useMoney(currency);
-  const [rows, setRows] = useState<PropertyExpense[]>([]);
+  const rows = useApi<PropertyExpense[]>(`/api/property/expenses?property_id=${home.id}`).data ?? NONE;
   const blank: CostForm = { id: "", name: "", amount: "", expense_date: today(), category: "maintenance", project_id: "", receipt_media_id: null };
   const [form, setForm] = useState<CostForm>(blank);
   const [file, setFile] = useState<File | null>(null);
@@ -317,10 +312,6 @@ function CostsTab({ home, currency, projects, reload }: { home: Property; curren
   const [error, setError] = useState("");
   const aiStatus = useAiStatus();
   const aiJob = useAiJob();
-  const load = useCallback(() => {
-    api.live<PropertyExpense[]>(`/api/property/expenses?property_id=${home.id}`, setRows).catch(() => setRows([]));
-  }, [home.id]);
-  useEffect(load, [load]);
 
   async function save() {
     const amount = num(form.amount);
@@ -334,8 +325,6 @@ function CostsTab({ home, currency, projects, reload }: { home: Property; curren
       else await api.post("/api/property/expenses", body);
       setForm(blank);
       setFile(null);
-      load();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -422,7 +411,7 @@ function CostsTab({ home, currency, projects, reload }: { home: Property; curren
               <button className="text-xs text-muted hover:underline" onClick={() => setForm({ id: row.id, name: row.name, amount: String(row.amount), expense_date: row.expense_date, category: row.category, project_id: row.project_id ?? "", receipt_media_id: row.receipt_media_id })}>
                 {t("vehicles.change")}
               </button>
-              <button className="text-red-700" onClick={() => api.del(`/api/property/expenses/${row.id}`).then(() => { load(); reload(); })} aria-label={t("vehicles.removeExpense", { name: row.name })}>
+              <button className="text-red-700" onClick={() => api.del(`/api/property/expenses/${row.id}`)} aria-label={t("vehicles.removeExpense", { name: row.name })}>
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
             </li>
@@ -435,7 +424,7 @@ function CostsTab({ home, currency, projects, reload }: { home: Property; curren
 
 type ProjectForm = { id: string; name: string; status: string; budget: string; started_at: string; finished_at: string; notes: string };
 
-function ProjectsTab({ home, currency, projects, reload }: { home: Property; currency: string; projects: PropertyProject[]; reload: () => void }) {
+function ProjectsTab({ home, currency, projects }: { home: Property; currency: string; projects: PropertyProject[] }) {
   const { t } = useI18n();
   const f = useMoney(currency);
   const blank: ProjectForm = { id: "", name: "", status: "planned", budget: "", started_at: "", finished_at: "", notes: "" };
@@ -445,7 +434,6 @@ function ProjectsTab({ home, currency, projects, reload }: { home: Property; cur
     setError("");
     try {
       await action();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -526,20 +514,16 @@ function ProjectsTab({ home, currency, projects, reload }: { home: Property; cur
 
 type ItemForm = { id: string; name: string; room: string; brand: string; model: string; serial: string; bought: string; price: string; warranty_until: string; manual_url: string; service_months: string; notes: string; receipt_media_id: string | null };
 
-function ThingsTab({ home, currency, reload }: { home: Property; currency: string; reload: () => void }) {
+function ThingsTab({ home, currency }: { home: Property; currency: string }) {
   const { t } = useI18n();
   const f = useMoney(currency);
-  const [rows, setRows] = useState<PropertyItem[]>([]);
+  const rows = useApi<PropertyItem[]>(`/api/property/items?property_id=${home.id}`).data ?? NONE;
   const blank: ItemForm = { id: "", name: "", room: "", brand: "", model: "", serial: "", bought: "", price: "", warranty_until: "", manual_url: "", service_months: "", notes: "", receipt_media_id: null };
   const [form, setForm] = useState<ItemForm | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const canSearch = useWebSearch().enabled;
   const [manualSearch, setManualSearch] = useState(false);
-  const load = useCallback(() => {
-    api.get<PropertyItem[]>(`/api/property/items?property_id=${home.id}`).then(setRows).catch(() => setRows([]));
-  }, [home.id]);
-  useEffect(load, [load]);
   const rooms = [...new Set(rows.map((r) => r.room).filter(Boolean))];
 
   async function save() {
@@ -556,8 +540,6 @@ function ThingsTab({ home, currency, reload }: { home: Property; currency: strin
       else await api.post("/api/property/items", body);
       setForm(null);
       setFile(null);
-      load();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -606,7 +588,7 @@ function ThingsTab({ home, currency, reload }: { home: Property; currency: strin
                 >
                   {t("vehicles.change")}
                 </button>
-                <button className="text-red-700" onClick={() => api.del(`/api/property/items/${r.id}`).then(() => { load(); reload(); })} aria-label={t("property.removeThing", { name: r.name })}>
+                <button className="text-red-700" onClick={() => api.del(`/api/property/items/${r.id}`)} aria-label={t("property.removeThing", { name: r.name })}>
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </li>
@@ -676,24 +658,18 @@ function ThingsTab({ home, currency, reload }: { home: Property; currency: strin
   );
 }
 
-function EnergyTab({ home, reload }: { home: Property; reload: () => void }) {
+function EnergyTab({ home }: { home: Property }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
-  const [energy, setEnergy] = useState<PropertyEnergy[]>([]);
-  const [meters, setMeters] = useState<PropertyMeter[]>([]);
-  const [readings, setReadings] = useState<UtilityReading[]>([]);
+  const energy = useApi<PropertyEnergy[]>(`/api/property/${home.id}/energy`).data ?? NONE;
+  const meters = useApi<PropertyMeter[]>(`/api/property/meters?property_id=${home.id}`).data ?? NONE;
+  const readings = useApi<UtilityReading[]>(`/api/property/utility-readings?property_id=${home.id}`).data ?? NONE;
   const [form, setForm] = useState({ kind: "electricity", reading_date: today(), value: "" });
   const [sensor, setSensor] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
-  const load = useCallback(() => {
-    api.get<PropertyEnergy[]>(`/api/property/${home.id}/energy`).then(setEnergy).catch(() => setEnergy([]));
-    api.get<PropertyMeter[]>(`/api/property/meters?property_id=${home.id}`).then((rows) => {
-      setMeters(rows);
-      setSensor(Object.fromEntries(rows.map((m) => [m.kind, m.ha_entity ?? ""])));
-    }).catch(() => setMeters([]));
-    api.get<UtilityReading[]>(`/api/property/utility-readings?property_id=${home.id}`).then(setReadings).catch(() => setReadings([]));
-  }, [home.id]);
-  useEffect(load, [load]);
+  useEffect(() => {
+    setSensor(Object.fromEntries(meters.map((m) => [m.kind, m.ha_entity ?? ""])));
+  }, [meters]);
   const unitOf = (kind: string) => meters.find((m) => m.kind === kind)?.unit ?? METERS.find((m) => m.kind === kind)?.unit ?? "";
   const month = (key: string) => new Date(`${key}-15T12:00:00`).toLocaleDateString(dateLocale, { month: "short" });
 
@@ -701,8 +677,6 @@ function EnergyTab({ home, reload }: { home: Property; reload: () => void }) {
     setError("");
     try {
       await action();
-      load();
-      reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -818,13 +792,9 @@ function EnergyTab({ home, reload }: { home: Property; reload: () => void }) {
 
 function DocumentsTab({ home }: { home: Property }) {
   const { t, dateLocale } = useI18n();
-  const [linked, setLinked] = useState<VehicleDocument[]>([]);
-  const [all, setAll] = useState<VehicleDocument[]>([]);
+  const linked = useApi<VehicleDocument[]>(`/api/property/${home.id}/documents`).data ?? NONE;
+  const all = useApi<VehicleDocument[]>("/api/documents").data ?? NONE;
   const [pick, setPick] = useState("");
-  useEffect(() => {
-    api.get<VehicleDocument[]>(`/api/property/${home.id}/documents`).then(setLinked).catch(() => setLinked([]));
-    api.get<VehicleDocument[]>("/api/documents").then(setAll).catch(() => setAll([]));
-  }, [home.id]);
   const others = all.filter((d) => !linked.some((l) => l.id === d.id));
   return (
     <div className="space-y-3">
@@ -838,7 +808,7 @@ function DocumentsTab({ home }: { home: Property }) {
               <FileText className="h-4 w-4 text-muted" aria-hidden />
               <Link href="/documents" className="flex-1 font-semibold hover:underline">{d.title}</Link>
               {d.expiry_date && <span className="text-xs text-muted">{t("vehicles.docExpires", { date: new Date(`${d.expiry_date}T12:00:00`).toLocaleDateString(dateLocale) })}</span>}
-              <button className="text-xs text-muted hover:underline" onClick={() => api.del(`/api/property/${home.id}/documents/${d.id}`).then((rows) => setLinked(rows as unknown as VehicleDocument[]))}>
+              <button className="text-xs text-muted hover:underline" onClick={() => api.del(`/api/property/${home.id}/documents/${d.id}`)}>
                 {t("vehicles.unlink")}
               </button>
             </li>
@@ -851,7 +821,7 @@ function DocumentsTab({ home }: { home: Property }) {
             <option value="">{t("vehicles.linkDocument")}</option>
             {others.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
           </select>
-          <button className="btn-ghost border border-edge" disabled={!pick} onClick={() => api.put<VehicleDocument[]>(`/api/property/${home.id}/documents/${pick}`, {}).then((rows) => { setLinked(rows); setPick(""); })}>
+          <button className="btn-ghost border border-edge" disabled={!pick} onClick={() => api.put<VehicleDocument[]>(`/api/property/${home.id}/documents/${pick}`, {}).then(() => setPick(""))}>
             {t("vehicles.link")}
           </button>
         </div>
@@ -861,21 +831,17 @@ function DocumentsTab({ home }: { home: Property }) {
   );
 }
 
-function SettingsTab({ home, currency, reload, onDeleted }: { home: Property; currency: string; reload: () => void; onDeleted: () => void }) {
+function SettingsTab({ home, currency, onDeleted }: { home: Property; currency: string; onDeleted: () => void }) {
   const { t } = useI18n();
   const f = useMoney(currency);
   const [form, setForm] = useState({
     name: home.name, kind: home.kind, dwelling: home.dwelling ?? "villa", address: home.address ?? "", built_year: home.built_year?.toString() ?? "",
     area_m2: home.area_m2?.toString() ?? "", purchase_date: home.purchase_date ?? "", purchase_price: home.purchase_price?.toString() ?? "", notes: home.notes ?? "",
   });
-  const [costs, setCosts] = useState<PropertyRecurringCost[]>([]);
+  const costs = useApi<PropertyRecurringCost[]>(`/api/property/recurring-costs?property_id=${home.id}`).data ?? NONE;
   const [cost, setCost] = useState({ kind: "", amount: "", period: "monthly" as PropertyRecurringCost["period"] });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const loadCosts = useCallback(() => {
-    api.get<PropertyRecurringCost[]>(`/api/property/recurring-costs?property_id=${home.id}`).then(setCosts).catch(() => setCosts([]));
-  }, [home.id]);
-  useEffect(loadCosts, [loadCosts]);
   const set = (patch: Partial<typeof form>) => {
     setSaved(false);
     setForm({ ...form, ...patch });
@@ -892,7 +858,7 @@ function SettingsTab({ home, currency, reload, onDeleted }: { home: Property; cu
               name: form.name.trim(), kind: form.kind, dwelling: form.dwelling, address: form.address.trim() || null, built_year: num(form.built_year),
               area_m2: num(form.area_m2), purchase_date: form.purchase_date || null, purchase_price: num(form.purchase_price), notes: form.notes.trim() || null,
             })
-            .then(() => { setSaved(true); reload(); })
+            .then(() => setSaved(true))
             .catch((err) => setError(err instanceof Error ? err.message : t("common.error")));
         }}
       >
@@ -950,7 +916,7 @@ function SettingsTab({ home, currency, reload, onDeleted }: { home: Property; cu
             <li key={c.id} className="flex items-center gap-3 py-1.5">
               <span className="flex-1">{c.kind}</span>
               <span className="tabular-nums">{f.money(c.amount)} / {t(`property.period.${c.period}` as TranslationKey)}</span>
-              <button className="text-red-700" onClick={() => api.del(`/api/property/recurring-costs/${c.id}`).then(() => { loadCosts(); reload(); })} aria-label={t("property.removeRecurring", { name: c.kind })}>
+              <button className="text-red-700" onClick={() => api.del(`/api/property/recurring-costs/${c.id}`)} aria-label={t("property.removeRecurring", { name: c.kind })}>
                 <Trash2 className="h-4 w-4" aria-hidden />
               </button>
             </li>
@@ -964,8 +930,6 @@ function SettingsTab({ home, currency, reload, onDeleted }: { home: Property; cu
             if (!cost.kind.trim() || !amount) return;
             api.post("/api/property/recurring-costs", { property_id: home.id, kind: cost.kind.trim(), amount, period: cost.period }).then(() => {
               setCost({ kind: "", amount: "", period: "monthly" });
-              loadCosts();
-              reload();
             });
           }}
         >
@@ -996,35 +960,23 @@ type Tab = "upkeep" | "costs" | "projects" | "things" | "energy" | "documents" |
 export default function PropertyPage() {
   const { t } = useI18n();
   const me = useMe();
-  const [cards, setCards] = useState<HomeCard[] | null>(null);
-  const [projects, setProjects] = useState<PropertyProject[]>([]);
-  const [activeId, setActiveId] = useState("");
+  const [chosenId, setActiveId] = useState("");
   const [tab, setTab] = useState<Tab>("upkeep");
   const [adding, setAdding] = useState(false);
   const [newHome, setNewHome] = useState({ name: "", dwelling: "villa", address: "" });
   const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    api
-      .live<HomeCard[]>("/api/property/overview", (rows) => {
-        setCards(rows);
-        setActiveId((id) => (rows.some((c) => c.property.id === id) ? id : rows[0]?.property.id ?? ""));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [t]);
-  useEffect(load, [load]);
-  useLive(["property"], load);
-  const loadProjects = useCallback(() => {
-    if (!activeId) return setProjects([]);
-    api.get<PropertyProject[]>(`/api/property/projects?property_id=${activeId}`).then(setProjects).catch(() => setProjects([]));
-  }, [activeId]);
-  useEffect(loadProjects, [loadProjects]);
+  // From the cache: any change to a home (here or elsewhere in the family) refreshes it.
+  const overview = useApi<HomeCard[]>("/api/property/overview");
+  const cards = overview.data ?? null;
+  // The home chosen – the first one until then, or when the chosen one is gone.
+  const activeId = cards?.some((c) => c.property.id === chosenId) ? chosenId : (cards?.[0]?.property.id ?? "");
+  const projects = useApi<PropertyProject[]>(activeId ? `/api/property/projects?property_id=${activeId}` : null).data ?? NONE;
+  useEffect(() => {
+    if (overview.error) setError(overview.error.message);
+  }, [overview.error]);
 
   const active = cards?.find((c) => c.property.id === activeId) ?? null;
-  const reload = () => {
-    load();
-    loadProjects();
-  };
 
   async function create() {
     setError("");
@@ -1034,7 +986,6 @@ export default function PropertyPage() {
       setAdding(false);
       setActiveId(row.id);
       setTab("upkeep");
-      load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -1098,13 +1049,13 @@ export default function PropertyPage() {
               </button>
             ))}
           </div>
-          {tab === "upkeep" && <UpkeepTab home={active.property} reminders={active.reminders} currency={active.currency} reload={reload} />}
-          {tab === "costs" && <CostsTab home={active.property} currency={active.currency} projects={projects} reload={reload} />}
-          {tab === "projects" && <ProjectsTab home={active.property} currency={active.currency} projects={projects} reload={reload} />}
-          {tab === "things" && <ThingsTab home={active.property} currency={active.currency} reload={reload} />}
-          {tab === "energy" && <EnergyTab home={active.property} reload={reload} />}
+          {tab === "upkeep" && <UpkeepTab home={active.property} reminders={active.reminders} currency={active.currency} />}
+          {tab === "costs" && <CostsTab home={active.property} currency={active.currency} projects={projects} />}
+          {tab === "projects" && <ProjectsTab home={active.property} currency={active.currency} projects={projects} />}
+          {tab === "things" && <ThingsTab home={active.property} currency={active.currency} />}
+          {tab === "energy" && <EnergyTab home={active.property} />}
           {tab === "documents" && <DocumentsTab home={active.property} />}
-          {tab === "settings" && <SettingsTab key={active.property.id} home={active.property} currency={active.currency} reload={reload} onDeleted={() => { setActiveId(""); load(); }} />}
+          {tab === "settings" && <SettingsTab key={active.property.id} home={active.property} currency={active.currency} onDeleted={() => setActiveId("")} />}
         </section>
       )}
     </>

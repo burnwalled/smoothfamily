@@ -7,11 +7,14 @@
 // done together), and a screensaver with a theme chosen per screen.
 // 3.0.4: the screen's own theme and language, the week's meals and the recipe book in the cooking
 // mode, the smart home devices chosen for it, and tasks made for fingers.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Barcode, CalendarDays, Car, CheckCircle2, ChefHat, Circle, House, Lightbulb, Maximize2, Minimize2, Repeat, Siren, Soup, Star, Trash2, Users, UtensilsCrossed, WifiOff, X, Zap } from "lucide-react";
-import { EmergencyCards, KIOSK_WIDGETS, KioskView, KioskWidget, Member } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { ApiError, EmergencyCards, KIOSK_WIDGETS, KioskView, KioskWidget, Member, request } from "@/lib/api";
+import { apiKey, shouldRetry } from "@/lib/queryClient";
 import { Locale, useI18n } from "@/lib/i18n";
+import { NONE, refreshApi, useApi } from "@/lib/query";
 import { isTheme, useTheme } from "@/lib/theme";
 import { LATEST_VERSION } from "@/lib/releaseNotes";
 import CookingView from "@/components/CookingView";
@@ -33,8 +36,6 @@ async function kioskCall<T>(url: string, init?: RequestInit): Promise<T> {
   return (resp.status === 204 ? undefined : await resp.json()) as T;
 }
 
-const cacheKey = (token: string) => `sf.kiosk:${token}`;
-
 function Card({ title, icon: Icon, children, className = "", tone = "bg-accent/10 text-accent" }: { title: string; icon: typeof House; children: React.ReactNode; className?: string; tone?: string }) {
   return (
     <section className={`rounded-3xl bg-surface p-5 shadow-sm ring-1 ring-edge/60 ${className}`}>
@@ -52,13 +53,22 @@ function Card({ title, icon: Icon, children, className = "", tone = "bg-accent/1
 export default function KioskPage() {
   const { token } = useParams<{ token: string }>();
   const { t, dateLocale, locale, setLocale } = useI18n();
-  const [view, setView] = useState<KioskView | null>(null);
-  const [offline, setOffline] = useState(false);
-  const [invalid, setInvalid] = useState(false);
+  // The screen from the cache, kept on the device: without a connection it shows what it had, and it
+  // is read again every minute. A link that is gone (404) is not kept.
+  const viewPath = `/api/kiosk/${token}`;
+  const viewQuery = useQuery<KioskView, Error, KioskView, readonly string[]>({
+    queryKey: apiKey(viewPath),
+    // The screen tells its app version (3.1.0), for the family's overview of devices.
+    queryFn: () => request<KioskView>(viewPath, { cache: "no-store", headers: { "X-SF-App": LATEST_VERSION } }),
+    refetchInterval: 60_000,
+    retry: shouldRetry,
+  });
+  const invalid = viewQuery.error instanceof ApiError && viewQuery.error.status === 404;
+  const view = invalid ? null : (viewQuery.data ?? null);
+  const offline = viewQuery.isError && !invalid;
   const [now, setNow] = useState(() => new Date());
   const [emergency, setEmergency] = useState<EmergencyCards | null>(null);
   const [pressed, setPressed] = useState<string | null>(null);
-  const [slides, setSlides] = useState<string[]>([]);
   const [saver, setSaver] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [doing, setDoing] = useState<KioskView["tasks"][number] | null>(null);
@@ -68,13 +78,9 @@ export default function KioskPage() {
   const { theme, setTheme } = useTheme();
   const [canFull, setCanFull] = useState(false);
   // The little ones' mode: their faces; tapped, their routines.
-  const [little, setLittle] = useState<{ id: string; name: string; color: string }[]>([]);
-  const [littleOpen, setLittleOpen] = useState<string | null>(null);
   const easyAllowed = view?.easy_mode === true;
-  useEffect(() => {
-    if (!easyAllowed) return setLittle([]);
-    kioskCall<{ id: string; name: string; color: string }[]>(`/api/kiosk/${token}/easy`).then(setLittle).catch(() => {});
-  }, [token, easyAllowed, view?.family_name]);
+  const little = useApi<{ id: string; name: string; color: string }[]>(easyAllowed ? `/api/kiosk/${token}/easy` : null, { refetchInterval: 60_000 }).data ?? NONE;
+  const [littleOpen, setLittleOpen] = useState<string | null>(null);
   const littleBackend = useMemo<EasyBackend | null>(() => {
     if (!littleOpen) return null;
     const base = `/api/kiosk/${token}/easy/${littleOpen}`;
@@ -93,43 +99,11 @@ export default function KioskPage() {
     [token],
   );
 
-  const load = useCallback(async () => {
-    try {
-      // The screen tells its app version (3.1.0), for the family's overview of devices.
-      const resp = await fetch(`/api/kiosk/${token}`, { cache: "no-store", headers: { "X-SF-App": LATEST_VERSION } });
-      if (resp.status === 404) {
-        setInvalid(true);
-        try {
-          localStorage.removeItem(cacheKey(token));
-        } catch {}
-        return;
-      }
-      if (!resp.ok) throw new Error(String(resp.status));
-      const data = (await resp.json()) as KioskView;
-      setView(data);
-      setOffline(false);
-      try {
-        localStorage.setItem(cacheKey(token), JSON.stringify(data));
-      } catch {}
-    } catch {
-      setOffline(true);
-      try {
-        const saved = localStorage.getItem(cacheKey(token));
-        if (saved) setView((v) => v ?? JSON.parse(saved));
-      } catch {}
-    }
-  }, [token]);
-
   useEffect(() => {
-    load();
-    const refresh = window.setInterval(load, 60_000);
     // Every second: the flip clock turns on the minute, not up to a quarter later.
     const clock = window.setInterval(() => setNow(new Date()), 1_000);
-    return () => {
-      window.clearInterval(refresh);
-      window.clearInterval(clock);
-    };
-  }, [load]);
+    return () => window.clearInterval(clock);
+  }, []);
 
   // The screen speaks its own language (or the family admin's), and wears its own theme.
   useEffect(() => {
@@ -176,13 +150,8 @@ export default function KioskPage() {
 
   // The photos, for the photo screensaver.
   const photosOn = view ? (view.widgets ?? KIOSK_WIDGETS).includes("slideshow") && view.screensaver === "photos" : false;
-  useEffect(() => {
-    if (!photosOn) return setSlides([]);
-    fetch(`/api/kiosk/${token}/photos`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: { id: string }[]) => setSlides(rows.map((r) => r.id)))
-      .catch(() => {});
-  }, [token, photosOn]);
+  const photos = useApi<{ id: string }[]>(photosOn ? `/api/kiosk/${token}/photos` : null).data;
+  const slides = useMemo<string[]>(() => (photosOn && photos ? photos.map((r) => r.id) : NONE), [photosOn, photos]);
 
   // Untouched for the screen's minutes: the screensaver – not while something is open.
   const idleMs = (view?.idle_minutes ?? 5) * 60_000;
@@ -209,6 +178,12 @@ export default function KioskPage() {
     setPressed(id);
     await fetch(`/api/kiosk/${token}/flows/${id}/run`, { method: "POST" }).catch(() => {});
     window.setTimeout(() => setPressed(null), 2000);
+  }
+
+  async function undoTask(task: KioskView["tasks"][number]) {
+    if (!task.id || !confirm(t("tasks.undoConfirm", { title: task.title }))) return;
+    await kioskCall(`/api/kiosk/${token}/tasks/${task.id}/done`, { method: "DELETE" }).catch((e) => alert(e instanceof Error ? e.message : t("common.error")));
+    await refreshApi(viewPath);
   }
 
   async function cook(url: string) {
@@ -332,8 +307,9 @@ export default function KioskPage() {
                           ? "min-h-12 px-3 py-1.5 text-lg text-muted"
                           : "min-h-[4.5rem] border-2 border-edge bg-base px-4 py-3 text-xl font-semibold active:scale-[0.98] active:border-accent active:bg-accent/10"
                       }`}
-                      disabled={task.done || !task.id}
-                      onClick={() => setDoing(task)}
+                      disabled={!task.id}
+                      // Ticked off by mistake (3.1.1): a tap on a done one undoes it, after asking.
+                      onClick={() => (task.done ? undoTask(task) : setDoing(task))}
                     >
                       {task.done ? <CheckCircle2 className="h-7 w-7 shrink-0 text-green-600" aria-hidden /> : <Circle className="h-10 w-10 shrink-0 text-accent" strokeWidth={1.75} aria-hidden />}
                       <span className={`min-w-0 flex-1 ${task.done ? "truncate line-through" : "line-clamp-2 leading-tight"}`}>{task.title}</span>
@@ -520,7 +496,7 @@ export default function KioskPage() {
           shared={doing.shared}
           people={view.members}
           first={doing.assignee_id}
-          onDone={(ids) => kioskCall(`/api/kiosk/${token}/tasks/${doing.id}/done`, { method: "POST", body: JSON.stringify({ user_ids: ids }) }).then(load)}
+          onDone={(ids) => kioskCall(`/api/kiosk/${token}/tasks/${doing.id}/done`, { method: "POST", body: JSON.stringify({ user_ids: ids }) }).then(() => refreshApi(viewPath))}
           onClose={() => setDoing(null)}
         />
       )}

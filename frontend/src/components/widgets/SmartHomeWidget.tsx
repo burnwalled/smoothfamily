@@ -21,10 +21,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { api, SmarthomeDeviceState } from "@/lib/api";
+import { api, request, SmarthomeDeviceState } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, refreshApi, setApiData, useApi } from "@/lib/query";
 import { domainIcon, isActive } from "@/lib/smarthome";
-import { useLive, useLiveConnected } from "@/lib/live";
+import { useLiveConnected } from "@/lib/live";
 import { useMe } from "@/components/Shell";
 import { FlowButtons } from "@/components/Flows";
 
@@ -492,45 +493,33 @@ export function mainAction(device: Device): { action: string; optimistic?: Parti
 
 function SmartHomeDevicesView({ app = false }: { app?: boolean }) {
   const { t } = useI18n();
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [loading, setLoading] = useState(true);
+  // From the cache, polled slowly as the live stream's fallback. A tap shows at once (setApiData)
+  // and is read back once Home Assistant has had a moment to tell the new state.
+  const live = useLiveConnected();
+  const devicesQuery = useApi<Device[]>("/api/smarthome/my-devices", { refetchInterval: live ? REFRESH_LIVE_MS : REFRESH_MS });
+  const devices = devicesQuery.data ?? NONE;
+  const loading = devicesQuery.isPending;
+  const setDevices = (update: (prev: Device[]) => Device[]) => setApiData<Device[]>("/api/smarthome/my-devices", (prev) => update(prev ?? NONE));
   const [detailId, setDetailId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null); // device id that just ran (scene/script/automation)
   const [error, setError] = useState("");
   const reloadTimer = useRef<number | null>(null);
-  const live = useLiveConnected();
-
-  const loadDevices = useCallback(() => {
-    api
-      .live<Device[]>("/api/smarthome/my-devices", (rows) => {
-        setDevices(rows);
-        setLoading(false);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadDevices();
-    const interval = setInterval(loadDevices, live ? REFRESH_LIVE_MS : REFRESH_MS);
-    return () => clearInterval(interval);
-  }, [loadDevices, live]);
-  useLive(["smarthome"], loadDevices);
 
   const send: Send = useCallback(
     async (device, action, value, optimistic) => {
       setError("");
       if (optimistic) setDevices((prev) => prev.map((d) => (d.id === device.id ? { ...d, ...optimistic } : d)));
       try {
-        await api.post(`/api/smarthome/devices/${device.id}/action`, { action, value });
+        // Not api.post: refreshing at once would show Home Assistant's old state for a moment.
+        await request(`/api/smarthome/devices/${device.id}/action`, { method: "POST", body: JSON.stringify({ action, value }) });
       } catch {
         setError(t("smarthome.actionFailed"));
       }
       // HA needs a moment to report the new state.
       if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
-      reloadTimer.current = window.setTimeout(loadDevices, 1500);
+      reloadTimer.current = window.setTimeout(() => void refreshApi("/api/smarthome/my-devices"), 1500);
     },
-    [loadDevices, t]
+    [t]
   );
 
   function primaryAction(device: Device) {
@@ -545,11 +534,11 @@ function SmartHomeDevicesView({ app = false }: { app?: boolean }) {
 
   async function toggleFavorite(device: Device) {
     const next = devices.map((d) => (d.id === device.id ? { ...d, favorite: !d.favorite } : d));
-    setDevices(next);
+    setDevices(() => next);
     try {
       await api.put("/api/smarthome/favorites", { device_ids: next.filter((d) => d.favorite).map((d) => d.id) });
     } catch {
-      setDevices(devices);
+      setDevices(() => devices);
       setError(t("common.error"));
     }
   }

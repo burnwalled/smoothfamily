@@ -1,22 +1,18 @@
 "use client";
 
 // The links I have made from the vault: what, for whom, until when, how often opened – and closing one.
-import { useCallback, useEffect, useState } from "react";
 import { api, VaultShare } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { NONE, useApi } from "@/lib/query";
 import { EmptyState } from "@/components/PageTitle";
 
 export default function SharedLinks() {
   const { t } = useI18n();
-  const [shares, setShares] = useState<VaultShare[] | null>(null);
-  const load = useCallback(() => {
-    api.get<VaultShare[]>("/api/vault/shares").then(setShares).catch(() => setShares([]));
-  }, []);
-  useEffect(load, [load]);
+  const sharesQuery = useApi<VaultShare[]>("/api/vault/shares");
+  const shares = sharesQuery.data ?? (sharesQuery.isError ? NONE : null);
 
   async function close(share: VaultShare) {
     await api.del(`/api/vault/shares/${share.id}`).catch(() => {});
-    load();
   }
 
   if (shares === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;

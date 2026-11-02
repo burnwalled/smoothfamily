@@ -2,11 +2,12 @@
 
 // Tasks → The little ones' mode (2.5.5): the adults choose which children see pictures instead of
 // the app, make their routines (from ready-made ones or their own) and give their tasks pictures.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronLeft, Eye, Plus, Trash2 } from "lucide-react";
 import { api, Task } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { NONE, refreshApi, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import EasyHome from "@/components/easy/EasyHome";
@@ -168,33 +169,21 @@ function RoutineEditor({ draft, onChange, onSave, onCancel, busy }: { draft: Dra
 export default function LittleOnesPage() {
   const { t } = useI18n();
   const me = useMe();
-  const [children, setChildren] = useState<EasyChild[] | null>(null);
-  const [childId, setChildId] = useState("");
-  const [routines, setRoutines] = useState<EasyRoutine[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [chosenChild, setChildId] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const adult = me.role !== "child";
 
-  useEffect(() => {
-    if (!adult) return;
-    api
-      .get<EasyChild[]>("/api/easy/children")
-      .then((rows) => {
-        setChildren(rows);
-        setChildId((id) => id || rows[0]?.id || "");
-      })
-      .catch(() => setChildren([]));
-  }, [adult]);
-
-  const load = useCallback(() => {
-    if (!childId) return;
-    api.get<EasyRoutine[]>(`/api/easy/routines?user_id=${childId}`).then(setRoutines).catch(() => setRoutines([]));
-    api.get<Task[]>("/api/tasks").then((rows) => setTasks(rows.filter((r) => r.assignee_id === childId && r.active))).catch(() => setTasks([]));
-  }, [childId]);
-  useEffect(load, [load]);
+  // From the cache: the writes below invalidate the routines and the tasks (a routine is a task).
+  const childrenQuery = useApi<EasyChild[]>(adult ? "/api/easy/children" : null);
+  const children = childrenQuery.data ?? (childrenQuery.isError ? NONE : null);
+  const childId = chosenChild || children?.[0]?.id || "";
+  const routinesPath = childId ? `/api/easy/routines?user_id=${childId}` : null;
+  const routines = useApi<EasyRoutine[]>(routinesPath).data ?? NONE;
+  const allTasks = useApi<Task[]>(childId ? "/api/tasks" : null).data ?? NONE;
+  const tasks = allTasks.filter((r) => r.assignee_id === childId && r.active);
 
   const child = children?.find((c) => c.id === childId) ?? null;
   const routineTasks = new Set(routines.map((r) => r.task_id));
@@ -240,7 +229,6 @@ export default function LittleOnesPage() {
       if (draft.id) await api.put(`/api/easy/routines/${draft.id}`, body);
       else await api.post("/api/easy/routines", body);
       setDraft(null);
-      load();
     });
   }
 
@@ -291,7 +279,7 @@ export default function LittleOnesPage() {
                   onChange={(e) => {
                     // Shown at once; put back if the server says no.
                     const on = e.target.checked;
-                    const set = (value: boolean) => setChildren((all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: value } : c)) ?? null);
+                    const set = (value: boolean) => setApiData<EasyChild[]>("/api/easy/children", (all) => all?.map((c) => (c.id === child.id ? { ...c, easy_mode: value } : c)));
                     set(on);
                     run(() => api.put(`/api/easy/children/${child.id}`, { easy_mode: on }).catch((err) => { set(!on); throw err; }));
                   }}
@@ -325,7 +313,7 @@ export default function LittleOnesPage() {
                   >
                     {t("easy.edit")}
                   </button>
-                  <button className="btn-ghost px-2 text-red-700" onClick={() => run(async () => { await api.del(`/api/easy/routines/${r.id}`); load(); })} aria-label={t("easy.removeRoutine", { name: r.name })}>
+                  <button className="btn-ghost px-2 text-red-700" onClick={() => run(async () => { await api.del(`/api/easy/routines/${r.id}`); })} aria-label={t("easy.removeRoutine", { name: r.name })}>
                     <Trash2 className="h-4 w-4" aria-hidden />
                   </button>
                 </li>
@@ -363,7 +351,7 @@ export default function LittleOnesPage() {
                       <PicturePicker
                         value={task.picture || "⭐"}
                         label={t("easy.taskPicture", { title: task.title })}
-                        onPick={(picture) => run(async () => { await api.patch(`/api/tasks/${task.id}`, { picture }); load(); })}
+                        onPick={(picture) => run(async () => { await api.patch(`/api/tasks/${task.id}`, { picture }); })}
                       />
                       <span className="text-sm">{task.title}</span>
                     </li>
@@ -374,7 +362,7 @@ export default function LittleOnesPage() {
         </>
       )}
 
-      {preview && child && <EasyHome backend={previewBackend} onClose={() => { setPreview(false); load(); }} />}
+      {preview && child && <EasyHome backend={previewBackend} onClose={() => { setPreview(false); if (routinesPath) void refreshApi(routinesPath); }} />}
     </>
   );
 }

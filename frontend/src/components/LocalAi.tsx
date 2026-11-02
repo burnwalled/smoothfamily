@@ -3,12 +3,12 @@
 // The local AI in the app: whether it can be used, the note that jobs wait for the AI computer,
 // the buttons that start a job, the family's own choice and the server admin's settings.
 // Everything here also works by hand – these are only shortcuts.
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Bot, Camera, Copy, Power, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useLive } from "@/lib/live";
+import { setApiData, useApi } from "@/lib/query";
 
 export type AiStatus = { available: boolean; online: boolean; last_online: string | null; waiting: number; hosted: boolean };
 export type AiJob = {
@@ -24,12 +24,7 @@ export type AiJob = {
 };
 
 export function useAiStatus(): AiStatus | null {
-  const [status, setStatus] = useState<AiStatus | null>(null);
-  const load = useCallback(() => {
-    api.get<AiStatus>("/api/ai/status").then(setStatus).catch(() => setStatus(null));
-  }, []);
-  useEffect(load, [load]);
-  useLive(["ai"], load);
+  const status = useApi<AiStatus>("/api/ai/status").data ?? null;
   return status;
 }
 
@@ -182,10 +177,9 @@ export function AiJobButton({ body, label, or }: { body: Record<string, unknown>
 /** Family admin: use the AI or not (a hosted family only when the server admin allows it). */
 export function FamilyAiSetting() {
   const { t } = useI18n();
-  const [state, setState] = useState<{ enabled: boolean; allowed: boolean; hosted: boolean } | null>(null);
-  useEffect(() => {
-    api.get<{ enabled: boolean; allowed: boolean; hosted: boolean }>("/api/ai/family").then(setState).catch(() => {});
-  }, []);
+  type State = { enabled: boolean; allowed: boolean; hosted: boolean };
+  const state = useApi<State>("/api/ai/family").data ?? null;
+  const setState = (next: State) => setApiData<State>("/api/ai/family", () => next);
   if (!state || !state.allowed) return null;
   return (
     <div className="mt-6 border-t border-edge pt-4">
@@ -199,7 +193,7 @@ export function FamilyAiSetting() {
           type="checkbox"
           className="h-4 w-4 accent-primary-700"
           checked={state.enabled}
-          onChange={async (e) => setState(await api.put("/api/ai/family", { enabled: e.target.checked }))}
+          onChange={async (e) => setState(await api.put<State>("/api/ai/family", { enabled: e.target.checked }))}
         />
         {t("ai.familyUse")}
       </label>
@@ -226,14 +220,13 @@ type Config = {
 /** Server admin: where the AI is, which models, how often to look, waking and sleep. */
 export function ServerAiPanel() {
   const { t, dateLocale } = useI18n();
-  const [cfg, setCfg] = useState<Config | null>(null);
+  // The saved settings from the cache; while they are being changed, the changes on top of them.
+  const saved = useApi<Config>("/api/server/ai").data ?? null;
+  const [draft, setCfg] = useState<Config | null>(null);
+  const cfg = draft ?? saved;
   const [models, setModels] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    api.get<Config>("/api/server/ai").then(setCfg).catch(() => {});
-  }, []);
 
   async function run(action: () => Promise<unknown>, done: string) {
     setError("");
@@ -252,7 +245,9 @@ export function ServerAiPanel() {
     run(async () => {
       const { helper_key, online, last_online, queue, ...body } = cfg;
       void helper_key; void online; void last_online; void queue;
-      setCfg(await api.put<Config>("/api/server/ai", body));
+      const next = await api.put<Config>("/api/server/ai", body);
+      setApiData<Config>("/api/server/ai", () => next);
+      setCfg(null);
     }, t("home.saved"));
   const test = () =>
     run(async () => {
