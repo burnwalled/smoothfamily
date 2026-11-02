@@ -29,6 +29,8 @@ jobs:
           cp logo/icon.svg logo/logo-mark-on-dark.svg _site/
           cp -r frontend/public/help/en _site/img/en
           cp -r frontend/public/help/sv _site/img/sv
+          # A new address for the stylesheet with every build, so no browser keeps an old one.
+          sed -i "s#style.css\"#style.css?v=${GITHUB_SHA::7}\"#" _site/index.html _site/sv/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

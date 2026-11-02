@@ -1,7 +1,7 @@
 # Contributing to Smooth Family
 
 Thank you for wanting to help. Smooth Family is a family's app first: it should be calm, clear and
-private, and it should work for a child of six as well as for a grandparent.
+private, and it should work for a child who can't read yet as well as for a grandparent.
 
 ## Before you start
 

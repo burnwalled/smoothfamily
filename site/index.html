@@ -21,6 +21,7 @@
         <div class="nav-links">
           <a href="#features">Features</a>
           <a href="#privacy">Privacy</a>
+          <a href="#devices">How it works</a>
           <a href="#install">Install</a>
           <a href="https://github.com/burnwalled/smoothfamily/wiki">Help</a>
           <a class="gh" href="https://github.com/burnwalled/smoothfamily">GitHub</a>
@@ -31,7 +32,7 @@
         <div>
           <span class="eyebrow">Self-hosted · open source</span>
           <h1>Your family's own portal – <em>in your home</em>, not in someone's cloud.</h1>
-          <p class="lead">The shared calendar, chores with points and allowance, lists, the week's food, a kitchen display on the wall, the smart home and the family's documents – in one calm app for the whole family, from six-year-olds to grandparents.</p>
+          <p class="lead">The shared calendar, chores with points and allowance, lists, the week's food, a kitchen display on the wall, the smart home and the family's documents – in one calm app for the whole family – from the little ones who can't read yet, with pictures instead of words, to the grandparents.</p>
           <div class="buttons">
             <a class="btn btn-honey" href="#install">Get started</a>
             <a class="btn btn-ghost" href="https://github.com/burnwalled/smoothfamily">See it on GitHub</a>
@@ -91,7 +92,60 @@
       </div>
     </section>
 
-    <section class="tint" id="install">
+    <section class="tint" id="devices">
+      <div class="wrap">
+        <h2>How it fits together</h2>
+        <p class="intro">One server in your home, and the family's devices around it. What reaches it from outside is up to you. The technical picture is in <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ARCHITECTURE.md">the architecture</a>.</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 960 560" role="img" aria-labelledby="arch-title arch-desc">
+            <title id="arch-title">How Smooth Family fits together</title>
+            <desc id="arch-desc">One server in the home. Phones, computers, the kitchen display and Home Assistant reach it on the home network; an optional local AI computer helps it. From outside, phones away from home, guest links, another home's gateway and calendar apps reach it only if you open the way – a VPN or HTTPS.</desc>
+            <rect class="zone" x="10" y="10" width="620" height="540" rx="24"/>
+            <text class="zone-label" x="34" y="44">Your home network</text>
+            <rect class="zone zone-out" x="650" y="10" width="300" height="540" rx="24"/>
+            <text class="zone-label" x="674" y="44">Outside – if you open it</text>
+
+            <path class="link" d="M268 115 C340 115 340 230 400 240"/>
+            <path class="link" d="M268 235 C340 235 340 260 400 265"/>
+            <path class="link" d="M268 355 C340 355 340 300 400 295"/>
+            <path class="link dashed" d="M268 475 C340 475 340 330 400 320"/>
+            <path class="link dashed" d="M670 115 C635 115 635 240 600 245"/>
+            <path class="link dashed" d="M670 235 C635 235 635 265 600 268"/>
+            <path class="link dashed" d="M670 355 C635 355 635 292 600 292"/>
+            <path class="link dashed" d="M670 475 C635 475 635 318 600 318"/>
+
+            <g class="node"><rect x="36" y="80" width="232" height="70" rx="14"/><text x="56" y="122" class="emoji">📱</text><text x="92" y="111" class="name">Phones and computers</text><text x="92" y="131" class="sub">The app, installable</text></g>
+            <g class="node"><rect x="36" y="200" width="232" height="70" rx="14"/><text x="56" y="242" class="emoji">🖥️</text><text x="92" y="231" class="name">Kitchen display</text><text x="92" y="251" class="sub">A tablet, its own link</text></g>
+            <g class="node"><rect x="36" y="320" width="232" height="70" rx="14"/><text x="56" y="362" class="emoji">💡</text><text x="92" y="351" class="name">Home Assistant</text><text x="92" y="371" class="sub">Lights, presence, flows</text></g>
+            <g class="node optional"><rect x="36" y="440" width="232" height="70" rx="14"/><text x="56" y="482" class="emoji">🤖</text><text x="92" y="471" class="name">Local AI</text><text x="92" y="491" class="sub">Optional – your own PC</text></g>
+
+            <g class="server"><rect x="400" y="180" width="200" height="200" rx="20"/>
+              <text x="500" y="214" class="name center">🏠 The server</text>
+              <text x="500" y="236" class="sub center">NAS · Raspberry Pi · PC</text>
+              <rect class="chip" x="420" y="256" width="160" height="30" rx="8"/><text x="500" y="276" class="chip-text center">The app</text>
+              <rect class="chip" x="420" y="294" width="160" height="30" rx="8"/><text x="500" y="314" class="chip-text center">The family's data</text>
+              <rect class="chip" x="420" y="332" width="160" height="30" rx="8"/><text x="500" y="352" class="chip-text center">Photos, vault, backups</text>
+            </g>
+
+            <g class="node"><rect x="670" y="80" width="262" height="70" rx="14"/><text x="690" y="122" class="emoji">📱</text><text x="726" y="111" class="name">Phones away</text><text x="726" y="131" class="sub">Over a VPN or HTTPS</text></g>
+            <g class="node"><rect x="670" y="200" width="262" height="70" rx="14"/><text x="690" y="242" class="emoji">🔗</text><text x="726" y="231" class="name">Guest and share links</text><text x="726" y="251" class="sub">Babysitter, grandma</text></g>
+            <g class="node"><rect x="670" y="320" width="262" height="70" rx="14"/><text x="690" y="362" class="emoji">🏕️</text><text x="726" y="351" class="name">Another home</text><text x="726" y="371" class="sub">Gateway – connects out</text></g>
+            <g class="node"><rect x="670" y="440" width="262" height="70" rx="14"/><text x="690" y="482" class="emoji">📅</text><text x="726" y="471" class="name">Calendar apps</text><text x="726" y="491" class="sub">Your personal iCal link</text></g>
+          </svg>
+          <figcaption>Solid lines are always there; dashed ones are optional – the local AI, and everything outside the home, which needs a VPN or HTTPS.</figcaption>
+        </figure>
+        <div class="features devices">
+          <div class="card"><div class="icon" aria-hidden="true">📱</div><h3>Phones and computers</h3><p>The app runs in the browser and installs to the home screen like any app. Lists and tasks work without coverage and are sent when the connection is back.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🖥️</div><h3>The kitchen display</h3><p>Any tablet with the screen's own secret link – no account. The family's admin chooses what it shows and which smart home buttons it may press.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">💡</div><h3>Home Assistant</h3><p>At home, Smooth Family talks to Home Assistant directly. In another home – the cabin – a small gateway connects out to your server, so no port is opened there.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🤖</div><h3>A local AI computer</h3><p>Optional: a PC with Ollama reads receipts and suggests meals. Smooth Family wakes it when there is work and lets it sleep again.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🛡️</div><h3>Reaching it from outside</h3><p>Keep it on the home network, add a VPN, or publish it with HTTPS – each has its cost. <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ACCESS.md">The guide</a> helps you choose.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🩺</div><h3>Every device in view</h3><p>Family settings → Devices shows which phones, displays and gateways are connected, their version and whether they are well.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
       <div class="wrap">
         <h2>Up and running in minutes</h2>
         <p class="intro">You need a computer that is always on, with Docker – or Docker Desktop on Windows or a Mac to try it.</p>

@@ -21,6 +21,7 @@
         <div class="nav-links">
           <a href="#funktioner">Funktioner</a>
           <a href="#integritet">Integritet</a>
+          <a href="#enheter">Så funkar det</a>
           <a href="#installera">Installera</a>
           <a href="https://github.com/burnwalled/smoothfamily/wiki">Hjälp</a>
           <a class="gh" href="https://github.com/burnwalled/smoothfamily">GitHub</a>
@@ -31,7 +32,7 @@
         <div>
           <span class="eyebrow">Egen server · öppen källkod</span>
           <h1>Familjens egen portal – <em>hemma hos er</em>, inte i någons moln.</h1>
-          <p class="lead">Den gemensamma kalendern, sysslor med poäng och veckopeng, listor, veckans mat, en köksskärm på väggen, det smarta hemmet och familjens dokument – i en lugn app för hela familjen, från sexåringar till mor- och farföräldrar.</p>
+          <p class="lead">Den gemensamma kalendern, sysslor med poäng och veckopeng, listor, veckans mat, en köksskärm på väggen, det smarta hemmet och familjens dokument – i en lugn app för hela familjen – från de små som inte kan läsa än, med bilder i stället för ord, till mor- och farföräldrarna.</p>
           <div class="buttons">
             <a class="btn btn-honey" href="#installera">Kom igång</a>
             <a class="btn btn-ghost" href="https://github.com/burnwalled/smoothfamily">Se den på GitHub</a>
@@ -91,7 +92,60 @@
       </div>
     </section>
 
-    <section class="tint" id="installera">
+    <section class="tint" id="enheter">
+      <div class="wrap">
+        <h2>Så hänger det ihop</h2>
+        <p class="intro">En server hemma hos er, och familjens enheter runt den. Vad som når den utifrån bestämmer ni. Den tekniska bilden finns i <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ARCHITECTURE.md">arkitekturen</a> (på engelska).</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 960 560" role="img" aria-labelledby="arch-title arch-desc">
+            <title id="arch-title">Så hänger Smooth Family ihop</title>
+            <desc id="arch-desc">En server hemma. Mobiler, datorer, köksskärmen och Home Assistant når den på hemmanätet; en lokal AI-dator kan hjälpa till. Utifrån når mobiler borta, gästlänkar, gatewayen i ett annat hem och kalenderappar den bara om ni öppnar vägen – VPN eller HTTPS.</desc>
+            <rect class="zone" x="10" y="10" width="620" height="540" rx="24"/>
+            <text class="zone-label" x="34" y="44">Ert hemmanät</text>
+            <rect class="zone zone-out" x="650" y="10" width="300" height="540" rx="24"/>
+            <text class="zone-label" x="674" y="44">Utanför – om ni öppnar</text>
+
+            <path class="link" d="M268 115 C340 115 340 230 400 240"/>
+            <path class="link" d="M268 235 C340 235 340 260 400 265"/>
+            <path class="link" d="M268 355 C340 355 340 300 400 295"/>
+            <path class="link dashed" d="M268 475 C340 475 340 330 400 320"/>
+            <path class="link dashed" d="M670 115 C635 115 635 240 600 245"/>
+            <path class="link dashed" d="M670 235 C635 235 635 265 600 268"/>
+            <path class="link dashed" d="M670 355 C635 355 635 292 600 292"/>
+            <path class="link dashed" d="M670 475 C635 475 635 318 600 318"/>
+
+            <g class="node"><rect x="36" y="80" width="232" height="70" rx="14"/><text x="56" y="122" class="emoji">📱</text><text x="92" y="111" class="name">Mobiler och datorer</text><text x="92" y="131" class="sub">Appen, installerbar</text></g>
+            <g class="node"><rect x="36" y="200" width="232" height="70" rx="14"/><text x="56" y="242" class="emoji">🖥️</text><text x="92" y="231" class="name">Köksskärm</text><text x="92" y="251" class="sub">En surfplatta, egen länk</text></g>
+            <g class="node"><rect x="36" y="320" width="232" height="70" rx="14"/><text x="56" y="362" class="emoji">💡</text><text x="92" y="351" class="name">Home Assistant</text><text x="92" y="371" class="sub">Lampor, närvaro, flöden</text></g>
+            <g class="node optional"><rect x="36" y="440" width="232" height="70" rx="14"/><text x="56" y="482" class="emoji">🤖</text><text x="92" y="471" class="name">Lokal AI</text><text x="92" y="491" class="sub">Valfritt – er egen PC</text></g>
+
+            <g class="server"><rect x="400" y="180" width="200" height="200" rx="20"/>
+              <text x="500" y="214" class="name center">🏠 Servern</text>
+              <text x="500" y="236" class="sub center">NAS · Raspberry Pi · PC</text>
+              <rect class="chip" x="420" y="256" width="160" height="30" rx="8"/><text x="500" y="276" class="chip-text center">Appen</text>
+              <rect class="chip" x="420" y="294" width="160" height="30" rx="8"/><text x="500" y="314" class="chip-text center">Familjens data</text>
+              <rect class="chip" x="420" y="332" width="160" height="30" rx="8"/><text x="500" y="352" class="chip-text center">Foton, valv, backuper</text>
+            </g>
+
+            <g class="node"><rect x="670" y="80" width="262" height="70" rx="14"/><text x="690" y="122" class="emoji">📱</text><text x="726" y="111" class="name">Mobiler borta</text><text x="726" y="131" class="sub">Via VPN eller HTTPS</text></g>
+            <g class="node"><rect x="670" y="200" width="262" height="70" rx="14"/><text x="690" y="242" class="emoji">🔗</text><text x="726" y="231" class="name">Gäst- och delningslänkar</text><text x="726" y="251" class="sub">Barnvakten, mormor</text></g>
+            <g class="node"><rect x="670" y="320" width="262" height="70" rx="14"/><text x="690" y="362" class="emoji">🏕️</text><text x="726" y="351" class="name">Ett annat hem</text><text x="726" y="371" class="sub">Gateway – ansluter ut</text></g>
+            <g class="node"><rect x="670" y="440" width="262" height="70" rx="14"/><text x="690" y="482" class="emoji">📅</text><text x="726" y="471" class="name">Kalenderappar</text><text x="726" y="491" class="sub">Din personliga iCal-länk</text></g>
+          </svg>
+          <figcaption>Heldragna linjer finns alltid; streckade är valfria – den lokala AI:n, och allt utanför hemmet, som kräver VPN eller HTTPS.</figcaption>
+        </figure>
+        <div class="features devices">
+          <div class="card"><div class="icon" aria-hidden="true">📱</div><h3>Mobiler och datorer</h3><p>Appen körs i webbläsaren och läggs på hemskärmen som vilken app som helst. Listor och uppgifter fungerar utan täckning och skickas när anslutningen är tillbaka.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🖥️</div><h3>Köksskärmen</h3><p>Vilken surfplatta som helst med skärmens egen hemliga länk – inget konto. Familjens administratör väljer vad den visar och vilka knappar till det smarta hemmet den får trycka på.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">💡</div><h3>Home Assistant</h3><p>Hemma pratar Smooth Family direkt med Home Assistant. I ett annat hem – stugan – ansluter en liten gateway ut till er server, så ingen port behöver öppnas där.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🤖</div><h3>En lokal AI-dator</h3><p>Valfritt: en PC med Ollama läser kvitton och föreslår mat. Smooth Family väcker den när det finns arbete och låter den somna igen.</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🛡️</div><h3>Nå den utifrån</h3><p>Behåll den på hemmanätet, lägg till VPN eller publicera den med HTTPS – varje väg har sin kostnad. <a href="https://github.com/burnwalled/smoothfamily/blob/main/docs/ACCESS.md">Guiden</a> hjälper dig välja (på engelska).</p></div>
+          <div class="card"><div class="icon" aria-hidden="true">🩺</div><h3>Alla enheter i sikte</h3><p>Familjeinställningar → Enheter visar vilka mobiler, skärmar och gatewayer som är anslutna, vilken version de har och om de mår bra.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="installera">
       <div class="wrap">
         <h2>Igång på några minuter</h2>
         <p class="intro">Du behöver en dator som alltid är på, med Docker – eller Docker Desktop på Windows eller en Mac för att prova.</p>
