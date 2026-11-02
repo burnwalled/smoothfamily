@@ -44,11 +44,25 @@ sh scripts/e2e.sh                   # browser tests on a throwaway stack
 - Write code that reads like the code around it – the same naming, the same comment density.
 - Commits and pull requests in English; say what changed and why.
 
+## Branches and releases
+
+- **`main`** is the released, stable version – what `git clone` gives, what the website and the
+  wiki describe, and where the Home Assistant add-on comes from. Every release is a tag (`v3.3.0`)
+  and a GitHub release on `main`.
+- **`beta`** is where changes are gathered and tested together. The maintainer runs it on their own
+  family's server before it is released.
+- **Your branch** starts from `beta` and goes back to `beta` as a pull request; it is squashed into
+  one commit there.
+- **A release** is a pull request from `beta` to `main`, merged with a merge commit (not squashed,
+  so the two branches stay in step). In "What's new" the version is `3.3.0-beta.1` while it is in
+  beta and `3.3.0` when it reaches `main`.
+- **An urgent fix** for a release goes to `beta` and is released from there at once.
+
 ## Pull requests
 
-1. Fork, branch from `main`, make the change with its tests and texts.
+1. Fork, branch from `beta`, make the change with its tests and texts.
 2. Make sure the backend tests, `npx tsc --noEmit`, `npm test` and the e2e tests pass.
-3. Open the pull request and fill in its form.
+3. Open the pull request against `beta` and fill in its form.
 
 By contributing you agree that your contribution is licensed under the
 [AGPL-3.0](LICENSE).

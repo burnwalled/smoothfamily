@@ -1,35 +1,56 @@
 # Dependabot: newer versions of the libraries, base images and Actions, once a month and grouped,
 # so a month's updates come as a few pull requests (the tests run on each). Security fixes come at
 # once, apart from this. Postgres, Redis, Caddy and SearXNG in production are kept up to date by
-# deploy/synology/update.sh, not here.
+# deploy/synology/update.sh, not here. Like every change, they go to beta first. A new major version
+# (Next 16, Tailwind 4 …) usually needs changes in the code, so those are done by hand.
 version: 2
 updates:
   - package-ecosystem: pip
     directory: /backend
+    target-branch: beta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule: { interval: monthly }
     groups:
       backend: { patterns: ["*"], update-types: [minor, patch] }
 
   - package-ecosystem: npm
     directory: /frontend
+    target-branch: beta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule: { interval: monthly }
     groups:
       frontend: { patterns: ["*"], update-types: [minor, patch] }
 
   - package-ecosystem: npm
     directory: /e2e
+    target-branch: beta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule: { interval: monthly }
     groups:
       e2e: { patterns: ["*"] }
 
   - package-ecosystem: docker
     directories: [/backend, /frontend, /gateway]
+    target-branch: beta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule: { interval: monthly }
     groups:
       images: { patterns: ["*"], update-types: [minor, patch] }
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: beta
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule: { interval: monthly }
     groups:
       actions: { patterns: ["*"] }
