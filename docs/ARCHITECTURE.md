@@ -5,6 +5,8 @@ the family's phones, computers and kitchen display talk to. Everything the famil
 that server. How the devices reach it (only at home, over a VPN or over HTTPS from the internet) is
 described in [ACCESS.md](ACCESS.md).
 
+![How Smooth Family fits together](architecture.svg)
+
 ## An environment
 
 ```mermaid

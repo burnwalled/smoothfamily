@@ -4,7 +4,7 @@
 
 **A family's own portal – it runs in your home, not in someone's cloud.**
 
-[The website](https://burnwalled.github.io/smoothfamily/) · [Help centre](https://github.com/burnwalled/smoothfamily/wiki) · [Releases](https://github.com/burnwalled/smoothfamily/releases)
+[The website](https://burnwalled.github.io/smoothfamily/) · [Help centre](https://github.com/burnwalled/smoothfamily/wiki) · [Architecture](#architecture) · [Releases](https://github.com/burnwalled/smoothfamily/releases)
 
 Smooth Family is a self-hosted app for the whole family: the shared calendar, chores with points
 and allowance, lists, food and recipes, a kitchen display on the wall, the smart home, the family's
@@ -82,6 +82,16 @@ price for Sweden's areas SE1–SE4, the school lunch from Skolmaten and public t
 - Documents and passwords are encrypted with the family's key; backups are sealed with a key made
   in your browser that the server never keeps.
 - Children see what is meant for them; adults' own medicines, documents and passwords stay theirs.
+
+## Architecture
+
+![How Smooth Family fits together: one server in the home, with phones, computers, the kitchen display, Home Assistant and an optional local AI computer on the home network; phones away, guest links, another home's gateway and calendar apps only if you open the way](docs/architecture.svg)
+
+One server in the home holds everything: the app, the family's data, photos, the vault and the
+backups. The family's devices reach it on the home network; from outside – phones away from home,
+guest links, the gateway in another home, calendar apps – only if you open the way, over a VPN or
+HTTPS. More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (the parts and how they talk) and
+[docs/ACCESS.md](docs/ACCESS.md) (how to reach it, and what each way costs).
 
 ## Install
 
