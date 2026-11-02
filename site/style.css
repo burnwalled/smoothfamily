@@ -259,6 +259,27 @@ footer {
 footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; align-items: center; }
 footer a { color: var(--on-dark); }
 
+/* --- How it fits together: the drawing follows the page's colours, light and dark ------------- */
+/* On a phone the drawing keeps a readable size and is swiped sideways. */
+.diagram { margin: 0 0 32px; overflow-x: auto; }
+.diagram svg { width: 100%; min-width: 680px; height: auto; display: block; font-family: inherit; }
+.diagram .zone { fill: var(--bg); stroke: var(--edge); stroke-width: 2; }
+.diagram .zone-out { fill: none; stroke-dasharray: 8 7; }
+.diagram .zone-label { fill: var(--muted); font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.diagram .node rect { fill: var(--surface); stroke: var(--edge); stroke-width: 1.5; }
+.diagram .node.optional rect { stroke-dasharray: 6 5; }
+.diagram .server > rect:first-child { fill: var(--spruce); }
+.diagram .server .name, .diagram .server .sub { fill: var(--on-dark); }
+.diagram .chip { fill: rgba(255, 255, 255, 0.12); }
+.diagram .chip-text { fill: var(--on-dark); font-size: 14px; }
+.diagram .name { fill: var(--ink); font-size: 15px; font-weight: 700; }
+.diagram .sub { fill: var(--muted); font-size: 13px; }
+.diagram .emoji { font-size: 24px; }
+.diagram .center { text-anchor: middle; }
+.diagram .link { fill: none; stroke: var(--honey); stroke-width: 2.5; }
+.diagram .link.dashed { stroke-dasharray: 7 6; }
+.diagram figcaption { text-align: center; color: var(--muted); font-size: 0.92rem; margin-top: 12px; }
+
 /* --- Smaller screens ------------------------------------------------------------------------ */
 @media (max-width: 900px) {
   .hero-grid, .split { grid-template-columns: 1fr; gap: 32px; }
