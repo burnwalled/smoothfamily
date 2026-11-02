@@ -47,7 +47,7 @@ async def set_pack_tasks(
         m.id: m
         for m in (await db.execute(select(User).where(User.family_id == user.family_id, User.id.in_(member_ids or [uuid.uuid4()])))).scalars()
     }
-    existing = (await db.execute(select(Task).where(Task.family_id == user.family_id, _link(trip_id, event_key)))).scalars().all()
+    existing = (await db.execute(select(Task).where(Task.family_id == user.family_id, _link(trip_id, event_key), Task.deleted_at.is_(None)))).scalars().all()
     by_member = {t.assignee_id: t for t in existing}
     wanted = set(members) if day is not None else set()
     for member_id in wanted:

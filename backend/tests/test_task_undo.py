@@ -79,3 +79,31 @@ async def test_a_child_undoes_only_their_own_and_not_once_approved(client):
     assert (await client.delete(f"/api/tasks/{task['id']}/complete")).status_code == 403
     await _login(client, "admin", "secret123")
     assert (await client.delete(f"/api/tasks/{task['id']}/complete")).status_code == 204
+
+
+async def test_a_task_taken_away_keeps_its_history(client):
+    """3.4.0: deleting a task that has been done keeps the points, the history and the allowance;
+    one never done is simply removed."""
+    ids = await _family(client)
+    await client.patch("/api/allowance/settings", json={"child_approval": False})
+    task = (await client.post("/api/tasks", json={"title": "Bins", "recurrence": "daily", "points": 6, "assignee_id": ids["kid1"]})).json()
+    never = (await client.post("/api/tasks", json={"title": "Never done", "recurrence": "daily", "points": 3})).json()
+    await _login(client, "kid1")
+    await client.post(f"/api/tasks/{task['id']}/complete")
+    before = (await client.get("/api/tasks/history?days=1")).json()
+    await _login(client, "admin", "secret123")
+    assert (await client.delete(f"/api/tasks/{task['id']}")).status_code == 204
+    assert (await client.delete(f"/api/tasks/{never['id']}")).status_code == 204
+    # Gone from every list …
+    assert all(t["id"] != task["id"] for t in (await client.get("/api/tasks/manage")).json())
+    assert all(r["task"]["id"] != task["id"] for r in (await client.get("/api/tasks/today")).json())
+    # … but the time it was done is still there, with its points (the child's own history).
+    await _login(client, "kid1")
+    after = (await client.get("/api/tasks/history?days=1")).json()
+    await _login(client, "admin", "secret123")
+    assert after == before and after[0]["points_awarded"] == 6
+    board = {r.get("user_id"): r for r in (await client.get("/api/tasks/leaderboard")).json()}
+    assert any(v == 6 for k, v in board[ids["kid1"]].items() if "points" in k)
+    # It can't be ticked off or undone any more.
+    assert (await client.post(f"/api/tasks/{task['id']}/complete")).status_code == 404
+    assert (await client.delete(f"/api/tasks/{task['id']}/complete")).status_code == 404

@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, CurrentUser, require_app
@@ -175,7 +175,7 @@ async def list_tasks(user: CurrentUser, db: DB) -> list[Task]:
 async def list_tasks_manage(user: CurrentUser, db: DB) -> list[Task]:
     _require_adult_or_admin(user)
     result = await db.execute(
-        select(Task).where(Task.family_id == user.family_id).order_by(Task.created_at)
+        select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None)).order_by(Task.created_at)
     )
     return list(result.scalars().all())
 
@@ -204,7 +204,7 @@ async def today_tasks(user: CurrentUser, db: DB, back: int = 0) -> list[TodayTas
     """Today's tasks – or, to report something afterwards, one of the last few days' (`back`)."""
     today = _report_day(back)
     tasks = (
-        (await db.execute(select(Task).where(Task.family_id == user.family_id)))
+        (await db.execute(select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None))))
         .scalars()
         .all()
     )
@@ -279,7 +279,7 @@ async def week_tasks(user: CurrentUser, db: DB, start: date | None = None) -> li
     today = date.today()
     first = week_start(start or today)
     days = [first + timedelta(days=i) for i in range(7)]
-    tasks = (await db.execute(select(Task).where(Task.family_id == user.family_id))).scalars().all()
+    tasks = (await db.execute(select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None)))).scalars().all()
     await _sync_rotations(db, tasks, today)
     rows = (
         await db.execute(
@@ -583,14 +583,14 @@ async def delete_task(task_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
         raise HTTPException(status_code=404, detail="Task not found")
     _not_a_dose(task)
 
-    # Hard delete requested: remove related completions first to satisfy FK constraints.
-    await db.execute(
-        delete(TaskCompletion).where(
-            TaskCompletion.family_id == user.family_id,
-            TaskCompletion.task_id == task.id,
-        )
-    )
-    await db.delete(task)
+    # Done before: marked deleted, so the times it was done keep their points and their history
+    # (the allowance and the shop count them). Never done: removed for real.
+    done = (await db.execute(select(TaskCompletion.id).where(TaskCompletion.task_id == task.id).limit(1))).first()
+    if done:
+        task.active = False
+        task.deleted_at = datetime.now(timezone.utc)
+    else:
+        await db.delete(task)
     await db.commit()
 
 
@@ -750,7 +750,7 @@ async def undo_for(db: AsyncSession, task: Task, day: date, by: User | None) -> 
         raise HTTPException(status_code=403, detail="Only an adult can undo this")
     for row in rows:
         await db.delete(row)
-    if task.recurrence == "none":
+    if task.recurrence == "none" and task.deleted_at is None:
         task.active = True
     rotation.before_done(task)
     if task.medication_id is not None:
@@ -762,7 +762,7 @@ async def undo_for(db: AsyncSession, task: Task, day: date, by: User | None) -> 
 async def undo_task(task_id: uuid.UUID, user: CurrentUser, db: DB, back: int = 0) -> None:
     """Ticked off by mistake: not done after all."""
     task = await db.get(Task, task_id)
-    if task is None or task.family_id != user.family_id:
+    if task is None or task.family_id != user.family_id or task.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Task not found")
     await undo_for(db, task, _report_day(back), user)
 

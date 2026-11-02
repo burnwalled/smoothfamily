@@ -193,6 +193,9 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     points: Mapped[int] = mapped_column(Integer, default=10)
+    # Taken away (3.4.0): out of every list, but the times it was done – their points, the allowance,
+    # the history – stay. A task never done is removed for real instead.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # none = one-off task (due_date), daily, weekly (weekdays 0=Mon, every interval_weeks weeks
     # counted from anchor_date), monthly (day_of_month), yearly (month + day_of_month).
     recurrence: Mapped[str] = mapped_column(String(20), default="none")

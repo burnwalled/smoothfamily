@@ -74,7 +74,7 @@ async def attach_plans(db: AsyncSession, family_id: uuid.UUID, events: list[Even
         for p in (await db.execute(select(PackingList).where(PackingList.family_id == family_id))).scalars()
     }
     pack = {}
-    for task in (await db.execute(select(Task).where(Task.family_id == family_id, Task.event_key.in_(keys)).order_by(Task.created_at))).scalars():
+    for task in (await db.execute(select(Task).where(Task.family_id == family_id, Task.event_key.in_(keys), Task.deleted_at.is_(None)).order_by(Task.created_at))).scalars():
         pack.setdefault(task.event_key, []).append(PackTask(task_id=task.id, user_id=task.assignee_id, day=task.due_date, done=not task.active))
     for event in events:
         if not event.key:
