@@ -1,3 +1,5 @@
+<!-- Pull requests go to the `beta` branch – change the base above if it says `main`. -->
+
 ## What and why
 
 <!-- What changes for the family or the server admin, and why. -->
