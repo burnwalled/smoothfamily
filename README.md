@@ -193,6 +193,9 @@ Smooth Family is built in spare time by one person and shared for free with anyo
 Issues and pull requests are welcome and read, but there is no support organisation and no promise
 of when an answer or a fix comes.
 
+If it makes your family's days a little smoother, you can [buy me a coffee on Ko-fi](https://ko-fi.com/burnwalled) ☕ –
+entirely optional, and very much appreciated.
+
 ## License
 
 [AGPL-3.0](LICENSE). Use it, change it and host it for your family. If you offer Smooth Family as a
