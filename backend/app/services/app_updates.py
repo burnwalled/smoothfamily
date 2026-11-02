@@ -25,7 +25,7 @@ from app import __version__
 
 REPO = "burnwalled/smoothfamily"
 STABLE_PUBLIC_KEY = "P7bU3eRMXgtTrzmhzWKxCGDsdyDFBkl3XF8/lSSplyM="
-BETA_PUBLIC_KEY = ""
+BETA_PUBLIC_KEY = "+iU+1elzNy642njFqtVmLwjx3qQfG+ypTJyMZVNEhII="
 CHANNELS = ("off", "stable", "beta")
 IMAGE = {
     "backend": re.compile(r"^ghcr\.io/burnwalled/smoothfamily-backend@sha256:[0-9a-f]{64}$"),
