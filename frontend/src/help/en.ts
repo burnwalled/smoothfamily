@@ -284,6 +284,12 @@ const texts: Record<string, TopicText> = {
           "Subscribed calendars are read-only and refresh every 15 minutes.",
           "Your own calendar can be added to your phone with the subscription link under My profile."
         ]
+      },
+      {
+        "h": "Red days"
+      },
+      {
+        "p": "The country's public holidays are in the calendar as red days, with the eves that work like them (Christmas Eve, Midsummer Eve …) in a lighter red. Choose the country – or turn them off – under Family settings → Everyday. For another country, add a public holiday calendar as a subscription."
       }
     ]
   },

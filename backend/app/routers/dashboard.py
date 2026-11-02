@@ -185,6 +185,12 @@ class SourcesOut(BaseModel):
     weather_lat: float | None = None
     weather_lon: float | None = None
     weather_place: str | None = None
+    holiday_country: str | None = None
+
+
+class HolidaysIn(BaseModel):
+    # None turns the red days off; another country is added as a calendar subscription instead.
+    country: str | None = Field(default=None, pattern=r"^(SE|NO|DK|FI|GB-ENG|GB-SCT|GB-NIR)$")
 
 
 class WeatherIn(BaseModel):
@@ -299,6 +305,7 @@ async def sources(admin: FamilyManager, db: DB) -> SourcesOut:
         weather_lon=family.weather_lon,
         weather_place=family.weather_place,
         electricity_area=family.electricity_area,
+        holiday_country=family.holiday_country,
         waste_schedules=[
             WasteScheduleOut(
                 id=r.id, title=r.title, anchor_date=r.anchor_date, interval_weeks=r.interval_weeks, months=r.months or [],
@@ -332,6 +339,15 @@ async def remove_waste_schedule(schedule_id: uuid.UUID, admin: FamilyManager, db
     if rule is None or rule.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Schedule not found")
     await db.delete(rule)
+    await db.commit()
+    return await sources(admin, db)
+
+
+@router.put("/sources/holidays", response_model=SourcesOut)
+async def set_holidays(payload: HolidaysIn, admin: FamilyManager, db: DB) -> SourcesOut:
+    """The family's public holidays in the calendar (3.4.0)."""
+    family = await db.get(Family, admin.family_id)
+    family.holiday_country = payload.country
     await db.commit()
     return await sources(admin, db)
 

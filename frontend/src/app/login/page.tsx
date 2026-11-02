@@ -72,6 +72,8 @@ export default function LoginPage() {
           setup_code: status.requires_code ? setupCode.trim() : undefined,
           passkeys_enabled: allowPasskeys,
           totp_policy: totpPolicy,
+          // The admin's language – and the family's public holidays to begin with.
+          language: locale,
         });
         router.replace("/");
         return;
