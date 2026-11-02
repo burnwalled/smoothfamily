@@ -2,7 +2,7 @@
 # Alpine/musl rather than Debian: newer glibc uses the clone3 syscall, which
 # Docker < 20.10.10 (e.g. Synology DSM 6's package) blocks, so threads fail
 # to start. musl doesn't use clone3, and the image is ~100 MB smaller.
-FROM python:3.12-alpine
+FROM python:3.15-alpine
 
 WORKDIR /srv/app
 
