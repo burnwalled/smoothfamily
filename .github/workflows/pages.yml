@@ -1,0 +1,44 @@
+# The project's page on GitHub Pages (https://burnwalled.github.io/smoothfamily/): site/ with the
+# logo and the help centre's screenshots copied in – the pictures are kept in one place only.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "logo/**", "frontend/public/help/en/**", "frontend/public/help/sv/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put the page together
+        run: |
+          mkdir -p _site/img
+          cp -r site/. _site/
+          cp logo/icon.svg logo/logo-mark-on-dark.svg _site/
+          cp -r frontend/public/help/en _site/img/en
+          cp -r frontend/public/help/sv _site/img/sv
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

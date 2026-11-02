@@ -4,6 +4,8 @@
 
 **A family's own portal – it runs in your home, not in someone's cloud.**
 
+[The website](https://burnwalled.github.io/smoothfamily/) · [Help centre](https://github.com/burnwalled/smoothfamily/wiki) · [Releases](https://github.com/burnwalled/smoothfamily/releases)
+
 Smooth Family is a self-hosted app for the whole family: the shared calendar, chores with points
 and allowance, lists, food and recipes, a kitchen display on the wall, the smart home, the family's
 documents and receipts – in five languages, on a phone, a computer or a tablet. It runs on a NAS, a

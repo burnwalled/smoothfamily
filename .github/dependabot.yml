@@ -1,0 +1,35 @@
+# Dependabot: newer versions of the libraries, base images and Actions, once a month and grouped,
+# so a month's updates come as a few pull requests (the tests run on each). Security fixes come at
+# once, apart from this. Postgres, Redis, Caddy and SearXNG in production are kept up to date by
+# deploy/synology/update.sh, not here.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: monthly }
+    groups:
+      backend: { patterns: ["*"], update-types: [minor, patch] }
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: monthly }
+    groups:
+      frontend: { patterns: ["*"], update-types: [minor, patch] }
+
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule: { interval: monthly }
+    groups:
+      e2e: { patterns: ["*"] }
+
+  - package-ecosystem: docker
+    directories: [/backend, /frontend, /gateway]
+    schedule: { interval: monthly }
+    groups:
+      images: { patterns: ["*"], update-types: [minor, patch] }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ["*"] }
