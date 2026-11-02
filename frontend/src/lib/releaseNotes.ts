@@ -10,6 +10,17 @@ export type ReleaseNote = {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "3.3.0-beta.1",
+    date: "2026-11-03",
+    items: {
+      sv: ["Smooth Family kan uppdatera sig själv. Välj en kanal under Serverinställningar → Uppdateringar → Smooth Family själv: Stabil följer releaserna, Beta varje ändring så fort den är klar. Bara versioner som projektet har signerat läggs in, databasen sparas först, och om den nya versionen inte startar kommer den gamla tillbaka. Avstängt tills du väljer.", "En ny server kan installeras utan att bygga något: hämta releasens filer från GitHub och kör install.sh, så laddas appen ned färdig."],
+      en: ["Smooth Family can update itself. Choose a channel under Server settings → Updates → Smooth Family itself: Stable follows the releases, Beta every change as soon as it is done. Only versions signed by the project are put in, the database is saved first, and if the new version doesn't start, the old one comes back. Off until you choose.", "A new server can be installed without building anything: download the release's files from GitHub and run install.sh – the app is downloaded ready-made."],
+      nb: ["Smooth Family kan oppdatere seg selv. Velg en kanal under Serverinnstillinger → Oppdateringer → Smooth Family selv: Stabil følger utgivelsene, Beta hver endring så snart den er klar. Bare versjoner prosjektet har signert, legges inn, databasen lagres først, og hvis den nye versjonen ikke starter, kommer den gamle tilbake. Av til du velger.", "En ny server kan installeres uten å bygge noe: last ned utgivelsens filer fra GitHub og kjør install.sh – appen lastes ned ferdig."],
+      da: ["Smooth Family kan opdatere sig selv. Vælg en kanal under Serverindstillinger → Opdateringer → Smooth Family selv: Stabil følger udgivelserne, Beta hver ændring, så snart den er færdig. Kun versioner, som projektet har signeret, lægges ind, databasen gemmes først, og hvis den nye version ikke starter, kommer den gamle tilbage. Slået fra, indtil du vælger.", "En ny server kan installeres uden at bygge noget: hent udgivelsens filer fra GitHub og kør install.sh – appen hentes færdig."],
+      fi: ["Smooth Family voi päivittää itsensä. Valitse kanava kohdassa Palvelimen asetukset → Päivitykset → Smooth Family itse: Vakaa seuraa julkaisuja, Beta jokaista muutosta heti valmistuttuaan. Vain projektin allekirjoittamat versiot asennetaan, tietokanta tallennetaan ensin, ja jos uusi versio ei käynnisty, vanha palautetaan. Pois päältä, kunnes valitset.", "Uuden palvelimen voi asentaa rakentamatta mitään: lataa julkaisun tiedostot GitHubista ja aja install.sh – sovellus ladataan valmiina."],
+    },
+  },
+  {
     version: "3.2.1",
     date: "2026-11-02",
     items: {

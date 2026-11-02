@@ -9,16 +9,23 @@ import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 
+// Smooth Family's own newer build (3.3.0): its version and the images by digest.
+type AppBuild = { version: string; build: number | null; commit: string; built_at: string | null; backend: string; frontend: string };
+type Channel = "off" | "stable" | "beta";
+
 type Overview = {
   app_version: string | null;
+  app_build: string | null;
+  // Why no build of Smooth Family could be found on the chosen channel.
+  app_error: string | null;
   connected: boolean;
   state_at: string | null;
   checked_at: string | null;
   running: Record<string, string>;
-  available: Record<string, string>;
-  planned: { run_id: string; at: string; versions: Record<string, string> } | null;
+  available: Record<string, string> & { app?: AppBuild };
+  planned: { run_id: string; at: string; versions: Record<string, string> & { app?: AppBuild } } | null;
   last_run: { ok: boolean; at: string; message: string } | null;
-  settings: { mode: "auto" | "approve" | "off"; day: number; hour: number };
+  settings: { mode: "auto" | "approve" | "off"; day: number; hour: number; channel: Channel };
   next_window: string;
   // Every gateway on the server and the version it reported (3.0.1).
   gateways: {
@@ -28,6 +35,9 @@ type Overview = {
 };
 
 const NAMES: Record<string, string> = { db: "PostgreSQL", redis: "Redis", caddy: "Caddy", searxng: "SearXNG" };
+// A plan or an offer as words: "Smooth Family 3.3.0, PostgreSQL 16.11-alpine".
+const describe = (versions: Overview["available"]) =>
+  Object.entries(versions).map(([name, v]) => (typeof v === "string" ? `${NAMES[name] ?? name} ${v}` : `Smooth Family ${v.version}`)).join(", ");
 
 export default function ServerUpdates() {
   const { t, dateLocale } = useI18n();
@@ -81,11 +91,22 @@ export default function ServerUpdates() {
               <tr><th className="py-1">{t("updates.software")}</th><th>{t("updates.running")}</th><th>{t("updates.newer")}</th></tr>
             </thead>
             <tbody className="divide-y divide-edge">
+              {view.settings.channel !== "off" && (
+                <tr>
+                  <td className="py-1.5 font-semibold">Smooth Family</td>
+                  <td className="font-mono text-xs">{view.app_version}{view.app_build ? ` · ${view.app_build}` : ""}</td>
+                  <td className="font-mono text-xs">
+                    {view.available.app
+                      ? `${view.available.app.version}${view.available.app.commit ? ` · ${view.available.app.commit.slice(0, 7)}` : ""}`
+                      : <span className="font-sans text-muted">{view.app_error ?? t("updates.upToDate")}</span>}
+                  </td>
+                </tr>
+              )}
               {Object.entries(view.running).map(([name, version]) => (
                 <tr key={name}>
                   <td className="py-1.5 font-semibold">{NAMES[name] ?? name}</td>
                   <td className="font-mono text-xs">{version}</td>
-                  <td className="font-mono text-xs">{view.available[name] ?? <span className="font-sans text-muted">{t("updates.upToDate")}</span>}</td>
+                  <td className="font-mono text-xs">{(view.available[name] as string | undefined) ?? <span className="font-sans text-muted">{t("updates.upToDate")}</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -108,7 +129,7 @@ export default function ServerUpdates() {
 
         {view.planned && (
           <p className="mt-3 flex flex-wrap items-center gap-2 rounded bg-accent-soft/40 p-3 text-sm">
-            {t("updates.planned", { when: when(view.planned.at), what: Object.values(view.planned.versions).join(", ") })}
+            {t("updates.planned", { when: when(view.planned.at), what: describe(view.planned.versions) })}
             <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => run(async () => { await api.del("/api/admin/updates/plan"); return api.get<Overview>("/api/admin/updates"); })}>{t("updates.cancel")}</button>
           </p>
         )}
@@ -149,6 +170,22 @@ export default function ServerUpdates() {
           </table>
         </section>
       )}
+
+      <section className="card p-5" aria-label={t("updates.channel")}>
+        <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">{t("updates.channel")}</h2>
+        <p className="text-sm text-muted">{t("updates.channelWhy")}</p>
+        <div className="mt-2 space-y-2 text-sm" role="radiogroup" aria-label={t("updates.channel")}>
+          {(["off", "stable", "beta"] as const).map((channel) => (
+            <label key={channel} className="flex items-start gap-2">
+              <input type="radio" name="update-channel" className="mt-1 accent-primary-700" checked={view.settings.channel === channel} onChange={() => save({ channel })} />
+              <span>
+                <span className="font-semibold">{t(`updates.channel.${channel}` as TranslationKey)}</span>
+                <span className="block text-xs text-muted">{t(`updates.channel.${channel}Hint` as TranslationKey)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="card p-5" aria-label={t("updates.when")}>
         <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">{t("updates.when")}</h2>

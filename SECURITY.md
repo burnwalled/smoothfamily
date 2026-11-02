@@ -40,4 +40,7 @@ on the internet.
   capabilities dropped, the database and Redis on an internal network.
 - The gateway to another home connects out with a key only it has, runs only code signed on the
   maintainer's computer, and can be given only the Home Assistant domains the family allows.
+- A server that updates itself only installs a build whose manifest is signed: stable releases
+  with a key that exists only on the maintainer's computer, beta builds with a separate key held by
+  GitHub's build. The images are pulled by digest, so what runs is exactly what was signed.
 - The server admin sees families' names, sizes and devices by kind – never their content.

@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
+from app import __version__ as V
 from sqlalchemy import select
 
 from app.models import ClientDevice, SmarthomeConnection
@@ -32,8 +34,8 @@ async def _login(client, username, password):
 async def test_the_family_admin_sees_the_devices_and_their_health(client):
     await _setup(client)
     # The admin's computer, twice (one device), and the child's phone on an older app.
-    assert (await client.post("/api/devices/hello", json={"version": "3.1.0"}, headers={"user-agent": PC})).status_code == 204
-    assert (await client.post("/api/devices/hello", json={"version": "3.1.0", "installed": True}, headers={"user-agent": PC})).status_code == 204
+    assert (await client.post("/api/devices/hello", json={"version": V}, headers={"user-agent": PC})).status_code == 204
+    assert (await client.post("/api/devices/hello", json={"version": V, "installed": True}, headers={"user-agent": PC})).status_code == 204
     admin_cookies = dict(client.cookies)
     await _login(client, "kim", "pass1234")
     await client.post("/api/devices/hello", json={"version": "3.0.4"}, headers={"user-agent": PHONE})
@@ -41,9 +43,9 @@ async def test_the_family_admin_sees_the_devices_and_their_health(client):
 
     await _login(client, "admin", "secret123")
     client.cookies.update({"sf_device": admin_cookies["sf_device"]})
-    await client.post("/api/devices/hello", json={"version": "3.1.0"}, headers={"user-agent": PC})
+    await client.post("/api/devices/hello", json={"version": V}, headers={"user-agent": PC})
     out = (await client.get("/api/devices")).json()
-    assert out["app_version"] == "3.1.0"
+    assert out["app_version"] == V
     devices = {d["member_name"]: d for d in out["devices"] if d["kind"] in ("mobile", "computer")}
     assert len([d for d in out["devices"] if d["member_name"] == "Anna"]) == 1
     assert devices["Anna"]["kind"] == "computer" and devices["Anna"]["name"] == "Edge · Windows" and devices["Anna"]["status"] == "ok"
@@ -52,9 +54,9 @@ async def test_the_family_admin_sees_the_devices_and_their_health(client):
     # A kitchen display reports its version when it asks for the day.
     screen = (await client.post("/api/kiosks", json={"name": "Kitchen"})).json()
     token = screen["url"].rsplit("/", 1)[1]
-    assert (await client.get(f"/api/kiosk/{token}", headers={"x-sf-app": "3.1.0"})).status_code == 200
+    assert (await client.get(f"/api/kiosk/{token}", headers={"x-sf-app": V})).status_code == 200
     kiosk = next(d for d in (await client.get("/api/devices")).json()["devices"] if d["kind"] == "kiosk")
-    assert kiosk["name"] == "Kitchen" and kiosk["status"] == "ok" and kiosk["version"] == "3.1.0"
+    assert kiosk["name"] == "Kitchen" and kiosk["status"] == "ok" and kiosk["version"] == V
 
     # Unused for over a week: off the map, still in the list – and forgotten on request.
     from app.database import SessionLocal
@@ -72,7 +74,7 @@ async def test_the_family_admin_sees_the_devices_and_their_health(client):
 
 async def test_the_server_admin_sees_kinds_and_reminds_a_family(client, monkeypatch):
     await _setup(client)
-    await client.post("/api/devices/hello", json={"version": "3.1.0"}, headers={"user-agent": PC})
+    await client.post("/api/devices/hello", json={"version": V}, headers={"user-agent": PC})
     await _login(client, "kim", "pass1234")
     await client.post("/api/devices/hello", json={"version": "3.0.4"}, headers={"user-agent": PHONE})
     await _login(client, "admin", "secret123")
