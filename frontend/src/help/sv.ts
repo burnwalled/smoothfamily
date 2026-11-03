@@ -393,7 +393,7 @@ const texts: Record<string, TopicText> = {
           "Ett konto per person i Home Assistant: lägg till integrationen för Withings, Garmin eller Google Health en gång för var och en, med egen inloggning – och följeslagarappen på varje telefon.",
           "Steg och sömn från telefonen: installera Home Assistants följeslagarapp och slå på dess sensorer – på Android de för Health Connect (steg, sömn, puls, vikt …), på iPhone stegräknaren (steg).",
           "En våg eller en klocka: Withings har en egen integration i Home Assistant; Garmin, Fitbit, Oura med flera finns som integrationer från gemenskapen (HACS).",
-          "Träningspass loggas fortfarande här för hand."
+          "Träningspass (beta): från Withings träningskalender eller en integrations sensor för senaste aktiviteter, som Garmin Connect eller Strava – de senaste två veckorna, varje pass en gång, även om det redan är loggat här för hand."
         ]
       }
     ]

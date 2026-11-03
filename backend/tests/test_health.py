@@ -148,14 +148,15 @@ async def test_health_from_home_assistant(client):
 
     # Linking Anna's phone and the scale maps the metrics; nothing is read before she turns it on.
     linked = (await client.put(f"/api/health/links/{ids['admin']}", json={"accounts": ["sim-phone-anna", "sim-withings-anna"]})).json()
-    assert linked["chosen"] == {"steps": "sensor.anna_phone_steps", "sleep": "sensor.anna_phone_sleep_duration", "resting_hr": "sensor.anna_resting_heart_rate", "weight": "sensor.withings_weight"}
+    assert linked["chosen"] == {"steps": "sensor.anna_phone_steps", "sleep": "sensor.anna_phone_sleep_duration", "resting_hr": "sensor.anna_resting_heart_rate", "weight": "sensor.withings_weight", "workouts": "calendar.withings_workouts"}
     assert linked["import_on"] is False
     assert (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"] == []
     assert (await client.post(f"/api/health/people/{ids['admin']}/sync")).status_code == 409
 
     # She turns it on: read at once – steps, sleep in hours → minutes, weight in kg, resting pulse.
     on = (await client.put(f"/api/health/people/{ids['admin']}/import", json={"on": True})).json()
-    assert on["on"] and on["taken"] == 4 and [a["title"] for a in on["accounts"]] == ["Anna's phone", "Anna"]
+    # (and the Withings workout calendar's walk and swim)
+    assert on["on"] and on["taken"] == 6 and [a["title"] for a in on["accounts"]] == ["Anna's phone", "Anna"]
     day = (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]
     assert (day["day"], day["steps"], day["sleep_minutes"], day["weight_kg"], day["resting_hr"]) == (today.isoformat(), 4200, 450, 78.4, 58)
 
@@ -214,3 +215,47 @@ async def test_an_account_shows_whose_it_is(client):
     await client.put(f"/api/health/links/{ids['adult1']}", json={"accounts": ["sim-withings-anna"]})
     accounts = {a["entry"]: a for a in (await client.get(f"/api/health/links/{ids['admin']}")).json()["accounts"]}
     assert accounts["sim-withings-anna"]["linked_to"] == "Adult1" and accounts["sim-phone-anna"]["linked_to"] is None
+
+
+async def test_workouts_from_home_assistant(client):
+    """3.4.0: workouts taken in from a Withings workout calendar and a Garmin activities sensor –
+    each once, and a task done by exercising ticks off."""
+    from app.services import ha_sim
+    from app.services.health_ha import parse_activities_state, parse_activity, parse_calendar_events
+
+    ids = await _family(client)
+    await client.post("/api/smarthome/connection/simulated")
+    ha_sim.reset()
+    accounts = {a["entry"]: a for a in (await client.get(f"/api/health/links/{ids['admin']}")).json()["accounts"]}
+    assert accounts["sim-withings-anna"]["metrics"]["workouts"][0]["entity_id"] == "calendar.withings_workouts"
+    assert accounts["sim-garmin-erik"]["label"] == "Garmin Connect" and accounts["sim-garmin-erik"]["metrics"]["workouts"][0]["entity_id"] == "sensor.garmin_erik_last_activities"
+
+    # Anna: her Withings (weight and the workout calendar).
+    linked = (await client.put(f"/api/health/links/{ids['admin']}", json={"accounts": ["sim-withings-anna"]})).json()
+    assert linked["chosen"]["workouts"] == "calendar.withings_workouts"
+    on = (await client.put(f"/api/health/people/{ids['admin']}/import", json={"on": True})).json()
+    assert on["taken"] == 3  # the weight, a walk and a swim
+    workouts = (await client.get(f"/api/health/people/{ids['admin']}")).json()["workouts"]
+    assert sorted((w["kind"], w["minutes"], w["source"]) for w in workouts) == [("swim", 40, "home_assistant"), ("walk", 45, "home_assistant")]
+    # Fetched again: nothing twice.
+    assert (await client.post(f"/api/health/people/{ids['admin']}/sync")).json()["taken"] == 0
+
+    # Erik (adult1): his Garmin, with a task done by exercising – yesterday's run ticks it off? Only today's counts.
+    await client.put(f"/api/health/links/{ids['adult1']}", json={"accounts": ["sim-garmin-erik"]})
+    await _as(client, "adult1")
+    # A run he logged by hand already: the same one from Garmin isn't taken twice.
+    yesterday = (today_local() - timedelta(days=1)).isoformat()
+    await client.post(f"/api/health/people/{ids['adult1']}/workouts", json={"day": yesterday, "kind": "run", "minutes": 35})
+    on = (await client.put(f"/api/health/people/{ids['adult1']}/import", json={"on": True})).json()
+    assert on["taken"] == 1  # only the ride
+    kinds = sorted((w["kind"], w["minutes"], w["distance_km"]) for w in (await client.get(f"/api/health/people/{ids['adult1']}")).json()["workouts"])
+    assert kinds == [("bike", 55, 21.5), ("run", 35, None)]
+
+    # The readers on their own: Garmin's and Strava's fields, a calendar event, and what isn't one.
+    assert parse_activity({"activityId": 1, "startTimeLocal": "2026-11-01 07:00:00", "activityType": {"typeKey": "trail_running"}, "duration": 1800, "distance": 5000})["kind"] == "run"
+    strava = parse_activity({"id": 77, "sport_type": "Ride", "start_date_local": "2026-11-02T16:00:00Z", "moving_time": 3600, "distance": 30000})
+    assert (strava["kind"], strava["minutes"], strava["km"]) == ("bike", 60, 30.0)
+    assert parse_activity({"name": "Yoga", "start": "2026-11-02T08:00:00", "duration_minutes": 30})["kind"] == "yoga"
+    assert parse_activity({"activityName": "x"}) is None
+    assert parse_activities_state({"state": "Lunch swim", "attributes": {"start_date": "2026-11-02T12:00:00", "elapsed_time": 1500}})[0]["kind"] == "swim"
+    assert parse_calendar_events([{"summary": "Badminton", "start": {"dateTime": "2026-11-02T18:00:00+01:00"}, "end": {"dateTime": "2026-11-02T19:00:00+01:00"}}])[0]["minutes"] == 60

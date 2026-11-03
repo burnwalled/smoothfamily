@@ -25,6 +25,13 @@ from app.services.weather import _tz
 log = logging.getLogger(__name__)
 
 METRICS = ("steps", "sleep", "weight", "resting_hr")
+# Workouts (3.4.0): a calendar whose events are workouts (Withings), or a sensor that lists recent
+# activities or describes the last one (Garmin Connect, Strava and others) – beta until tried on a
+# real account of each.
+WORKOUTS = "workouts"
+SOURCES = (*METRICS, WORKOUTS)
+# How far back workouts are taken in.
+WORKOUT_DAYS = 14
 # The HealthDay column each metric fills.
 COLUMN = {"steps": "steps", "sleep": "sleep_minutes", "weight": "weight_kg", "resting_hr": "resting_hr"}
 EVERY = timedelta(minutes=15)
@@ -57,13 +64,15 @@ _NOT = {
     "resting_hr": ("max", "min ", "minimum", "average", "variab", "hrv"),
 }
 
-# Each sensor with its integration and account, in one render (Home Assistant 2024.2 and later).
+# Each sensor and calendar with its integration and account, in one render (Home Assistant 2024.2
+# and later); "k" is the names of its attributes, to tell an activities sensor.
 TEMPLATE = """{%- set ns = namespace(rows=[]) -%}
-{%- for s in states.sensor -%}
+{%- for s in states.sensor | list + states.calendar | list -%}
 {%- set entry = config_entry_id(s.entity_id) -%}
 {%- if entry -%}
 {%- set ns.rows = ns.rows + [{"e": s.entity_id, "s": s.state, "u": s.attributes.unit_of_measurement, "c": s.attributes.device_class,
-  "n": s.attributes.friendly_name, "id": entry, "d": config_entry_attr(entry, "domain"), "t": config_entry_attr(entry, "title")}] -%}
+  "n": s.attributes.friendly_name, "id": entry, "d": config_entry_attr(entry, "domain"), "t": config_entry_attr(entry, "title"),
+  "k": s.attributes.keys() | list | join(",")}] -%}
 {%- endif -%}
 {%- endfor -%}
 {{ ns.rows | tojson }}"""
@@ -76,8 +85,33 @@ def _number(state: str | None) -> float | None:
         return None
 
 
+_ACTIVITY_LISTS = ("last_activities", "activities", "recent_activities", "workouts", "last_workouts")
+_WORKOUT_WORDS = ("workout", "activit", "training", "träning", "trening", "træning", "exercise", "liikunta")
+
+
+def score_workouts(state: dict, attr_names: list[str] | None = None) -> int:
+    """How likely an entity is to hold workouts: a workout calendar, or an activities sensor."""
+    entity = state.get("entity_id", "")
+    attrs = state.get("attributes") or {}
+    names = attr_names if attr_names is not None else list(attrs)
+    text = f"{entity} {attrs.get('friendly_name') or ''}".lower()
+    if any(w in text for w in ("goal", "scheduled", "next ", "_next_", "gear", "route", "streak")):
+        return 0
+    if entity.startswith("calendar."):
+        return 3 if any(w in text for w in _WORKOUT_WORDS) else 0
+    if not entity.startswith("sensor."):
+        return 0
+    if any(n in names for n in ("last_activities", "recent_activities")):
+        return 3
+    if any(w in text for w in ("last_activit", "latest_activit", "recent_activit", "last_workout", "latest_workout")):
+        return 2
+    return 0
+
+
 def score(metric: str, state: dict) -> int:
     """How likely a sensor is to be this metric (0 = not at all) – to suggest it first."""
+    if metric == WORKOUTS:
+        return score_workouts(state)
     entity = state.get("entity_id", "")
     attrs = state.get("attributes") or {}
     if not entity.startswith("sensor.") or _number(state.get("state")) is None:
@@ -117,7 +151,7 @@ def _ranked(metric: str, states: list[dict]) -> list[dict]:
 
 def candidates(states: list[dict]) -> dict[str, list[dict]]:
     """Per metric, the sensors that could be it – the likeliest first."""
-    return {metric: _ranked(metric, states) for metric in METRICS}
+    return {metric: _ranked(metric, states) for metric in SOURCES}
 
 
 async def _token(conn: SmarthomeConnection) -> str:
@@ -135,12 +169,16 @@ async def discover(conn: SmarthomeConnection) -> tuple[list[dict], dict[str, lis
     except Exception:
         rows = []
     entries: dict[str, dict] = {}
+    names: dict[str, list[str]] = {}
     for row in rows:
         entry = entries.setdefault(row["id"], {"entry": row["id"], "domain": row.get("d") or "", "title": row.get("t") or "", "states": []})
         entry["states"].append({"entity_id": row["e"], "state": row.get("s"), "attributes": {"unit_of_measurement": row.get("u"), "device_class": row.get("c"), "friendly_name": row.get("n")}})
+        names[row["e"]] = [n for n in str(row.get("k") or "").split(",") if n]
     accounts = []
     for entry in entries.values():
         metrics = {m: _ranked(m, entry["states"]) for m in METRICS}
+        ranked = sorted(((score_workouts(s, names.get(s["entity_id"])), s) for s in entry["states"]), key=lambda x: -x[0])
+        metrics[WORKOUTS] = [{"entity_id": s["entity_id"], "name": s["attributes"].get("friendly_name") or s["entity_id"], "state": None, "unit": None} for n, s in ranked if n > 0]
         if any(metrics.values()):
             accounts.append({
                 "entry": entry["entry"], "domain": entry["domain"], "title": entry["title"],
@@ -155,7 +193,7 @@ def resolve(accounts: list[dict], linked: list[str], chosen: dict[str, str | Non
     """Which sensor each metric is read from: the admin's choice, or the likeliest sensor of the
     first linked account that has it."""
     out = {}
-    for metric in METRICS:
+    for metric in SOURCES:
         if metric in chosen:
             if chosen[metric]:
                 out[metric] = chosen[metric]
@@ -197,7 +235,7 @@ def _day(state: dict):
 
 def chosen_of(user: User) -> dict[str, str]:
     """The sensors a person's health is read from."""
-    out = {m: e for m, e in (user.health_sources or {}).items() if m in METRICS and isinstance(e, str) and e}
+    out = {m: e for m, e in (user.health_sources or {}).items() if m in SOURCES and isinstance(e, str) and e}
     if user.role == "child":
         out.pop("weight", None)
     return out
@@ -212,6 +250,8 @@ async def sync_person(db: AsyncSession, user: User) -> int:
         return 0
     token = await _token(conn)
     taken = 0
+    if WORKOUTS in chosen:
+        taken += await _sync_workouts(db, user, conn, token, chosen.pop(WORKOUTS))
     for metric, entity in chosen.items():
         try:
             state = await ha.get_state(conn.base_url, token, entity)
@@ -241,6 +281,144 @@ async def sync_person(db: AsyncSession, user: User) -> int:
     user.health_sources = {**(user.health_sources or {}), "synced_at": datetime.now(timezone.utc).isoformat()}
     await db.commit()
     return taken
+
+
+# --- Workouts ------------------------------------------------------------------------------------
+
+_KINDS = (
+    ("run", ("run", "jog", "löp", "trail", "treadmill", "juoks")),
+    ("bike", ("bik", "cycl", "ride", "cykel", "spinning", "pyöräil")),
+    ("swim", ("swim", "sim", "svøm", "uinti")),
+    ("ski", ("ski", "skid", "langlauf", "hiiht")),
+    ("walk", ("walk", "hik", "promenad", "gå", "kävel", "trek")),
+    ("yoga", ("yoga", "pilates", "stretch", "jooga")),
+    ("gym", ("strength", "gym", "weight", "fitness", "crossfit", "hiit", "cardio", "styrke", "kuntosali")),
+    ("sport", ("football", "soccer", "fotboll", "hockey", "tennis", "padel", "basket", "handball", "innebandy", "floorball", "golf", "badminton")),
+)
+
+
+def _kind(text: str) -> str:
+    text = text.lower()
+    for kind, words in _KINDS:
+        if any(w in text for w in words):
+            return kind
+    return "other"
+
+
+def _first(d: dict, *keys):
+    for k in keys:
+        if d.get(k) not in (None, ""):
+            return d[k]
+    return None
+
+
+def _moment(value) -> datetime | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value / 1000 if value > 10**11 else value, timezone.utc)
+    text = str(value).replace("Z", "+00:00")
+    try:
+        moment = datetime.fromisoformat(text.replace(" ", "T") if "T" not in text and " " in text else text)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=_tz())
+
+
+def parse_activity(raw: dict) -> dict | None:
+    """One activity from an integration's attributes (Garmin's raw activity, Strava's and the like):
+    {external, day, kind, minutes, km} – or None when it can't be read."""
+    kind_value = _first(raw, "activityType", "sport_type", "activity_type", "type", "sport", "workout_type", "activityName", "name", "title")
+    if isinstance(kind_value, dict):
+        kind_value = kind_value.get("typeKey") or kind_value.get("key") or kind_value.get("name")
+    start = _moment(_first(raw, "startTimeLocal", "start_date_local", "startTime", "start_date", "start_time", "start", "date", "startTimeGMT"))
+    seconds = _first(raw, "duration", "elapsedDuration", "movingDuration", "moving_time", "elapsed_time", "duration_seconds", "duration_s")
+    minutes = _first(raw, "duration_minutes", "minutes", "duration_min")
+    try:
+        mins = round(float(minutes)) if minutes is not None else round(float(seconds) / 60) if seconds is not None else None
+    except (TypeError, ValueError):
+        mins = None
+    if start is None or not mins or mins < 1 or mins > 24 * 60:
+        return None
+    km_value = _first(raw, "distance_km", "km")
+    meters = _first(raw, "distance", "distance_m", "distanceInMeters")
+    try:
+        km = round(float(km_value), 2) if km_value is not None else round(float(meters) / 1000, 2) if meters else None
+    except (TypeError, ValueError):
+        km = None
+    ident = _first(raw, "activityId", "activity_id", "id", "uid")
+    return {
+        "external": str(ident) if ident is not None else f"{start.isoformat()}:{mins}",
+        "day": start.astimezone(_tz()).date(), "kind": _kind(str(kind_value or "")), "minutes": int(mins), "km": km if km and km > 0 else None,
+    }
+
+
+def parse_activities_state(state: dict) -> list[dict]:
+    """An activities sensor: a list of recent activities in an attribute, or the last one itself."""
+    attrs = state.get("attributes") or {}
+    for key in _ACTIVITY_LISTS:
+        if isinstance(attrs.get(key), list):
+            return [a for a in (parse_activity(x) for x in attrs[key] if isinstance(x, dict)) if a]
+    one = parse_activity({**attrs, "name": attrs.get("name") or state.get("state")})
+    return [one] if one else []
+
+
+def parse_calendar_events(events: list[dict]) -> list[dict]:
+    """A workout calendar's events (Withings): the summary is the kind, the length the minutes."""
+    out = []
+    for e in events or []:
+        start = _moment((e.get("start") or {}).get("dateTime") if isinstance(e.get("start"), dict) else e.get("start"))
+        end = _moment((e.get("end") or {}).get("dateTime") if isinstance(e.get("end"), dict) else e.get("end"))
+        if start is None or end is None or end <= start:
+            continue
+        mins = round((end - start).total_seconds() / 60)
+        if 1 <= mins <= 24 * 60:
+            out.append({"external": str(e.get("uid") or f"{start.isoformat()}"), "day": start.astimezone(_tz()).date(), "kind": _kind(e.get("summary") or ""), "minutes": mins, "km": None})
+    return out
+
+
+async def _sync_workouts(db: AsyncSession, user: User, conn: SmarthomeConnection, token: str, entity: str) -> int:
+    """Take in the last two weeks' workouts; a workout already here – from this source, or the same
+    one from another (same day and kind, about as long) – isn't taken twice."""
+    from app.models import Workout
+
+    now = datetime.now(timezone.utc)
+    try:
+        if entity.startswith("calendar."):
+            found = parse_calendar_events(await ha.calendar_events(conn.base_url, token, entity, (now - timedelta(days=WORKOUT_DAYS)).isoformat(), now.isoformat()))
+        else:
+            found = parse_activities_state(await ha.get_state(conn.base_url, token, entity))
+    except Exception:
+        log.info("health: workouts from %s could not be read", entity)
+        return 0
+    first = (now - timedelta(days=WORKOUT_DAYS)).astimezone(_tz()).date()
+    found = [w for w in found if w["day"] >= first]
+    if not found:
+        return 0
+    have = (await db.execute(select(Workout).where(Workout.user_id == user.id, Workout.day >= first))).scalars().all()
+    known = {w.external_id for w in have if w.source == SOURCE}
+    new = []
+    for w in found:
+        external = f"{entity}:{w['external']}"[:120]
+        twin = any(h.day == w["day"] and h.kind == w["kind"] and abs(h.minutes - w["minutes"]) <= max(5, w["minutes"] * 0.15) for h in have)
+        if external in known or twin:
+            continue
+        row = Workout(family_id=user.family_id, user_id=user.id, day=w["day"], kind=w["kind"], minutes=w["minutes"], distance_km=w["km"], source=SOURCE, external_id=external, created_by=user.id, created_at=now)
+        db.add(row)
+        have.append(row)
+        known.add(external)
+        new.append(row)
+    if not new:
+        return 0
+    await db.commit()
+    # A task done by exercising, and the badges, as when it's logged by hand.
+    from app.services.achievements import evaluate_achievements
+    from app.services.health import tick_exercise_tasks
+
+    for day in sorted({w.day for w in new}):
+        await tick_exercise_tasks(db, user, day, user)
+    await evaluate_achievements(db, user)
+    return len(new)
 
 
 def _due(user: User, now: datetime) -> bool:

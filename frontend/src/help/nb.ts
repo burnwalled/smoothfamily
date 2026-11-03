@@ -393,7 +393,7 @@ const texts: Record<string, TopicText> = {
           "Én konto per person i Home Assistant: legg til integrasjonen for Withings, Garmin eller Google Health én gang for hver av dere, med egen innlogging – og følgeappen på hver telefon.",
           "Skritt og søvn fra telefonen: installer Home Assistants følgeapp og slå på sensorene – på Android de for Health Connect (skritt, søvn, puls, vekt …), på iPhone skrittelleren (skritt).",
           "En vekt eller en klokke: Withings har en egen integrasjon i Home Assistant; Garmin, Fitbit, Oura og flere finnes som integrasjoner fra fellesskapet (HACS).",
-          "Treningsøkter logges fortsatt her for hånd."
+          "Treningsøkter (beta): fra Withings' treningskalender eller en integrasjons sensor for siste aktiviteter, som Garmin Connect eller Strava – de siste to ukene, hver økt én gang, også om den allerede er logget her for hånd."
         ]
       }
     ]

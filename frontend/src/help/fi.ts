@@ -393,7 +393,7 @@ const texts: Record<string, TopicText> = {
           "Yksi tili per henkilö Home Assistantissa: lisää Withingsin, Garminin tai Google Healthin integraatio kerran kullekin omalla kirjautumisella – ja Companion-sovellus jokaiseen puhelimeen.",
           "Askeleet ja uni puhelimesta: asenna Home Assistantin Companion-sovellus ja ota sen anturit käyttöön – Androidissa Health Connect -anturit (askeleet, uni, syke, paino …), iPhonessa askelmittari (askeleet).",
           "Vaaka tai kello: Withingsillä on oma integraatio Home Assistantissa; Garmin, Fitbit, Oura ja muut löytyvät yhteisön integraatioina (HACS).",
-          "Treenit kirjataan edelleen tänne käsin."
+          "Treenit (beta): Withingsin treenikalenterista tai integraation viimeisimpien aktiviteettien anturista, kuten Garmin Connect tai Strava – viimeiset kaksi viikkoa, jokainen treeni kerran, myös jos se on jo kirjattu tänne käsin."
         ]
       }
     ]
