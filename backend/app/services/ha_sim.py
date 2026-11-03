@@ -42,6 +42,9 @@ _HOME: dict[str, tuple[str, str, dict]] = {
     **{f"sensor.{p}_phone_sleep_duration": (f"{p.title()}'s phone Sleep duration", str(7.5 + i * 0.25), {"unit_of_measurement": "h", "device_class": "duration"}) for i, p in enumerate(PEOPLE)},
     **{f"sensor.{p}_resting_heart_rate": (f"{p.title()} Resting heart rate", str(58 + i * 4), {"unit_of_measurement": "bpm"}) for i, p in enumerate(PEOPLE)},
     "sensor.withings_weight": ("Withings Weight", "78.4", {"unit_of_measurement": "kg", "device_class": "weight"}),
+    # Workouts (3.4.0): Anna's Withings workout calendar, and Erik's Garmin with its last activities.
+    "calendar.withings_workouts": ("Withings Workouts", "off", {}),
+    "sensor.garmin_erik_last_activities": ("Garmin Last Activities", "2", {"last_activities": []}),
 }
 
 # What the speakers can play: a small tree like HA's media browser gives for Sonos.
@@ -114,7 +117,11 @@ def reset(base_url: str | None = None) -> None:
 
 def _entry(entity_id: str) -> tuple[str, str, str] | None:
     """The (entry id, integration, title) a simulated health sensor comes from: each person's phone
-    with the companion app, and a Withings scale."""
+    with the companion app, a Withings scale and Erik's Garmin."""
+    if entity_id.startswith("sensor.garmin_erik_"):
+        return "sim-garmin-erik", "garmin_connect", "erik@example.com"
+    if entity_id == "calendar.withings_workouts":
+        return "sim-withings-anna", "withings", "Anna"
     for person in PEOPLE:
         if entity_id.startswith(f"sensor.{person}_"):
             return f"sim-phone-{person}", "mobile_app", f"{person.title()}'s phone"
@@ -129,19 +136,46 @@ async def render_template(base_url: str, template: str) -> str:
 
     rows = []
     for entity_id, state in _home(base_url).items():
-        entry = _entry(entity_id) if entity_id.startswith("sensor.") else None
+        entry = _entry(entity_id) if entity_id.startswith(("sensor.", "calendar.")) else None
         if entry:
             rows.append({"e": entity_id, "s": state["state"], "u": state["attributes"].get("unit_of_measurement"), "c": state["attributes"].get("device_class"),
-                         "n": state["attributes"].get("friendly_name"), "id": entry[0], "d": entry[1], "t": entry[2]})
+                         "n": state["attributes"].get("friendly_name"), "id": entry[0], "d": entry[1], "t": entry[2], "k": ",".join(state["attributes"])})
     return json.dumps(rows)
 
 
+def _workouts_now(home: dict) -> None:
+    """Erik's Garmin keeps his last activities (yesterday's run, a ride three days ago)."""
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    home["sensor.garmin_erik_last_activities"]["attributes"]["last_activities"] = [
+        {"activityId": 9001, "activityName": "Morning run", "startTimeLocal": (now - timedelta(days=1)).strftime("%Y-%m-%d 07:10:00"), "activityType": {"typeKey": "running"}, "distance": 6200.0, "duration": 2040.0},
+        {"activityId": 9002, "activityName": "Evening ride", "startTimeLocal": (now - timedelta(days=3)).strftime("%Y-%m-%d 18:30:00"), "activityType": {"typeKey": "road_biking"}, "distance": 21500.0, "duration": 3300.0},
+    ]
+
+
+async def calendar_events(base_url: str, entity_id: str) -> list[dict]:
+    """Anna's Withings workouts: a walk today, a swim two days ago."""
+    from datetime import timedelta
+
+    if entity_id != "calendar.withings_workouts":
+        return []
+    day = datetime.now(timezone.utc).date()
+    return [
+        {"uid": "sim-w-1", "summary": "Walk", "start": {"dateTime": f"{day}T06:30:00+00:00"}, "end": {"dateTime": f"{day}T07:15:00+00:00"}},
+        {"uid": "sim-w-2", "summary": "Swimming", "start": {"dateTime": f"{day - timedelta(days=2)}T17:00:00+00:00"}, "end": {"dateTime": f"{day - timedelta(days=2)}T17:40:00+00:00"}},
+    ]
+
+
 async def get_states(base_url: str) -> list[dict]:
-    return copy.deepcopy(list(_home(base_url).values()))
+    home = _home(base_url)
+    _workouts_now(home)
+    return copy.deepcopy(list(home.values()))
 
 
 async def get_state(base_url: str, entity_id: str) -> dict:
     home = _home(base_url)
+    _workouts_now(home)
     if entity_id not in home:
         from app.services.homeassistant import HomeAssistantError
 

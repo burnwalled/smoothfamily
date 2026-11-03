@@ -25,7 +25,8 @@ type Links = {
   import_on: boolean;
 };
 
-const sensorText = (s: Sensor) => `${s.name} · ${s.state ?? ""}${s.unit ? ` ${s.unit}` : ""}`;
+// A workout calendar or activities sensor has no number worth showing.
+const sensorText = (s: Sensor, metric?: string) => (metric === "workouts" || s.state == null ? s.name : `${s.name} · ${s.state}${s.unit ? ` ${s.unit}` : ""}`);
 
 export default function HealthLinks({ memberId, name, child }: { memberId: string; name: string; child: boolean }) {
   const { t } = useI18n();
@@ -99,10 +100,10 @@ export default function HealthLinks({ memberId, name, child }: { memberId: strin
               <select className="input" value={chosen} disabled={busy} onChange={(e) => save(links.linked, { ...own(m), [m]: e.target.value || null })}>
                 <option value="">{t("health.ha.none")}</option>
                 {chosen && ![...mine, ...rest].some((s) => s.entity_id === chosen) && <option value={chosen}>{chosen}</option>}
-                {mine.map((s) => <option key={s.entity_id} value={s.entity_id}>{sensorText(s)}</option>)}
+                {mine.map((s) => <option key={s.entity_id} value={s.entity_id}>{sensorText(s, m)}</option>)}
                 {rest.length > 0 && (
                   <optgroup label={t("health.links.otherSensors")}>
-                    {rest.map((s) => <option key={s.entity_id} value={s.entity_id}>{sensorText(s)}</option>)}
+                    {rest.map((s) => <option key={s.entity_id} value={s.entity_id}>{sensorText(s, m)}</option>)}
                   </optgroup>
                 )}
               </select>
