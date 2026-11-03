@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Lähdöt: lisää kortti pysäkkiä kohden kohdassa Lisää widget – SL Tukholmassa tai muu lähde koko Ruotsille, Norjalle, Suomelle, Tanskalle tai Lontoolle (osa tarvitsee avaimen, jonka palvelimen ylläpitäjä lisää kohdassa Palvelin → Osoite ja palvelut).",
           "Korttien lähteet – sään paikkakunta, jätehuollon kalenteri ja koulu – asetetaan kohdassa Perheen asetukset → Arki.",
           "Korttia sovellukselle, jota et saa käyttää, ei näytetä."
         ]

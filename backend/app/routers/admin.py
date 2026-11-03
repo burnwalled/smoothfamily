@@ -20,8 +20,8 @@ from sqlalchemy import select
 
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
-from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut
-from app.services import file_limit, giphy, mailer, public_url, recipe_search, security_policy
+from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut, TransitKeyIn, TransitKeyOut
+from app.services import file_limit, giphy, mailer, public_url, recipe_search, security_policy, transit
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -894,6 +894,24 @@ async def test_email(payload: EmailTestIn, admin: ServerAdmin, db: DB) -> dict:
     except mailer.MailError as exc:
         raise HTTPException(status_code=502, detail=f"Couldn't send: {exc}") from exc
     return {"sent": True}
+
+@router.get("/integrations/transit", response_model=list[TransitKeyOut])
+async def get_transit_keys(admin: ServerAdmin, db: DB) -> list[TransitKeyOut]:
+    """The departure providers and which have a key (the keys themselves are never sent back)."""
+    have = await transit.keys(db)
+    return [TransitKeyOut(id=pid, name=name, area=area, key=need, configured=bool(have.get(pid)), signup=signup) for pid, (name, area, need, signup) in transit.PROVIDERS.items()]
+
+
+@router.put("/integrations/transit", response_model=list[TransitKeyOut])
+async def set_transit_key(payload: TransitKeyIn, admin: ServerAdmin, db: DB) -> list[TransitKeyOut]:
+    """Add, change or remove one provider's key (stored encrypted)."""
+    if payload.provider not in transit.PROVIDERS or transit.PROVIDERS[payload.provider][2] == "none":
+        raise HTTPException(status_code=422, detail="That provider takes no key")
+    key = (payload.api_key or "").strip()
+    if key and len(key) < 8:
+        raise HTTPException(status_code=422, detail="That doesn't look like a key")
+    await transit.set_key(db, payload.provider, key or None)
+    return await get_transit_keys(admin, db)
 
 
 @router.get("/integrations/giphy", response_model=GiphySettingOut)
