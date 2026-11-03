@@ -5,6 +5,7 @@ share it with the adults or the whole family. The adults always see a child's an
 child never sees an adult's unless shared. A child's weight is left out altogether, and weight is
 never part of the family's overview – nobody is compared on it.
 """
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
@@ -13,12 +14,10 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from app.deps import DB, CurrentUser, require_app
+from app.deps import DB, CurrentUser, FamilyManager, require_app
 from app.models import HealthDay, HealthGoal, User, Workout
 from app.services import health_ha, smarthome_conn
-from app.services import homeassistant as ha
 from app.services.achievements import evaluate_achievements
-from app.services.crypto import decrypt_token
 from app.services.health import adult as _adult, goal_progress, may_enter, shared, tick_exercise_tasks, visible
 from app.services.weather import today_local
 
@@ -312,23 +311,46 @@ async def delete_goal(goal_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     await db.commit()
 
 
-class SourcesIn(BaseModel):
-    # A sensor per metric, or null to stop reading it.
-    steps: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
-    sleep: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
-    weight: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
-    resting_hr: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
+class LinkAccount(BaseModel):
+    entry: str
+    label: str
+    title: str
 
 
-class SourcesOut(BaseModel):
+class LinksIn(BaseModel):
+    # The person's accounts (Home Assistant integration entries), in order: the first that has a
+    # metric is read for it.
+    accounts: list[str] = Field(default=[], max_length=20)
+    # A sensor of its own for a metric (another account's, or any sensor), or null for none; left
+    # out: from the accounts.
+    chosen: dict[str, str | None] = {}
+
+
+class LinksOut(BaseModel):
     # The family has a Home Assistant connection (and may use it).
     available: bool
-    # It answered just now.
     reachable: bool = True
-    chosen: dict[str, str | None] = {}
-    synced_at: datetime | None = None
+    # The accounts could be told apart (not through the gateway).
+    accounts_known: bool = True
+    accounts: list[dict] = []
+    linked: list[str] = []
+    chosen: dict[str, str] = {}
     candidates: dict[str, list[dict]] = {}
+    import_on: bool = False
+
+
+class ImportOut(BaseModel):
+    available: bool
+    # Linked by the admin: the accounts and the metrics read.
+    accounts: list[LinkAccount] = []
+    metrics: list[str] = []
+    on: bool = False
+    synced_at: datetime | None = None
     taken: int | None = None
+
+
+class ImportIn(BaseModel):
+    on: bool
 
 
 async def _ha_available(db, user: User) -> bool:
@@ -341,57 +363,120 @@ async def _ha_available(db, user: User) -> bool:
     return await smarthome_conn.primary(db, user.family_id) is not None
 
 
-async def _sources(db, viewer: User, owner: User, with_candidates: bool = True) -> SourcesOut:
-    if not await _ha_available(db, viewer):
-        return SourcesOut(available=False)
-    saved = owner.health_sources or {}
-    metrics = [m for m in health_ha.METRICS if not (m == "weight" and owner.role == "child")]
-    synced = saved.get("synced_at")
-    out = SourcesOut(available=True, chosen={m: saved.get(m) for m in metrics}, synced_at=datetime.fromisoformat(synced) if synced else None)
-    if with_candidates:
-        conn = await smarthome_conn.primary(db, viewer.family_id)
-        try:
-            states = await ha.get_states(conn.base_url, decrypt_token(conn.token_encrypted) if conn.token_encrypted else "")
-            out.candidates = {m: c for m, c in health_ha.candidates(states).items() if m in metrics}
-        except Exception:
-            out.reachable = False
+def _metrics_for(owner: User) -> list[str]:
+    return [m for m in health_ha.METRICS if not (m == "weight" and owner.role == "child")]
+
+
+async def _member(db, admin: User, user_id: uuid.UUID) -> User:
+    member = await db.get(User, user_id)
+    if member is None or member.family_id != admin.family_id:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return member
+
+
+async def _links(db, admin: User, member: User) -> LinksOut:
+    if not await _ha_available(db, admin):
+        return LinksOut(available=False)
+    saved = member.health_sources or {}
+    metrics = _metrics_for(member)
+    out = LinksOut(
+        available=True, linked=[a["entry"] for a in saved.get("accounts", [])],
+        chosen={m: e for m, e in health_ha.chosen_of(member).items()}, import_on=bool(member.health_import),
+    )
+    try:
+        accounts, candidates = await health_ha.discover(await smarthome_conn.primary(db, admin.family_id))
+    except Exception:
+        out.reachable = False
+        return out
+    out.accounts_known = bool(accounts)
+    # Whose an account already is (so a spouse's Withings isn't linked to the wrong one by mistake).
+    others = (await db.execute(select(User).where(User.family_id == admin.family_id, User.id != member.id, User.health_sources.is_not(None)))).scalars().all()
+    owner_of = {a["entry"]: o.display_name for o in others for a in (o.health_sources or {}).get("accounts", [])}
+    out.accounts = [{**a, "metrics": {m: c for m, c in a["metrics"].items() if m in metrics}, "linked_to": owner_of.get(a["entry"])} for a in accounts]
+    out.candidates = {m: c for m, c in candidates.items() if m in metrics}
     return out
 
 
-@router.get("/people/{user_id}/sources", response_model=SourcesOut)
-async def get_sources(user_id: uuid.UUID, user: CurrentUser, db: DB) -> SourcesOut:
-    """The Home Assistant sensors this person's health is read from, and those that could be."""
-    return await _sources(db, user, await _enterable(db, user, user_id))
+@router.get("/links/{user_id}", response_model=LinksOut)
+async def get_links(user_id: uuid.UUID, admin: FamilyManager, db: DB) -> LinksOut:
+    """Family admin: the health accounts in Home Assistant, and which are this member's."""
+    return await _links(db, admin, await _member(db, admin, user_id))
 
 
-@router.put("/people/{user_id}/sources", response_model=SourcesOut)
-async def set_sources(user_id: uuid.UUID, payload: SourcesIn, user: CurrentUser, db: DB) -> SourcesOut:
-    owner = await _enterable(db, user, user_id)
-    if not await _ha_available(db, user):
+@router.put("/links/{user_id}", response_model=LinksOut)
+async def set_links(user_id: uuid.UUID, payload: LinksIn, admin: FamilyManager, db: DB) -> LinksOut:
+    """Family admin: link a member's accounts (and any sensors of their own). Nothing is fetched
+    until the member turns it on."""
+    member = await _member(db, admin, user_id)
+    if not await _ha_available(db, admin):
         raise HTTPException(status_code=409, detail="Connect Home Assistant first")
-    chosen = {k: v for k, v in payload.model_dump(exclude_unset=True).items()}
-    if owner.role == "child":
-        chosen.pop("weight", None)
-    merged = {**(owner.health_sources or {}), **chosen}
-    owner.health_sources = merged if any(merged.get(m) for m in health_ha.METRICS) else None
+    try:
+        accounts, _ = await health_ha.discover(await smarthome_conn.primary(db, admin.family_id))
+    except Exception:
+        raise HTTPException(status_code=502, detail="Home Assistant could not be reached")
+    known = {a["entry"]: a for a in accounts}
+    linked = [e for e in payload.accounts if e in known]
+    for entity in payload.chosen.values():
+        if entity is not None and not re.fullmatch(r"sensor\.[a-z0-9_]+", entity):
+            raise HTTPException(status_code=422, detail="Choose a sensor")
+    chosen = {m: e for m, e in payload.chosen.items() if m in _metrics_for(member)}
+    mapping = health_ha.resolve(accounts, linked, chosen)
+    mapping = {m: e for m, e in mapping.items() if m in _metrics_for(member)}
+    if linked or mapping:
+        member.health_sources = {
+            **{k: v for k, v in (member.health_sources or {}).items() if k == "synced_at"},
+            "accounts": [{"entry": e, "label": known[e]["label"], "title": known[e]["title"]} for e in linked],
+            **mapping,
+        }
+    else:
+        member.health_sources = None
     await db.commit()
-    out = await _sources(db, user, owner, with_candidates=False)
-    out.taken = await health_ha.sync_person(db, owner) if owner.health_sources else 0
+    if member.health_import:
+        await health_ha.sync_person(db, member)
+    await db.refresh(member)
+    return await _links(db, admin, member)
+
+
+async def _import(db, viewer: User, owner: User) -> ImportOut:
+    saved = owner.health_sources or {}
+    synced = saved.get("synced_at")
+    return ImportOut(
+        available=await _ha_available(db, viewer),
+        accounts=[LinkAccount(**a) for a in saved.get("accounts", [])],
+        metrics=list(health_ha.chosen_of(owner)),
+        on=bool(owner.health_import),
+        synced_at=datetime.fromisoformat(synced) if synced else None,
+    )
+
+
+@router.get("/people/{user_id}/import", response_model=ImportOut)
+async def get_import(user_id: uuid.UUID, user: CurrentUser, db: DB) -> ImportOut:
+    """Is this person's health fetched from Home Assistant, and from what."""
+    return await _import(db, user, await _enterable(db, user, user_id))
+
+
+@router.put("/people/{user_id}/import", response_model=ImportOut)
+async def set_import(user_id: uuid.UUID, payload: ImportIn, user: CurrentUser, db: DB) -> ImportOut:
+    """The person turns fetching on or off – or an adult, for a child."""
+    owner = await _enterable(db, user, user_id)
+    owner.health_import = payload.on
+    await db.commit()
+    taken = await health_ha.sync_person(db, owner) if payload.on else None
     await db.refresh(owner)
-    synced = (owner.health_sources or {}).get("synced_at")
-    out.synced_at = datetime.fromisoformat(synced) if synced else None
+    out = await _import(db, user, owner)
+    out.taken = taken
     return out
 
 
-@router.post("/people/{user_id}/sync", response_model=SourcesOut)
-async def sync_now(user_id: uuid.UUID, user: CurrentUser, db: DB) -> SourcesOut:
-    """Read the chosen sensors now."""
+@router.post("/people/{user_id}/sync", response_model=ImportOut)
+async def sync_now(user_id: uuid.UUID, user: CurrentUser, db: DB) -> ImportOut:
+    """Fetch now."""
     owner = await _enterable(db, user, user_id)
-    if not await _ha_available(db, user):
-        raise HTTPException(status_code=409, detail="Connect Home Assistant first")
+    if not owner.health_import:
+        raise HTTPException(status_code=409, detail="Turn on fetching from Home Assistant first")
     taken = await health_ha.sync_person(db, owner)
     await db.refresh(owner)
-    out = await _sources(db, user, owner, with_candidates=False)
+    out = await _import(db, user, owner)
     out.taken = taken
     return out
 
@@ -426,4 +511,5 @@ async def delete_mine(user: CurrentUser, db: DB) -> None:
     await db.execute(delete(HealthDay).where(HealthDay.user_id == user.id))
     user.health_share = None
     user.health_sources = None
+    user.health_import = False
     await db.commit()

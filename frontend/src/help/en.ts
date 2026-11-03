@@ -355,10 +355,11 @@ const texts: Record<string, TopicText> = {
         "h": "From Home Assistant"
       },
       {
-        "p": "If the family has connected Home Assistant, each person can have steps, sleep, weight and resting pulse read in by themselves: under From Home Assistant on your page, choose the sensors – the likeliest are suggested first. They're read every 15 minutes and on Fetch now, and kept on the day they're from. What you enter by hand on a day always wins. Adults can choose for a child; a child's weight is never read."
+        "p": "If the family has connected Home Assistant, steps, sleep, weight and resting pulse can be fetched from each person's own accounts there: the phone with the companion app, a Withings user, Google Health, Garmin and others. A family admin links the accounts under Family settings → Family members → the person; the person then turns on Fetch my health from Home Assistant in their profile – nothing is fetched before that. For a child, an adult turns it on on the child's page. They're read every 15 minutes and on Fetch now, and kept on the day they're from; what you enter by hand on a day always wins, and a child's weight is never read."
       },
       {
         "tips": [
+          "One account per person in Home Assistant: add the Withings, Garmin or Google Health integration once for each of you, each with your own login – and the companion app on each phone.",
           "Steps and sleep from your phone: install the Home Assistant companion app and turn on its sensors – on Android the Health Connect ones (steps, sleep, heart rate, weight…), on iPhone the pedometer (steps).",
           "A scale or a watch: Withings has its own integration in Home Assistant; Garmin, Fitbit, Oura and others are available as integrations from the community (HACS).",
           "Workouts are still logged here by hand."

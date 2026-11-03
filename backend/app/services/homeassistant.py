@@ -87,6 +87,21 @@ async def call_service(
         return True
 
 
+async def render_template(base_url: str, token: str, template: str) -> str:
+    """Render a Jinja template in Home Assistant (POST /api/template) – e.g. to learn which
+    integration and account each sensor belongs to. Not through the gateway."""
+    if ha_sim.is_sim(base_url):
+        return await ha_sim.render_template(base_url, template)
+    if gateway.is_gateway(base_url):
+        raise HomeAssistantError("Not available through the gateway")
+    url = base_url.rstrip("/") + "/api/template"
+    async with httpx.AsyncClient(timeout=HA_TIMEOUT) as client:
+        resp = await client.post(url, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, json={"template": template})
+        if resp.status_code != 200:
+            raise HomeAssistantError(f"HA returned {resp.status_code}")
+        return resp.text
+
+
 def _need(value: float | None, low: float, high: float, what: str) -> float:
     if value is None or not (low <= value <= high):
         raise ValueError(f"{what} must be between {low:g} and {high:g}")

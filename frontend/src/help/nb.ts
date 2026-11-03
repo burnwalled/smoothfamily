@@ -355,10 +355,11 @@ const texts: Record<string, TopicText> = {
         "h": "Fra Home Assistant"
       },
       {
-        "p": "Hvis familien har koblet til Home Assistant, kan hver enkelt få skritt, søvn, vekt og hvilepuls lest inn av seg selv: under Fra Home Assistant på siden din velger du sensorene – de mest sannsynlige foreslås først. De leses hvert 15. minutt og når du trykker Hent nå, og lagres på dagen de gjelder. Det du fyller inn selv på en dag vinner alltid. Voksne kan velge for et barn; et barns vekt leses aldri."
+        "p": "Hvis familien har koblet til Home Assistant, kan skritt, søvn, vekt og hvilepuls hentes fra hver enkelts egne kontoer der: telefonen med følgeappen, en bruker i Withings, Google Health, Garmin og flere. En familieadmin kobler kontoene under Familieinnstillinger → Familiemedlemmer → personen; personen slår så på Hent helsen min fra Home Assistant i profilen sin – ingenting hentes før det. For et barn slår en voksen det på på barnets side. De leses hvert 15. minutt og når du trykker Hent nå, og lagres på dagen de gjelder; det du fyller inn selv på en dag vinner alltid, og et barns vekt leses aldri."
       },
       {
         "tips": [
+          "Én konto per person i Home Assistant: legg til integrasjonen for Withings, Garmin eller Google Health én gang for hver av dere, med egen innlogging – og følgeappen på hver telefon.",
           "Skritt og søvn fra telefonen: installer Home Assistants følgeapp og slå på sensorene – på Android de for Health Connect (skritt, søvn, puls, vekt …), på iPhone skrittelleren (skritt).",
           "En vekt eller en klokke: Withings har en egen integrasjon i Home Assistant; Garmin, Fitbit, Oura og flere finnes som integrasjoner fra fellesskapet (HACS).",
           "Treningsøkter logges fortsatt her for hånd."
