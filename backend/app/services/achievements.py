@@ -7,7 +7,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import TaskCompletion, User, UserAchievement
+from sqlalchemy import func
+
+from app.models import TaskCompletion, User, UserAchievement, Workout
 from app.services.gamification import streak as compute_streak
 
 
@@ -36,6 +38,10 @@ CATALOG: list[dict[str, Any]] = [
     {"id": "variety_3",  "tier": "bronze", "icon": "🌈", "condition_type": "variety", "threshold": 3},
     {"id": "variety_7",  "tier": "silver", "icon": "🌈", "condition_type": "variety", "threshold": 7},
     {"id": "variety_15", "tier": "gold",   "icon": "🌈", "condition_type": "variety", "threshold": 15},
+    # workouts logged in Health (3.4.0)
+    {"id": "workout_1",   "tier": "bronze", "icon": "🏃", "condition_type": "workouts", "threshold": 1},
+    {"id": "workout_25",  "tier": "silver", "icon": "🏃", "condition_type": "workouts", "threshold": 25},
+    {"id": "workout_100", "tier": "gold",   "icon": "🏃", "condition_type": "workouts", "threshold": 100},
 ]
 
 CATALOG_BY_ID: dict[str, dict[str, Any]] = {a["id"]: a for a in CATALOG}
@@ -117,6 +123,7 @@ async def _metrics(db: AsyncSession, user: User, today: date) -> dict[str, int]:
         "streak_days": streak_days,
         "week_wins": week_wins,
         "variety": variety,
+        "workouts": int((await db.execute(select(func.count()).select_from(Workout).where(Workout.user_id == user.id))).scalar_one()),
     }
 
 

@@ -339,6 +339,12 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "h": "Tillsammans"
+      },
+      {
+        "p": "En vuxen sätter familjens mål – timmar, kilometer eller pass mellan två datum, till exempel 500 km tillsammans i maj. De räknar träningen som var och en delar med familjen och syns i Hälsa, i söndagskollen och på köksskärmen (veckans rörelse). En uppgift kan bli klar genom träning: välj minst så många minuter den dagen, så bockas den av av sig själv när personens träning räcker – med poäng, som vilken uppgift som helst. Träning ger också utmärkelser."
+      },
+      {
         "tips": [
           "De vuxna ser alltid ett barns hälsa och kan fylla i den – en förälder kan logga fotbollsträningen.",
           "Ett barns vikt sparas inte, och vikt jämförs aldrig: den finns inte i översikten.",

@@ -339,6 +339,12 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "h": "Together"
+      },
+      {
+        "p": "An adult sets the family's goals – hours, kilometres or workouts between two dates, such as 500 km together in May. They count the workouts each person shares with the family, and show on Health, in the Sunday check-in and on the kitchen display (the week's exercise). A task can be done by exercising: choose at least so many minutes that day, and it's ticked off by itself once the person's workouts add up – with points, as any task. Workouts also earn badges."
+      },
+      {
         "tips": [
           "The adults always see a child's health and can enter it – a parent can log the football practice.",
           "A child's weight isn't kept, and weight is never compared: it's not in the overview.",

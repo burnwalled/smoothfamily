@@ -2,12 +2,14 @@
 
 // Health (3.4.0): each person's workouts and the day's numbers – steps, sleep, weight – private until
 // they share them with the adults or the family. The adults see and enter a child's; a child's weight
-// isn't kept, and weight is never in the family's overview.
+// isn't kept, and weight is never in the family's overview. The family's goals count what each one
+// shares with the family; a workout can tick off a task done by exercising, and earn a badge.
 import { useState } from "react";
 import {
-  Activity, Bike, Download, Dumbbell, Flame, Flower2, Footprints, LucideIcon, Moon, MountainSnow, PersonStanding, Scale, Trash2, Volleyball, Waves,
+  Activity, Bike, Download, Dumbbell, Flame, Flower2, Footprints, LucideIcon, Moon, MountainSnow, PersonStanding, Scale, Target, Trash2, Volleyball, Waves,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ExerciseGoal } from "@/lib/api";
+import GoalBar, { goalAmount } from "@/components/health/GoalBar";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
@@ -31,6 +33,7 @@ type Person = {
 type Workout = { id: string; day: string; kind: string; minutes: number; distance_km: number | null; note: string; source: string };
 type Day = { day: string; steps: number | null; sleep_minutes: number | null; weight_kg: number | null; resting_hr: number | null };
 type Detail = Person & { workouts: Workout[]; days: Day[]; share: Record<Category, Share> | null };
+type Goal = ExerciseGoal & { id: string; start_date: string; end_date: string; done: boolean; ended: boolean; people: { user_id: string; name: string; color: string | null; amount: number }[] };
 
 const KINDS: [string, LucideIcon][] = [
   ["walk", Footprints], ["run", PersonStanding], ["bike", Bike], ["swim", Waves], ["gym", Dumbbell],
@@ -80,7 +83,113 @@ export default function HealthPage() {
         </section>
       )}
 
+      <Goals adult={me.role !== "child"} />
+
       <PersonView key={who} userId={who} />
+    </div>
+  );
+}
+
+// The family's goals: running and lately ended, each with who has added to it. The adults set them.
+function Goals({ adult }: { adult: boolean }) {
+  const { t, dateLocale } = useI18n();
+  const goals = useApi<Goal[]>("/api/health/goals").data;
+  const [adding, setAdding] = useState(false);
+  if (!goals || (!goals.length && !adult)) return null;
+  const today = iso(new Date());
+  const daysLeft = (end: string) => Math.round((new Date(`${end}T12:00:00`).getTime() - new Date(`${today}T12:00:00`).getTime()) / 86_400_000);
+
+  return (
+    <section className="card p-5" aria-label={t("health.goals")}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted">
+          <Target className="h-4 w-4" strokeWidth={2} aria-hidden />
+          {t("health.goals")}
+        </h2>
+        {adult && !adding && <button className="btn-ghost px-2 py-1 text-sm" onClick={() => setAdding(true)}>{t("health.newGoal")}</button>}
+      </div>
+      <p className="mb-3 text-xs text-muted">{t("health.goalsHelp")}</p>
+      {adding && <GoalForm onDone={() => setAdding(false)} />}
+      {goals.length === 0 && !adding && <p className="text-sm text-muted">{t("health.noGoals")}</p>}
+      <ul className="space-y-4">
+        {goals.map((g) => (
+          <li key={g.id}>
+            <GoalBar goal={g} />
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span>{g.ended ? t("health.goalEnded") : t("health.goalDaysLeft", { n: daysLeft(g.end_date) + 1 })}</span>
+              {g.people.map((p) => (
+                <span key={p.user_id} className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full" style={{ background: p.color ?? "#999" }} aria-hidden />
+                  {p.name} {goalShare(g, p.amount, t, dateLocale)}
+                </span>
+              ))}
+              {adult && (
+                <button className="ml-auto text-muted hover:text-red-700" aria-label={t("health.deleteGoal", { title: g.title })} onClick={() => api.del(`/api/health/goals/${g.id}`)}>
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function goalShare(goal: Goal, value: number, t: ReturnType<typeof useI18n>["t"], locale: string) {
+  return goalAmount(goal.metric, value, t, locale);
+}
+
+function GoalForm({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n();
+  const now = new Date();
+  const [title, setTitle] = useState("");
+  const [metric, setMetric] = useState<ExerciseGoal["metric"]>("km");
+  const [target, setTarget] = useState(100);
+  const [from, setFrom] = useState(iso(now));
+  const [to, setTo] = useState(iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+  const [error, setError] = useState("");
+
+  async function save() {
+    setError("");
+    try {
+      // Hours are kept as minutes.
+      await api.post("/api/health/goals", { title, metric, target: metric === "minutes" ? target * 60 : target, start_date: from, end_date: to });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.error"));
+    }
+  }
+
+  return (
+    <div className="mb-4 grid gap-3 rounded-xl border border-edge p-3 sm:grid-cols-2" role="group" aria-label={t("health.newGoal")}>
+      <label className="sm:col-span-2">
+        <span className="label">{t("health.goalTitle")}</span>
+        <input className="input" value={title} maxLength={120} placeholder={t("health.goalTitlePh")} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      <label>
+        <span className="label">{t("health.goalMetric")}</span>
+        <select className="input" value={metric} onChange={(e) => setMetric(e.target.value as ExerciseGoal["metric"])}>
+          {(["km", "minutes", "workouts"] as const).map((m) => <option key={m} value={m}>{t(`health.metric.${m}` as TranslationKey)}</option>)}
+        </select>
+      </label>
+      <label>
+        <span className="label">{t("health.goalTarget")}</span>
+        <input className="input" type="number" min={1} value={target} onChange={(e) => setTarget(Number(e.target.value))} />
+      </label>
+      <label>
+        <span className="label">{t("health.goalFrom")}</span>
+        <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+      </label>
+      <label>
+        <span className="label">{t("health.goalTo")}</span>
+        <input className="input" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+      </label>
+      {error && <p className="text-sm text-red-700 sm:col-span-2">{error}</p>}
+      <div className="flex gap-2 sm:col-span-2">
+        <button className="btn-primary" disabled={!title.trim() || target < 1} onClick={save}>{t("health.addGoal")}</button>
+        <button className="btn-ghost" onClick={onDone}>{t("common.cancel")}</button>
+      </div>
     </div>
   );
 }
@@ -220,13 +329,16 @@ function WorkoutForm({ userId }: { userId: string }) {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [news, setNews] = useState<string[]>([]);
 
   async function save() {
     setSaving(true);
     setError("");
+    setNews([]);
     try {
       const km = DISTANCE.has(kind) && distance ? Number(distance.replace(",", ".")) : null;
-      await api.post(`/api/health/people/${userId}/workouts`, { day, kind, minutes, distance_km: km, note });
+      const done = await api.post<Workout & { ticked: string[]; unlocked: string[] }>(`/api/health/people/${userId}/workouts`, { day, kind, minutes, distance_km: km, note });
+      setNews([...(done.ticked.length ? [t("health.ticked", { tasks: done.ticked.join(", ") })] : []), ...(done.unlocked.length ? [t("health.unlocked")] : [])]);
       setDistance("");
       setNote("");
     } catch (e) {
@@ -278,6 +390,7 @@ function WorkoutForm({ userId }: { userId: string }) {
       </div>
       <input className="input" value={note} maxLength={300} placeholder={t("health.notePh")} aria-label={t("health.note")} onChange={(e) => setNote(e.target.value)} />
       {error && <p className="text-sm text-red-700">{error}</p>}
+      {news.map((n) => <p key={n} className="rounded-lg bg-accent-soft px-3 py-2 text-sm font-semibold" role="status">{n}</p>)}
       <button className="btn-primary" disabled={saving || minutes < 1} onClick={save}>{t("health.save")}</button>
     </section>
   );

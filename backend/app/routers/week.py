@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.deps import CurrentUser, DB, FamilyManager, require_app
 from app.models import AppSetting, Family, FamilyReward, Meal, MealPlan, Task, TaskCompletion, ThanksStar, User, WeekReview
 from app.schemas import EventOut
-from app.services import rotation
+from app.services import health, rotation
 from app.services.calendar_view import events_between, utc
 from app.services.notify import notify
 from app.services.rewards import reward_progress
@@ -107,6 +107,9 @@ class WeekOut(BaseModel):
     stars: list[StarOut]
     days: list[DayOut]
     turns: list[TurnOut]
+    # 3.4.0: last week's exercise of those who share it with the family, and the family's goals.
+    exercise: list[dict] = []
+    exercise_goals: list[dict] = []
 
 
 class ActivityIn(BaseModel):
@@ -222,6 +225,20 @@ async def get_week(user: CurrentUser, db: DB, start: date | None = None) -> Week
                 turns.append(TurnOut(title=task.title, user_id=who, name=names.get(who)))
         turns.sort(key=lambda t: t.title.casefold())
 
+    exercise, exercise_goals = [], []
+    if "health" in user.apps:
+        exercise = [
+            {k: str(v) if k == "user_id" else v for k, v in p.items()}
+            for p in await health.family_exercise(db, user.family_id, last_first, first - timedelta(days=1))
+            if p["workouts"]
+        ]
+        exercise.sort(key=lambda p: -p["minutes"])
+        today = datetime.now(_zone()).date()
+        exercise_goals = [
+            {"title": g["title"], "metric": g["metric"], "target": g["target"], "progress": g["progress"], "end_date": g["end_date"].isoformat()}
+            for g in await health.current_goals(db, user.family_id, today)
+        ]
+
     review = await _review(db, user.family_id, first)
     return WeekOut(
         week_start=first,
@@ -237,6 +254,8 @@ async def get_week(user: CurrentUser, db: DB, start: date | None = None) -> Week
         stars=await _stars(db, user.family_id, first, names),
         days=[DayOut(date=day, events=events, meal=meals.get(day.weekday()), lunch=lunches.get(day.weekday())) for day, events in by_day.items()],
         turns=turns,
+        exercise=exercise,
+        exercise_goals=exercise_goals,
     )
 
 

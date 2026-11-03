@@ -75,3 +75,47 @@ async def test_a_childs_health_and_your_own_data(client):
     assert len(export["workouts"]) == 1 and export["workouts"][0]["kind"] == "sport"
     assert (await client.delete("/api/health/mine")).status_code == 204
     assert (await client.get("/api/health/export")).json()["workouts"] == []
+
+
+async def test_a_goal_together_counts_what_is_shared(client):
+    ids = await _family(client)
+    today = today_local()
+    goal = (await client.post("/api/health/goals", json={"title": "500 km in May", "metric": "km", "target": 500, "start_date": (today - timedelta(days=3)).isoformat(), "end_date": (today + timedelta(days=20)).isoformat()})).json()
+    assert goal["progress"] == 0 and goal["people"] == []
+    await client.post(f"/api/health/people/{ids['admin']}/workouts", json={"day": today.isoformat(), "kind": "run", "minutes": 40, "distance_km": 8})
+    await client.post(f"/api/health/people/{ids['kid1']}/workouts", json={"day": today.isoformat(), "kind": "bike", "minutes": 30, "distance_km": 5})
+    # Nothing counts until it's shared with the family.
+    assert (await client.get("/api/health/goals")).json()[0]["progress"] == 0
+    await client.put("/api/health/sharing", json={"workouts": "family"})
+    await _as(client, "kid1")
+    await client.put("/api/health/sharing", json={"workouts": "family"})
+    got = (await client.get("/api/health/goals")).json()[0]
+    assert got["progress"] == 13 and {p["name"] for p in got["people"]} == {"Anna", "Kid1"}
+    # Only the adults set goals.
+    assert (await client.post("/api/health/goals", json={"title": "x", "metric": "minutes", "target": 10, "start_date": today.isoformat(), "end_date": today.isoformat()})).status_code == 403
+    assert (await client.delete(f"/api/health/goals/{goal['id']}")).status_code == 403
+    # The kitchen display shows it when it shows the week's exercise.
+    await _as(client, "admin", "secret123")
+    screen = (await client.post("/api/kiosks", json={"name": "Kitchen"})).json()
+    await client.put(f"/api/kiosks/{screen['id']}", json={"widgets": ["exercise"]})
+    view = (await client.get(f"/api/kiosk/{screen['url'].rsplit('/', 1)[1]}")).json()
+    assert view["exercise"]["goals"][0]["progress"] == 13
+    assert [p["name"] for p in view["exercise"]["people"]] == ["Anna", "Kid1"]
+
+
+async def test_a_task_done_by_exercising(client):
+    ids = await _family(client)
+    today = today_local()
+    assert (await client.patch("/api/allowance/settings", json={"child_approval": False})).status_code == 200
+    task = (await client.post("/api/tasks", json={"title": "Move for 30 minutes", "recurrence": "daily", "points": 7, "assignee_id": ids["kid1"], "exercise_minutes": 30})).json()
+    assert task["exercise_minutes"] == 30
+    await _as(client, "kid1")
+    first = (await client.post(f"/api/health/people/{ids['kid1']}/workouts", json={"day": today.isoformat(), "kind": "play", "minutes": 20})).json()
+    assert first["ticked"] == [] and "workout_1" in first["unlocked"]
+    # Twenty more: thirty in all, and the task is done.
+    second = (await client.post(f"/api/health/people/{ids['kid1']}/workouts", json={"day": today.isoformat(), "kind": "walk", "minutes": 15})).json()
+    assert second["ticked"] == ["Move for 30 minutes"]
+    today_tasks = {t["task"]["title"]: t for t in (await client.get("/api/tasks/today")).json()}
+    assert today_tasks["Move for 30 minutes"]["done"] is True
+    # Once is enough.
+    assert (await client.post(f"/api/health/people/{ids['kid1']}/workouts", json={"day": today.isoformat(), "kind": "run", "minutes": 40})).json()["ticked"] == []

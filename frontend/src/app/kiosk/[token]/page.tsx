@@ -9,7 +9,7 @@
 // mode, the smart home devices chosen for it, and tasks made for fingers.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Barcode, CalendarDays, Car, CheckCircle2, ChefHat, Circle, House, Lightbulb, Maximize2, Minimize2, Repeat, Siren, Soup, Star, Trash2, Users, UtensilsCrossed, WifiOff, X, Zap } from "lucide-react";
+import { Barcode, CalendarDays, Car, CheckCircle2, ChefHat, Circle, HeartPulse, House, Lightbulb, Maximize2, Minimize2, Repeat, Siren, Soup, Star, Trash2, Users, UtensilsCrossed, WifiOff, X, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, EmergencyCards, KIOSK_WIDGETS, KioskView, KioskWidget, Member, request } from "@/lib/api";
 import { apiKey, shouldRetry } from "@/lib/queryClient";
@@ -26,6 +26,7 @@ import { WeatherIcon } from "@/components/widgets/TodaySourcesWidgets";
 import { toLocalDateKey } from "@/lib/dateKey";
 import ScanSession, { ScanBackend } from "@/components/BarcodeScan";
 import EasyHome from "@/components/easy/EasyHome";
+import GoalBar from "@/components/health/GoalBar";
 import { EasyBackend, EasyDay } from "@/lib/easy";
 import Screensaver from "@/components/kiosk/Screensaver";
 import WhoDidIt from "@/components/tasks/WhoDidIt";
@@ -453,6 +454,25 @@ export default function KioskPage() {
                 </button>
               ))}
             </div>
+          </Card>
+        )}
+
+        {view.exercise && (view.exercise.people.length > 0 || view.exercise.goals.length > 0) && (
+          <Card title={t("kiosk.exercise")} icon={HeartPulse} tone="bg-rose-100 text-rose-700">
+            <ul className="space-y-1.5 text-lg">
+              {view.exercise.people.map((p) => (
+                <li key={p.name} className="flex items-center gap-2">
+                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: p.color ?? "#999" }} aria-hidden />
+                  <span className="flex-1 font-semibold">{p.name}</span>
+                  <span className="text-muted">{t("health.minutesShort", { n: p.minutes })}</span>
+                </li>
+              ))}
+            </ul>
+            {view.exercise.goals.length > 0 && (
+              <div className="mt-3 space-y-2 border-t border-edge pt-3">
+                {view.exercise.goals.map((goal) => <GoalBar key={goal.title} goal={goal} />)}
+              </div>
+            )}
           </Card>
         )}
 

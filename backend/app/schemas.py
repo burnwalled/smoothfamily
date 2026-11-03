@@ -325,6 +325,8 @@ class TaskCreate(BaseModel):
     picture: str | None = Field(default=None, max_length=16)
     # Several can do it together; the points are shared (3.0.3).
     shared: bool = False
+    # Done by exercising this many minutes that day (3.4.0, Health).
+    exercise_minutes: int | None = Field(default=None, ge=5, le=600)
 
 
 class TaskUpdate(BaseModel):
@@ -353,6 +355,7 @@ class TaskUpdate(BaseModel):
     picture: str | None = Field(default=None, max_length=16)
     # Several can do it together; the points are shared (3.0.3).
     shared: bool | None = None
+    exercise_minutes: int | None = Field(default=None, ge=5, le=600)
 
 
 class TaskOut(ORMModel):
@@ -388,6 +391,7 @@ class TaskOut(ORMModel):
     trip_id: uuid.UUID | None = None
     event_key: str | None = None
     shared: bool = False
+    exercise_minutes: int | None = None
 
 
 class TaskHistoryItem(BaseModel):

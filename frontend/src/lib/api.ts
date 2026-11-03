@@ -318,6 +318,8 @@ export type Task = {
   project_id: string | null;
   vehicle_id: string | null;
   requires_approval: boolean;
+  // 3.4.0: done by exercising this many minutes that day (Health); null = an ordinary task.
+  exercise_minutes?: number | null;
   active: boolean;
   // Taking turns: the members in order (assignee_id is whose turn it is); "done" or "weekly".
   rotation_user_ids: string[];
@@ -1231,12 +1233,16 @@ export type KioskView = {
   // 3.4.0: what the fox dresses up for today ("" = nothing) and whose birthday it is (first names).
   fox_theme?: "" | "halloween" | "christmas" | "newyear" | "easter" | "midsummer";
   birthdays?: string[];
+  // 3.4.0: this week's exercise of those who share it with the family, and the family's goals.
+  exercise?: { people: { name: string; color: string | null; minutes: number; workouts: number }[]; goals: ExerciseGoal[] } | null;
 };
+
+export type ExerciseGoal = { title: string; metric: "minutes" | "km" | "workouts"; target: number; progress: number; end_date?: string };
 
 export const KIOSK_SCREENSAVERS = ["photos", "flipclock", "calm", "fox", "dark"] as const;
 export type KioskScreensaver = (typeof KIOSK_SCREENSAVERS)[number];
 
-export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow"] as const;
+export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise"] as const;
 export type KioskWidget = (typeof KIOSK_WIDGETS)[number];
 
 export type WasteSchedule = {
@@ -1398,6 +1404,9 @@ export type WeekReview = {
   // The day's dinner, and its lunch or lunchbox (3.2.0).
   days: { date: string; events: CalendarEvent[]; meal: string | null; lunch?: string | null }[];
   turns: { title: string; user_id: string | null; name: string | null }[];
+  // 3.4.0: last week's exercise (shared with the family) and the family's goals.
+  exercise?: { user_id: string; name: string; color: string | null; minutes: number; workouts: number; km: number }[];
+  exercise_goals?: ExerciseGoal[];
 };
 
 // --- Backups ---

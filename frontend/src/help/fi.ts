@@ -339,6 +339,12 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "h": "Yhdessä"
+      },
+      {
+        "p": "Aikuinen asettaa perheen tavoitteet – tunnit, kilometrit tai treenit kahden päivämäärän välillä, esimerkiksi 500 km yhdessä toukokuussa. Niihin lasketaan liikunta, jonka kukin jakaa perheen kanssa, ja ne näkyvät Terveys-osiossa, sunnuntaikatsauksessa ja keittiönäytöllä (viikon liikunta). Tehtävän voi tehdä liikkumalla: valitse vähintään niin monta minuuttia sinä päivänä, niin se kuittautuu itsestään, kun henkilön liikunta riittää – pisteineen kuten mikä tahansa tehtävä. Liikunnasta saa myös merkkejä."
+      },
+      {
         "tips": [
           "Aikuiset näkevät aina lapsen terveystiedot ja voivat täyttää niitä – vanhempi voi kirjata jalkapallotreenit.",
           "Lapsen painoa ei tallenneta, eikä painoa koskaan verrata: se ei näy yhteenvedossa.",
