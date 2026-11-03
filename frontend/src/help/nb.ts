@@ -349,6 +349,36 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Selskap",
+    "summary": "Planlegg et selskap sammen – én invitasjonsside for gjestene, og sjekklisten, budsjettet og tidsplanen for dere.",
+    "blocks": [
+      {
+        "p": "Under Kalender → Selskap planlegger du en barnebursdag, en fest eller en middag. Gjestene får én felles invitasjonsside – uten konto – der de leser om selskapet, legger det inn i sin egen kalender og svarer med for- og etternavn og eventuelle allergier, og en +1 om dere tillater det. De kan endre svaret senere på samme enhet. Dere velger hva de ser av hverandre: ingenting, hvor mange som kommer, eller navnene."
+      },
+      {
+        "steps": [
+          "Kalender → Selskap → Nytt selskap: navnet, typen, hvem sitt selskap, tiden og stedet, svarfristen og om +1 er tillatt.",
+          "Under Invitasjon skriver du invitasjonen og trykker Del – telefonens egen delingsmeny åpnes med teksten og lenken (eller kopier lenken eller skriv ut QR-koden).",
+          "Følg svarene under Gjester – med allergiene samlet på ett sted – og legg selv inn et svar som kom på SMS."
+        ]
+      },
+      {
+        "h": "Planleggingen"
+      },
+      {
+        "p": "Et nytt selskap starter med en sjekkliste – del invitasjonen, kaken, dekorasjoner, påminn dem som ikke har svart, tell gjestene, handle og takke – med datoer; hver morgen noe skal gjøres, blir de voksne påminnet. Endre den som dere vil. Budsjett holder styr på hva som er brukt mot budsjettet, Tidsplan på dagens plan (en barnebursdag starter med en)."
+      },
+      {
+        "tips": [
+          "Selskapet ligger i kalenderen – som bursdagsbarnets, hvis det er noens.",
+          "Vis ønskelisten: gjestene ser ønskene til den selskapet gjelder og krysser av det de kjøper; den det gjelder ser aldri hvem.",
+          "Etterpå, under Takk: en takketekst og bildene fra et album i Hvelvet, på samme side som gjestene allerede har.",
+          "Bare de voksne planlegger selskap – ønskelistens reservasjoner ligger i planleggingen."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Skolen",
     "summary": "Barnas skoledag fra InfoMentor eller SchoolSoft via Home Assistant: skolekortet, skolens kalendere og ukebrevet.",

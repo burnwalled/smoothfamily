@@ -349,6 +349,36 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Fester",
+    "summary": "Planlæg en fest sammen – én invitationsside til gæsterne, og tjeklisten, budgettet og tidsplanen til jer.",
+    "blocks": [
+      {
+        "p": "Under Kalender → Fester planlægger du en børnefødselsdag, en fest eller en middag. Gæsterne får én fælles invitationsside – uden konto – hvor de læser om festen, lægger den ind i deres egen kalender og svarer med for- og efternavn og eventuelle allergier, og en +1, hvis I tillader det. De kan rette deres svar senere på samme enhed. I vælger, hvad de ser af hinanden: intet, hvor mange der kommer, eller navnene."
+      },
+      {
+        "steps": [
+          "Kalender → Fester → Ny fest: navnet, typen, hvis fest, tiden og stedet, svarfristen og om +1 er tilladt.",
+          "Under Invitation skriver du invitationen og trykker Del – telefonens egen delingsmenu åbner med teksten og linket (eller kopiér linket, eller udskriv QR-koden).",
+          "Følg svarene under Gæster – med allergierne samlet ét sted – og tilføj selv et svar, der kom på sms."
+        ]
+      },
+      {
+        "h": "Planlægningen"
+      },
+      {
+        "p": "En ny fest starter med en tjekliste – del invitationen, kagen, pynt, påmind dem, der ikke har svaret, tæl gæsterne, køb ind og sig tak – med datoer; hver morgen, noget skal gøres, bliver de voksne mindet om det. Ret den, som I vil. Budget holder styr på, hvad der er brugt i forhold til budgettet, Tidsplan på dagens plan (en børnefødselsdag starter med en)."
+      },
+      {
+        "tips": [
+          "Festen ligger i kalenderen – som fødselsdagsbarnets, hvis den er nogens.",
+          "Vis ønskelisten: gæsterne ser ønskerne for den, festen gælder, og sætter flueben ved det, de køber; den, det gælder, ser aldrig hvem.",
+          "Bagefter, under Tak: en taktekst og billederne fra et album i Boksen, på samme side, som gæsterne allerede har.",
+          "Kun de voksne planlægger fester – ønskelistens reservationer ligger i planlægningen."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Skolen",
     "summary": "Børnenes skoledag fra InfoMentor eller SchoolSoft via Home Assistant: skolekortet, skolens kalendere og ugebrevet.",

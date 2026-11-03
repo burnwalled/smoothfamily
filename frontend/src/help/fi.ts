@@ -349,6 +349,36 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Juhlat",
+    "summary": "Suunnitelkaa juhlat yhdessä – yksi kutsusivu vieraille ja teille tarkistuslista, budjetti ja aikataulu.",
+    "blocks": [
+      {
+        "p": "Kohdassa Kalenteri → Juhlat suunnittelet lasten synttärit, juhlat tai illallisen. Vieraat saavat yhteisen kutsusivun – ilman tiliä – jolla he lukevat juhlista, lisäävät ne omaan kalenteriinsa ja vastaavat etu- ja sukunimellä sekä mahdollisilla allergioilla, ja +1:llä, jos sallitte sen. He voivat muuttaa vastaustaan myöhemmin samalla laitteella. Te valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee, tai nimet."
+      },
+      {
+        "steps": [
+          "Kalenteri → Juhlat → Uudet juhlat: nimi, tyyppi, kenen juhlat, aika ja paikka, vastauspäivä ja sallitaanko +1.",
+          "Kirjoita kutsu kohdassa Kutsu ja napauta Jaa – puhelimen oma jakovalikko avautuu tekstin ja linkin kanssa (tai kopioi linkki tai tulosta QR-koodi).",
+          "Seuraa vastauksia kohdassa Vieraat – allergiat koottuna yhteen paikkaan – ja lisää itse tekstiviestillä tullut vastaus."
+        ]
+      },
+      {
+        "h": "Suunnittelu"
+      },
+      {
+        "p": "Uudet juhlat alkavat tarkistuslistalla – jaa kutsu, kakku, koristeet, muistuta vastaamattomia, laske vieraat, ostokset ja kiitokset – päivämäärineen; joka aamu, kun jokin pitää tehdä, aikuiset saavat muistutuksen. Muokatkaa sitä vapaasti. Budjetti seuraa käytettyä suhteessa budjettiin, Aikataulu päivän suunnitelmaa (lasten synttärit alkavat valmiilla)."
+      },
+      {
+        "tips": [
+          "Juhlat ovat kalenterissa – päivänsankarin, jos ne ovat jonkun.",
+          "Näytä toivelista: vieraat näkevät päivänsankarin toiveet ja merkitsevät, mitä ostavat; lahjan saaja ei koskaan näe kuka.",
+          "Jälkeenpäin, kohdassa Kiitos: kiitosteksti ja kuvat Holvin albumista samalle sivulle, joka vierailla jo on.",
+          "Vain aikuiset suunnittelevat juhlia – toivelistan varaukset näkyvät suunnittelussa."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Koulu",
     "summary": "Lasten koulupäivä InfoMentorista tai SchoolSoftista Home Assistantin kautta: koulukortti, koulun kalenterit ja viikkokirje.",

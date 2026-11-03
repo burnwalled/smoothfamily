@@ -349,6 +349,36 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Kalas",
+    "summary": "Planera ett kalas tillsammans – en inbjudningssida för gästerna, och checklistan, budgeten och tidsplanen för er.",
+    "blocks": [
+      {
+        "p": "Under Kalender → Kalas planerar du ett barnkalas, en fest eller en middag. Gästerna får en gemensam inbjudningssida – utan konto – där de läser om kalaset, lägger in det i sin egen kalender och svarar med för- och efternamn och eventuella allergier, och en +1 om ni tillåter det. De kan ändra sitt svar senare på samma enhet. Ni väljer vad de ser av varandra: inget, hur många som kommer eller namnen."
+      },
+      {
+        "steps": [
+          "Kalender → Kalas → Nytt kalas: namnet, typen, vems kalas, tiden och platsen, OSA-datumet och om +1 är tillåtet.",
+          "Under Inbjudan skriver du inbjudan och trycker Dela – telefonens egen delningsmeny öppnas med texten och länken (eller kopiera länken eller skriv ut QR-koden).",
+          "Följ svaren under Gäster – med allergierna samlade på ett ställe – och lägg själv in ett svar som kom via sms."
+        ]
+      },
+      {
+        "h": "Planeringen"
+      },
+      {
+        "p": "Ett nytt kalas börjar med en checklista – dela inbjudan, tårtan, dekorationer, påminn dem som inte svarat, räkna gästerna, handla och tacka – med datum; varje morgon något ska göras blir de vuxna påminda. Ändra den som ni vill. Budget håller koll på vad som spenderats mot budgeten, Tidsplan på dagens plan (ett barnkalas börjar med en)."
+      },
+      {
+        "tips": [
+          "Kalaset finns i kalendern – som födelsedagsbarnets, om det är någons.",
+          "Visa önskelistan: gästerna ser önskningarna för den kalaset gäller och bockar för vad de köper; den det gäller ser aldrig vem.",
+          "Efteråt, under Tack: en tacktext och bilderna från ett album i Valvet, på samma sida som gästerna redan har.",
+          "Bara de vuxna planerar kalas – önskelistans reservationer finns i planeringen."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Skolan",
     "summary": "Barnens skoldag från InfoMentor eller SchoolSoft via Home Assistant: skolkortet, skolans kalendrar och veckobrevet.",

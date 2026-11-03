@@ -349,6 +349,36 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Parties",
+    "summary": "Plan a party together – one invitation page for the guests, and the checklist, budget and timeline for you.",
+    "blocks": [
+      {
+        "p": "Under Calendar → Parties, plan a child's birthday party, a celebration or a dinner. The guests get one shared invitation page – no account – where they read about the party, add it to their own calendar and reply with their first and last name and any allergies, and a +1 if you allow it. They can change their reply later on the same device. You choose what they see of each other: nothing, how many are coming, or the names."
+      },
+      {
+        "steps": [
+          "Calendar → Parties → New party: the name, kind, whose party, the time and the place, the reply date and whether a +1 is allowed.",
+          "Under Invitation, write the invitation and tap Share – the phone's own share menu opens with the text and the link (or copy the link, or print the QR code).",
+          "Follow the replies under Guests – with the allergies gathered in one place – and add a reply that came by text yourself."
+        ]
+      },
+      {
+        "h": "Planning"
+      },
+      {
+        "p": "A new party starts with a checklist – share the invitation, the cake, decorations, remind those who haven't replied, count the guests, the shopping, and the thank-you – with dates; each morning one is due, the adults are reminded. Change it as you like. Budget keeps what's spent against the budget, Timeline the day's plan (a child's party starts with one)."
+      },
+      {
+        "tips": [
+          "The party is in the calendar – as the birthday child's, if it's someone's.",
+          "Show the wish list: the guests see the wishes of whose party it is and tick what they'll buy; the one it's for never sees who.",
+          "Afterwards, under Thank-you: a thank-you text and the photos from an album in the vault, on the same page the guests already have.",
+          "Only the adults plan parties – the wish list's reservations are on the planning."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "School",
     "summary": "The children's school day from InfoMentor or SchoolSoft, through Home Assistant: the school card, the school's calendars and the weekly letter.",
