@@ -156,6 +156,7 @@ export const WIDGET_APP: Partial<Record<WidgetType, string | string[]>> = {
   pantry_soon: "pantry",
   upcoming: ["vehicles", "property"],
   custody: "calendar",
+  school: "calendar",
 };
 
 export function widgetAllowed(type: WidgetType, apps: string[]): boolean {

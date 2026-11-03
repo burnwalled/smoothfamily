@@ -350,6 +350,61 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "school": {
+    "title": "Koulu",
+    "summary": "Lasten koulupäivä InfoMentorista tai SchoolSoftista Home Assistantin kautta: koulukortti, koulun kalenterit ja viikkokirje.",
+    "blocks": [
+      {
+        "p": "Jos perhe on yhdistänyt Home Assistantin, lasten koulu voi tulla Smooth Familyyn yhteisön InfoMentor- ja SchoolSoft-integraatioiden kautta. Tänään-näkymän koulukortti näyttää kunkin lapsen koulupäivän, liikunnan seuraavana koulupäivänä, iltapäiväkerhon ajat, läksyt, poissaolot ja mitä seuraavaksi tapahtuu – ja viikkokirjeen, joka avautuu suoraan siinä. Koulun kalenterit – lukujärjestys, kokeet ja retket, iltapäiväkerho – tulevat kalenteriin lapsen kalentereina."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (suositeltu)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa Home Assistantissa HACS → ⋮ → Mukautetut repositoriot, lisää https://github.com/c14ym0re/infomentor-homeassistant tyypillä Integraatio ja asenna InfoMentor.",
+                  "Käynnistä Home Assistant uudelleen.",
+                  "Asetukset → Laitteet ja palvelut → Lisää integraatio → InfoMentor. Kirjaudu BankID:llä (skannaa QR-koodi – toistaiseksi vain Tukholman kaupungille) tai sähköpostilla ja salasanalla, jos kunnallasi on yhä perinteinen InfoMentor-tili.",
+                  "Jokaisesta lapsesta tulee laite. Valitse lapsi Smooth Familyssa kohdassa Perheenjäsenet → lapsi → Koulu Home Assistantista."
+                ]
+              },
+              {
+                "note": "Se antaa koulupäivän, liikunnan, läksyt, viikkokirjeen, poissaolot, iltapäiväkerhon ajat, koulun kalenterin ja koulun uutiset – ja lounaan, jos annat koulun Mateo-yksikön. Toinen integraatio, https://github.com/chrfo892/ha-infomentor, antaa lukujärjestyksen, iltapäiväkerhon sisäänkirjautumisen ja lukemattomat ilmoitukset; se asennetaan samalla tavalla."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (lukujärjestys ja läsnäolo)",
+            "blocks": [
+              {
+                "steps": [
+                  "Lisää HACS → ⋮ → Mukautetut repositoriot -kohdassa https://github.com/chriseckl/Schoolsoft-for-Home-Assistant tyypillä Integraatio, asenna se ja käynnistä Home Assistant uudelleen.",
+                  "Asetukset → Laitteet ja palvelut → Lisää integraatio → SchoolSoft, ja kirjaudu huoltajan käyttäjätunnuksella ja salasanalla.",
+                  "Lisää se kerran lasta kohden ja valitse sitten kunkin lapsen tili Smooth Familyssa."
+                ]
+              },
+              {
+                "note": "Se antaa lukujärjestyksen kalenterina (tunnit merkitty poissaoloksi tai myöhästymiseksi), meneillään olevan ja seuraavan tunnin sekä päivän alun ja lopun. Ruokalistaa varten on https://github.com/kanylbullen/ha-schoolsoft – koulun nimi on sama kuin koulun SchoolSoft-osoitteessa."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "Uusi viikkokirje, tämän päivän poissaolo ja koulun uutiset lähetetään lapsen aikuisille ilmoituksina. Lapsen koulun näkevät lapsen aikuiset ja lapsi itse; keittiön näyttö näyttää vain koulupäivän, ei koskaan poissaoloja tai kirjeitä."
+      },
+      {
+        "tips": [
+          "Lisää Koulu-kortti Tänään-näkymään kohdasta Muokkaa – ja halutessanne Koulupäivä keittiön näytölle kohdassa Perheen asetukset → Keittiön näyttö.",
+          "Beta: integraatiot ovat pieniä, epävirallisia projekteja, ja niiden anturit tunnistetaan nimistä (englanniksi tai ruotsiksi). Jos jotain puuttuu, kerro meille, mitä antureita integraatiossanne on.",
+          "Koulun kalenterin voi lisätä myös käsin kalenteriasetuksissa osoitteella homeassistant://calendar.nimi.",
+          "Home Assistantin kalenterit vaativat suoran yhteyden – niitä ei voi lukea yhdyskäytävän kautta."
+        ]
+      }
+    ]
+  },
   "health": {
     "title": "Terveys",
     "summary": "Liikuntasi sekä päivän askeleet, uni ja paino – yksityisesti tai perheen kanssa jaettuna.",

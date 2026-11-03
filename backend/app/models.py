@@ -141,6 +141,9 @@ class User(Base):
     # The person lets Smooth Family fetch it (3.4.0): the admin links the accounts, the person (or an
     # adult, for a child) turns it on.
     health_import: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The child's school from Home Assistant (3.4.0): {"accounts": [...], "roles": {role: entity},
+    # "calendars": [{"entity", "feed_id"}], "seen": {...}}; linked by the family admin.
+    school_sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     @property
     def apps(self) -> list[str]:

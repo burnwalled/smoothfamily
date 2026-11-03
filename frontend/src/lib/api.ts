@@ -457,7 +457,8 @@ export type WidgetType =
   | "memories"
   | "pantry_soon"
   | "upcoming"
-  | "custody";
+  | "custody"
+  | "school";
 
 export type TaskSuggestion = {
   id: string;
@@ -1243,6 +1244,31 @@ export type KioskView = {
   birthdays?: string[];
   // 3.4.0: this week's exercise of those who share it with the family, and the family's goals.
   exercise?: { people: { name: string; color: string | null; minutes: number; workouts: number }[]; goals: ExerciseGoal[] } | null;
+  // 3.4.0: each child's school day (never absence or letters on the kitchen display).
+  school?: { name: string; color: string | null; school_day: string | null; pe: boolean | null; leisure_today: string | null; next_event: string | null; assignments: number | null }[];
+};
+
+// 3.4.0: a child's school day from Home Assistant (InfoMentor, SchoolSoft).
+export type SchoolDay = {
+  user_id: string;
+  name: string;
+  color: string | null;
+  accounts: string[];
+  school_day: string | null;
+  pe: boolean | null;
+  leisure_today: string | null;
+  checked_in: boolean | null;
+  assignments: number | null;
+  assignment_titles: string[];
+  absent_today: boolean | null;
+  last_absence: string | null;
+  next_event: string | null;
+  next_lesson: string | null;
+  notifications: number | null;
+  weekly_letter: string | null;
+  news: number | null;
+  news_titles: string[];
+  lunch: string | null;
 };
 
 export type ExerciseGoal = { title: string; metric: "minutes" | "km" | "workouts"; target: number; progress: number; end_date?: string };
@@ -1250,7 +1276,7 @@ export type ExerciseGoal = { title: string; metric: "minutes" | "km" | "workouts
 export const KIOSK_SCREENSAVERS = ["photos", "flipclock", "calm", "fox", "dark"] as const;
 export type KioskScreensaver = (typeof KIOSK_SCREENSAVERS)[number];
 
-export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise"] as const;
+export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise", "school"] as const;
 export type KioskWidget = (typeof KIOSK_WIDGETS)[number];
 
 export type WasteSchedule = {

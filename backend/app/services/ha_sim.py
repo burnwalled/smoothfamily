@@ -45,7 +45,26 @@ _HOME: dict[str, tuple[str, str, dict]] = {
     # Workouts (3.4.0): Anna's Withings workout calendar, and Erik's Garmin with its last activities.
     "calendar.withings_workouts": ("Withings Workouts", "off", {}),
     "sensor.garmin_erik_last_activities": ("Garmin Last Activities", "2", {"last_activities": []}),
+    # School (3.4.0): InfoMentor with Maja and Leo, as the community integration names them.
+    "sensor.maja_school_day": ("Maja School day", "08:10–14:40", {"first_lesson": "Matematik", "last_lesson": "Bild"}),
+    "binary_sensor.maja_pe_next_school_day": ("Maja PE next school day", "on", {}),
+    "sensor.maja_assignments_due": ("Maja Assignments due", "2", {"assignments": [{"title": "Matte s. 34–36", "due": "torsdag"}, {"title": "Engelska glosor v.46", "due": "fredag"}]}),
+    "sensor.maja_weekly_letter": ("Maja Weekly letter", "Veckobrev v.45", {"date": "2026-11-02", "text": "Hej alla! Den här veckan arbetar vi med bråk i matten och läser vidare i Bröderna Lejonhjärta. På fredag är det utflykt till Skansen – ta med matsäck och kläder efter väder.", "attachments": [{"name": "Veckobrev v45.pdf", "url": None}], "source": "learnlog"}),
+    "sensor.maja_next_event": ("Maja Next event", "Utflykt till Skansen", {}),
+    "binary_sensor.maja_absent_today": ("Maja Absent today", "off", {}),
+    "calendar.maja_calendar": ("Maja Calendar", "off", {}),
+    "sensor.leo_school_day": ("Leo School day", "08:30–13:30", {}),
+    "binary_sensor.leo_pe_next_school_day": ("Leo PE next school day", "off", {}),
+    "sensor.leo_leisure_time_centre_today": ("Leo Leisure time centre today", "13:30–16:30", {}),
+    "binary_sensor.leo_absent_today": ("Leo Absent today", "off", {}),
+    "binary_sensor.leo_checked_in": ("Leo Checked in", "on", {}),
+    "calendar.leo_leisure_time_centre": ("Leo Leisure time centre", "off", {}),
+    "sensor.infomentor_school_news": ("InfoMentor School news", "3", {"items": [{"title": "Höstlovet är slut – välkomna tillbaka!"}, {"title": "Föräldramöte 20 november"}, {"title": "Lucia i skolan"}]}),
+    "sensor.infomentor_school_lunch": ("InfoMentor School lunch", "Fiskgratäng med potatismos", {}),
 }
+
+# The school integration's devices: entity → (device id, device name).
+_SCHOOL_DEVICES = {"maja": ("sim-im-maja", "Maja"), "leo": ("sim-im-leo", "Leo"), "infomentor": ("sim-im-hub", "InfoMentor")}
 
 # What the speakers can play: a small tree like HA's media browser gives for Sonos.
 _LIBRARY = {
@@ -115,9 +134,20 @@ def reset(base_url: str | None = None) -> None:
         _homes.pop(base_url[len(PREFIX):], None)
 
 
+def _school_device(entity_id: str) -> tuple[str, str] | None:
+    name = entity_id.split(".", 1)[1]
+    for prefix, device in _SCHOOL_DEVICES.items():
+        school = ("school", "assignments", "weekly_letter", "next_event", "absent", "pe_next", "leisure", "checked_in", "calendar")
+        if name.startswith(prefix + "_") and (prefix == "infomentor" or any(w in name for w in school)):
+            return device
+    return None
+
+
 def _entry(entity_id: str) -> tuple[str, str, str] | None:
     """The (entry id, integration, title) a simulated health sensor comes from: each person's phone
     with the companion app, a Withings scale and Erik's Garmin."""
+    if _school_device(entity_id):
+        return "sim-infomentor", "infomentor", "InfoMentor"
     if entity_id.startswith("sensor.garmin_erik_"):
         return "sim-garmin-erik", "garmin_connect", "erik@example.com"
     if entity_id == "calendar.withings_workouts":
@@ -136,10 +166,12 @@ async def render_template(base_url: str, template: str) -> str:
 
     rows = []
     for entity_id, state in _home(base_url).items():
-        entry = _entry(entity_id) if entity_id.startswith(("sensor.", "calendar.")) else None
+        entry = _entry(entity_id) if entity_id.startswith(("sensor.", "calendar.", "binary_sensor.")) else None
         if entry:
+            device = _school_device(entity_id) or (None, None)
             rows.append({"e": entity_id, "s": state["state"], "u": state["attributes"].get("unit_of_measurement"), "c": state["attributes"].get("device_class"),
-                         "n": state["attributes"].get("friendly_name"), "id": entry[0], "d": entry[1], "t": entry[2], "k": ",".join(state["attributes"])})
+                         "n": state["attributes"].get("friendly_name"), "id": entry[0], "d": entry[1], "t": entry[2], "k": ",".join(state["attributes"]),
+                         "dev": device[0], "dn": device[1]})
     return json.dumps(rows)
 
 
@@ -158,9 +190,23 @@ async def calendar_events(base_url: str, entity_id: str) -> list[dict]:
     """Anna's Withings workouts: a walk today, a swim two days ago."""
     from datetime import timedelta
 
+    day = datetime.now(timezone.utc).date()
+    if entity_id == "calendar.maja_calendar":
+        # The school's calendar: a test and the trip.
+        friday = day + timedelta(days=(4 - day.weekday()) % 7 or 7)
+        return [
+            {"uid": "sim-s-1", "summary": "Prov i matematik", "start": {"dateTime": f"{day + timedelta(days=2)}T09:00:00+01:00"}, "end": {"dateTime": f"{day + timedelta(days=2)}T10:00:00+01:00"}},
+            {"uid": "sim-s-2", "summary": "Utflykt till Skansen", "start": {"date": f"{friday}"}, "end": {"date": f"{friday + timedelta(days=1)}"}},
+        ]
+    if entity_id == "calendar.leo_leisure_time_centre":
+        # Fritids after school this week.
+        monday = day - timedelta(days=day.weekday())
+        return [
+            {"uid": f"sim-f-{i}", "summary": "Fritids", "start": {"dateTime": f"{monday + timedelta(days=i)}T13:30:00+01:00"}, "end": {"dateTime": f"{monday + timedelta(days=i)}T16:30:00+01:00"}}
+            for i in range(5)
+        ]
     if entity_id != "calendar.withings_workouts":
         return []
-    day = datetime.now(timezone.utc).date()
     return [
         {"uid": "sim-w-1", "summary": "Walk", "start": {"dateTime": f"{day}T06:30:00+00:00"}, "end": {"dateTime": f"{day}T07:15:00+00:00"}},
         {"uid": "sim-w-2", "summary": "Swimming", "start": {"dateTime": f"{day - timedelta(days=2)}T17:00:00+00:00"}, "end": {"dateTime": f"{day - timedelta(days=2)}T17:40:00+00:00"}},

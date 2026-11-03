@@ -674,7 +674,7 @@ class LeaderboardEntry(BaseModel):
 
 # --- Dashboard widgets ---
 
-WIDGET_TYPES = r"^(calendar_today|tasks_today|leaderboard|sl_departures|shopping_list|smart_home|chat_unread|family_goals|waste_collection|school_lunch|weather|presence|electricity|memories|pantry_soon|upcoming|custody)$"
+WIDGET_TYPES = r"^(calendar_today|tasks_today|leaderboard|sl_departures|shopping_list|smart_home|chat_unread|family_goals|waste_collection|school_lunch|weather|presence|electricity|memories|pantry_soon|upcoming|custody|school)$"
 
 
 class WidgetCreate(BaseModel):
