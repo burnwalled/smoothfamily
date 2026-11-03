@@ -160,3 +160,47 @@ async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monke
     assert (await client.post(f"/api/party/{token}/unsubscribe", json={"code": code})).json() == {"done": True}
     assert (await client.post(f"/api/parties/{party['id']}/announce", json={"subject": "x", "text": "y"})).json() == {"sent": 0}
     assert mine["key"]
+
+
+async def test_a_dinner_votes_on_the_date_and_families_say_how_many(client, db_session, monkeypatch):
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    await client.put("/api/admin/integrations/email", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    start = (datetime.now(timezone.utc) + timedelta(days=40)).replace(hour=17, minute=0, second=0, microsecond=0)
+    second, third = start + timedelta(days=7), start + timedelta(days=14)
+    body = _party(start, kind="dinner", title="Julmiddag", date_poll=True, households=True, show_guests="names", date_options=[second.isoformat(), third.isoformat()])
+    assert (await client.post("/api/parties", json={**body, "date_options": []})).status_code == 422  # one date isn't a vote
+    party = (await client.post("/api/parties", json=body)).json()
+    assert party["date_poll"] and len(party["date_options"]) == 3 and party["households"]
+    # Not in the calendar while the date is open.
+    events = (await client.get(f"/api/calendar/events?start={start.date()}&end={(third + timedelta(days=1)).date()}")).json()
+    assert not any("Julmiddag" in e["title"] for e in events)
+    token = party["link"].rsplit("/", 1)[1]
+    first, mid, last = party["date_options"]
+
+    # The families vote and say how many are coming; a date not on offer is dropped.
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["date_poll"] and page["date_options"] == [first, mid, last] and page["households"]
+    berg = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "adults": 2, "children": 2, "date_votes": [mid, last, "2020-01-01T00:00:00+00:00"], "email": "saga@example.com", "updates": True})).json()
+    assert berg["mine"]["date_votes"] == [mid, last] and berg["mine"]["coming"] and "röstat på 2 datum" in sent[0][2]
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "adults": 1, "children": 0, "date_votes": [first, mid]})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Ola", "adults": 2, "date_votes": []})
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert [(r["votes"], r["people"]) for r in page["tally"]] == [(1, 1), (2, 5), (1, 4)]
+    assert "Saga Berg (+3)" in page["guests"]["names"]
+    detail = (await client.get(f"/api/parties/{party['id']}")).json()
+    assert detail["tally"][1]["names"] == ["Saga Berg", "Nils"] and detail["not_coming"] == 1
+
+    # The hosts pick the date: the vote closes, it's in the calendar, the families who voted for it are coming.
+    assert (await client.post(f"/api/parties/{party['id']}/decide", json={"option": "2020-01-01T00:00:00+00:00"})).status_code == 404
+    detail = (await client.post(f"/api/parties/{party['id']}/decide", json={"option": mid})).json()
+    assert not detail["date_poll"] and detail["starts_at"].startswith(mid[:16]) and detail["coming"] == 5
+    assert "datumet är bestämt" in sent[-1][1] and sent[-1][0] == "saga@example.com"
+    events = (await client.get(f"/api/calendar/events?start={second.date()}&end={(second + timedelta(days=1)).date()}")).json()
+    assert any("Julmiddag" in e["title"] for e in events)
+    # After the vote, a reply is an ordinary yes or no again (with the family's count).
+    again = (await client.post(f"/api/party/{token}/reply?key={berg['key']}", json={"first_name": "Saga", "last_name": "Berg", "adults": 2, "children": 1, "coming": True})).json()
+    assert again["mine"]["date_votes"] == [mid, last] and (await client.get(f"/api/parties/{party['id']}")).json()["coming"] == 4

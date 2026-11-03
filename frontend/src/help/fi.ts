@@ -371,6 +371,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Illallinen ilman sovittua päivää: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
+          "Yksi vastaus perhettä kohden: vieraat kertovat, montako aikuista ja lasta tulee, +1:n sijaan – vierasmäärä laskee ne yhteen. Illallisella se on valmiiksi päällä.",
           "Valitse teema kutsusivulle ja toinen kiitossivulle – ilmapallot, viidakko, avaruus, meri, satu, urheilu, tyylikäs tai puutarha.",
           "Vieraat, jotka antavat sähköpostinsa ja pyytävät päivityksiä, saavat vahvistuksen, viestin jos aika tai paikka muuttuu, muistutuksen edellisenä päivänä ja kiitoksen – sekä viestit, jotka lähetätte kohdasta Vieraat. Se vaatii palvelimen sähköpostin, jonka ylläpitäjä asettaa kohdassa Palvelin → Osoite ja palvelut.",
           "Juhlat ovat kalenterissa – päivänsankarin, jos ne ovat jonkun.",

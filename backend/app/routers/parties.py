@@ -119,6 +119,8 @@ _MAIL = {
         "thanks": ("{title}: thank you!", "{text}"),
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("coming", "not coming"), "plus": "with {name}",
+        "decided": ("{title}: the date is set", "The date for {title} is set – see you then!"),
+        "voted": "you voted for {n} date(s)", "family": "{adults} adult(s), {children} child(ren)",
         "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
     },
     "sv": {
@@ -128,6 +130,8 @@ _MAIL = {
         "thanks": ("{title}: tack!", "{text}"),
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer inte"), "plus": "med {name}",
+        "decided": ("{title}: datumet är bestämt", "Datumet för {title} är bestämt – vi ses då!"),
+        "voted": "du har röstat på {n} datum", "family": "{adults} vuxna, {children} barn",
         "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
     },
     "nb": {
@@ -137,6 +141,8 @@ _MAIL = {
         "thanks": ("{title}: takk!", "{text}"),
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
+        "decided": ("{title}: datoen er bestemt", "Datoen for {title} er bestemt – vi ses da!"),
+        "voted": "du har stemt på {n} dato(er)", "family": "{adults} voksne, {children} barn",
         "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
     },
     "da": {
@@ -146,6 +152,8 @@ _MAIL = {
         "thanks": ("{title}: tak!", "{text}"),
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
+        "decided": ("{title}: datoen er fastlagt", "Datoen for {title} er fastlagt – vi ses!"),
+        "voted": "du har stemt på {n} dato(er)", "family": "{adults} voksne, {children} børn",
         "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
     },
     "fi": {
@@ -155,6 +163,8 @@ _MAIL = {
         "thanks": ("{title}: kiitos!", "{text}"),
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("tulee", "ei tule"), "plus": "seuranaan {name}",
+        "decided": ("{title}: päivä on päätetty", "Päivä on päätetty: {title} – nähdään silloin!"),
+        "voted": "äänestit {n} päivää", "family": "{adults} aikuista, {children} lasta",
         "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
     },
 }
@@ -170,6 +180,8 @@ async def _host_language(db: AsyncSession, party: Party) -> str:
 def _when_where(party: Party, language: str) -> str:
     start, end = _local(party.starts_at), _local(party.ends_at)
     where = ", ".join(x for x in (party.place, party.address) if x)
+    if party.date_poll:
+        return where
     return f"{start.strftime('%Y-%m-%d %H:%M')}–{end.strftime('%H:%M')}" + (f"\n{where}" if where else "")
 
 
@@ -193,7 +205,11 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
         guest.unsubscribe_hash = _hash(code)
         subject_t, body_t = texts[kind]
         answer = texts["answers"][0 if guest.coming else 1]
-        if guest.coming and guest.plus_first_name:
+        if party.date_poll:
+            answer = texts["voted"].format(n=len(guest.date_votes or []))
+        elif guest.coming and party.households:
+            answer += f" ({texts['family'].format(adults=guest.adults, children=guest.children)})"
+        if guest.coming and guest.plus_first_name and not party.date_poll:
             answer += " " + texts["plus"].format(name=f"{guest.plus_first_name} {guest.plus_last_name or ''}".strip())
         fields = {"title": party.title, "name": guest.first_name, "answer": answer, **values}
         body = "\n\n".join([
@@ -232,6 +248,9 @@ class PartyIn(BaseModel):
     wishlist: bool = False
     budget: float | None = Field(default=None, ge=0, le=10_000_000)
     page_theme: str = Field(default="balloons", pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+    date_poll: bool = False
+    date_options: list[datetime] = Field(default_factory=list, max_length=12)
+    households: bool = False
 
 
 class PartyChange(BaseModel):
@@ -256,6 +275,13 @@ class PartyChange(BaseModel):
     thanks_published: bool | None = None
     page_theme: str | None = Field(default=None, pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
     thanks_theme: str | None = Field(default=None, pattern=r"^(|balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+    date_poll: bool | None = None
+    date_options: list[datetime] | None = Field(default=None, max_length=12)
+    households: bool | None = None
+
+
+class DecideIn(BaseModel):
+    option: datetime
 
 
 class AnnounceIn(BaseModel):
@@ -298,6 +324,9 @@ class GuestIn(BaseModel):
     plus_allergies: str = Field(default="", max_length=300)
     email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
     updates: bool = False
+    date_votes: list[str] | None = Field(default=None, max_length=12)
+    adults: int = Field(default=1, ge=0, le=30)
+    children: int = Field(default=0, ge=0, le=30)
 
 
 def _dt(moment: datetime) -> datetime:
@@ -312,7 +341,12 @@ async def _mine(db: AsyncSession, user: User, party_id: uuid.UUID) -> Party:
 
 
 async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
-    """The party in the family's calendar (for the one it's for, a birthday's)."""
+    """The party in the family's calendar (for the one it's for, a birthday's) – once its date is set."""
+    if party.date_poll:
+        if party.event_id and (old := await db.get(FamilyEvent, party.event_id)) is not None:
+            await db.delete(old)
+        party.event_id = None
+        return
     member = None
     if party.person_id:
         person = await db.get(Person, party.person_id)
@@ -338,12 +372,37 @@ def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
         "plus_first_name": g.plus_first_name, "plus_last_name": g.plus_last_name, "plus_allergies": g.plus_allergies, "updated_at": g.updated_at,
-        "email": g.email, "updates": bool(g.updates),
+        "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "adults": g.adults, "children": g.children,
     }
 
 
-def _people(guests: list[PartyGuest]) -> int:
-    return sum(1 + (1 if g.plus_first_name else 0) for g in guests if g.coming)
+def _size(party: Party, g: PartyGuest) -> int:
+    if party.households:
+        return g.adults + g.children
+    return 1 + (1 if g.plus_first_name else 0)
+
+
+def _people(party: Party, guests: list[PartyGuest]) -> int:
+    return sum(_size(party, g) for g in guests if g.coming)
+
+
+def _iso(moment: datetime) -> str:
+    return _utc(_dt(moment)).astimezone(timezone.utc).replace(second=0, microsecond=0).isoformat()
+
+
+def _options(raw: list[datetime]) -> list[str]:
+    return sorted({_iso(m) for m in raw})
+
+
+def _tally(party: Party, guests: list[PartyGuest], names: bool = True) -> list[dict]:
+    out = []
+    for option in party.date_options or []:
+        voters = [g for g in guests if option in (g.date_votes or [])]
+        row = {"option": option, "votes": len(voters), "people": sum(_size(party, g) for g in voters)}
+        if names:
+            row["names"] = [f"{g.first_name} {g.last_name}".strip() for g in voters]
+        out.append(row)
+    return out
 
 
 async def _detail(db: AsyncSession, party: Party, request: Request | None) -> dict:
@@ -372,10 +431,11 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
+        "date_poll": party.date_poll, "date_options": party.date_options or [], "households": party.households, "tally": _tally(party, guests),
         "mail": await _mail_ready(db), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
-        "coming": _people(guests), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
+        "coming": _people(party, guests), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
         "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who} for t in tasks],
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title} for s in steps],
@@ -390,7 +450,7 @@ async def list_parties(user: AdultUser, db: DB) -> list[dict]:
     for p in parties:
         guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == p.id))).scalars().all()
         left = (await db.execute(select(func.count()).select_from(PartyTask).where(PartyTask.party_id == p.id, PartyTask.done == False))).scalar_one()  # noqa: E712
-        out.append({"id": p.id, "title": p.title, "kind": p.kind, "emoji": p.emoji, "color": p.color, "starts_at": p.starts_at, "place": p.place, "coming": _people(guests), "replies": len(guests), "tasks_left": left})
+        out.append({"id": p.id, "title": p.title, "kind": p.kind, "emoji": p.emoji, "color": p.color, "starts_at": p.starts_at, "place": p.place, "date_poll": p.date_poll, "coming": _people(p, guests), "replies": len(guests), "tasks_left": left})
     return out
 
 
@@ -400,6 +460,9 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     data["starts_at"], data["ends_at"] = _dt(payload.starts_at), _dt(payload.ends_at)
     if data["ends_at"] <= data["starts_at"]:
         raise HTTPException(status_code=422, detail="The party ends after it starts")
+    data["date_options"] = _options([payload.starts_at, *payload.date_options]) if payload.date_poll else None
+    if payload.date_poll and len(data["date_options"]) < 2:
+        raise HTTPException(status_code=422, detail="A vote needs at least two dates")
     if payload.person_id and (person := await db.get(Person, payload.person_id)) is not None and person.family_id != user.family_id:
         raise HTTPException(status_code=404, detail="Person not found")
     token = secrets.token_urlsafe(18)
@@ -429,13 +492,17 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     for key in ("starts_at", "ends_at"):
         if changes.get(key) is not None:
             changes[key] = _dt(changes[key])
+    if changes.get("date_options") is not None:
+        changes["date_options"] = _options(changes["date_options"])
+    if changes.get("date_poll") and len(changes.get("date_options") or party.date_options or []) < 2:
+        raise HTTPException(status_code=422, detail="A vote needs at least two dates")
     if changes.get("thanks_album_id"):
         album = await db.get(Album, changes["thanks_album_id"])
         if album is None or album.family_id != user.family_id:
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "households") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -443,10 +510,30 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     await _sync_event(db, party, user)
     await db.commit()
     base = await public_base(db, request)
-    if (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address) != before[:4]:
+    if not party.date_poll and (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address) != before[:4]:
         await mail_guests(db, party, "change", base=base)
     if party.thanks_published and not before[4]:
         await mail_guests(db, party, "thanks", base=base, text=party.thanks_text or "")
+    return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/decide")
+async def decide(party_id: uuid.UUID, payload: DecideIn, request: Request, user: AdultUser, db: DB) -> dict:
+    """The date is set: the vote closes, the party goes in the calendar, each guest is coming if
+    they voted for it (they can change their reply), and those who asked for updates hear of it."""
+    party = await _mine(db, user, party_id)
+    option = _iso(payload.option)
+    if not party.date_poll or option not in (party.date_options or []):
+        raise HTTPException(status_code=404, detail="Not one of the dates")
+    length = _utc(party.ends_at) - _utc(party.starts_at)
+    party.starts_at = datetime.fromisoformat(option)
+    party.ends_at = party.starts_at + length
+    party.date_poll = False
+    for guest in (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id))).scalars():
+        guest.coming = option in (guest.date_votes or [])
+    await _sync_event(db, party, user)
+    await db.commit()
+    await mail_guests(db, party, "decided", base=await public_base(db, request))
     return await _detail(db, party, request)
 
 
@@ -568,8 +655,23 @@ async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Reques
 
 def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data = {k: (v.strip() if isinstance(v, str) else v) for k, v in payload.model_dump().items()}
-    if not party.plus_one or not data.get("plus_first_name"):
+    if party.households or not party.plus_one or not data.get("plus_first_name"):
         data.update(plus_first_name=None, plus_last_name=None, plus_allergies="")
+    if not party.households:
+        data.update(adults=1, children=0)
+    elif data["coming"] and data["adults"] + data["children"] < 1:
+        data["adults"] = 1
+    votes = data.pop("date_votes", None)
+    if party.date_poll:
+        # Only the dates on offer; a guest is "coming" while voting if some date suits them.
+        chosen = set()
+        for v in votes or []:
+            try:
+                chosen.add(_iso(datetime.fromisoformat(v.replace("Z", "+00:00"))))
+            except ValueError:
+                continue
+        data["date_votes"] = [o for o in party.date_options or [] if o in chosen]
+        data["coming"] = bool(data["date_votes"])
     data["email"] = (data.get("email") or "").lower() or None
     data["updates"] = bool(data.get("updates") and data["email"])
     return data
@@ -606,15 +708,15 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
     mine = next((g for g in guests if key and g.key_hash == _hash(key)), None)
     seen = None
     if party.show_guests == "count":
-        seen = {"coming": _people(guests)}
+        seen = {"coming": _people(party, guests)}
     elif party.show_guests == "names":
         names = []
         for g in guests:
             if g.coming:
-                names.append(f"{g.first_name} {g.last_name}".strip())
+                names.append(f"{g.first_name} {g.last_name}".strip() + (f" (+{_size(party, g) - 1})" if party.households and _size(party, g) > 1 else ""))
                 if g.plus_first_name:
                     names.append(f"{g.plus_first_name} {g.plus_last_name or ''}".strip())
-        seen = {"coming": len(names), "names": names}
+        seen = {"coming": _people(party, guests), "names": names}
     wishes = None
     if party.wishlist and party.person_id:
         mine_wish = _hash(wish_key) if wish_key else None
@@ -634,6 +736,8 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db),
+        "date_poll": party.date_poll, "date_options": party.date_options or [], "households": party.households,
+        "tally": _tally(party, guests, names=party.show_guests == "names") if party.date_poll and party.show_guests != "none" else None,
         "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
@@ -806,7 +910,7 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
     await db.commit()
     # The guests who asked for updates: the day before, at the same morning hour.
     tomorrow = today + timedelta(days=1)
-    for party in (await db.execute(select(Party).where(Party.guests_reminded_on.is_(None)))).scalars().all():
+    for party in (await db.execute(select(Party).where(Party.guests_reminded_on.is_(None), Party.date_poll == False))).scalars().all():  # noqa: E712
         if _local(party.starts_at).date() != tomorrow:
             continue
         party.guests_reminded_on = today

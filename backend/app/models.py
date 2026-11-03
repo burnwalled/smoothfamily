@@ -2018,6 +2018,12 @@ class Party(Base):
     thanks_theme: Mapped[str] = mapped_column(String(20), default="", server_default="")
     # The day before, the guests who asked for updates are reminded (once).
     guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;
+    # each as long as the party) until the hosts pick one. Not in the calendar while it's open.
+    date_poll: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    date_options: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # One reply per family: how many adults and children are coming, instead of a +1.
+    households: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("family_events.id", ondelete="SET NULL"), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -2044,6 +2050,11 @@ class PartyGuest(Base):
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     updates: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The dates that suit them, while the hosts let the guests vote (the options' ISO starts).
+    date_votes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # A family's reply: how many are coming.
+    adults: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    children: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

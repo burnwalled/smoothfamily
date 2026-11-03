@@ -371,6 +371,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "A dinner without a set date: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
+          "One reply per family: the guests say how many adults and children are coming instead of a +1 – the count of guests adds them up. A dinner starts with it on.",
           "Choose a look for the invitation page and another for the thank-you – balloons, jungle, space, ocean, fairy tale, sports, elegant or garden.",
           "Guests who give their e-mail and ask for updates get a confirmation, a mail if the time or place changes, a reminder the day before and the thank-you – and the messages you send them from Guests. It needs the server's e-mail, set up by the server admin under Server → Address and services.",
           "The party is in the calendar – as the birthday child's, if it's someone's.",

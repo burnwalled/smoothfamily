@@ -371,6 +371,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "En middag utan bestämt datum: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
+          "Ett svar per familj: gästerna anger hur många vuxna och barn som kommer i stället för en +1 – antalet gäster räknar ihop dem. En middag har det påslaget från början.",
           "Välj ett tema för inbjudningssidan och ett för tacksidan – ballonger, djungel, rymden, havet, saga, sport, elegant eller trädgård.",
           "Gäster som anger sin e-post och ber om uppdateringar får en bekräftelse, ett mejl om tid eller plats ändras, en påminnelse dagen innan och tacket – och de meddelanden ni skickar under Gäster. Det kräver serverns e-post, som serveradministratören ställer in under Server → Adress och tjänster.",
           "Festen finns i kalendern – som födelsedagsbarnets, om det är någons.",
