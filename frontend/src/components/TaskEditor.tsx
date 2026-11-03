@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { isoDate, Member, Task } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
+import { useMaybeMe } from "@/components/Shell";
 import { monthNames, taskWeekdays, weekdayNames } from "@/lib/taskSchedule";
 
 type Recurrence = Task["recurrence"];
@@ -27,6 +28,7 @@ export type TaskDraft = Pick<
   | "assignee_id"
   | "requires_approval"
   | "shared"
+  | "exercise_minutes"
   | "rotation_user_ids"
   | "rotation_mode"
 >;
@@ -48,6 +50,7 @@ export const NEW_TASK: TaskDraft = {
   assignee_id: null,
   requires_approval: false,
   shared: false,
+  exercise_minutes: null,
   rotation_user_ids: [],
   rotation_mode: "done",
 };
@@ -85,6 +88,8 @@ export default function TaskEditor({
   const [assignee, setAssignee] = useState(task.assignee_id ?? "");
   const [requiresApproval, setRequiresApproval] = useState(task.requires_approval);
   const [shared, setShared] = useState(!!task.shared);
+  const [exercise, setExercise] = useState(task.exercise_minutes ?? 0);
+  const health = useMaybeMe()?.apps.includes("health") ?? false;
   // Taking turns: members in the order they were picked.
   const [turns, setTurns] = useState<string[]>(task.rotation_user_ids ?? []);
   const [rotating, setRotating] = useState((task.rotation_user_ids ?? []).length >= 2);
@@ -117,6 +122,7 @@ export default function TaskEditor({
         assignee_id: rotating ? turns[0] ?? null : assignee || null,
         requires_approval: requiresApproval,
         shared,
+        exercise_minutes: exercise || null,
         rotation_user_ids: rotating ? turns : [],
         rotation_mode: rotationMode,
       });
@@ -309,6 +315,18 @@ export default function TaskEditor({
         </div>
       )}
       {recurrence === "monthly" && !monthWeekday && <p className="text-xs text-muted">{t("tasks.monthlyHint")}</p>}
+      {(health || exercise > 0) && (
+        <label className="block text-sm">
+          <span className="label">{t("tasks.exercise")}</span>
+          <select className="input" value={exercise} onChange={(e) => setExercise(Number(e.target.value))}>
+            <option value={0}>{t("tasks.exerciseOff")}</option>
+            {[15, 20, 30, 45, 60, 90].map((n) => (
+              <option key={n} value={n}>{t("tasks.exerciseMin", { n })}</option>
+            ))}
+          </select>
+          {exercise > 0 && <span className="mt-1 block text-xs text-muted">{t("tasks.exerciseHint")}</span>}
+        </label>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
         {t("tasks.requiresApproval")}

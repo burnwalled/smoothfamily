@@ -238,6 +238,9 @@ class Task(Base):
     event_key: Mapped[str | None] = mapped_column(String(400), nullable=True)
     # Several can do it together (3.0.3): the points are shared between those who did it.
     shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Done by exercising (3.4.0): ticked off by itself once its person's workouts that day add up to
+    # this many minutes (Health). None = an ordinary task.
+    exercise_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     completions: Mapped[list["TaskCompletion"]] = relationship(back_populates="task")
@@ -1920,6 +1923,23 @@ class Workout(Base):
     note: Mapped[str] = mapped_column(String(300), default="")
     source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
     external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HealthGoal(Base):
+    """A goal the family works towards together (3.4.0): minutes, km or workouts between two dates –
+    counting the workouts each member shares with the family."""
+
+    __tablename__ = "health_goals"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    metric: Mapped[str] = mapped_column(String(10))  # minutes | km | workouts
+    target: Mapped[int] = mapped_column(Integer)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

@@ -339,6 +339,12 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "h": "Sammen"
+      },
+      {
+        "p": "En voksen sætter familiens mål – timer, kilometer eller træninger mellem to datoer, for eksempel 500 km sammen i maj. De tæller den træning, hver især deler med familien, og vises i Sundhed, i søndagsmødet og på køkkenskærmen (ugens bevægelse). En opgave kan blive færdig ved træning: vælg mindst så mange minutter den dag, så afkrydses den af sig selv, når personens træning slår til – med point, som enhver opgave. Træning giver også mærker."
+      },
+      {
         "tips": [
           "De voksne ser altid et barns sundhed og kan udfylde den – en forælder kan logge fodboldtræningen.",
           "Et barns vægt gemmes ikke, og vægt sammenlignes aldrig: den er ikke i oversigten.",

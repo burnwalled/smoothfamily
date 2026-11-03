@@ -36,3 +36,32 @@ test("log a workout and the day's steps, then share them", async ({ adminPage: p
   for (const w of seen.workouts.filter((x: { note: string }) => x.note === note)) await adminApi.delete(`/api/health/workouts/${w.id}`);
   await adminApi.put("/api/health/sharing", { data: { workouts: "me" } });
 });
+
+// 3.4.0 phase 2: a goal the family works towards together, and a task done by exercising.
+test("a family goal and a task done by exercising", async ({ adminPage: page, adminApi, kidApi }) => {
+  const kid = await (await kidApi.get("/api/auth/me")).json();
+  const title = unique("Km together");
+  await kidApi.put("/api/health/sharing", { data: { workouts: "family" } });
+  await page.goto("/health");
+  const goals = page.getByRole("region", { name: "The family's goals" });
+  await goals.getByRole("button", { name: "New goal" }).click();
+  const form = goals.getByRole("group", { name: "New goal" });
+  await form.getByLabel("Name").fill(title);
+  await form.getByLabel("Target").fill("50");
+  await form.getByRole("button", { name: "Add the goal" }).click();
+  await expect(goals.getByRole("progressbar", { name: title })).toBeVisible();
+
+  const task = await (await adminApi.post("/api/tasks", { data: { title: unique("Move 30 min"), recurrence: "daily", points: 3, assignee_id: kid.id, exercise_minutes: 30 } })).json();
+  const today = new Date().toISOString().slice(0, 10);
+  const logged = await (await kidApi.post(`/api/health/people/${kid.id}/workouts`, { data: { day: today, kind: "bike", minutes: 35, distance_km: 12 } })).json();
+  expect(logged.ticked).toContain(task.title);
+  await page.reload();
+  await expect(goals.getByText(/12 km \/ 50 km/)).toBeVisible();
+
+  // Tidy up.
+  const goal = (await (await adminApi.get("/api/health/goals")).json()).find((g: { title: string }) => g.title === title);
+  await adminApi.delete(`/api/health/goals/${goal.id}`);
+  await adminApi.delete(`/api/tasks/${task.id}`);
+  await adminApi.delete(`/api/health/workouts/${logged.id}`);
+  await kidApi.put("/api/health/sharing", { data: { workouts: "me" } });
+});

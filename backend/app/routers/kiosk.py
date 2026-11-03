@@ -34,7 +34,7 @@ from app.routers.smarthome import ActionIn, DeviceStateOut, device_states, run_a
 from app.routers.presence import family_presence
 from app.schemas import EventOut
 from app.services import electricity as el
-from app.services import holidays
+from app.services import health, holidays
 from app.services import flows as flow_engine
 from app.services import login_throttle, rotation
 from app.services import pantry_scan as scan
@@ -55,10 +55,11 @@ def _hash(token: str) -> str:
 
 
 # What a kitchen display can show (2.8.2); each screen picks its own.
-WIDGETS = ("calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow")
-WidgetList = list[Literal["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow"]]
-# A screen that never chose shows these; the week's meals and the recipe book (3.0.4) are chosen.
-DEFAULT_WIDGETS = tuple(w for w in WIDGETS if w not in ("week", "recipes"))
+WIDGETS = ("calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise")
+WidgetList = list[Literal["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise"]]
+# A screen that never chose shows these; the week's meals, the recipe book (3.0.4) and the week's
+# exercise (3.4.0) are chosen.
+DEFAULT_WIDGETS = tuple(w for w in WIDGETS if w not in ("week", "recipes", "exercise"))
 # The colour themes a screen can wear (as the app's).
 Theme = Literal["", "forest", "ocean", "sunset", "lavender", "midnight", "sand", "berry", "citrus", "aurora"]
 # A screen on the wall never opens a lock.
@@ -177,6 +178,9 @@ class KioskView(BaseModel):
     # birthday it is – first names, the people the family keeps birthdays for.
     fox_theme: str = ""
     birthdays: list[str] = []
+    # 3.4.0: this week's exercise – only of those who share their workouts with the family – and the
+    # family's goals running now.
+    exercise: dict | None = None
 
 
 def _night(screen: KioskScreen) -> dict:
@@ -434,6 +438,15 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
 
     devices = await device_states(db, family.id, await _screen_devices(db, screen)) if screen.devices else []
 
+    exercise = None
+    if "exercise" in on:
+        monday = today - timedelta(days=today.weekday())
+        people = [p for p in await health.family_exercise(db, family.id, monday, today) if p["workouts"]]
+        exercise = {
+            "people": [{"name": p["name"], "color": p["color"], "minutes": p["minutes"], "workouts": p["workouts"]} for p in sorted(people, key=lambda p: -p["minutes"])],
+            "goals": [{"title": g["title"], "metric": g["metric"], "target": g["target"], "progress": g["progress"]} for g in await health.current_goals(db, family.id, today)],
+        }
+
     # The fox's dress (3.4.0), only for a screen that shows it.
     fox_theme, birthdays = "", []
     if screen.screensaver == "fox" and screen.fox_themes is not False:
@@ -465,6 +478,7 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
         devices=devices,
         fox_theme=fox_theme,
         birthdays=birthdays,
+        exercise=exercise,
     )
 
 

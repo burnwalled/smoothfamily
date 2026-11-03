@@ -14,43 +14,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
 from app.deps import DB, CurrentUser, require_app
-from app.models import HealthDay, User, Workout
+from app.models import HealthDay, HealthGoal, User, Workout
+from app.services.achievements import evaluate_achievements
+from app.services.health import adult as _adult, goal_progress, may_enter, shared, tick_exercise_tasks, visible
 from app.services.weather import today_local
 
 router = APIRouter(prefix="/api/health", tags=["health"], dependencies=[require_app("health")])
 
 KINDS = ("walk", "run", "bike", "swim", "gym", "ski", "sport", "yoga", "play", "other")
-CATEGORIES = ("workouts", "steps", "sleep", "weight")
 Kind = Literal["walk", "run", "bike", "swim", "gym", "ski", "sport", "yoga", "play", "other"]
 Share = Literal["me", "adults", "family"]
 # How far back a person's page reaches.
 MAX_DAYS = 366
-
-
-def _adult(user: User) -> bool:
-    return user.role in {"admin", "adult"}
-
-
-def shared(owner: User) -> dict[str, str]:
-    saved = owner.health_share or {}
-    return {c: saved.get(c, "me") for c in CATEGORIES}
-
-
-def visible(viewer: User, owner: User) -> list[str]:
-    """The kinds of the owner's data the viewer may see."""
-    if viewer.family_id != owner.family_id:
-        return []
-    kinds = list(CATEGORIES)
-    if owner.role == "child":
-        kinds.remove("weight")
-    if viewer.id == owner.id or (owner.role == "child" and _adult(viewer)):
-        return kinds
-    share = shared(owner)
-    return [c for c in kinds if share[c] == "family" or (share[c] == "adults" and _adult(viewer))]
-
-
-def may_enter(viewer: User, owner: User) -> bool:
-    return viewer.family_id == owner.family_id and (viewer.id == owner.id or (owner.role == "child" and _adult(viewer)))
 
 
 async def _owner(db, viewer: User, user_id: uuid.UUID) -> User:
@@ -76,6 +51,9 @@ class WorkoutOut(BaseModel):
     distance_km: float | None
     note: str
     source: str
+    # Just logged: the tasks it ticked off and the badges it earned.
+    ticked: list[str] = []
+    unlocked: list[str] = []
 
 
 class DayIn(BaseModel):
@@ -210,7 +188,10 @@ async def add_workout(user_id: uuid.UUID, payload: WorkoutIn, user: CurrentUser,
     w.note = w.note.strip()
     db.add(w)
     await db.commit()
-    return WorkoutOut(id=w.id, day=w.day, kind=w.kind, minutes=w.minutes, distance_km=w.distance_km, note=w.note, source=w.source)
+    out = WorkoutOut(id=w.id, day=w.day, kind=w.kind, minutes=w.minutes, distance_km=w.distance_km, note=w.note, source=w.source)
+    out.ticked = await tick_exercise_tasks(db, owner, w.day, user)
+    out.unlocked = await evaluate_achievements(db, owner)
+    return out
 
 
 async def _workout(db, user: User, workout_id: uuid.UUID) -> Workout:
@@ -259,6 +240,70 @@ async def set_day(user_id: uuid.UUID, day: date, payload: DayIn, user: CurrentUs
         db.add(row)
     await db.commit()
     return DayOut(day=day, steps=row.steps, sleep_minutes=row.sleep_minutes, weight_kg=row.weight_kg, resting_hr=row.resting_hr)
+
+
+class GoalIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    metric: Literal["minutes", "km", "workouts"]
+    target: int = Field(ge=1, le=1_000_000)
+    start_date: date
+    end_date: date
+
+
+class GoalPerson(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    color: str | None
+    amount: float
+
+
+class GoalOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    metric: str
+    target: int
+    start_date: date
+    end_date: date
+    progress: float
+    done: bool
+    ended: bool
+    people: list[GoalPerson]
+
+
+@router.get("/goals", response_model=list[GoalOut])
+async def goals(user: CurrentUser, db: DB) -> list[GoalOut]:
+    """The family's goals: those running now, and those that ended in the last month."""
+    today = today_local()
+    rows = (
+        await db.execute(
+            select(HealthGoal).where(HealthGoal.family_id == user.family_id, HealthGoal.end_date >= today - timedelta(days=31)).order_by(HealthGoal.end_date.desc())
+        )
+    ).scalars().all()
+    return [GoalOut(**await goal_progress(db, g, today)) for g in rows if g.start_date <= today]
+
+
+@router.post("/goals", response_model=GoalOut, status_code=status.HTTP_201_CREATED)
+async def add_goal(payload: GoalIn, user: CurrentUser, db: DB) -> GoalOut:
+    if not _adult(user):
+        raise HTTPException(status_code=403, detail="The adults set the family's goals")
+    if payload.end_date < payload.start_date or (payload.end_date - payload.start_date).days > 366:
+        raise HTTPException(status_code=422, detail="A goal runs for up to a year, and ends after it starts")
+    goal = HealthGoal(family_id=user.family_id, created_by=user.id, created_at=datetime.now(timezone.utc), **payload.model_dump())
+    goal.title = goal.title.strip()
+    db.add(goal)
+    await db.commit()
+    return GoalOut(**await goal_progress(db, goal, today_local()))
+
+
+@router.delete("/goals/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_goal(goal_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
+    goal = await db.get(HealthGoal, goal_id)
+    if goal is None or goal.family_id != user.family_id:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not _adult(user):
+        raise HTTPException(status_code=403, detail="The adults set the family's goals")
+    await db.delete(goal)
+    await db.commit()
 
 
 @router.put("/sharing", response_model=dict[str, str])

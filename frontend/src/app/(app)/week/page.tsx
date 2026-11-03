@@ -5,13 +5,14 @@
 // turn it is), give thank-you stars, pick the family activity – and mark it done.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, HeartHandshake, Pencil, Plus, Repeat, Search, Sparkles, Star, Trophy, UtensilsCrossed } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, HeartHandshake, HeartPulse, Pencil, Plus, Repeat, Search, Sparkles, Star, Trophy, UtensilsCrossed } from "lucide-react";
 import { api, Member, MealSlot, Recipe, WeekReview } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import { getIsoWeek } from "@/lib/week";
 import EventLine from "@/components/calendar/EventLine";
+import GoalBar from "@/components/health/GoalBar";
 import WebSearch, { shortTitle, useWebSearch } from "@/components/WebSearch";
 
 function addDays(iso: string, days: number): string {
@@ -181,6 +182,21 @@ export default function WeekPage() {
             ))}
           </ul>
           <p className="mt-3 text-xs text-muted">{t("week.tasksDone", { n: week.tasks_done })}</p>
+          {(week.exercise?.length || week.exercise_goals?.length) ? (
+            <div className="mt-4 space-y-2 border-t border-edge pt-3" role="group" aria-label={t("week.exercise")}>
+              <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted">
+                <HeartPulse className="h-3.5 w-3.5" aria-hidden />
+                {t("week.exercise")}
+              </h3>
+              {week.exercise?.map((p) => (
+                <div key={p.user_id} className="flex justify-between text-sm">
+                  <span className="font-semibold">{p.name}</span>
+                  <span className="text-muted">{t("week.exerciseOf", { minutes: p.minutes, workouts: p.workouts })}</span>
+                </div>
+              ))}
+              {week.exercise_goals?.map((goal) => <GoalBar key={goal.title} goal={goal} />)}
+            </div>
+          ) : null}
           {week.goals.length > 0 && (
             <div className="mt-4 space-y-2 border-t border-edge pt-3">
               {week.goals.map((goal) => (
