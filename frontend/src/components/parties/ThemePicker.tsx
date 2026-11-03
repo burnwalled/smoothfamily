@@ -8,6 +8,7 @@ import { TranslationKey, useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/query";
 import { CATEGORIES, CustomTheme, PARTY_THEMES, PartyTheme, customTheme, kindCategory, themeStyle } from "@/lib/partyThemes";
 import { FONTS } from "@/lib/partyFonts";
+import { libraryUrl } from "@/lib/partyLibrary";
 import ThemeEditor from "@/components/parties/ThemeEditor";
 
 export const THEMES_PATH = "/api/parties/themes";
@@ -16,14 +17,22 @@ export const hostPicture = (id: string) => (slot: "header" | "background", v: st
 export function ThemeSwatch({ theme, label, selected, onClick }: { theme: PartyTheme; label: string; selected: boolean; onClick: () => void }) {
   return (
     <button type="button" role="radio" aria-checked={selected} onClick={onClick} className={`rounded-xl border-2 p-1.5 text-left text-xs ${selected ? "border-accent" : "border-edge"}`}>
-      <span className="relative block h-14 overflow-hidden rounded-lg" style={themeStyle(theme)}>
+      {/* The library's big pictures stay out of the swatch; its stickers show instead of emoji. */}
+      <span className="relative block h-14 overflow-hidden rounded-lg" style={themeStyle(theme.category === "custom" ? theme : { ...theme, image: undefined })}>
         <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: theme.band }} />
-        {theme.header && (
+        {theme.header && theme.category === "custom" && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={theme.header} alt="" className="absolute inset-x-0 top-1.5 h-5 w-full object-cover" />
         )}
         <span className="absolute inset-x-0 top-3 text-center text-lg leading-none" style={{ fontFamily: FONTS[theme.fonts].display, color: theme.accent }} aria-hidden>Aa</span>
-        <span className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-0.5 text-sm" aria-hidden>{theme.decor.slice(0, 4).join("")}</span>
+        <span className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-0.5 text-sm" aria-hidden>
+          {theme.stickers.length
+            ? theme.stickers.slice(0, 3).map((id) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={id} src={libraryUrl(id)} alt="" className="h-5 w-5 object-contain" loading="lazy" />
+            ))
+            : theme.decor.slice(0, 4).join("")}
+        </span>
       </span>
       <span className="mt-1 block truncate font-semibold">{label}</span>
     </button>

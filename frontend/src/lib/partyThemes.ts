@@ -4,6 +4,7 @@
 // a moving effect (confetti, gold bokeh, stars, bubbles, snow, leaves, embers).
 import type { CSSProperties } from "react";
 import { FONTS, FontSet } from "@/lib/partyFonts";
+import { libraryUrl, themePicture } from "@/lib/partyLibrary";
 
 export type PatternKey = "none" | "confetti" | "dots" | "stars" | "stripes" | "hearts" | "check";
 export type Effect = "none" | "confetti" | "bokeh" | "stars" | "bubbles" | "snow" | "leaves" | "embers";
@@ -30,6 +31,8 @@ export type PartyTheme = {
   effect: Effect;
   // The colours the effect is drawn in.
   sparks: string[];
+  // Stickers from the picture library that suit it (in place of emoji on its poster).
+  stickers: string[];
   image?: string;
   header?: string;
 };
@@ -44,12 +47,13 @@ export const CATEGORIES: ThemeCategory[] = ["kids", "party", "dinner", "sports",
 
 const emoji = (s: string) => Array.from(new Intl.Segmenter().segment(s), (x) => x.segment).filter((x) => x.trim());
 
-type Def = Omit<PartyTheme, "key" | "category" | "decor" | "band" | "sparks" | "patternColor"> & { decor: string; band?: string; sparks?: string[]; patternColor?: string };
+type Def = Omit<PartyTheme, "key" | "category" | "decor" | "band" | "sparks" | "patternColor" | "stickers"> & { decor: string; band?: string; sparks?: string[]; patternColor?: string };
 const T = (key: string, category: ThemeCategory, d: Def): PartyTheme => ({
   ...d, key, category, decor: emoji(d.decor),
   band: d.band ?? `linear-gradient(90deg,${d.accentLo},${d.accentHi},${d.accent},${d.accentLo})`,
   sparks: d.sparks ?? [d.accentHi, d.accent, d.accentLo],
   patternColor: d.patternColor ?? d.accent,
+  stickers: [],
 });
 
 const LIGHT = { dark: false, surface: "rgba(255,255,255,.86)" };
@@ -75,7 +79,11 @@ export const PARTY_THEMES: PartyTheme[] = [
   T("techno", "party", { ...DARK, surface: "rgba(4,16,11,.9)", fonts: "sporty", effect: "stars", pattern: "stripes", patternColor: "#00ff9d", background: "linear-gradient(180deg,#000000 0%,#061a12 55%,#002b1c 100%)", ink: "#e6fff5", muted: "#8fcfb4", accent: "#00ff9d", accentHi: "#b8ffe2", accentLo: "#00a866", line: "#0f4a33", decor: "🎛️🔊⚡🎧🌀💚", sparks: ["#00ff9d", "#00b3ff", "#c200ff"] }),
   T("champagne", "party", { ...LIGHT, fonts: "gala", effect: "bubbles", pattern: "dots", patternColor: "#ffffff", background: "linear-gradient(170deg,#fff8ea 0%,#f6e6c4 55%,#e8cc8e 100%)", ink: "#3a2a12", muted: "#7a6440", accent: "#a67c3d", accentHi: "#e8c98a", accentLo: "#6e4f1e", line: "#e5d1a6", decor: "🍾🥂✨🥂🍾🎇", sparks: ["#ffffff", "#fff1c4", "#e8c98a"] }),
   T("neon", "party", { ...DARK, surface: "rgba(13,2,33,.88)", fonts: "retro", effect: "bokeh", pattern: "dots", patternColor: "#ff3cac", background: "radial-gradient(ellipse at 20% 20%,#2a0845 0%,#0d0221 60%,#05010f 100%)", ink: "#f3e9ff", muted: "#b9a6d6", accent: "#ff3cac", accentHi: "#ffb3dc", accentLo: "#b0136f", line: "#3d1d66", decor: "💜💚⚡🌃✨🍸", sparks: ["#ff3cac", "#784ba0", "#2b86c5", "#00f5d4"] }),
+  T("student", "party", { ...DARK, surface: "rgba(8,40,84,.88)", fonts: "gala", effect: "confetti", pattern: "none", background: "linear-gradient(180deg,#0b5fb4 0%,#0a3d78 55%,#06244a 100%)", ink: "#ffffff", muted: "#cfe0f5", accent: "#ffd23f", accentHi: "#fff0a8", accentLo: "#c99a00", line: "#2d5f9a", decor: "🎓📜🥂🎉", sparks: ["#ffd23f", "#ffffff", "#4fa3ff"] }),
+  T("halloween", "party", { ...DARK, surface: "rgba(18,8,36,.9)", fonts: "retro", effect: "embers", pattern: "none", background: "radial-gradient(ellipse at 50% 0%,#3b1a63 0%,#160a2e 55%,#05010f 100%)", ink: "#fff3e0", muted: "#cdb8e0", accent: "#ff8a1f", accentHi: "#ffc27a", accentLo: "#b85600", line: "#3d2466", decor: "🎃👻🦇🕸️🍬", sparks: ["#ff8a1f", "#a259ff", "#ffd27a"] }),
+  T("newyear", "party", { ...DARK, surface: "rgba(4,8,30,.9)", fonts: "gala", effect: "stars", pattern: "none", background: "radial-gradient(ellipse at 50% 0%,#1d2a6b 0%,#0a1033 55%,#02040f 100%)", ink: "#f4f2ff", muted: "#b9bde0", accent: "#e8c45c", accentHi: "#fff0b8", accentLo: "#9c7a1e", line: "#2a3570", decor: "🎆🥂🕛✨🎇", sparks: ["#fff0b8", "#e8c45c", "#9fc3ff", "#ffffff"] }),
   // A dinner
+  T("wedding", "dinner", { ...LIGHT, surface: "rgba(255,253,250,.9)", fonts: "classic", effect: "leaves", pattern: "none", background: "linear-gradient(180deg,#fbf7f2 0%,#f3ece3 100%)", ink: "#3a2f28", muted: "#7a6b5e", accent: "#a8875a", accentHi: "#dcc29a", accentLo: "#6f5634", line: "#e6dccf", decor: "💍🤍🌿🥂💐", sparks: ["#ffffff", "#f3d9df", "#dcc29a", "#c9d8c0"] }),
   T("elegant", "dinner", { ...LIGHT, surface: "rgba(255,253,248,.9)", fonts: "classic", effect: "bokeh", pattern: "none", background: "radial-gradient(ellipse at 50% 0%,#fbf7ef 0%,#f3ece0 60%,#e9dfcc 100%)", ink: "#2b2620", muted: "#6e6354", accent: "#8a6a3a", accentHi: "#cfae73", accentLo: "#5c4422", line: "#e0d3bb", decor: "🥂🕯️🍽️🕯️🥂", sparks: ["#e6d3a8", "#cfae73", "#ffffff"] }),
   T("bistro", "dinner", { ...LIGHT, surface: "rgba(255,251,245,.92)", fonts: "classic", effect: "none", pattern: "check", patternColor: "#c0392b", background: "linear-gradient(180deg,#fff9f2,#fbefe4)", ink: "#2a1410", muted: "#6b4a40", accent: "#9e2121", accentHi: "#d45a4a", accentLo: "#6b1111", line: "#ecd2c4", decor: "🍷🥖🧀🍝🕯️" }),
   T("christmas", "dinner", { ...DARK, surface: "rgba(10,40,26,.9)", fonts: "classic", effect: "snow", pattern: "stars", patternColor: "#ffffff", background: "radial-gradient(ellipse at 50% 0%,#1d5e3c 0%,#0f3d2a 50%,#0a2619 100%)", ink: "#fff7ed", muted: "#d6c7a8", accent: "#e3b04b", accentHi: "#ffe0a0", accentLo: "#a37a26", line: "#2c5e44", decor: "🎄🎅⭐🎁❄️🕯️", sparks: ["#ffffff", "#f5f5f5", "#e8f0ff"] }),
@@ -92,6 +100,24 @@ export const PARTY_THEMES: PartyTheme[] = [
   T("beach", "outdoor", { ...LIGHT, fonts: "playful", effect: "bubbles", pattern: "dots", patternColor: "#ffffff", background: "linear-gradient(180deg,#7fd3f5 0%,#bfeaf9 45%,#fbe3a6 75%,#f5cf7a 100%)", ink: "#10324a", muted: "#4a6a80", accent: "#0089b8", accentHi: "#5fd0f5", accentLo: "#005f80", line: "#bfe0ec", decor: "🏖️🌊☀️🍉🩱🐚", sparks: ["#ffffff", "#bfeaf9"] }),
   T("picnic", "outdoor", { ...LIGHT, surface: "rgba(255,252,246,.92)", fonts: "playful", effect: "leaves", pattern: "check", patternColor: "#e53e3e", background: "linear-gradient(180deg,#fffaf0 0%,#f0f9e8 100%)", ink: "#2a1a14", muted: "#6a5148", accent: "#c53030", accentHi: "#f08080", accentLo: "#8a1c1c", line: "#ecd8cc", decor: "🧺🥪🍓🌳☀️🍋", sparks: ["#48bb78", "#9ae6b4", "#f6e05e"] }),
 ];
+
+const STICKERS: Record<string, string[]> = {
+  balloons: ["balloons", "gift", "cake", "party-hat"], jungle: ["lion", "parrot"], space: ["rocket", "planet"],
+  disco: ["disco-ball", "vinyl", "roller-skate"], glamour: ["champagne-glasses", "gold-star", "champagne-bottle"],
+  champagne: ["champagne-bottle", "champagne-glasses", "gold-star"], glitter: ["gold-star", "party-hat", "champagne-glasses"],
+  eighties: ["vinyl", "roller-skate"], student: ["student-cap", "diploma", "champagne-bottle"], halloween: ["pumpkin", "ghost"],
+  newyear: ["fireworks", "clock", "champagne-glasses"], wedding: ["rings", "wedding-cake"], christmas: ["santa-hat", "gingerbread-heart", "ornament"],
+  crayfish: ["crayfish", "lantern"], midsummer: ["flower-wreath", "strawberry"], football: ["football", "trophy", "whistle"],
+  sports: ["trophy", "football", "whistle"], hockey: ["trophy", "whistle"], bbq: ["grill", "hotdog"], beach: ["beach-ball", "ice-cream"],
+  brannboll: ["ice-cream", "beach-ball"], picnic: ["strawberry", "ice-cream"],
+};
+for (const theme of PARTY_THEMES) {
+  theme.stickers = STICKERS[theme.key] ?? [];
+  const back = themePicture(theme.key, "background");
+  const top = themePicture(theme.key, "header");
+  if (back) theme.image = libraryUrl(back.id);
+  if (top) theme.header = libraryUrl(top.id);
+}
 
 const KIND_CATEGORY: Record<string, ThemeCategory> = { child_birthday: "kids", birthday: "party", party: "party", dinner: "dinner", match: "sports", bbq: "outdoor", outdoor: "outdoor" };
 const KIND_THEME: Record<string, string> = { child_birthday: "balloons", birthday: "glitter", party: "disco", dinner: "elegant", match: "football", bbq: "bbq", outdoor: "brannboll" };
@@ -127,7 +153,7 @@ export function customTheme(c: CustomTheme, picture: (slot: "header" | "backgrou
     accent: c.accent, accentHi: mix(c.accent, "#ffffff", 0.5), accentLo: mix(c.accent, "#000000", 0.35),
     line: mix(c.accent, dark ? "#000000" : "#ffffff", 0.6),
     decor: decor.length ? decor : ["🎉"], fonts: c.font ?? "playful", effect: c.effect ?? "confetti",
-    sparks: [c.accent, mix(c.accent, "#ffffff", 0.5), c.bg2],
+    sparks: [c.accent, mix(c.accent, "#ffffff", 0.5), c.bg2], stickers: [],
     image: c.background ? picture("background", c.background) : undefined, header: c.header ? picture("header", c.header) : undefined,
   };
 }

@@ -2024,6 +2024,10 @@ class Party(Base):
     thanks_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
     # A picture on the invitation (the storage key of a web-sized copy).
     invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The poster as the hosts made it: its blocks (texts, pictures, details, countdown, calendar
+    # buttons …) in order; None = the theme's own. And the pictures it uses: [{id, key}].
+    layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    assets: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # The day before, the guests who asked for updates are reminded (once).
     guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;

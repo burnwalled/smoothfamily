@@ -299,3 +299,36 @@ async def test_mail_services_and_who_may_use_them(client, monkeypatch):
     out = (await client.delete("/api/admin/integrations/email/brevo")).json()
     assert out["hosted"] == "" and out["owner"] == "gmail" and not out["accounts"]["brevo"]["configured"]
     await guest.aclose()
+
+
+async def test_the_poster_is_the_hosts_own(client):
+    import io
+
+    from PIL import Image
+
+    await _family(client)
+    start = (datetime.now(timezone.utc) + timedelta(days=30)).replace(hour=18, minute=0, second=0, microsecond=0)
+    party = (await client.post("/api/parties", json=_party(start, kind="party", title="40-årsfest"))).json()
+    assert party["layout"] is None and party["assets"] == []  # the theme's own poster
+    buf = io.BytesIO()
+    Image.new("RGB", (300, 300), "#d9a94a").save(buf, "PNG")
+    party = (await client.post(f"/api/parties/{party['id']}/assets", files={"file": ("ballong.png", buf.getvalue(), "image/png")})).json()
+    asset = party["assets"][0]["id"]
+    layout = [
+        {"id": "a", "type": "text", "text": "Den stora {title}!", "font": "gala-display", "align": "center", "size": "xl"},
+        {"id": "b", "type": "decor", "items": [{"kind": "sticker", "value": asset}, {"kind": "emoji", "value": "🥂"}]},
+        {"id": "c", "type": "calendar", "buttons": ["google", "outlook"]},
+    ]
+    party = (await client.put(f"/api/parties/{party['id']}", json={"layout": layout})).json()
+    assert [b["type"] for b in party["layout"]] == ["text", "decor", "calendar"]
+    token = party["link"].rsplit("/", 1)[1]
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["layout"][0]["text"] == "Den stora {title}!" and page["assets"] == party["assets"]
+    assert (await client.get(f"/api/party/{token}/assets/{asset}")).status_code == 200
+    assert (await client.get(f"/api/party/{token}/assets/nope")).status_code == 404
+    # Too big, or a block without a type, is refused; an empty poster is the theme's again.
+    assert (await client.put(f"/api/parties/{party['id']}", json={"layout": [{"id": "x", "type": "text", "text": "a" * 70000}]})).status_code == 422
+    assert (await client.put(f"/api/parties/{party['id']}", json={"layout": [{"id": "x"}]})).status_code == 422
+    assert (await client.put(f"/api/parties/{party['id']}", json={"layout": []})).json()["layout"] is None
+    party = (await client.delete(f"/api/parties/{party['id']}/assets/{asset}")).json()
+    assert party["assets"] == []
