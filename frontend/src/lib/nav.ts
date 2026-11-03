@@ -74,9 +74,9 @@ export const HUBS: Hub[] = [
       { app: "birthdays", href: "/birthdays", labelKey: "nav.birthdays", hidden: true },
       { app: "trips", href: "/trips", labelKey: "nav.trips" },
       { app: "calendar", href: "/calendar/custody", labelKey: "custody.title" },
-      { app: "week", href: "/week", labelKey: "nav.week" },
       // 3.4.0: planning a party (adults; the shell leaves it out for children).
       { app: "calendar", href: "/parties", labelKey: "nav.parties" },
+      { app: "week", href: "/week", labelKey: "nav.week" },
     ],
   },
   { key: "chat", href: "/chat", labelKey: "nav.chat", icon: MessageCircle, tabs: [{ app: "chat", href: "/chat", labelKey: "nav.chat" }] },
