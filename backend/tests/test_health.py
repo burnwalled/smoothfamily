@@ -1,4 +1,5 @@
 """3.4.0: health per person – workouts and the day's numbers, private until shared."""
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -119,3 +120,62 @@ async def test_a_task_done_by_exercising(client):
     assert today_tasks["Move for 30 minutes"]["done"] is True
     # Once is enough.
     assert (await client.post(f"/api/health/people/{ids['kid1']}/workouts", json={"day": today.isoformat(), "kind": "run", "minutes": 40})).json()["ticked"] == []
+
+
+async def test_health_from_home_assistant(client):
+    from datetime import datetime, timezone
+
+    from app.database import SessionLocal
+    from app.models import HealthDay
+    from app.services import ha_sim
+    from app.services.health_ha import convert, run_health_sync, score
+    from sqlalchemy import select
+
+    ids = await _family(client)
+    today = today_local()
+    # Without Home Assistant there is nothing to choose.
+    assert (await client.get(f"/api/health/people/{ids['admin']}/sources")).json()["available"] is False
+    assert (await client.post("/api/smarthome/connection/simulated")).status_code in (200, 201, 204)
+    ha_sim.reset()
+    sources = (await client.get(f"/api/health/people/{ids['admin']}/sources")).json()
+    assert sources["available"] and sources["reachable"]
+    assert sources["candidates"]["steps"][0]["entity_id"].endswith("_phone_steps")
+    assert sources["candidates"]["weight"][0]["entity_id"] == "sensor.withings_weight"
+    assert sources["candidates"]["resting_hr"][0]["entity_id"].endswith("_resting_heart_rate")
+
+    # Choosing reads them at once: steps, sleep in hours → minutes, weight in kg.
+    chosen = (await client.put(f"/api/health/people/{ids['admin']}/sources", json={"steps": "sensor.anna_phone_steps", "sleep": "sensor.anna_phone_sleep_duration", "weight": "sensor.withings_weight"})).json()
+    assert chosen["taken"] == 3 and chosen["chosen"]["steps"] == "sensor.anna_phone_steps"
+    day = (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]
+    assert (day["day"], day["steps"], day["sleep_minutes"], day["weight_kg"]) == (today.isoformat(), 4200, 450, 78.4)
+
+    # More steps later in the day; a lower reading never takes the day's count down.
+    conn_url = next(iter(ha_sim._homes))
+    ha_sim._homes[conn_url]["sensor.anna_phone_steps"]["state"] = "6100"
+    assert (await client.post(f"/api/health/people/{ids['admin']}/sync")).json()["taken"] == 1
+    ha_sim._homes[conn_url]["sensor.anna_phone_steps"]["state"] = "100"
+    await client.post(f"/api/health/people/{ids['admin']}/sync")
+    assert (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]["steps"] == 6100
+
+    # Entered by hand wins: the import no longer changes that day.
+    await client.put(f"/api/health/people/{ids['admin']}/days/{today}", json={"steps": 9999})
+    ha_sim._homes[conn_url]["sensor.anna_phone_steps"]["state"] = "12000"
+    await client.post(f"/api/health/people/{ids['admin']}/sync")
+    assert (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]["steps"] == 9999
+
+    # A child's weight is never read; a child can't choose for an adult.
+    kid = (await client.put(f"/api/health/people/{ids['kid1']}/sources", json={"steps": "sensor.leo_phone_steps", "weight": "sensor.withings_weight"})).json()
+    assert "weight" not in kid["chosen"]
+    await _as(client, "kid1")
+    assert (await client.get(f"/api/health/people/{ids['admin']}/sources")).status_code == 403
+
+    # The worker reads everyone whose turn it is, every 15 minutes.
+    async with SessionLocal() as db:
+        assert await run_health_sync(db) == 0
+        assert await run_health_sync(db, datetime.now(timezone.utc) + timedelta(minutes=16)) == 2
+        rows = (await db.execute(select(HealthDay).where(HealthDay.user_id == uuid.UUID(ids["kid1"])))).scalars().all()
+        assert rows[0].steps and rows[0].weight_kg is None and rows[0].source == "home_assistant"
+
+    # The units and the guesses.
+    assert convert("sleep", 27000, "s") == 450 and convert("weight", 180, "lb") == 81.6 and convert("steps", -5, "steps") is None
+    assert score("steps", {"entity_id": "light.x", "state": "on"}) == 0

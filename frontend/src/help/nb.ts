@@ -350,6 +350,19 @@ const texts: Record<string, TopicText> = {
           "Et barns vekt lagres ikke, og vekt sammenlignes aldri: den er ikke i oversikten.",
           "Last ned dine egne data som en fil, eller fjern alt, nederst på siden din."
         ]
+      },
+      {
+        "h": "Fra Home Assistant"
+      },
+      {
+        "p": "Hvis familien har koblet til Home Assistant, kan hver enkelt få skritt, søvn, vekt og hvilepuls lest inn av seg selv: under Fra Home Assistant på siden din velger du sensorene – de mest sannsynlige foreslås først. De leses hvert 15. minutt og når du trykker Hent nå, og lagres på dagen de gjelder. Det du fyller inn selv på en dag vinner alltid. Voksne kan velge for et barn; et barns vekt leses aldri."
+      },
+      {
+        "tips": [
+          "Skritt og søvn fra telefonen: installer Home Assistants følgeapp og slå på sensorene – på Android de for Health Connect (skritt, søvn, puls, vekt …), på iPhone skrittelleren (skritt).",
+          "En vekt eller en klokke: Withings har en egen integrasjon i Home Assistant; Garmin, Fitbit, Oura og flere finnes som integrasjoner fra fellesskapet (HACS).",
+          "Treningsøkter logges fortsatt her for hånd."
+        ]
       }
     ]
   },

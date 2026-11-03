@@ -350,6 +350,19 @@ const texts: Record<string, TopicText> = {
           "Lapsen painoa ei tallenneta, eikä painoa koskaan verrata: se ei näy yhteenvedossa.",
           "Lataa omat tietosi tiedostona tai poista kaikki sivusi alalaidasta."
         ]
+      },
+      {
+        "h": "Home Assistantista"
+      },
+      {
+        "p": "Jos perhe on yhdistänyt Home Assistantin, kukin voi saada askeleet, unen, painon ja leposykkeen luettua itsestään: valitse anturit sivusi kohdassa Home Assistantista – todennäköisimmät ehdotetaan ensin. Ne luetaan 15 minuutin välein ja kun painat Hae nyt, ja ne tallennetaan päivälle, jota ne koskevat. Itse syöttämäsi arvo voittaa aina. Aikuiset voivat valita lapsen puolesta; lapsen painoa ei koskaan lueta."
+      },
+      {
+        "tips": [
+          "Askeleet ja uni puhelimesta: asenna Home Assistantin Companion-sovellus ja ota sen anturit käyttöön – Androidissa Health Connect -anturit (askeleet, uni, syke, paino …), iPhonessa askelmittari (askeleet).",
+          "Vaaka tai kello: Withingsillä on oma integraatio Home Assistantissa; Garmin, Fitbit, Oura ja muut löytyvät yhteisön integraatioina (HACS).",
+          "Treenit kirjataan edelleen tänne käsin."
+        ]
       }
     ]
   },

@@ -15,7 +15,10 @@ from sqlalchemy import delete, select
 
 from app.deps import DB, CurrentUser, require_app
 from app.models import HealthDay, HealthGoal, User, Workout
+from app.services import health_ha, smarthome_conn
+from app.services import homeassistant as ha
 from app.services.achievements import evaluate_achievements
+from app.services.crypto import decrypt_token
 from app.services.health import adult as _adult, goal_progress, may_enter, shared, tick_exercise_tasks, visible
 from app.services.weather import today_local
 
@@ -232,6 +235,9 @@ async def set_day(user_id: uuid.UUID, day: date, payload: DayIn, user: CurrentUs
     for key, value in changes.items():
         setattr(row, key, value)
     row.updated_at = datetime.now(timezone.utc)
+    # Entered by hand: an import from Home Assistant no longer changes what's set on this day.
+    if changes:
+        row.source = "manual"
     # A day with nothing left in it is no day at all.
     empty = all(getattr(row, k) is None for k in ("steps", "sleep_minutes", "weight_kg", "resting_hr"))
     if empty and not new:
@@ -306,6 +312,90 @@ async def delete_goal(goal_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     await db.commit()
 
 
+class SourcesIn(BaseModel):
+    # A sensor per metric, or null to stop reading it.
+    steps: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
+    sleep: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
+    weight: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
+    resting_hr: str | None = Field(default=None, max_length=200, pattern=r"^sensor\.[a-z0-9_]+$")
+
+
+class SourcesOut(BaseModel):
+    # The family has a Home Assistant connection (and may use it).
+    available: bool
+    # It answered just now.
+    reachable: bool = True
+    chosen: dict[str, str | None] = {}
+    synced_at: datetime | None = None
+    candidates: dict[str, list[dict]] = {}
+    taken: int | None = None
+
+
+async def _ha_available(db, user: User) -> bool:
+    from app.deps import require_smarthome_host
+
+    try:
+        await require_smarthome_host(user, db)
+    except HTTPException:
+        return False
+    return await smarthome_conn.primary(db, user.family_id) is not None
+
+
+async def _sources(db, viewer: User, owner: User, with_candidates: bool = True) -> SourcesOut:
+    if not await _ha_available(db, viewer):
+        return SourcesOut(available=False)
+    saved = owner.health_sources or {}
+    metrics = [m for m in health_ha.METRICS if not (m == "weight" and owner.role == "child")]
+    synced = saved.get("synced_at")
+    out = SourcesOut(available=True, chosen={m: saved.get(m) for m in metrics}, synced_at=datetime.fromisoformat(synced) if synced else None)
+    if with_candidates:
+        conn = await smarthome_conn.primary(db, viewer.family_id)
+        try:
+            states = await ha.get_states(conn.base_url, decrypt_token(conn.token_encrypted) if conn.token_encrypted else "")
+            out.candidates = {m: c for m, c in health_ha.candidates(states).items() if m in metrics}
+        except Exception:
+            out.reachable = False
+    return out
+
+
+@router.get("/people/{user_id}/sources", response_model=SourcesOut)
+async def get_sources(user_id: uuid.UUID, user: CurrentUser, db: DB) -> SourcesOut:
+    """The Home Assistant sensors this person's health is read from, and those that could be."""
+    return await _sources(db, user, await _enterable(db, user, user_id))
+
+
+@router.put("/people/{user_id}/sources", response_model=SourcesOut)
+async def set_sources(user_id: uuid.UUID, payload: SourcesIn, user: CurrentUser, db: DB) -> SourcesOut:
+    owner = await _enterable(db, user, user_id)
+    if not await _ha_available(db, user):
+        raise HTTPException(status_code=409, detail="Connect Home Assistant first")
+    chosen = {k: v for k, v in payload.model_dump(exclude_unset=True).items()}
+    if owner.role == "child":
+        chosen.pop("weight", None)
+    merged = {**(owner.health_sources or {}), **chosen}
+    owner.health_sources = merged if any(merged.get(m) for m in health_ha.METRICS) else None
+    await db.commit()
+    out = await _sources(db, user, owner, with_candidates=False)
+    out.taken = await health_ha.sync_person(db, owner) if owner.health_sources else 0
+    await db.refresh(owner)
+    synced = (owner.health_sources or {}).get("synced_at")
+    out.synced_at = datetime.fromisoformat(synced) if synced else None
+    return out
+
+
+@router.post("/people/{user_id}/sync", response_model=SourcesOut)
+async def sync_now(user_id: uuid.UUID, user: CurrentUser, db: DB) -> SourcesOut:
+    """Read the chosen sensors now."""
+    owner = await _enterable(db, user, user_id)
+    if not await _ha_available(db, user):
+        raise HTTPException(status_code=409, detail="Connect Home Assistant first")
+    taken = await health_ha.sync_person(db, owner)
+    await db.refresh(owner)
+    out = await _sources(db, user, owner, with_candidates=False)
+    out.taken = taken
+    return out
+
+
 @router.put("/sharing", response_model=dict[str, str])
 async def set_sharing(payload: ShareIn, user: CurrentUser, db: DB) -> dict[str, str]:
     """Who sees your own health, per kind."""
@@ -335,4 +425,5 @@ async def delete_mine(user: CurrentUser, db: DB) -> None:
     await db.execute(delete(Workout).where(Workout.user_id == user.id))
     await db.execute(delete(HealthDay).where(HealthDay.user_id == user.id))
     user.health_share = None
+    user.health_sources = None
     await db.commit()
