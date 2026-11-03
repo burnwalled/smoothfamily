@@ -318,6 +318,35 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "health": {
+    "title": "Sundhed",
+    "summary": "Din træning og dagens skridt, søvn og vægt – privat eller delt med familien.",
+    "blocks": [
+      {
+        "p": "Log en træning med få tryk – type, minutter og distance, hvis du vil – og dagens skridt, søvn og vægt. Din side viser de seneste fire uger: minutter pr. dag, dine træninger og hvor mange dage i træk du har rørt dig."
+      },
+      {
+        "h": "Hvem ser det"
+      },
+      {
+        "p": "Alt er kun dit, indtil du deler det, slags for slags: træning, skridt, søvn og vægt, hver med kun dig, de voksne eller hele familien. Andre ser det, du deler, i ugens oversigt øverst."
+      },
+      {
+        "steps": [
+          "Åbn Sundhed i menuen.",
+          "Log en træning eller dagens værdier.",
+          "Under Hvem ser din sundhed vælger du, hvad du deler og med hvem."
+        ]
+      },
+      {
+        "tips": [
+          "De voksne ser altid et barns sundhed og kan udfylde den – en forælder kan logge fodboldtræningen.",
+          "Et barns vægt gemmes ikke, og vægt sammenlignes aldrig: den er ikke i oversigten.",
+          "Hent dine egne data som en fil, eller fjern det hele, nederst på din side."
+        ]
+      }
+    ]
+  },
   "twohomes": {
     "title": "To hjem",
     "summary": "Til børn, der bor hos begge forældre: planen, overleveringer og den anden forælder.",

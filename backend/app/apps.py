@@ -26,6 +26,7 @@ APPS: tuple[str, ...] = (
     "emergency",
     "trips",
     "pantry",
+    "health",
 )
 
 # Apps a role doesn't get unless the admin turns them on.
