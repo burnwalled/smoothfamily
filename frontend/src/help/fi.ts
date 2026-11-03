@@ -555,7 +555,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Viivakoodien haun voi ottaa käyttöön kohdassa Perheen asetukset → Jakaminen ja yhteydet; vain viivakoodi lähetetään.",
+          "Viivakoodien haun voi ottaa käyttöön kohdassa Perheen asetukset → Yhteydet; vain viivakoodi lähetetään.",
           "Paikallisen tekoälyn lukema kuitti voi myös täyttää ruokakomeron."
         ]
       }
@@ -761,7 +761,7 @@ const texts: Record<string, TopicText> = {
         "h": "Lapsenvahti tai isovanhemmat"
       },
       {
-        "p": "Tee vieraslinkki kohdassa Perheen asetukset → Jakaminen ja yhteydet: se näyttää hätäkortit sekä valitsemasi osat kalenterista ja listoista muutaman tunnin tai päivän ajan – sitten se lakkaa itsestään."
+        "p": "Tee vieraslinkki kohdassa Perheen asetukset → Perheenjäsenet: se näyttää hätäkortit sekä valitsemasi osat kalenterista ja listoista muutaman tunnin tai päivän ajan – sitten se lakkaa itsestään."
       },
       {
         "h": "Lääkkeet"
@@ -898,7 +898,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "Home Assistantissa: profiilisi → Turvallisuus → Pitkäaikaiset käyttötunnukset → Luo tunnus. Kopioi se.",
-          "Smooth Familyssa: Perheen asetukset → Jakaminen ja yhteydet → Älykoti.",
+          "Smooth Familyssa: Perheen asetukset → Yhteydet → Älykoti.",
           "Kirjoita osoite, esim. http://homeassistant.local:8123, ja tunnus ja napauta Yhdistä.",
           "Lisää näytettävät laitteet ja liitä koti oikeaan asuntoon."
         ]
@@ -929,7 +929,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Tee parikoodi"
       },
       {
-        "p": "Perheen asetukset → Jakaminen ja yhteydet → Älykoti → Lisää koti lisäosan kautta. Anna sille nimi ja valitse asunto; kahdeksanmerkkinen koodi on voimassa 24 tuntia."
+        "p": "Perheen asetukset → Yhteydet → Älykoti → Lisää koti lisäosan kautta. Anna sille nimi ja valitse asunto; kahdeksanmerkkinen koodi on voimassa 24 tuntia."
       },
       {
         "shot": "gateway",
@@ -1108,7 +1108,7 @@ const texts: Record<string, TopicText> = {
         "h": "Mitä missäkin"
       },
       {
-        "p": "Perheenjäsenet: kaikki, jokaisella oma sivunsa (kirjautuminen, sovellukset, kieli, kuva – ja lapselta syntymäpäivä, viikkoraha, Pikkutila, kaksi kotia, lääkkeet ja hätäkortti), sekä muut ihmiset ilman tiliä syntymäpäiviä varten. Arki: kalenterit, koti, Tänään-näkymän lähteet, pistesäännöt, kotitalouden hätäkortti ja lemmikkien lääkkeet. Keittiön näyttö. Jakaminen ja yhteydet: vieraslinkit, älykoti ja paikallinen tekoäly. Turvallisuus ja tiedot: varmuuskopiot ja vienti."
+        "p": "Perheenjäsenet: kaikki, jokaisella oma sivunsa (kirjautuminen, sovellukset, kieli, kuva – ja lapselta syntymäpäivä, viikkoraha, Pikkutila, kaksi kotia, lääkkeet ja hätäkortti), muut ihmiset ilman tiliä syntymäpäiviä varten sekä vieraslinkit lapsenvahdille tai isovanhemmille. Arki: kalenterit, koti, Tänään-näkymän lähteet, pistesäännöt, kotitalouden hätäkortti ja lemmikkien lääkkeet. Keittiön näyttö. Yhteydet: älykoti ja paikallinen tekoäly. Turvallisuus ja tiedot: varmuuskopiot ja vienti."
       },
       {
         "tips": [

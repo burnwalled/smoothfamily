@@ -555,7 +555,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Oppslag av strekkoder kan slås på under Familieinnstillinger → Deling og koblinger; bare strekkoden sendes.",
+          "Oppslag av strekkoder kan slås på under Familieinnstillinger → Koblinger; bare strekkoden sendes.",
           "En kvittering som den lokale AI-en har lest, kan også fylle spiskammeret."
         ]
       }
@@ -761,7 +761,7 @@ const texts: Record<string, TopicText> = {
         "h": "En barnevakt eller besteforeldrene"
       },
       {
-        "p": "Lag en gjestelenke under Familieinnstillinger → Deling og koblinger: den viser nødkortene, og det du velger av kalenderen og listene, i noen timer eller dager – så slutter den av seg selv."
+        "p": "Lag en gjestelenke under Familieinnstillinger → Familiemedlemmer: den viser nødkortene, og det du velger av kalenderen og listene, i noen timer eller dager – så slutter den av seg selv."
       },
       {
         "h": "Medisiner"
@@ -898,7 +898,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "I Home Assistant: profilen din → Sikkerhet → Langtidstilgangstokener → Opprett token. Kopier den.",
-          "I Smooth Family: Familieinnstillinger → Deling og koblinger → Smarthus.",
+          "I Smooth Family: Familieinnstillinger → Koblinger → Smarthus.",
           "Skriv adressen, f.eks. http://homeassistant.local:8123, og tokenet, og trykk Koble til.",
           "Legg til enhetene som skal vises, og koble hjemmet til riktig bolig."
         ]
@@ -929,7 +929,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Lag en koblingskode"
       },
       {
-        "p": "Familieinnstillinger → Deling og koblinger → Smarthus → Legg til et hjem via tillegget. Gi det et navn og velg bolig; koden på åtte tegn gjelder i 24 timer."
+        "p": "Familieinnstillinger → Koblinger → Smarthus → Legg til et hjem via tillegget. Gi det et navn og velg bolig; koden på åtte tegn gjelder i 24 timer."
       },
       {
         "shot": "gateway",
@@ -1108,7 +1108,7 @@ const texts: Record<string, TopicText> = {
         "h": "Hva finnes hvor"
       },
       {
-        "p": "Familiemedlemmer: alle, hver med sin egen side (innlogging, apper, språk, bilde – og for et barn fødselsdag, ukepenger, Lille modus, to hjem, medisin og nødkort), og andre personer uten konto for fødselsdagene deres. Hverdagen: kalendere, hjemmet, Idags kilder, poengreglene, husstandens nødkort og kjæledyrenes medisin. Kjøkkenskjerm. Deling og tilkoblinger: gjestelenker, smarthjemmet og den lokale AI-en. Sikkerhet og data: sikkerhetskopier og eksport."
+        "p": "Familiemedlemmer: alle, hver med sin egen side (innlogging, apper, språk, bilde – og for et barn fødselsdag, ukepenger, Lille modus, to hjem, medisin og nødkort), andre personer uten konto for fødselsdagene deres, og gjestelenker for barnevakten eller besteforeldrene. Hverdagen: kalendere, hjemmet, Idags kilder, poengreglene, husstandens nødkort og kjæledyrenes medisin. Kjøkkenskjerm. Familiemedlemmer: smarthjemmet og den lokale AI-en. Sikkerhet og data: sikkerhetskopier og eksport."
       },
       {
         "tips": [

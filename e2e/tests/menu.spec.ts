@@ -46,7 +46,7 @@ test("the profile is split into tabs", async ({ adminPage: page }) => {
 test("family settings tabs and a kitchen display's widgets", async ({ adminPage: page, adminApi }) => {
   await page.goto("/settings/everyday");
   const tabs = page.getByRole("navigation", { name: "Family settings" });
-  for (const name of ["Family members", "Everyday", "Kitchen display", "Sharing and connections", "Security and data"]) {
+  for (const name of ["Family members", "Everyday", "Kitchen display", "Connections", "Security and data"]) {
     await expect(tabs.getByRole("link", { name, exact: true })).toBeVisible();
   }
   await tabs.getByRole("link", { name: "Kitchen display", exact: true }).click();
