@@ -26,6 +26,10 @@ export function scheduleLabel(task: Task, t: T, dateLocale: string): string {
   switch (task.recurrence) {
     case "daily":
       return (task.interval_days ?? 1) > 1 ? t(task.interval_days === 2 ? "tasks.everyOtherDay" : "tasks.everyNDays", { n: task.interval_days }) : t("tasks.daily");
+    case "workdays":
+      return t("tasks.workdays");
+    case "weekends":
+      return t("tasks.weekends");
     case "weekly": {
       const names = weekdayNames(dateLocale, "short");
       const days = taskWeekdays(task).map((d) => names[d]).join(", ");

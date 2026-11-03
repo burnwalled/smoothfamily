@@ -211,8 +211,11 @@ class Task(Base):
     # the history – stay. A task never done is removed for real instead.
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # none = one-off task (due_date), daily, weekly (weekdays 0=Mon, every interval_weeks weeks
-    # counted from anchor_date), monthly (day_of_month), yearly (month + day_of_month).
+    # counted from anchor_date), monthly (day_of_month), yearly (month + day_of_month); 3.4.0:
+    # workdays (Monday–Friday that aren't red days) and weekends (Saturday, Sunday and the red days).
     recurrence: Mapped[str] = mapped_column(String(20), default="none")
+    # The family's country for the red days (kept with the task so the schedule needs nothing else).
+    holiday_country: Mapped[str | None] = mapped_column(String(6), nullable=True)
     weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # first of weekdays (older clients)
     weekdays: Mapped[list] = mapped_column(JSON, default=list)
     interval_weeks: Mapped[int] = mapped_column(Integer, default=1)

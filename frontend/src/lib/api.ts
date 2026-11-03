@@ -305,7 +305,7 @@ export type Task = {
   description: string | null;
   points: number;
   assignee_id: string | null;
-  recurrence: "none" | "daily" | "weekly" | "monthly" | "yearly";
+  recurrence: "none" | "daily" | "workdays" | "weekends" | "weekly" | "monthly" | "yearly";
   weekday: number | null;
   // Weekly: the weekdays (0 = Monday) and every how many weeks.
   weekdays: number[];

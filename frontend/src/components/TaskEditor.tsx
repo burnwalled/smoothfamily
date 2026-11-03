@@ -153,12 +153,15 @@ export default function TaskEditor({
           <label className="label">{t("tasks.recurrence")}</label>
           <select className="input" value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)} aria-label={t("tasks.recurrence")}>
             <option value="daily">{t("tasks.daily")}</option>
+            <option value="workdays">{t("tasks.workdays")}</option>
+            <option value="weekends">{t("tasks.weekends")}</option>
             <option value="weekly">{t("tasks.weekly")}</option>
             <option value="monthly">{t("tasks.monthly")}</option>
             <option value="yearly">{t("tasks.yearly")}</option>
             <option value="none">{t("tasks.once")}</option>
           </select>
         </div>
+        {(recurrence === "workdays" || recurrence === "weekends") && <p className="text-xs text-muted sm:col-span-2">{t("tasks.redDaysHelp")}</p>}
         {recurrence === "daily" && (
           <div>
             <label className="label">{t("tasks.interval")}</label>
