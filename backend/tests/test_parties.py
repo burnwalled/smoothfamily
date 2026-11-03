@@ -51,6 +51,7 @@ async def test_a_party_from_invitation_to_thanks(client, db_session):
     # A guest replies (with a +1), sees the wish list, reserves a wish and changes the reply later.
     page = (await client.get(f"/api/party/{token}")).json()
     assert page["title"] == "Majas kalas" and page["plus_one"] and page["guests"] == {"coming": 0, "names": []}
+    assert page["language"] == "sv"  # the host's
     assert [w["title"] for w in page["wishes"]] == ["Lego", "Pyssel"]
     sent = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "allergies": "Nötter", "plus_first_name": "Ella", "plus_last_name": "Berg", "plus_allergies": "Laktos"})).json()
     key = sent["key"]

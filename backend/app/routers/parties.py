@@ -487,9 +487,12 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         if party.thanks_album_id:
             photos = [str(m.id) for m in (await db.execute(select(MediaItem).where(MediaItem.album_id == party.thanks_album_id, MediaItem.kind == "image").order_by(MediaItem.created_at))).scalars()][:200]
         thanks = {"text": party.thanks_text, "photos": photos}
-    admin = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
+    # The host's language (whoever made the party), else the family admin's.
+    host = await db.get(User, party.created_by) if party.created_by else None
+    if host is None:
+        host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
-        "language": (admin.language if admin else None) or "en",
+        "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
         "invitation": party.invitation, "rsvp_by": party.rsvp_by, "plus_one": party.plus_one, "open": _open_for_replies(party),
