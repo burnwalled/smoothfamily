@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { fieldErrors } from "@/lib/fieldErrors";
 import { APP_PAGES } from "@/lib/nav";
+import { GuestLinks } from "@/components/safety/Emergency";
 import { COLORS } from "@/lib/colors";
 import MemberAvatar from "@/components/MemberAvatar";
 import People from "@/components/birthdays/People";
@@ -104,9 +105,13 @@ export default function MembersSettingsPage() {
       </>
       )}
     </section>
-    {/* Grandma and others without an account: for the birthdays (a guest link under Sharing lets them see more). */}
+    {/* Grandma and others without an account: for the birthdays (a guest link lets them see more). */}
     <div id="people" className="scroll-mt-20">
       <People others />
+    </div>
+    {/* Guests: a babysitter or the grandparents, for some hours or days, without an account. */}
+    <div id="guests" className="scroll-mt-20">
+      <GuestLinks />
     </div>
     </div>
   );

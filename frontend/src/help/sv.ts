@@ -555,7 +555,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Uppslagning av streckkoder kan slås på under Familjeinställningar → Delning och kopplingar; bara streckkoden skickas.",
+          "Uppslagning av streckkoder kan slås på under Familjeinställningar → Kopplingar; bara streckkoden skickas.",
           "Ett kvitto som den lokala AI:n läst kan också fylla skafferiet."
         ]
       }
@@ -761,7 +761,7 @@ const texts: Record<string, TopicText> = {
         "h": "En barnvakt eller mor- och farföräldrar"
       },
       {
-        "p": "Gör en gästlänk under Familjeinställningar → Delning och kopplingar: den visar nödkorten, och det du väljer av kalendern och listorna, i några timmar eller dagar – sedan slutar den av sig själv."
+        "p": "Gör en gästlänk under Familjeinställningar → Familjemedlemmar: den visar nödkorten, och det du väljer av kalendern och listorna, i några timmar eller dagar – sedan slutar den av sig själv."
       },
       {
         "h": "Mediciner"
@@ -898,7 +898,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "I Home Assistant: din profil → Säkerhet → Långlivade åtkomsttokens → Skapa token. Kopiera den.",
-          "I Smooth Family: Familjeinställningar → Delning och kopplingar → Smarta hemmet.",
+          "I Smooth Family: Familjeinställningar → Kopplingar → Smarta hemmet.",
           "Skriv adressen, t.ex. http://homeassistant.local:8123, och token, och tryck Anslut.",
           "Lägg till enheterna som ska synas, och koppla hemmet till rätt bostad."
         ]
@@ -929,7 +929,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Gör en kopplingskod"
       },
       {
-        "p": "Familjeinställningar → Delning och kopplingar → Smarta hemmet → Lägg till ett hem via tillägget. Ge det ett namn och välj bostad; koden på åtta tecken gäller i 24 timmar."
+        "p": "Familjeinställningar → Kopplingar → Smarta hemmet → Lägg till ett hem via tillägget. Ge det ett namn och välj bostad; koden på åtta tecken gäller i 24 timmar."
       },
       {
         "shot": "gateway",
@@ -1108,7 +1108,7 @@ const texts: Record<string, TopicText> = {
         "h": "Vad finns var"
       },
       {
-        "p": "Familjemedlemmar: alla, var och en med en egen sida (inloggning, appar, språk, bild – och för ett barn födelsedag, veckopeng, Lilla läget, två hem, medicin och nödkort), och andra personer utan konto för deras födelsedagar. Vardagen: kalendrar, hemmet, Idags källor, poängreglerna, hushållets nödkort och husdjurens medicin. Köksskärm. Delning och kopplingar: gästlänkar, smarta hemmet och den lokala AI:n. Säkerhet och data: backuper och export."
+        "p": "Familjemedlemmar: alla, var och en med en egen sida (inloggning, appar, språk, bild – och för ett barn födelsedag, veckopeng, Lilla läget, två hem, medicin och nödkort), andra personer utan konto för deras födelsedagar, och gästlänkar för barnvakten eller mor- och farföräldrar. Vardagen: kalendrar, hemmet, Idags källor, poängreglerna, hushållets nödkort och husdjurens medicin. Köksskärm. Familjemedlemmar: smarta hemmet och den lokala AI:n. Säkerhet och data: backuper och export."
       },
       {
         "tips": [

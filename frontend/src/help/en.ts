@@ -761,7 +761,7 @@ const texts: Record<string, TopicText> = {
         "h": "A babysitter or the grandparents"
       },
       {
-        "p": "Make a guest link under Family settings → Sharing: it shows the emergency cards, and what you choose of the calendar and the lists, for some hours or days – then it stops by itself."
+        "p": "Make a guest link under Family settings → Family members: it shows the emergency cards, and what you choose of the calendar and the lists, for some hours or days – then it stops by itself."
       },
       {
         "h": "Medicines"
@@ -898,7 +898,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "In Home Assistant: your profile → Security → Long-lived access tokens → Create token. Copy it.",
-          "In Smooth Family: Family settings → Sharing and connections → Smart home.",
+          "In Smooth Family: Family settings → Connections → Smart home.",
           "Enter the address, e.g. http://homeassistant.local:8123, and the token, and tap Connect.",
           "Add the devices that should show, and link the home to the right property."
         ]
@@ -929,7 +929,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Make a pairing code"
       },
       {
-        "p": "Family settings → Sharing and connections → Smart home → Add a home through the add-on. Give it a name and choose the property; the eight-character code is valid for 24 hours."
+        "p": "Family settings → Connections → Smart home → Add a home through the add-on. Give it a name and choose the property; the eight-character code is valid for 24 hours."
       },
       {
         "shot": "gateway",
@@ -1108,7 +1108,7 @@ const texts: Record<string, TopicText> = {
         "h": "What's where"
       },
       {
-        "p": "Family members: everyone, each with a page of their own (sign-in, apps, language, picture – and a child's birthday, allowance, little ones' mode, two homes, medicines and emergency card), and other people without an account for their birthdays. Everyday: calendars, the home, Today's sources, the points' rules, the household's emergency card and the pets' medicines. Kitchen display. Sharing and connections: guest links, the smart home and the local AI. Security and data: backups and export."
+        "p": "Family members: everyone, each with a page of their own (sign-in, apps, language, picture – and a child's birthday, allowance, little ones' mode, two homes, medicines and emergency card), other people without an account for their birthdays, and guest links for a babysitter or the grandparents. Everyday: calendars, the home, Today's sources, the points' rules, the household's emergency card and the pets' medicines. Kitchen display. Family members: the smart home and the local AI. Security and data: backups and export."
       },
       {
         "tips": [
