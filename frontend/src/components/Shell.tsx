@@ -266,7 +266,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]" data-live={live ? "on" : "off"}>
-      <aside className="hidden md:flex flex-col bg-primary-900 text-primary-100 p-5">
+      {/* Stays put while the page scrolls; scrolls on its own if it's taller than the screen. */}
+      <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto flex-col bg-primary-900 text-primary-100 p-5">
         <div className="mb-8">
           <div className="flex items-center gap-2">
             <img src="/logo-mark-on-dark.svg" alt="" className="h-8 w-8" />
