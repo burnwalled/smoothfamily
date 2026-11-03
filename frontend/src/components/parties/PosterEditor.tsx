@@ -12,14 +12,14 @@ import type { PartyTheme } from "@/lib/partyThemes";
 import { themeStyle } from "@/lib/partyThemes";
 import {
   Align, BLOCK_TYPES, Block, BlockType, CALENDAR_BUTTONS, DETAIL_FIELDS, DecorItem, FONT_CHOICES, FontChoice, PosterData, Side, TOKENS, TextStyle,
-  blankBlock, defaultPoster, fill, fontFamily,
+  Stage, blankBlock, defaultPoster, fill, fontFamily,
 } from "@/lib/poster";
 import Poster from "@/components/parties/Poster";
 import { LIBRARY, libraryUrl } from "@/lib/partyLibrary";
 
 type Asset = { id: string; v: string | null };
 type Props = {
-  partyId: string; theme: PartyTheme; data: PosterData; layout: Block[] | null; assets: Asset[];
+  partyId: string; theme: PartyTheme; data: PosterData; layout: Block[] | null; assets: Asset[]; stage: Stage; device: "desktop" | "phone";
   onSaved: (detail: unknown) => void;
 };
 
@@ -33,11 +33,11 @@ function Seg<T extends string>({ value, options, onChange, label }: { value: T; 
   );
 }
 
-export default function PosterEditor({ partyId, theme, data, layout, assets, onSaved }: Props) {
+export default function PosterEditor({ partyId, theme, data, layout, assets, stage, device, onSaved }: Props) {
   const { t } = useI18n();
   const T = (k: string, v?: Record<string, string | number>) => t(k as TranslationKey, v);
-  const start = useMemo(() => layout?.length ? layout : defaultPoster(theme, data, T), // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout, theme.key]);
+  const start = useMemo(() => layout?.length ? layout : defaultPoster(theme, data, T, stage), // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layout, theme.key, stage]);
   const [blocks, setBlocks] = useState<Block[]>(start);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<BlockType>("text");
@@ -77,14 +77,14 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
       setError(e instanceof Error ? e.message : t("common.error"));
     }
   }
-  const save = () => run(async () => { const r = await api.put(path, { layout: blocks }); setDirty(false); return r; }, t("poster.saved"));
+  const save = () => run(async () => { const r = await api.put(path, { layouts: { [stage]: blocks } }); setDirty(false); return r; }, t("poster.saved"));
   const reset = () => {
     if (!window.confirm(t("poster.resetConfirm"))) return;
-    void run(async () => { const r = await api.put(path, { layout: [] }); setBlocks(defaultPoster(theme, data, T)); setDirty(false); setSelected(null); return r; }, t("poster.resetDone"));
+    void run(async () => { const r = await api.put(path, { layouts: { [stage]: [] } }); setBlocks(defaultPoster(theme, data, T, stage)); setDirty(false); setSelected(null); return r; }, t("poster.resetDone"));
   };
   const upload = (file: File) => run(() => uploadFile(`${path}/assets`, file), t("poster.pictureAdded"));
   const assetUrl = (id: string) => `${path}/assets/${id}?v=${assets.find((a) => a.id === id)?.v ?? ""}`;
-  const preview: PosterData = { ...data, asset: assetUrl };
+  const preview: PosterData = { ...data, asset: assetUrl, thanks: stage === "thanks" };
 
   const textStyle = (b: Block & TextStyle, role: "display" | "script" | "body") => (
     <div className="space-y-2">
@@ -256,11 +256,12 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="pt overflow-hidden rounded-2xl border border-edge" style={{ ...themeStyle(theme), minHeight: 0 }} onClick={() => setSelected(null)}>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className={`pt overflow-hidden rounded-2xl border border-edge ${device === "phone" ? "mx-auto w-[390px] max-w-full" : "w-full"}`} style={{ ...themeStyle(theme), minHeight: 0 }} onClick={() => setSelected(null)}>
         <div className="h-2" style={{ background: theme.band }} />
         <div className="px-4 py-6 sm:px-8">
           <Poster blocks={blocks} d={preview} theme={theme} selected={selected} onSelect={setSelected} />
+          {stage === "invite" && <p className="pt-card mt-6 p-4 text-center text-sm text-muted">{t("poster.replyBelow")}</p>}
         </div>
       </div>
       <div className="min-w-0 space-y-3">

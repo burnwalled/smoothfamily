@@ -170,10 +170,12 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
   try {
     await page.goto(`/parties?id=${made.id}`);
     await page.getByRole("button", { name: "Poster" }).click();
-    const parts = page.getByRole("region", { name: "The poster's parts" });
+    // The invitation's poster, in the full-screen editor.
+    await page.getByRole("region", { name: "The posters" }).getByRole("listitem").filter({ hasText: "Invitation" }).getByRole("button", { name: "Edit" }).click();
+    const parts = page.getByRole("dialog").getByRole("region", { name: "The poster's parts" });
     // The welcome line: a text of our own, centred, in the gala handwriting.
     await parts.getByRole("button", { name: /^Text Welcome to/ }).click();
-    const settings = page.getByRole("region", { name: "The part's settings" });
+    const settings = page.getByRole("dialog").getByRole("region", { name: "The part's settings" });
     await settings.getByRole("textbox", { name: "The text", exact: true }).fill("Skål för {namn}!");
     await settings.getByRole("radio", { name: "Centred" }).click();
     // The decoration row: a champagne bottle instead of the first emoji.
@@ -186,8 +188,7 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
     await settings.getByRole("option", { name: "Disco ball" }).click();
     // The calendar: Google and Outlook only.
     await parts.getByRole("button", { name: /^Calendar buttons/ }).click();
-    await settings.getByLabel("Calendar file (.ics)").uncheck();
-    await settings.getByLabel("Apple Calendar").uncheck();
+    await settings.getByLabel("Apple Calendar and others (.ics)").uncheck();
     await parts.getByRole("button", { name: "Save the poster" }).click();
     await expect(parts.getByRole("status")).toContainText("Saved");
 
@@ -199,8 +200,41 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
     await expect(g.locator('img[src="/party-assets/disco-ball.webp"]').first()).toBeVisible();
     await expect(g.getByRole("link", { name: "Google Calendar" })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/render/);
     await expect(g.getByRole("link", { name: "Outlook" })).toHaveAttribute("href", /outlook\.live\.com/);
-    await expect(g.getByRole("link", { name: "Calendar file (.ics)" })).toHaveCount(0);
+    await expect(g.getByRole("link", { name: "Apple Calendar and others (.ics)" })).toHaveCount(0);
     await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${made.id}`);
+  }
+});
+
+// Before the invitation, a save-the-date; on the day, the portal where the guests upload their photos.
+test("a save-the-date, then the party day's portal", async ({ adminPage: page, adminApi, browser }) => {
+  const title = unique("Portalfest");
+  const made = await (await adminApi.post("/api/parties", { data: { title, kind: "party", page_theme: "glamour", starts_at: new Date(Date.now() + 30 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 30 * 86_400_000 + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${made.id}`);
+    await page.getByRole("button", { name: "Poster" }).click();
+    await page.getByLabel("The link shows").selectOption("save");
+    await page.getByRole("button", { name: "Open the portal" }).click();
+    const portal = await page.getByLabel("The portal's link").inputValue();
+
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${made.link.split("/party/")[1]}`);
+    await expect(g.getByText(/Save the date! ·/)).toBeVisible();
+    await expect(g.getByRole("region", { name: "Will you come?" })).toHaveCount(0);
+    await expect(g.getByRole("link", { name: "Google Calendar" })).toBeVisible();
+
+    await g.goto(portal.replace(/^https?:\/\/[^/]+/, ""));
+    await expect(g.getByText(title).first()).toBeVisible();
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    await g.getByLabel("Your name (optional)").fill("Saga");
+    await g.locator('input[type="file"]').setInputFiles({ name: "bild.png", mimeType: "image/png", buffer: png });
+    await expect(g.getByRole("status")).toContainText("1 shared");
+    await guest.close();
+    await page.reload();
+    await page.getByRole("button", { name: "Poster" }).click();
+    await expect(page.getByText("1 photos from the guests")).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${made.id}`);
   }

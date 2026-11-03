@@ -185,6 +185,8 @@ _MAIL = {
         "answers": ("coming", "not coming"), "plus": "with {name}",
         "decided": ("{title}: the date is set", "The date for {title} is set – see you then!"),
         "voted": "you voted for {n} date(s)",
+        "subscribed": ("{title}: you'll hear from us", "Thank you, {name}! Save the date – we'll send the invitation when it's ready."),
+        "invited": ("{title}: the invitation is here", "The invitation to {title} is here – reply on the party's page."),
         "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
     },
     "sv": {
@@ -196,6 +198,8 @@ _MAIL = {
         "answers": ("kommer", "kommer inte"), "plus": "med {name}",
         "decided": ("{title}: datumet är bestämt", "Datumet för {title} är bestämt – vi ses då!"),
         "voted": "du har röstat på {n} datum",
+        "subscribed": ("{title}: du hör av oss", "Tack, {name}! Spara datumet – vi skickar inbjudan när den är klar."),
+        "invited": ("{title}: inbjudan är här", "Inbjudan till {title} är här – svara på festens sida."),
         "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
     },
     "nb": {
@@ -207,6 +211,8 @@ _MAIL = {
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
         "decided": ("{title}: datoen er bestemt", "Datoen for {title} er bestemt – vi ses da!"),
         "voted": "du har stemt på {n} dato(er)",
+        "subscribed": ("{title}: du hører fra oss", "Takk, {name}! Sett av datoen – vi sender invitasjonen når den er klar."),
+        "invited": ("{title}: invitasjonen er her", "Invitasjonen til {title} er her – svar på festens side."),
         "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
     },
     "da": {
@@ -218,6 +224,8 @@ _MAIL = {
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
         "decided": ("{title}: datoen er fastlagt", "Datoen for {title} er fastlagt – vi ses!"),
         "voted": "du har stemt på {n} dato(er)",
+        "subscribed": ("{title}: du hører fra os", "Tak, {name}! Gem datoen – vi sender invitationen, når den er klar."),
+        "invited": ("{title}: invitationen er her", "Invitationen til {title} er her – svar på festens side."),
         "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
     },
     "fi": {
@@ -229,6 +237,8 @@ _MAIL = {
         "answers": ("tulee", "ei tule"), "plus": "seuranaan {name}",
         "decided": ("{title}: päivä on päätetty", "Päivä on päätetty: {title} – nähdään silloin!"),
         "voted": "äänestit {n} päivää",
+        "subscribed": ("{title}: kuulet meistä", "Kiitos, {name}! Merkitse päivä – lähetämme kutsun, kun se on valmis."),
+        "invited": ("{title}: kutsu on täällä", "Kutsu juhliin {title} on täällä – vastaa juhlien sivulla."),
         "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
     },
 }
@@ -342,8 +352,12 @@ class PartyChange(BaseModel):
     thanks_theme: str | None = Field(default=None, pattern=THANKS_PATTERN)
     page_custom_id: uuid.UUID | None = None
     thanks_custom_id: uuid.UUID | None = None
-    # The poster's blocks; [] or None = the theme's own.
+    # The poster's blocks; [] or None = the theme's own. layouts: the same for each poster by its stage.
     layout: list[dict] | None = Field(default=None, max_length=60)
+    layouts: dict[str, list[dict] | None] | None = None
+    phase: str | None = Field(default=None, pattern=r"^(save|invite)$")
+    playlist_url: str | None = Field(default=None, max_length=300, pattern=r"^$|^https://open\.spotify\.com/[\w/?=&.-]+$")
+    portal_gallery: bool | None = None
     date_poll: bool | None = None
     date_options: list[datetime] | None = Field(default=None, max_length=12)
 
@@ -465,6 +479,11 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
 
 
 LAYOUT_BYTES = 60_000
+STAGES = {"save": "save_layout", "invite": "layout", "portal": "portal_layout", "thanks": "thanks_layout"}
+
+
+def _layouts(party: Party) -> dict:
+    return {stage: getattr(party, col) for stage, col in STAGES.items()}
 
 
 def _clean_layout(blocks: list[dict] | None) -> list[dict] | None:
@@ -551,7 +570,7 @@ def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
         "companions": g.companions or [], "updated_at": g.updated_at,
-        "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [],
+        "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "pending": bool(g.pending),
     }
 
 
@@ -612,7 +631,8 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "rsvp_by": party.rsvp_by, "bring": party.bring, "show_guests": party.show_guests, "wishlist": party.wishlist,
         "person_ids": [str(x) for x in party.person_ids or ([party.person_id] if party.person_id else [])],
         "page_custom_id": party.page_custom_id, "thanks_custom_id": party.thanks_custom_id, "invite_image": _version(party.invite_image_key),
-        "layout": party.layout, "assets": _assets_out(party),
+        "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
+        "portal": await _portal_out(db, party, request),
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
@@ -620,7 +640,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "mail": await _mail_ready(db, party), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
-        "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
+        "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming and not g.pending), "signed_up": sum(1 for g in guests if g.pending), "allergies": allergies,
         "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who} for t in tasks],
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title} for s in steps],
@@ -761,6 +781,13 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             changes[key] = _dt(changes[key])
     if "layout" in changes:
         changes["layout"] = _clean_layout(changes["layout"])
+    for stage, blocks in (changes.pop("layouts", None) or {}).items():
+        if stage not in STAGES:
+            raise HTTPException(status_code=422, detail="No such poster")
+        changes[STAGES[stage]] = _clean_layout(blocks)
+    if "playlist_url" in changes:
+        changes["playlist_url"] = changes["playlist_url"] or None
+    was_save = party.phase == "save"
     if changes.get("date_options") is not None:
         changes["date_options"] = _options(changes["date_options"])
     if changes.get("date_poll") and len(changes.get("date_options") or party.date_options or []) < 2:
@@ -774,7 +801,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "bring") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -784,6 +811,8 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     base = await public_base(db, request)
     if not party.date_poll and (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address) != before[:4]:
         await mail_guests(db, party, "change", base=base)
+    if was_save and party.phase == "invite":
+        await mail_guests(db, party, "invited", base=base)
     if party.thanks_published and not before[4]:
         await mail_guests(db, party, "thanks", base=base, text=party.thanks_text or "")
     return await _detail(db, party, request)
@@ -897,6 +926,45 @@ async def asset_picture(party_id: uuid.UUID, asset_id: str, user: AdultUser, db:
 async def invite_picture(party_id: uuid.UUID, user: AdultUser, db: DB) -> Response:
     party = await _mine(db, user, party_id)
     return _picture(party.family_id, party.invite_image_key)
+
+
+async def _portal_out(db: AsyncSession, party: Party, request: Request | None) -> dict | None:
+    if not party.portal_token_encrypted:
+        return None
+    link = f"{await public_base(db, request)}/fest/{decrypt_token(party.portal_token_encrypted)}"
+    photos = 0
+    if party.portal_album_id:
+        photos = (await db.execute(select(func.count()).select_from(MediaItem).where(MediaItem.album_id == party.portal_album_id))).scalar_one()
+    return {"open": party.portal_open, "link": link, "qr_svg": qr_svg(link), "album_id": party.portal_album_id, "photos": photos, "gallery": party.portal_gallery}
+
+
+@router.post("/{party_id}/portal")
+async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    """Turn on the party day's portal: its link and QR code, and the album the guests' photos go to."""
+    party = await _mine(db, user, party_id)
+    if not party.portal_token_encrypted:
+        token = secrets.token_urlsafe(18)
+        party.portal_token_hash, party.portal_token_encrypted = _hash(token), encrypt_token(token)
+    if party.portal_album_id is None or await db.get(Album, party.portal_album_id) is None:
+        album = Album(family_id=party.family_id, name=f"{party.title} – {_ALBUM_NAME.get(user.language or 'en', _ALBUM_NAME['en'])}", created_by=user.id, created_at=datetime.now(timezone.utc))
+        db.add(album)
+        await db.flush()
+        party.portal_album_id = album.id
+    party.portal_open = True
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/portal")
+async def close_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    """Close the portal; the photos stay in the album."""
+    party = await _mine(db, user, party_id)
+    party.portal_open = False
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+_ALBUM_NAME = {"en": "the guests' photos", "sv": "gästernas bilder", "nb": "gjestenes bilder", "da": "gæsternes billeder", "fi": "vieraiden kuvat"}
 
 
 @router.post("/{party_id}/link")
@@ -1078,7 +1146,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         "date_poll": party.date_poll, "date_options": party.date_options or [],
         "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
         "invite_image": _version(party.invite_image_key),
-        "layout": party.layout, "assets": _assets_out(party),
+        "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
         "tally": _tally(party, guests, names=party.show_guests == "names") if party.date_poll and party.show_guests != "none" else None,
         "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
@@ -1115,6 +1183,37 @@ async def public_theme_picture(token: str, theme_id: uuid.UUID, slot: str, reque
     return _picture(party.family_id, getattr(theme, f"{slot}_key"))
 
 
+class SubscribeIn(BaseModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(default="", max_length=80)
+    email: str = Field(max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@public.post("/{token}/subscribe")
+async def subscribe(token: str, payload: SubscribeIn, request: Request, db: DB, key: str | None = None) -> dict:
+    """From the save-the-date: a name and an e-mail for the updates (the invitation when it's out).
+    The key kept in the browser turns it into the reply later."""
+    party = await _open(db, token, request)
+    if not await _mail_ready(db, party):
+        raise HTTPException(status_code=409, detail="E-mail isn't set up on this server")
+    guest = None
+    if key:
+        guest = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.key_hash == _hash(key)))).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    if guest is None:
+        count = (await db.execute(select(func.count()).select_from(PartyGuest).where(PartyGuest.party_id == party.id))).scalar_one()
+        if count >= 500:
+            raise HTTPException(status_code=409, detail="Too many replies")
+        key = secrets.token_urlsafe(18)
+        guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), created_at=now, coming=False, pending=True)
+        db.add(guest)
+    guest.first_name, guest.last_name = payload.first_name.strip(), payload.last_name.strip()
+    guest.email, guest.updates, guest.updated_at = payload.email.strip().lower(), True, now
+    await db.commit()
+    await mail_guests(db, party, "subscribed", guests=[guest], base=await public_base(db, request))
+    return {"key": key, "mine": _guest_out(guest)}
+
+
 @public.post("/{token}/reply")
 async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str | None = None) -> dict:
     """The guest's reply – or, with the key their browser kept, a change to it."""
@@ -1134,6 +1233,7 @@ async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str
         guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), created_at=now)
         db.add(guest)
     asked_now = data.get("updates") and not guest.updates
+    guest.pending = False
     for k, v in data.items():
         setattr(guest, k, v)
     guest.updated_at = now
@@ -1287,3 +1387,92 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
         await db.commit()
         sent += await mail_guests(db, party, "remind", guests=coming, base=await public_base(db))
     return sent
+
+
+# --- The party day's portal, through its own link ---------------------------------------------
+
+portal = APIRouter(prefix="/api/party-portal", tags=["party-portal"])
+PORTAL_PHOTOS = 1000
+
+
+async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
+    ip = login_throttle.client_ip(request)
+    if login_throttle.ip_retry_after(ip):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    party = (await db.execute(select(Party).where(Party.portal_token_hash == _hash(token)))).scalar_one_or_none()
+    if party is None or not party.portal_open:
+        login_throttle.record_ip_failure(ip)
+        raise HTTPException(status_code=404, detail="This link isn't valid")
+    return party
+
+
+@portal.get("/{token}")
+async def portal_page(token: str, request: Request, response: Response, db: DB) -> dict:
+    """The day's page: what, when and where, the plan, the poster, and the photos so far."""
+    party = await _portal(db, token, request)
+    response.headers.update(NO_STORE)
+    family = await db.get(Family, party.family_id)
+    steps = (await db.execute(select(PartyStep).where(PartyStep.party_id == party.id).order_by(PartyStep.at))).scalars().all()
+    photos = []
+    if party.portal_gallery and party.portal_album_id:
+        photos = [str(m.id) for m in (await db.execute(select(MediaItem).where(MediaItem.album_id == party.portal_album_id, MediaItem.kind == "image").order_by(MediaItem.created_at.desc()))).scalars()][:300]
+    return {
+        "title": party.title, "kind": party.kind, "emoji": party.emoji, "family_name": family.name if family else "", "language": await _host_language(db, party),
+        "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme, "invitation": party.invitation,
+        "page_theme": party.page_theme, "page_custom": await _custom(db, party, party.page_custom_id), "invite_image": _version(party.invite_image_key),
+        "layout": party.portal_layout, "assets": _assets_out(party), "playlist_url": party.playlist_url,
+        "steps": [{"at": s.at, "title": s.title} for s in steps], "gallery": party.portal_gallery, "photos": photos,
+    }
+
+
+@portal.post("/{token}/photos", status_code=status.HTTP_201_CREATED)
+async def portal_upload(token: str, request: Request, file: UploadFile, db: DB, name: str = Query(default="", max_length=60)) -> dict:
+    """A guest's photo (or short film) from the party, into the family's album for it."""
+    from app.routers.albums import ALLOWED_TYPES, store_upload
+
+    party = await _portal(db, token, request)
+    album = await db.get(Album, party.portal_album_id) if party.portal_album_id else None
+    host = await db.get(User, party.created_by) if party.created_by else None
+    if album is None or host is None:
+        raise HTTPException(status_code=409, detail="The portal has no album")
+    count = (await db.execute(select(func.count()).select_from(MediaItem).where(MediaItem.album_id == album.id))).scalar_one()
+    if count >= PORTAL_PHOTOS:
+        raise HTTPException(status_code=409, detail="The album is full")
+    original = file.filename or "photo"
+    file.filename = f"{name.strip()[:60]} – {original}" if name.strip() else original
+    out = await store_upload(file, album, host, db, ALLOWED_TYPES)
+    return {"id": str(out.id)}
+
+
+@portal.get("/{token}/photos/{item_id}")
+async def portal_photo(token: str, item_id: uuid.UUID, request: Request, db: DB, variant: str = Query(default="thumb", pattern=r"^(thumb|view)$")) -> Response:
+    party = await _portal(db, token, request)
+    item = await db.get(MediaItem, item_id)
+    if not party.portal_gallery or item is None or item.album_id != party.portal_album_id or item.kind != "image":
+        raise HTTPException(status_code=404, detail="Not found")
+    storage = get_storage()
+    key = item.storage_key.rsplit(".", 1)[0] + ("_thumb.jpg" if variant == "thumb" else "_web.jpg")
+    if not storage.exists(item.family_id, key):
+        raise HTTPException(status_code=404, detail="Not found")
+    return Response(content=storage.open(item.family_id, key).read_bytes(), media_type="image/jpeg", headers=NO_STORE)
+
+
+@portal.get("/{token}/picture")
+async def portal_invite_picture(token: str, request: Request, db: DB) -> Response:
+    party = await _portal(db, token, request)
+    return _picture(party.family_id, party.invite_image_key)
+
+
+@portal.get("/{token}/assets/{asset_id}")
+async def portal_asset(token: str, asset_id: str, request: Request, db: DB) -> Response:
+    party = await _portal(db, token, request)
+    return _picture(party.family_id, next((a["key"] for a in party.assets or [] if a["id"] == asset_id), None))
+
+
+@portal.get("/{token}/themes/{theme_id}/{slot}")
+async def portal_theme_picture(token: str, theme_id: uuid.UUID, slot: str, request: Request, db: DB) -> Response:
+    party = await _portal(db, token, request)
+    theme = await db.get(PartyTheme, theme_id)
+    if theme is None or theme.id != party.page_custom_id or slot not in ("header", "background"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return _picture(party.family_id, getattr(theme, f"{slot}_key"))

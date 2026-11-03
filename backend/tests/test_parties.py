@@ -332,3 +332,60 @@ async def test_the_poster_is_the_hosts_own(client):
     assert (await client.put(f"/api/parties/{party['id']}", json={"layout": []})).json()["layout"] is None
     party = (await client.delete(f"/api/parties/{party['id']}/assets/{asset}")).json()
     assert party["assets"] == []
+
+
+async def test_save_the_date_then_the_invitation_and_the_portal(client, monkeypatch):
+    import io
+
+    from httpx import ASGITransport, AsyncClient
+    from PIL import Image
+
+    from app.main import app
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    start = (datetime.now(timezone.utc) + timedelta(days=60)).replace(hour=18, minute=0, second=0, microsecond=0)
+    party = (await client.post("/api/parties", json=_party(start, kind="party", title="40-årsfest"))).json()
+    party = (await client.put(f"/api/parties/{party['id']}", json={"phase": "save", "playlist_url": "https://open.spotify.com/playlist/abc123", "layouts": {"save": [{"id": "s1", "type": "text", "text": "Spara datumet!"}]}})).json()
+    assert party["phase"] == "save" and party["layouts"]["save"][0]["text"] == "Spara datumet!" and party["layouts"]["invite"] is None
+    assert (await client.put(f"/api/parties/{party['id']}", json={"playlist_url": "https://evil.example/x"})).status_code == 422
+    token = party["link"].rsplit("/", 1)[1]
+
+    # A guest signs up from the save-the-date: not a reply yet, but told when the invitation is out.
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["phase"] == "save" and page["playlist_url"].endswith("abc123")
+    signed = (await client.post(f"/api/party/{token}/subscribe", json={"first_name": "Saga", "email": "Saga@Example.com"})).json()
+    assert "Spara datumet" in sent[-1][2] or "Save the date" in sent[-1][2]
+    detail = (await client.get(f"/api/parties/{party['id']}")).json()
+    assert detail["signed_up"] == 1 and detail["not_coming"] == 0 and detail["coming"] == 0
+    party = (await client.put(f"/api/parties/{party['id']}", json={"phase": "invite"})).json()
+    assert sent[-1][0] == "saga@example.com" and "inbjudan" in sent[-1][1].lower()
+    # Her reply with the same key: the sign-up becomes the reply.
+    await client.post(f"/api/party/{token}/reply?key={signed['key']}", json={"first_name": "Saga", "email": "saga@example.com", "updates": True})
+    detail = (await client.get(f"/api/parties/{party['id']}")).json()
+    assert detail["signed_up"] == 0 and detail["coming"] == 1 and len(detail["guests"]) == 1
+
+    # The portal: closed until the hosts open it; then the guests upload, into an album in the vault.
+    assert detail["portal"] is None
+    detail = (await client.post(f"/api/parties/{party['id']}/portal")).json()
+    portal = detail["portal"]["link"].rsplit("/", 1)[1]
+    assert detail["portal"]["open"] and "<svg" in detail["portal"]["qr_svg"]
+    guest = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    info = (await guest.get(f"/api/party-portal/{portal}")).json()
+    assert info["title"] == "40-årsfest" and info["photos"] == []
+    buf = io.BytesIO()
+    Image.new("RGB", (800, 600), "#d9a94a").save(buf, "JPEG")
+    up = await guest.post(f"/api/party-portal/{portal}/photos?name=Saga", files={"file": ("bild.jpg", buf.getvalue(), "image/jpeg")})
+    assert up.status_code == 201
+    info = (await guest.get(f"/api/party-portal/{portal}")).json()
+    assert info["photos"] == [up.json()["id"]]
+    assert (await guest.get(f"/api/party-portal/{portal}/photos/{up.json()['id']}")).status_code == 200
+    media = (await client.get(f"/api/albums/{detail['portal']['album_id']}/media")).json()
+    assert len(media) == 1 and media[0]["original_name"].startswith("Saga")
+    assert (await guest.post(f"/api/party-portal/{portal}/photos", files={"file": ("x.txt", b"hello", "text/plain")})).status_code == 422
+    await client.delete(f"/api/parties/{party['id']}/portal")
+    assert (await guest.get(f"/api/party-portal/{portal}")).status_code == 404
+    await guest.aclose()
