@@ -8,14 +8,17 @@
 // reservations are here.
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarHeart, Check, Copy, Gift, Heart, ImagePlus, ListChecks, Plus, Share2, Trash2, Users, Wallet, Clock } from "lucide-react";
+import { ArrowLeft, CalendarHeart, Check, Copy, Gift, Heart, ImagePlus, ListChecks, Palette, Plus, Share2, Trash2, Users, Wallet, Clock } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import ThemePicker from "@/components/parties/ThemePicker";
-import { kindTheme } from "@/lib/partyThemes";
+import { CustomTheme, customTheme, kindTheme, partyTheme } from "@/lib/partyThemes";
+import PosterEditor from "@/components/parties/PosterEditor";
+import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
+import type { Block, PosterData } from "@/lib/poster";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; date_poll: boolean; coming: number; replies: number; tasks_left: number };
 type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
@@ -25,6 +28,7 @@ type Detail = {
   emoji: string; color: string; invitation: string; rsvp_by: string | null; bring: "none" | "one" | "family"; person_ids: string[]; show_guests: "none" | "count" | "names"; wishlist: boolean;
   budget: number | null; spent: number; thanks_text: string; thanks_album_id: string | null; thanks_published: boolean; link: string; qr_svg: string;
   page_theme: string; thanks_theme: string; page_custom_id: string | null; thanks_custom_id: string | null; invite_image: string | null; mail: boolean; subscribers: number;
+  layout: Block[] | null; assets: { id: string; v: string | null }[];
   // A party whose date the guests vote on (the options' starts).
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
@@ -40,9 +44,9 @@ const KINDS = ["child_birthday", "birthday", "party", "dinner", "match", "bbq", 
 const EMOJIS: Record<string, string> = { child_birthday: "🎈", birthday: "🎂", party: "🎉", dinner: "🍽️", match: "⚽", bbq: "🔥", outdoor: "☀️" };
 // What one reply may bring, to begin with: a child's friends come alone, a dinner's guests as families.
 const KIND_BRING: Record<string, string> = { child_birthday: "none", birthday: "one", party: "one", dinner: "family", match: "one", bbq: "family", outdoor: "family" };
-const TABS = ["invite", "guests", "tasks", "budget", "timeline", "thanks"] as const;
+const TABS = ["invite", "poster", "guests", "tasks", "budget", "timeline", "thanks"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_ICONS: Record<Tab, typeof Users> = { invite: CalendarHeart, guests: Users, tasks: ListChecks, budget: Wallet, timeline: Clock, thanks: Heart };
+const TAB_ICONS: Record<Tab, typeof Users> = { invite: CalendarHeart, poster: Palette, guests: Users, tasks: ListChecks, budget: Wallet, timeline: Clock, thanks: Heart };
 
 const localInput = (iso: string) => {
   const d = new Date(iso);
@@ -276,6 +280,8 @@ function withDefaults(d: Detail): Detail {
     page_custom_id: d.page_custom_id ?? null,
     thanks_custom_id: d.thanks_custom_id ?? null,
     invite_image: d.invite_image ?? null,
+    layout: d.layout ?? null,
+    assets: d.assets ?? [],
     date_poll: d.date_poll ?? false,
     date_options: d.date_options ?? [],
     tally: d.tally ?? [],
@@ -335,6 +341,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       </nav>
       {error && <p className="text-sm text-red-700">{error}</p>}
       {tab === "invite" && <InviteTab party={party} change={change} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
+      {tab === "poster" && <PosterTab party={party} />}
       {tab === "guests" && <GuestsTab party={party} run={run} path={path} />}
       {tab === "tasks" && <TasksTab party={party} run={run} path={path} />}
       {tab === "budget" && <BudgetTab party={party} run={run} path={path} change={change} />}
@@ -416,6 +423,24 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
       </section>
     </div>
   );
+}
+
+// The invitation's poster, made by the hosts.
+function PosterTab({ party }: { party: Detail }) {
+  const { dateLocale } = useI18n();
+  const me = useMe();
+  const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
+  const custom = own?.find((x) => x.id === party.page_custom_id);
+  if (party.page_theme === "custom" && !own) return null;
+  const theme = party.page_theme === "custom" && custom ? customTheme(custom, hostPicture(custom.id)) : partyTheme(party.page_theme);
+  const path = `/api/parties/${party.id}`;
+  const data: PosterData = {
+    title: party.title, family: me.family_name, emoji: party.emoji, start: new Date(party.starts_at), end: new Date(party.ends_at), place: party.place, address: party.address,
+    theme: party.theme, invitation: party.invitation, rsvp: party.rsvp_by ? new Date(`${party.rsvp_by}T12:00:00`) : null, poll: party.date_poll,
+    guests: party.show_guests === "none" ? null : { coming: party.coming, names: party.show_guests === "names" ? party.guests.filter((g) => g.coming).map((g) => `${g.first_name} ${g.last_name}`.trim()) : undefined },
+    locale: dateLocale, inviteImage: party.invite_image ? `${path}/picture?v=${party.invite_image}` : null, asset: () => "", ics: `/api/parties/${party.id}`, thanks: false,
+  };
+  return <PosterEditor key={`${party.page_theme}:${party.page_custom_id ?? ""}`} partyId={party.id} theme={theme} data={data} layout={party.layout} assets={party.assets} onSaved={(r) => setApiData<Detail>(path, () => withDefaults(r as Detail))} />;
 }
 
 // A picture on the invitation – the birthday child, the place, anything.

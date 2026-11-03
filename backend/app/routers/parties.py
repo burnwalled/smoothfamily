@@ -342,6 +342,8 @@ class PartyChange(BaseModel):
     thanks_theme: str | None = Field(default=None, pattern=THANKS_PATTERN)
     page_custom_id: uuid.UUID | None = None
     thanks_custom_id: uuid.UUID | None = None
+    # The poster's blocks; [] or None = the theme's own.
+    layout: list[dict] | None = Field(default=None, max_length=60)
     date_poll: bool | None = None
     date_options: list[datetime] | None = Field(default=None, max_length=12)
 
@@ -460,6 +462,28 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
             theme = await db.get(PartyTheme, data[key])
             if theme is None or theme.family_id != user.family_id:
                 raise HTTPException(status_code=404, detail="Theme not found")
+
+
+LAYOUT_BYTES = 60_000
+
+
+def _clean_layout(blocks: list[dict] | None) -> list[dict] | None:
+    """The poster's blocks as the editor sent them: plain data (texts, choices), not too big.
+    The guests' page only ever shows it as text – nothing in it runs."""
+    import json
+
+    if not blocks:
+        return None
+    if len(json.dumps(blocks)) > LAYOUT_BYTES:
+        raise HTTPException(status_code=422, detail="The poster is too big")
+    for b in blocks:
+        if not isinstance(b.get("type"), str) or not isinstance(b.get("id"), str):
+            raise HTTPException(status_code=422, detail="A block needs a type and an id")
+    return blocks
+
+
+def _assets_out(party: Party) -> list[dict]:
+    return [{"id": a["id"], "v": _version(a["key"])} for a in party.assets or []]
 
 
 def _version(key: str | None) -> str | None:
@@ -588,6 +612,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "rsvp_by": party.rsvp_by, "bring": party.bring, "show_guests": party.show_guests, "wishlist": party.wishlist,
         "person_ids": [str(x) for x in party.person_ids or ([party.person_id] if party.person_id else [])],
         "page_custom_id": party.page_custom_id, "thanks_custom_id": party.thanks_custom_id, "invite_image": _version(party.invite_image_key),
+        "layout": party.layout, "assets": _assets_out(party),
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
@@ -734,6 +759,8 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     for key in ("starts_at", "ends_at"):
         if changes.get(key) is not None:
             changes[key] = _dt(changes[key])
+    if "layout" in changes:
+        changes["layout"] = _clean_layout(changes["layout"])
     if changes.get("date_options") is not None:
         changes["date_options"] = _options(changes["date_options"])
     if changes.get("date_poll") and len(changes.get("date_options") or party.date_options or []) < 2:
@@ -796,8 +823,10 @@ async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, u
 async def delete_party(party_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     party = await _mine(db, user, party_id)
     event_id = party.event_id
-    if party.invite_image_key and get_storage().exists(party.family_id, party.invite_image_key):
-        get_storage().delete(party.family_id, party.invite_image_key)
+    storage = get_storage()
+    for key in [party.invite_image_key, *(a["key"] for a in party.assets or [])]:
+        if key and storage.exists(party.family_id, key):
+            storage.delete(party.family_id, key)
     for model in (PartyGuest, PartyTask, PartyExpense, PartyStep):
         await db.execute(delete(model).where(model.party_id == party.id))
     await db.delete(party)
@@ -823,6 +852,45 @@ async def remove_invite_picture(party_id: uuid.UUID, request: Request, user: Adu
     party.invite_image_key = None
     await db.commit()
     return await _detail(db, party, request)
+
+
+MAX_ASSETS = 30
+
+
+@router.post("/{party_id}/assets")
+async def add_asset(party_id: uuid.UUID, file: UploadFile, request: Request, user: AdultUser, db: DB) -> dict:
+    """A picture of the hosts' own for the poster – a sticker in place of an emoji, a photo, a frame."""
+    party = await _mine(db, user, party_id)
+    assets = list(party.assets or [])
+    if len(assets) >= MAX_ASSETS:
+        raise HTTPException(status_code=409, detail="Too many pictures")
+    asset_id = secrets.token_hex(6)
+    key = _save_picture(party.family_id, f"{party.id}-asset-{asset_id}", await _read_picture(file), None)
+    assets.append({"id": asset_id, "key": key})
+    party.assets = assets
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/assets/{asset_id}")
+async def remove_asset(party_id: uuid.UUID, asset_id: str, request: Request, user: AdultUser, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    keep = []
+    for a in party.assets or []:
+        if a["id"] == asset_id:
+            if get_storage().exists(party.family_id, a["key"]):
+                get_storage().delete(party.family_id, a["key"])
+        else:
+            keep.append(a)
+    party.assets = keep or None
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.get("/{party_id}/assets/{asset_id}")
+async def asset_picture(party_id: uuid.UUID, asset_id: str, user: AdultUser, db: DB) -> Response:
+    party = await _mine(db, user, party_id)
+    return _picture(party.family_id, next((a["key"] for a in party.assets or [] if a["id"] == asset_id), None))
 
 
 @router.get("/{party_id}/picture")
@@ -1010,6 +1078,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         "date_poll": party.date_poll, "date_options": party.date_options or [],
         "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
         "invite_image": _version(party.invite_image_key),
+        "layout": party.layout, "assets": _assets_out(party),
         "tally": _tally(party, guests, names=party.show_guests == "names") if party.date_poll and party.show_guests != "none" else None,
         "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
@@ -1022,6 +1091,12 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
 async def _custom(db: AsyncSession, party: Party, theme_id: uuid.UUID | None) -> dict | None:
     theme = await db.get(PartyTheme, theme_id) if theme_id else None
     return _theme_out(theme) if theme is not None and theme.family_id == party.family_id else None
+
+
+@public.get("/{token}/assets/{asset_id}")
+async def public_asset(token: str, asset_id: str, request: Request, db: DB) -> Response:
+    party = await _open(db, token, request)
+    return _picture(party.family_id, next((a["key"] for a in party.assets or [] if a["id"] == asset_id), None))
 
 
 @public.get("/{token}/picture")

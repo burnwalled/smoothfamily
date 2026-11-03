@@ -161,3 +161,40 @@ test("a party kept from an older version still opens", async ({ adminPage: page,
     await adminApi.delete(`/api/parties/${made.id}`);
   }
 });
+
+// The hosts make the poster their own: a text of theirs, their emoji, the calendar buttons they want.
+test("the hosts edit the invitation's poster", async ({ adminPage: page, adminApi, browser }) => {
+  const title = unique("Affischfest");
+  const made = await (await adminApi.post("/api/parties", { data: { title, kind: "party", page_theme: "glamour", place: "Folkets hus", starts_at: new Date(Date.now() + 20 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 20 * 86_400_000 + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${made.id}`);
+    await page.getByRole("button", { name: "Poster" }).click();
+    const parts = page.getByRole("region", { name: "The poster's parts" });
+    // The welcome line: a text of our own, centred, in the gala handwriting.
+    await parts.getByRole("button", { name: /^Text Welcome to/ }).click();
+    const settings = page.getByRole("region", { name: "The part's settings" });
+    await settings.getByRole("textbox", { name: "The text", exact: true }).fill("Skål för {title}!");
+    await settings.getByRole("radio", { name: "Centred" }).click();
+    // The decoration row: a champagne bottle instead of the first emoji.
+    await parts.getByRole("button", { name: /^Decoration row/ }).click();
+    await settings.getByRole("textbox", { name: "Emoji" }).first().fill("🍾");
+    // The calendar: Google and Outlook only.
+    await parts.getByRole("button", { name: /^Calendar buttons/ }).click();
+    await settings.getByLabel("Calendar file (.ics)").uncheck();
+    await settings.getByLabel("Apple Calendar").uncheck();
+    await parts.getByRole("button", { name: "Save the poster" }).click();
+    await expect(parts.getByRole("status")).toContainText("Saved");
+
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${made.link.split("/party/")[1]}`);
+    await expect(g.getByText(`Skål för ${title}!`)).toBeVisible();
+    await expect(g.getByText("🍾")).toBeVisible();
+    await expect(g.getByRole("link", { name: "Google Calendar" })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/render/);
+    await expect(g.getByRole("link", { name: "Outlook" })).toHaveAttribute("href", /outlook\.live\.com/);
+    await expect(g.getByRole("link", { name: "Calendar file (.ics)" })).toHaveCount(0);
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${made.id}`);
+  }
+});
