@@ -175,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Kuka ajaa ja mitä pakataan"
       },
       {
-        "p": "Napauta tapahtuman vieressä Kyydit ja pakkaus – kalenterissa tai sunnuntaikatsauksessa – kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
+        "p": "Napauta tapahtuman vieressä Kyydit ja pakkaus – kalenterissa tai sunnuntaikatsauksessa – kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku – tai kirjoita kohdassa Joku muu, kuka perheen ulkopuolelta ajaa, esimerkiksi joukkuekaverin vanhempi. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
       },
       {
         "shot": "calendar-month",

@@ -1290,6 +1290,9 @@ class EventPlan(Base):
     needs_ride: Mapped[bool] = mapped_column(Boolean, default=False)
     drop_off_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     pick_up_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Someone outside the family drives (3.4.0): free text, e.g. "Saga's dad" – instead of a member.
+    drop_off_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    pick_up_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # Packing list items ticked off for this occurrence.
     checked: Mapped[list] = mapped_column(JSON, default=list)
     ride_alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

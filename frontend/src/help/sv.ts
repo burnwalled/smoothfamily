@@ -175,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Vem kör, och vad ska packas"
       },
       {
-        "p": "Tryck på Skjuts & packning vid en händelse – i kalendern eller i Söndagskollen – för att säga att skjuts behövs och ta lämningen eller hämtningen. Ge den en packlista: samma lista kommer tillbaka för varje händelse med samma titel, som varje fotbollsträning, och bockas av för varje gång. En vuxen kan välja dagen då det är dags att packa, och den som ska dit får en uppgift den dagen."
+        "p": "Tryck på Skjuts & packning vid en händelse – i kalendern eller i Söndagskollen – för att säga att skjuts behövs och ta lämningen eller hämtningen – eller, med Någon annan, skriva vem utanför familjen som kör, till exempel en lagkompis förälder. Ge den en packlista: samma lista kommer tillbaka för varje händelse med samma titel, som varje fotbollsträning, och bockas av för varje gång. En vuxen kan välja dagen då det är dags att packa, och den som ska dit får en uppgift den dagen."
       },
       {
         "shot": "calendar-month",

@@ -268,6 +268,9 @@ class EventOut(BaseModel):
     needs_ride: bool = False
     drop_off_by: uuid.UUID | None = None
     pick_up_by: uuid.UUID | None = None
+    # Someone outside the family drives (3.4.0), instead of a member.
+    drop_off_text: str | None = None
+    pick_up_text: str | None = None
     packing: list[PackingItem] = []
     # The day it's time to pack: a task per member going (2.9.0).
     pack_tasks: list["PackTask"] = []

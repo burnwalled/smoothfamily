@@ -175,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Who drives, and what to pack"
       },
       {
-        "p": "Tap Rides & packing next to an event – in the calendar or the Sunday check-in – to say that a ride is needed and take the drop-off or the pick-up. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
+        "p": "Tap Rides & packing next to an event – in the calendar or the Sunday check-in – to say that a ride is needed and take the drop-off or the pick-up – or, with Someone else, write who outside the family drives, such as a teammate's parent. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
       },
       {
         "shot": "calendar-month",

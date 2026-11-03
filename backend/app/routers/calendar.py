@@ -183,6 +183,8 @@ class PlanTarget(BaseModel):
 class RideIn(PlanTarget):
     leg: Literal["drop_off", "pick_up"]
     claim: bool
+    # Someone outside the family takes it (3.4.0): their name as free text, e.g. "Saga's dad".
+    other: str | None = Field(default=None, max_length=80)
 
 
 class NeedsRideIn(PlanTarget):
@@ -204,6 +206,8 @@ class PlanOut(BaseModel):
     needs_ride: bool
     drop_off_by: uuid.UUID | None
     pick_up_by: uuid.UUID | None
+    drop_off_text: str | None = None
+    pick_up_text: str | None = None
     packing: list[PackingItem]
     pack_tasks: list[PackTask] = []
 
@@ -248,25 +252,49 @@ async def _plan_out(db, user: User, plan: EventPlan) -> PlanOut:
     await db.commit()
     probe = EventOut(feed_name="", color="", title=plan.title, start=plan.start, end=plan.start, all_day=False, key=plan.key)
     [event] = await attach_plans(db, user.family_id, [probe])
-    return PlanOut(key=plan.key, needs_ride=event.needs_ride, drop_off_by=event.drop_off_by, pick_up_by=event.pick_up_by, packing=event.packing, pack_tasks=event.pack_tasks)
+    return PlanOut(
+        key=plan.key, needs_ride=event.needs_ride, drop_off_by=event.drop_off_by, pick_up_by=event.pick_up_by,
+        drop_off_text=event.drop_off_text, pick_up_text=event.pick_up_text, packing=event.packing, pack_tasks=event.pack_tasks,
+    )
 
 
 @router.post("/plan/ride", response_model=PlanOut)
 async def claim_ride(payload: RideIn, user: CurrentUser, db: DB) -> PlanOut:
-    """"I'm driving" / "I'll pick up" – or let go of it again."""
+    """"I'm driving" / "I'll pick up", or someone outside the family does (`other`) – or let go of it
+    again."""
     if user.role == "child":
         raise HTTPException(status_code=403, detail="Only adults can drive")
     plan = await _plan(db, user, payload)
-    column = "drop_off_by" if payload.leg == "drop_off" else "pick_up_by"
-    current = getattr(plan, column)
+    by, text = f"{payload.leg}_by", f"{payload.leg}_text"
+    other = (payload.other or "").strip() or None
     if payload.claim:
-        if current is not None and current != user.id:
+        taken_by_someone = (getattr(plan, by) not in (None, user.id)) or (getattr(plan, text) and other is None)
+        if taken_by_someone:
             raise HTTPException(status_code=409, detail="Someone else has already taken it")
-        setattr(plan, column, user.id)
+        setattr(plan, by, None if other else user.id)
+        setattr(plan, text, other)
         plan.needs_ride = True
     else:
-        setattr(plan, column, None)
+        setattr(plan, by, None)
+        setattr(plan, text, None)
     return await _plan_out(db, user, plan)
+
+
+@router.get("/plan/others", response_model=list[str])
+async def other_drivers(user: CurrentUser, db: DB) -> list[str]:
+    """The names of people outside the family who have driven lately – the latest first – to choose
+    again with a tap."""
+    rows = (
+        await db.execute(
+            select(EventPlan.drop_off_text, EventPlan.pick_up_text).where(EventPlan.family_id == user.family_id).order_by(EventPlan.start.desc()).limit(200)
+        )
+    ).all()
+    seen: list[str] = []
+    for row in rows:
+        for name in row:
+            if name and name.casefold() not in {s.casefold() for s in seen}:
+                seen.append(name)
+    return seen[:8]
 
 
 @router.post("/plan/needs-ride", response_model=PlanOut)

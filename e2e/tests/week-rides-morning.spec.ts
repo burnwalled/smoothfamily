@@ -17,6 +17,12 @@ test("who drives and the packing list on an event", async ({ adminPage: page, ad
     await panel.getByRole("button", { name: "I'm driving" }).click();
     await expect(panel.getByText("You", { exact: true })).toBeVisible();
     await expect(panel.getByRole("button", { name: "I'll pick up" })).toBeVisible();
+    // 3.4.0: someone outside the family picks up.
+    await panel.getByRole("button", { name: "Someone else…" }).click();
+    await panel.getByLabel("Who outside the family: Pick-up").fill("Saga's dad");
+    await panel.getByRole("button", { name: "Save" }).click();
+    await expect(panel.getByText("Saga's dad")).toBeVisible();
+    await expect(page.locator("li").filter({ hasText: title }).getByText(/Saga's dad/).first()).toBeVisible();
 
     await panel.getByRole("button", { name: "Add list" }).click();
     await panel.getByLabel("Things to bring, one per line").fill("Shin guards\nWater bottle");

@@ -88,6 +88,8 @@ async def attach_plans(db: AsyncSession, family_id: uuid.UUID, events: list[Even
             event.needs_ride = plan.needs_ride
             event.drop_off_by = plan.drop_off_by
             event.pick_up_by = plan.pick_up_by
+            event.drop_off_text = plan.drop_off_text
+            event.pick_up_text = plan.pick_up_text
     return events
 
 
