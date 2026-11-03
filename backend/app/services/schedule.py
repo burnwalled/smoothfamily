@@ -29,6 +29,11 @@ def due_on(task: Task, day: date) -> bool:
         return False
     if getattr(task, "medication_id", None) is not None and task.anchor_date is not None and day < task.anchor_date:
         return False
+    if task.recurrence in ("workdays", "weekends"):
+        from app.services.holidays import is_red
+
+        off = day.weekday() >= 5 or is_red(getattr(task, "holiday_country", None), day)
+        return off if task.recurrence == "weekends" else not off
     if task.recurrence == "daily":
         every = getattr(task, "interval_days", 1) or 1
         if every <= 1:

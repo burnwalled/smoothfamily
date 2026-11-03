@@ -488,8 +488,16 @@ async def create_task(payload: TaskCreate, user: CurrentUser, db: DB, force: boo
     return await _create_task(payload, user, db, force)
 
 
+async def _family_country(db, family_id) -> str | None:
+    from app.models import Family
+
+    family = await db.get(Family, family_id)
+    return family.holiday_country if family else None
+
+
 async def _create_task(payload: TaskCreate, user: User, db, force: bool) -> Task:
     schedule = _normalized_schedule(payload.model_dump())
+    schedule["holiday_country"] = await _family_country(db, user.family_id)
     if payload.assignee_id is not None:
         assignee = await db.get(User, payload.assignee_id)
         if assignee is None or assignee.family_id != user.family_id:
@@ -553,6 +561,7 @@ async def update_task(task_id: uuid.UUID, payload: TaskUpdate, user: CurrentUser
             # "Every other week / day / month" counts from when it was set up.
             data["anchor_date"] = date.today()
         data.update(schedule)
+        data["holiday_country"] = await _family_country(db, task.family_id)
     if data.get("assignee_id") is not None:
         assignee = await db.get(User, data["assignee_id"])
         if assignee is None or assignee.family_id != user.family_id:

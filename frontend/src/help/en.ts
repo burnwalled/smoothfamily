@@ -734,6 +734,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "A task can repeat every workday (Monday–Friday that aren't red days) or every weekend day and red day – walking the dog, feeding the cat. The red days follow the family's country, so Christmas, Easter and Midsummer's Eve count as weekend by themselves.",
           "Any schedule: every day or every other day, chosen weekdays (weekdays, the weekend), every few weeks, a date or a weekday of the month (the first Saturday), every few months, once a year – with points. Pets, the home and vehicles have their recurring tasks with the same choices.",
           "Children can suggest tasks; an adult turns them into tasks or declines.",
           "Points go to the shop and the allowance – see those topics.",
@@ -990,6 +991,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "A pet with its care."
+      },
+      {
+        "tips": [
+          "A task can repeat every workday (Monday–Friday that aren't red days) or every weekend day and red day – walking the dog, feeding the cat. The red days follow the family's country, so Christmas, Easter and Midsummer's Eve count as weekend by themselves."
+        ]
       }
     ]
   },

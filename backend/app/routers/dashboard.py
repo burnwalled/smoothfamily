@@ -349,6 +349,12 @@ async def set_holidays(payload: HolidaysIn, admin: FamilyManager, db: DB) -> Sou
     """The family's public holidays in the calendar (3.4.0)."""
     family = await db.get(Family, admin.family_id)
     family.holiday_country = payload.country
+    # The tasks follow: every workday and every weekend day know the new red days.
+    from sqlalchemy import update
+
+    from app.models import Task
+
+    await db.execute(update(Task).where(Task.family_id == family.id).values(holiday_country=payload.country))
     await db.commit()
     return await sources(admin, db)
 
