@@ -709,7 +709,7 @@ const nb: Dictionary = {
   "color.red": "Rød",
   "color.gold": "Gull",
   "settings.feedColor": "Farge",
-  "settings.icalGuideLink": "Trinnvise guider for Google, Outlook, iCloud og SportAdmin",
+  "settings.icalGuideLink": "Trinnvise guider for Google, Outlook, iCloud, SportAdmin, MyClub og laget.se",
   "settings.language": "Språk",
   "settings.memberLanguage": "Språk i appen",
   "member.listHint": "Åpne et medlem for alt om personen: innlogging, språk, apper, bilde – og for et barn fødselsdag, ukepenger, medisin og nødkort.",

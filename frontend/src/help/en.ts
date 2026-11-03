@@ -253,6 +253,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (club and team calendar)",
+            "blocks": [
+              {
+                "steps": [
+                  "Open the club's website on MyClub (clubname.myclub.se) and go to the team's calendar, or the page about subscribing to the calendar.",
+                  "Copy the subscription link. A team's looks like webcal://calendar.myclub.se/public/teams/12345/calendar.ics – the whole club's has /public/clubs/ instead.",
+                  "Paste the link in Smooth Family."
+                ]
+              },
+              {
+                "note": "Can't find the link? Ask the team leader for the calendar's subscription link – it's the same one the club gives for iPhone and Google. Add one subscription per team, give each its own color, and choose the child it concerns."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (club and team calendar)",
+            "blocks": [
+              {
+                "steps": [
+                  "Open the team's page on laget.se, for example laget.se/TeamName.",
+                  "Go to Kalender (calendar) and click Prenumerera (subscribe) below the calendar.",
+                  "Copy the link. It looks like webcal://cal.laget.se/TeamName.ics – the same name as in the team's laget.se address.",
+                  "Paste the link in Smooth Family."
+                ]
+              },
+              {
+                "note": "The calendar from laget.se covers a month back and six months ahead. Add one subscription per team, give each its own color, and choose the child it concerns."
+              }
+            ]
+          },
+          {
             "title": "Add the link in Smooth Family",
             "blocks": [
               {

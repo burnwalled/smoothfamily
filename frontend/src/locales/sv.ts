@@ -709,7 +709,7 @@ const sv: Dictionary = {
   "color.red": "Röd",
   "color.gold": "Guld",
   "settings.feedColor": "Färg",
-  "settings.icalGuideLink": "Steg-för-steg-guider för Google, Outlook, iCloud och SportAdmin",
+  "settings.icalGuideLink": "Steg-för-steg-guider för Google, Outlook, iCloud, SportAdmin, MyClub och laget.se",
   "settings.language": "Språk",
   "settings.memberLanguage": "Språk i appen",
   "member.listHint": "Öppna en medlem för allt om personen: inloggning, språk, appar, bild – och för ett barn födelsedag, veckopeng, medicin och nödkort.",

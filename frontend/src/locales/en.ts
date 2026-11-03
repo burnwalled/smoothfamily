@@ -717,7 +717,7 @@ const en = {
   "color.red": "Red",
   "color.gold": "Gold",
   "settings.feedColor": "Color",
-  "settings.icalGuideLink": "Step-by-step guides for Google, Outlook, iCloud and SportAdmin",
+  "settings.icalGuideLink": "Step-by-step guides for Google, Outlook, iCloud, SportAdmin, MyClub and laget.se",
   "settings.language": "Language",
   "settings.memberLanguage": "Language in the app",
   "member.listHint": "Open a member for everything about them: sign-in, language, apps, picture – and for a child the birthday, allowance, medicines and emergency card.",
