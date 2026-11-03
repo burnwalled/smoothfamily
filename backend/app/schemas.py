@@ -16,10 +16,10 @@ SUPPORTED_LANGUAGES = r"^(en|sv|nb|da|fi)$"
 SUPPORTED_THEMES = r"^(forest|ocean|sunset|lavender|midnight|sand|berry|citrus|aurora)$"
 # Menu sections a user can reorder or hide ("today" can't be hidden).
 NavSection = Literal[
-    "today", "calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry"
+    "today", "calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry", "health"
 ]
 # Apps the family admin can turn on or off per member (see app/apps.py).
-AppKey = Literal["calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry"]
+AppKey = Literal["calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry", "health"]
 
 
 def _clean(value):

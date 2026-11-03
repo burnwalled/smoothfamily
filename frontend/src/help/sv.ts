@@ -318,6 +318,35 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "health": {
+    "title": "Hälsa",
+    "summary": "Din träning och dagens steg, sömn och vikt – privat eller delat med familjen.",
+    "blocks": [
+      {
+        "p": "Logga ett träningspass med några tryck – typ, minuter och sträcka om du vill – och dagens steg, sömn och vikt. Din sida visar de senaste fyra veckorna: minuter per dag, dina pass och hur många dagar i rad du har rört dig."
+      },
+      {
+        "h": "Vem ser det"
+      },
+      {
+        "p": "Allt är bara ditt tills du delar det, sort för sort: träning, steg, sömn och vikt, var och en med bara dig, de vuxna eller hela familjen. Andra ser det du delar i veckans översikt överst."
+      },
+      {
+        "steps": [
+          "Öppna Hälsa i menyn.",
+          "Logga ett pass eller dagens värden.",
+          "Under Vem ser din hälsa väljer du vad du delar och med vem."
+        ]
+      },
+      {
+        "tips": [
+          "De vuxna ser alltid ett barns hälsa och kan fylla i den – en förälder kan logga fotbollsträningen.",
+          "Ett barns vikt sparas inte, och vikt jämförs aldrig: den finns inte i översikten.",
+          "Ladda ner din egen data som en fil, eller ta bort allt, längst ner på din sida."
+        ]
+      }
+    ]
+  },
   "twohomes": {
     "title": "Två hem",
     "summary": "För barn som bor hos båda föräldrarna: schemat, överlämningar och den andra föräldern.",

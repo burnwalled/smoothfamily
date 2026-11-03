@@ -318,6 +318,35 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "health": {
+    "title": "Health",
+    "summary": "Your workouts and the day's steps, sleep and weight – private, or shared with the family.",
+    "blocks": [
+      {
+        "p": "Log a workout in a few taps – the kind, the minutes, and a distance if you like – and the day's steps, sleep and weight. Your page shows the last four weeks: minutes a day, your workouts and the days in a row you've moved."
+      },
+      {
+        "h": "Who sees it"
+      },
+      {
+        "p": "Everything is yours alone until you share it, kind by kind: workouts, steps, sleep and weight, each with only you, the adults or the whole family. Others see what you share in the week's overview at the top."
+      },
+      {
+        "steps": [
+          "Open Health in the menu.",
+          "Log a workout or the day's numbers.",
+          "Under Who sees your health, choose what to share and with whom."
+        ]
+      },
+      {
+        "tips": [
+          "The adults always see a child's health and can enter it – a parent can log the football practice.",
+          "A child's weight isn't kept, and weight is never compared: it's not in the overview.",
+          "Download your own data as a file, or remove it all, at the bottom of your page."
+        ]
+      }
+    ]
+  },
   "twohomes": {
     "title": "Two homes",
     "summary": "For children who live with both parents: the schedule, handovers and the other parent.",

@@ -132,6 +132,9 @@ class User(Base):
     ha_person_entity: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ha_travel_entity: Mapped[str | None] = mapped_column(String(200), nullable=True)
     presence_share: Mapped[str] = mapped_column(String(10), default="off", server_default="off")
+    # Health (3.4.0): who sees what – {"workouts" | "steps" | "sleep" | "weight": "me" | "adults" | "family"};
+    # what isn't set is "me". The adults always see a child's.
+    health_share: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     @property
     def apps(self) -> list[str]:
@@ -1897,3 +1900,43 @@ class BankImported(Base):
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     digest: Mapped[str] = mapped_column(String(64))
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Workout(Base):
+    """A workout someone did (3.4.0): entered by hand, or later from a connected source (source and
+    external_id keep a second import from adding it twice)."""
+
+    __tablename__ = "workouts"
+    __table_args__ = (UniqueConstraint("user_id", "source", "external_id", name="uq_workout_source"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    # walk | run | bike | swim | gym | ski | sport | yoga | play | other
+    kind: Mapped[str] = mapped_column(String(12))
+    minutes: Mapped[int] = mapped_column(Integer)
+    distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    note: Mapped[str] = mapped_column(String(300), default="")
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
+    external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HealthDay(Base):
+    """One person's numbers for one day (3.4.0): steps, sleep, weight and resting pulse – each optional."""
+
+    __tablename__ = "health_days"
+    __table_args__ = (UniqueConstraint("user_id", "day", name="uq_health_day"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    steps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sleep_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resting_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

@@ -318,6 +318,35 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "health": {
+    "title": "Terveys",
+    "summary": "Liikuntasi sekä päivän askeleet, uni ja paino – yksityisesti tai perheen kanssa jaettuna.",
+    "blocks": [
+      {
+        "p": "Kirjaa liikunta muutamalla napautuksella – laji, minuutit ja halutessasi matka – sekä päivän askeleet, uni ja paino. Sivusi näyttää viimeiset neljä viikkoa: minuutit päivässä, treenisi ja montako päivää putkeen olet liikkunut."
+      },
+      {
+        "h": "Kuka sen näkee"
+      },
+      {
+        "p": "Kaikki on vain sinun, kunnes jaat sen, tieto kerrallaan: liikunta, askeleet, uni ja paino, kukin vain sinulle, aikuisille tai koko perheelle. Muut näkevät jakamasi viikon yhteenvedossa ylhäällä."
+      },
+      {
+        "steps": [
+          "Avaa Terveys valikosta.",
+          "Kirjaa liikunta tai päivän arvot.",
+          "Kohdassa Kuka näkee terveytesi valitset, mitä jaat ja kenelle."
+        ]
+      },
+      {
+        "tips": [
+          "Aikuiset näkevät aina lapsen terveystiedot ja voivat täyttää niitä – vanhempi voi kirjata jalkapallotreenit.",
+          "Lapsen painoa ei tallenneta, eikä painoa koskaan verrata: se ei näy yhteenvedossa.",
+          "Lataa omat tietosi tiedostona tai poista kaikki sivusi alalaidasta."
+        ]
+      }
+    ]
+  },
   "twohomes": {
     "title": "Kaksi kotia",
     "summary": "Lapsille, jotka asuvat molempien vanhempien luona: aikataulu, vaihdot ja toinen vanhempi.",
