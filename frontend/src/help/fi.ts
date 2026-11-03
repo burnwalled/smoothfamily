@@ -357,6 +357,10 @@ const texts: Record<string, TopicText> = {
         "p": "Kohdassa Kalenteri → Juhlat suunnittelet lasten synttärit, juhlat tai illallisen. Vieraat saavat yhteisen kutsusivun – ilman tiliä – jolla he lukevat juhlista, lisäävät ne omaan kalenteriinsa ja vastaavat etu- ja sukunimellä sekä mahdollisilla allergioilla, ja +1:llä, jos sallitte sen. He voivat muuttaa vastaustaan myöhemmin samalla laitteella. Te valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee, tai nimet."
       },
       {
+        "shot": "parties",
+        "caption": "Juhlien seitsemän vaihetta – tässä ulkoasu: neljä sivua, soittolista ja portaali."
+      },
+      {
         "steps": [
           "Kalenteri → Juhlat → Uudet juhlat: nimi, laji, kenen juhlat, aika ja paikka – sitten juhlat vievät sinut seitsemän vaiheen läpi.",
           "1 Tiedot ja teema · 2 Ulkoasu: merkitse päivä, kutsu, juhlaportaali ja kiitos, kullakin oma juliste · 3 Vieraat: ketkä tulevat, allergiat, sähköpostiosoitteet – ja oma kutsuttujen lista.",
@@ -364,10 +368,18 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "shot": "partyinvite",
+        "caption": "Vieraiden kutsu: juliste juhlien teemassa, tiedot, kalenteripainikkeet ja vastaus."
+      },
+      {
         "h": "Suunnittelu"
       },
       {
         "p": "Uudet juhlat alkavat tarkistuslistalla – jaa kutsu, kakku, koristeet, muistuta vastaamattomia, laske vieraat, ostokset ja kiitokset – päivämäärineen; joka aamu, kun jokin pitää tehdä, aikuiset saavat muistutuksen. Muokatkaa sitä vapaasti. Budjetti seuraa käytettyä suhteessa budjettiin, Aikataulu päivän suunnitelmaa (lasten synttärit alkavat valmiilla)."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Juhlaportaali QR-koodista: vieraiden kuvat, päivän ohjelma ja muuta."
       },
       {
         "tips": [

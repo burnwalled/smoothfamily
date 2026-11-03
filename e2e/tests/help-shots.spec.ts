@@ -11,11 +11,21 @@ import fi from "../../frontend/src/locales/fi";
 // The help centre's screenshots (3.0.2), taken from a demo family in each language on a phone.
 // Only with HELP_SHOTS=<folder> – scripts/help-shots.sh runs it and turns them into webp.
 const OUT = process.env.HELP_SHOTS;
+// HELP_ONLY=parties,partyinvite takes just those pictures (the rest stay as they are).
+const ONLY = process.env.HELP_ONLY ? new Set(process.env.HELP_ONLY.split(",")) : null;
 const LANGS = { en, sv, nb, da, fi } as const;
 type Lang = keyof typeof LANGS;
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1.5, isMobile: true, hasTouch: true };
 const HOUSE: Record<Lang, string> = { en: "Our house", sv: "Villan", nb: "Huset", da: "Huset", fi: "Talo" };
 const CABIN: Record<Lang, string> = { en: "The cabin", sv: "Stugan", nb: "Hytta", da: "Sommerhuset", fi: "Mökki" };
+const PARTY: Record<Lang, [string, string, string]> = {
+  en: ["Maja's 9th birthday", "Treasure hunt in the jungle", "Maja turns 9! We'll hunt for treasure and eat cake – come dressed as a jungle animal."],
+  sv: ["Majas 9-årskalas", "Skattjakt i djungeln", "Maja fyller 9! Vi letar skatter och äter tårta – kom gärna utklädd till ett djungeldjur."],
+  nb: ["Majas 9-årsdag", "Skattejakt i jungelen", "Maja fyller 9! Vi leter etter skatter og spiser kake – kom gjerne utkledd som et jungeldyr."],
+  da: ["Majas 9-års fødselsdag", "Skattejagt i junglen", "Maja fylder 9! Vi leder efter skatte og spiser kage – kom gerne udklædt som et jungledyr."],
+  fi: ["Majan 9-vuotisjuhlat", "Aarteenetsintä viidakossa", "Maja täyttää 9! Etsimme aarteita ja syömme kakkua – tule pukeutuneena viidakkoeläimeksi."],
+};
+const GUESTS: [string, string][] = [["Saga", "Berg"], ["Nils", "Ek"], ["Alva", "Lind"]];
 
 test.skip(!OUT, "screenshots for the help centre only with HELP_SHOTS");
 test.describe.configure({ mode: "serial" });
@@ -23,6 +33,7 @@ test.describe.configure({ mode: "serial" });
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 
 async function shot(page: Page, lang: Lang, name: string, path: string, before?: (page: Page) => Promise<unknown>) {
+  if (ONLY && !ONLY.has(name)) return;
   await page.goto(path);
   await page.waitForLoadState("networkidle").catch(() => {});
   // The demo's banner (who you're shown as, start over) isn't part of the page being explained.
@@ -64,12 +75,23 @@ async function seed(api: APIRequestContext, lang: Lang, page: Page) {
     const png = await page.screenshot({ clip: { x: 0, y: 0, width: 600, height: 450 } });
     await api.post(`/api/albums/${album.id}/media`, { multipart: { file: { name: `${emoji.codePointAt(0)}.png`, mimeType: "image/png", buffer: png } } });
   }
+  // A child's party, with replies, the day's plan, the portal and a photo from a guest.
+  const [title, theme, text] = PARTY[lang];
+  const start = new Date(Date.now() + 18 * 86_400_000);
+  start.setHours(14, 0, 0, 0);
+  const party = await (await api.post("/api/parties", { data: { title, kind: "child_birthday", page_theme: "jungle", theme, invitation: text, place: "Lekladan", address: "Storgatan 12", starts_at: start.toISOString(), ends_at: new Date(start.getTime() + 2.5 * 3_600_000).toISOString(), rsvp_by: day(12), bring: "one", show_guests: "count" } })).json();
+  const ptoken = String(party.link).split("/party/")[1];
+  for (const [first, last] of GUESTS) await api.post(`/api/party/${ptoken}/reply`, { data: { first_name: first, last_name: last, allergies: first === "Nils" ? "Nötter" : "" } });
+  const portal = (await (await api.post(`/api/parties/${party.id}/portal`)).json()).portal;
+  const ftoken = String(portal.link).split("/fest/")[1];
+  await page.setContent(`<body style="margin:0;width:600px;height:450px;background:linear-gradient(135deg,#7aa83f,#f2c14e);display:grid;place-items:center;font-size:160px">🦁</body>`);
+  await api.post(`/api/party-portal/${ftoken}/photos?name=Saga`, { multipart: { file: { name: "lion.png", mimeType: "image/png", buffer: await page.screenshot({ clip: { x: 0, y: 0, width: 600, height: 450 } }) } } });
   const kiosk = await (await api.post("/api/kiosks", { data: { name: "Kitchen" } })).json();
   const people = await (await api.get("/api/birthdays/people")).json();
   const wishOf = people.find((p: { user_id: string | null }) => child && p.user_id === child.id);
   if (!kiosk.url) throw new Error(`kiosk: ${JSON.stringify(kiosk)}`);
   // The link is absolute only when the server knows its address.
-  return { kiosk: String(kiosk.url).replace(/^https?:\/\/[^/]+/, ""), wishOf: wishOf?.id as string | undefined };
+  return { kiosk: String(kiosk.url).replace(/^https?:\/\/[^/]+/, ""), wishOf: wishOf?.id as string | undefined, party: party.id as string, ptoken, ftoken };
 }
 
 for (const lang of Object.keys(LANGS) as Lang[]) {
@@ -86,7 +108,7 @@ for (const lang of Object.keys(LANGS) as Lang[]) {
       const made = await ctx.request.post(`/api/invite/${token}/demo`, { data: { language: lang } });
       if (!made.ok()) throw new Error(`demo: ${made.status()} ${await made.text()}`);
       const page = await ctx.newPage();
-      const { kiosk, wishOf } = await seed(ctx.request, lang, page);
+      const { kiosk, wishOf, party, ptoken, ftoken } = await seed(ctx.request, lang, page);
 
       await shot(page, lang, "today", "/");
       await shot(page, lang, "signin", "/profile?tab=security");
@@ -99,6 +121,10 @@ for (const lang of Object.keys(LANGS) as Lang[]) {
       });
       await shot(page, lang, "twohomes", "/calendar/custody");
       await shot(page, lang, "week", "/week");
+      await shot(page, lang, "parties", `/parties?id=${party}`, (p) => p.getByRole("button", { name: new RegExp(`${t["parties.tab.design"]}$`) }).first().click());
+      await shot(page, lang, "partyinvite", `/party/${ptoken}`);
+      // The portal's own part: the photos, then the day's plan.
+      await shot(page, lang, "partyportal", `/fest/${ftoken}`, (p) => toTop(p.getByRole("heading", { name: t["party.uploadHeading"] })));
       await shot(page, lang, "chat", "/chat", (p) => p.locator("main a[href^='/chat/'], main li button").first().click().catch(() => {}));
       await shot(page, lang, "lists", "/lists");
       await shot(page, lang, "wishes", wishOf ? `/lists?wish=${wishOf}` : "/lists");

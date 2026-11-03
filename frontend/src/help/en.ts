@@ -357,6 +357,10 @@ const texts: Record<string, TopicText> = {
         "p": "Under Calendar → Parties, plan a child's birthday party, a celebration or a dinner. The guests get one shared invitation page – no account – where they read about the party, add it to their own calendar and reply with their first and last name and any allergies, and a +1 if you allow it. They can change their reply later on the same device. You choose what they see of each other: nothing, how many are coming, or the names."
       },
       {
+        "shot": "parties",
+        "caption": "The party's seven steps – here the design: the four pages, the playlist and the portal."
+      },
+      {
         "steps": [
           "Calendar → Parties → New party: the name, kind, whose party, the time and the place – then the party walks you through seven steps.",
           "1 Details and the theme · 2 Design: the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
@@ -364,10 +368,18 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "shot": "partyinvite",
+        "caption": "The guests' invitation: the poster in the party's theme, the details, the calendar buttons and the reply."
+      },
+      {
         "h": "Planning"
       },
       {
         "p": "A new party starts with a checklist – share the invitation, the cake, decorations, remind those who haven't replied, count the guests, the shopping, and the thank-you – with dates; each morning one is due, the adults are reminded. Change it as you like. Budget keeps what's spent against the budget, Timeline the day's plan (a child's party starts with one)."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "The party day's portal from the QR code: photos from the guests, the day's plan and more."
       },
       {
         "tips": [

@@ -357,6 +357,10 @@ const texts: Record<string, TopicText> = {
         "p": "Under Kalender → Fest planerar du ett barnkalas, en fest eller en middag. Gästerna får en gemensam inbjudningssida – utan konto – där de läser om festen, lägger in det i sin egen kalender och svarar med för- och efternamn och eventuella allergier, och en +1 om ni tillåter det. De kan ändra sitt svar senare på samma enhet. Ni väljer vad de ser av varandra: inget, hur många som kommer eller namnen."
       },
       {
+        "shot": "parties",
+        "caption": "Festens sju steg – här designen: de fyra sidorna, spellistan och portalen."
+      },
+      {
         "steps": [
           "Kalender → Fest → Ny fest: namnet, typen, vems fest, tiden och platsen – sedan tar festen dig genom sju steg.",
           "1 Detaljer och tema · 2 Design: spara datumet, inbjudan, festportalen och tacket, var och en med sin egen affisch · 3 Gäster: vilka som kommer, allergier, e-postadresser – och er egen lista över inbjudna.",
@@ -364,10 +368,18 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "shot": "partyinvite",
+        "caption": "Gästernas inbjudan: affischen i festens tema, detaljerna, kalenderknapparna och svaret."
+      },
+      {
         "h": "Planeringen"
       },
       {
         "p": "En ny fest börjar med en checklista – dela inbjudan, tårtan, dekorationer, påminn dem som inte svarat, räkna gästerna, handla och tacka – med datum; varje morgon något ska göras blir de vuxna påminda. Ändra den som ni vill. Budget håller koll på vad som spenderats mot budgeten, Tidsplan på dagens plan (ett barnkalas börjar med en)."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Festportalen via QR-koden: gästernas bilder, dagens schema och mer."
       },
       {
         "tips": [

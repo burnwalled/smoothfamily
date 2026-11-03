@@ -357,6 +357,10 @@ const texts: Record<string, TopicText> = {
         "p": "Under Kalender → Selskap planlegger du en barnebursdag, en fest eller en middag. Gjestene får én felles invitasjonsside – uten konto – der de leser om selskapet, legger det inn i sin egen kalender og svarer med for- og etternavn og eventuelle allergier, og en +1 om dere tillater det. De kan endre svaret senere på samme enhet. Dere velger hva de ser av hverandre: ingenting, hvor mange som kommer, eller navnene."
       },
       {
+        "shot": "parties",
+        "caption": "Festens sju trinn – her designet: de fire sidene, spillelisten og portalen."
+      },
+      {
         "steps": [
           "Kalender → Fest → Ny fest: navnet, typen, hvem festen er for, tiden og stedet – så tar festen deg gjennom sju trinn.",
           "1 Detaljer og tema · 2 Design: sett av datoen, invitasjonen, festportalen og takken, hver med sin egen plakat · 3 Gjester: hvem som kommer, allergier, e-postadresser – og deres egen liste over inviterte.",
@@ -364,10 +368,18 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "shot": "partyinvite",
+        "caption": "Gjestenes invitasjon: plakaten i festens tema, detaljene, kalenderknappene og svaret."
+      },
+      {
         "h": "Planleggingen"
       },
       {
         "p": "Et nytt selskap starter med en sjekkliste – del invitasjonen, kaken, dekorasjoner, påminn dem som ikke har svart, tell gjestene, handle og takke – med datoer; hver morgen noe skal gjøres, blir de voksne påminnet. Endre den som dere vil. Budsjett holder styr på hva som er brukt mot budsjettet, Tidsplan på dagens plan (en barnebursdag starter med en)."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Festportalen via QR-koden: gjestenes bilder, dagens program og mer."
       },
       {
         "tips": [

@@ -357,6 +357,10 @@ const texts: Record<string, TopicText> = {
         "p": "Under Kalender → Fester planlægger du en børnefødselsdag, en fest eller en middag. Gæsterne får én fælles invitationsside – uden konto – hvor de læser om festen, lægger den ind i deres egen kalender og svarer med for- og efternavn og eventuelle allergier, og en +1, hvis I tillader det. De kan rette deres svar senere på samme enhed. I vælger, hvad de ser af hinanden: intet, hvor mange der kommer, eller navnene."
       },
       {
+        "shot": "parties",
+        "caption": "Festens syv trin – her designet: de fire sider, playlisten og portalen."
+      },
+      {
         "steps": [
           "Kalender → Fest → Ny fest: navnet, typen, hvis fest, tiden og stedet – så tager festen dig gennem syv trin.",
           "1 Detaljer og tema · 2 Design: gem datoen, invitationen, festportalen og takken, hver med sin egen plakat · 3 Gæster: hvem der kommer, allergier, e-mailadresser – og jeres egen liste over inviterede.",
@@ -364,10 +368,18 @@ const texts: Record<string, TopicText> = {
         ]
       },
       {
+        "shot": "partyinvite",
+        "caption": "Gæsternes invitation: plakaten i festens tema, detaljerne, kalenderknapperne og svaret."
+      },
+      {
         "h": "Planlægningen"
       },
       {
         "p": "En ny fest starter med en tjekliste – del invitationen, kagen, pynt, påmind dem, der ikke har svaret, tæl gæsterne, køb ind og sig tak – med datoer; hver morgen, noget skal gøres, bliver de voksne mindet om det. Ret den, som I vil. Budget holder styr på, hvad der er brugt i forhold til budgettet, Tidsplan på dagens plan (en børnefødselsdag starter med en)."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Festportalen via QR-koden: gæsternes billeder, dagens program og mere."
       },
       {
         "tips": [
