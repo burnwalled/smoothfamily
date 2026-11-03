@@ -6,6 +6,8 @@ test("log a workout and the day's steps, then share them", async ({ adminPage: p
   await adminApi.put("/api/health/sharing", { data: { workouts: "me", steps: "me", sleep: "me", weight: "me" } });
   const note = unique("Morning run");
   await page.goto("/");
+  // The menu is drawn once the page is (openFromMenu looks for the link at once).
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   await openFromMenu(page, "/health");
   await expect(page).toHaveURL(/\/health$/);
 
