@@ -132,8 +132,8 @@ async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monke
     token = party["link"].rsplit("/", 1)[1]
     # No e-mail on the server: the guests aren't asked for an address.
     assert (await client.get(f"/api/party/{token}")).json()["mail"] is False
-    out = (await client.put("/api/admin/integrations/email", json={"host": "smtp.example.com", "port": 587, "username": "u", "password": "secret-pass", "sender": "fest@example.com"})).json()
-    assert out["configured"] and out["has_password"] and "secret-pass" not in str(out)
+    out = (await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "username": "u", "password": "secret-pass", "sender": "fest@example.com"})).json()
+    assert out["accounts"]["smtp"]["configured"] and out["accounts"]["smtp"]["has_password"] and out["owner"] == "smtp" and "secret-pass" not in str(out)
     page = (await client.get(f"/api/party/{token}")).json()
     assert page["mail"] is True and page["page_theme"] == "jungle" and page["thanks_theme"] == "jungle"
 
@@ -168,7 +168,7 @@ async def test_a_dinner_votes_on_the_date_and_families_say_how_many(client, db_s
     sent = []
     monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
     await _family(client)
-    await client.put("/api/admin/integrations/email", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
     start = (datetime.now(timezone.utc) + timedelta(days=40)).replace(hour=17, minute=0, second=0, microsecond=0)
     second, third = start + timedelta(days=7), start + timedelta(days=14)
     body = _party(start, kind="dinner", title="Julmiddag", date_poll=True, bring="family", show_guests="names", date_options=[second.isoformat(), third.isoformat()])
@@ -249,3 +249,45 @@ async def test_own_themes_pictures_and_more_kinds(client):
     titles = [t["title"] for t in match["tasks"]]
     assert "Kolla avsparken och var den sänds" in titles and not any("tårta" in t.lower() for t in titles)
     assert (await client.post("/api/parties", json=_party(start, page_theme="nope"))).status_code == 422
+
+
+async def test_mail_services_and_who_may_use_them(client, monkeypatch):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((conf["host"], conf["sender"], to)))
+    await _family(client)
+    # Gmail sends as its own address; Brevo from a verified one; both keep their own server.
+    out = (await client.put("/api/admin/integrations/email/gmail", json={"username": "lind@gmail.com", "password": "abcd efgh ijkl mnop"})).json()
+    assert out["accounts"]["gmail"]["sender"] == "lind@gmail.com" and out["accounts"]["gmail"]["host"] == "smtp.gmail.com" and out["owner"] == "gmail"
+    assert (await client.put("/api/admin/integrations/email/brevo", json={"username": "x@smtp-brevo.com", "sender": "fest@burnwall.se"})).status_code == 422  # no key
+    out = (await client.put("/api/admin/integrations/email/brevo", json={"username": "x@smtp-brevo.com", "password": "xsmtpsib-key", "sender": "fest@burnwall.se", "sender_name": "Familjen Lind"})).json()
+    assert out["accounts"]["brevo"]["host"] == "smtp-relay.brevo.com" and "xsmtpsib-key" not in str(out)
+    assert (await client.post("/api/admin/integrations/email/test", json={"provider": "brevo", "to": "a@example.com"})).json() == {"sent": True}
+    assert sent[-1] == ("smtp-relay.brevo.com", "fest@burnwall.se", "a@example.com")
+    assert (await client.put("/api/admin/integrations/email-use", json={"owner": "gmail", "hosted": "smtp"})).status_code == 422  # not set up
+
+    # A hosted family: no mail until the admin chooses a service for them.
+    invite = (await client.post("/api/server/invitations", json={"label": "Gäster", "days": 7})).json()
+    guest = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    await guest.post(f"/api/invite/{invite['url'].rsplit('/', 1)[1]}/family", json={"family_name": "Berg", "display_name": "Olle", "username": "olle", "password": "guestpass1", "email": "o@example.com"})
+    start = datetime.now(timezone.utc) + timedelta(days=20)
+    theirs = (await guest.post("/api/parties", json=_party(start, title="Olles fest"))).json()
+    assert theirs["mail"] is False
+    ours = (await client.post("/api/parties", json=_party(start))).json()
+    assert ours["mail"] is True
+    await client.put("/api/admin/integrations/email-use", json={"owner": "gmail", "hosted": "brevo"})
+    assert (await guest.get(f"/api/parties/{theirs['id']}")).json()["mail"] is True
+    token = theirs["link"].rsplit("/", 1)[1]
+    await guest.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "email": "saga@example.com", "updates": True})
+    assert sent[-1] == ("smtp-relay.brevo.com", "fest@burnwall.se", "saga@example.com")
+    mine = ours["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/party/{mine}/reply", json={"first_name": "Nils", "email": "nils@example.com", "updates": True})
+    assert sent[-1] == ("smtp.gmail.com", "lind@gmail.com", "nils@example.com")
+    # Removing a service: whoever used it has none.
+    out = (await client.delete("/api/admin/integrations/email/brevo")).json()
+    assert out["hosted"] == "" and out["owner"] == "gmail" and not out["accounts"]["brevo"]["configured"]
+    await guest.aclose()

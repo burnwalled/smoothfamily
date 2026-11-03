@@ -1340,7 +1340,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Palvelimen osoite, hakukone, paikallinen tekoäly ja muut palvelut.",
     "blocks": [
       {
-        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan."
+        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan. Sähköposti ottaa käyttöön sähköpostipalvelut – Gmail sovellussalasanalla, Brevo oman verkkotunnuksen osoitteelle tai muu SMTP-palvelin – ja valitsee, millä perheenne lähettää ja saavatko isännöidyt perheet lähettää sähköpostia (juhlavieraille, jotka pyysivät päivityksiä)."
       },
       {
         "shot": "serverservices",

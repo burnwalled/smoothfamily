@@ -1,7 +1,11 @@
-"""E-mail from the server (3.4.0), through an SMTP server the server admin sets up (Server →
-Address and services → E-mail): the family's own mail provider, a mail relay, anything that
-speaks SMTP. Used for what can't reach someone through the app – a party's guests who asked
-for updates. The password is stored encrypted; nothing is sent until it's set up.
+"""E-mail from the server (3.4.0), through a mail service the server admin sets up (Server →
+Address and services → E-mail). Used for what can't reach someone through the app – a party's
+guests who asked for updates. Passwords are stored encrypted; nothing is sent until it's set up.
+
+Three kinds of account, any or all of them set up: Gmail (an app password; the mail comes from the
+Gmail address), Brevo (its SMTP relay and key; from an address verified there, such as one on the
+family's own domain) and any other SMTP server. The server admin chooses which one the family
+running the server sends with, and which one – if any – the hosted families may use.
 """
 import asyncio
 import json
@@ -13,31 +17,45 @@ from email.utils import formataddr, make_msgid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AppSetting
+from app.models import AppSetting, Family
 from app.services.crypto import decrypt_token, encrypt_token
 
 SETTING_KEY = "smtp"
 TIMEOUT = 20
+PROVIDERS = ("gmail", "brevo", "smtp")
+# The fixed part of each service; "smtp" is all the admin's own.
+PRESETS = {
+    "gmail": {"host": "smtp.gmail.com", "port": 587, "security": "starttls"},
+    "brevo": {"host": "smtp-relay.brevo.com", "port": 587, "security": "starttls"},
+}
 
 
 class MailError(Exception):
     pass
 
 
-async def settings(db: AsyncSession) -> dict | None:
-    """{host, port, security (starttls | ssl | none), username, password, sender, sender_name}."""
-    row = (await db.execute(select(AppSetting).where(AppSetting.key == SETTING_KEY))).scalar_one_or_none()
+async def _row(db: AsyncSession) -> AppSetting | None:
+    return (await db.execute(select(AppSetting).where(AppSetting.key == SETTING_KEY))).scalar_one_or_none()
+
+
+async def load(db: AsyncSession) -> dict:
+    """{accounts: {provider: {...}}, owner: provider | "", hosted: provider | ""}."""
+    row = await _row(db)
+    empty = {"accounts": {}, "owner": "", "hosted": ""}
     if row is None or not row.value:
-        return None
+        return empty
     try:
-        return json.loads(decrypt_token(row.value))
+        value = json.loads(decrypt_token(row.value))
     except Exception:
-        return None
+        return empty
+    if "accounts" not in value:  # one SMTP server, as before
+        return {"accounts": {"smtp": value}, "owner": "smtp", "hosted": ""}
+    return {**empty, **value}
 
 
-async def save(db: AsyncSession, value: dict | None) -> None:
-    row = (await db.execute(select(AppSetting).where(AppSetting.key == SETTING_KEY))).scalar_one_or_none()
-    if value is None:
+async def store(db: AsyncSession, value: dict) -> None:
+    row = await _row(db)
+    if not value["accounts"]:
         if row is not None:
             await db.delete(row)
     elif row is None:
@@ -47,8 +65,26 @@ async def save(db: AsyncSession, value: dict | None) -> None:
     await db.commit()
 
 
-async def configured(db: AsyncSession) -> bool:
-    return await settings(db) is not None
+def account(value: dict, provider: str) -> dict | None:
+    conf = value["accounts"].get(provider)
+    return {**conf, **PRESETS.get(provider, {})} if conf else None
+
+
+async def for_family(db: AsyncSession, family: Family | None) -> dict | None:
+    """The account a family's mail goes out through – none for a demo family, or a hosted one
+    the server admin hasn't given one."""
+    value = await load(db)
+    if family is None or family.kind == "owner":
+        provider = value["owner"]
+    elif family.kind == "hosted":
+        provider = value["hosted"]
+    else:
+        return None
+    return account(value, provider) if provider else None
+
+
+async def configured(db: AsyncSession, family: Family | None = None) -> bool:
+    return await for_family(db, family) is not None
 
 
 def _send(conf: dict, to: str, subject: str, text: str, html: str | None, reply_to: str | None) -> None:
@@ -82,11 +118,15 @@ def _send(conf: dict, to: str, subject: str, text: str, html: str | None, reply_
             pass
 
 
-async def send(db: AsyncSession, to: str, subject: str, text: str, html: str | None = None, reply_to: str | None = None) -> None:
-    conf = await settings(db)
-    if conf is None:
-        raise MailError("E-mail isn't set up on this server")
+async def send_with(conf: dict, to: str, subject: str, text: str, html: str | None = None, reply_to: str | None = None) -> None:
     try:
         await asyncio.to_thread(_send, conf, to, subject, text, html, reply_to)
     except (smtplib.SMTPException, OSError, ssl.SSLError) as exc:
         raise MailError(str(exc)[:200]) from exc
+
+
+async def send(db: AsyncSession, to: str, subject: str, text: str, html: str | None = None, reply_to: str | None = None, family: Family | None = None) -> None:
+    conf = await for_family(db, family)
+    if conf is None:
+        raise MailError("E-mail isn't set up for this family")
+    await send_with(conf, to, subject, text, html, reply_to)

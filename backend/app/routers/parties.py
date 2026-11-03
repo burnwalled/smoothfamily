@@ -119,10 +119,11 @@ _STEPS = {
 }
 
 
-async def _mail_ready(db: AsyncSession) -> bool:
+async def _mail_ready(db: AsyncSession, party: Party) -> bool:
+    """Whether this family's server lets it send e-mail (a hosted family needs the admin's yes)."""
     from app.services import mailer
 
-    return await mailer.configured(db)
+    return await mailer.configured(db, await db.get(Family, party.family_id))
 
 
 def _local(moment: datetime) -> datetime:
@@ -253,7 +254,8 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
     many were sent; a guest whose mail fails is skipped."""
     from app.services import mailer
 
-    if not await mailer.configured(db):
+    conf = await mailer.for_family(db, await db.get(Family, party.family_id))
+    if conf is None:
         return 0
     if guests is None:
         guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.updates == True, PartyGuest.email.is_not(None)))).scalars().all()  # noqa: E712
@@ -280,7 +282,7 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
             texts["stop"].format(link=f"{page}?unsubscribe={code}"),
         ])
         try:
-            await mailer.send(db, guest.email, subject_t.format(**fields), body)
+            await mailer.send_with(conf, guest.email, subject_t.format(**fields), body)
             sent += 1
         except mailer.MailError:
             continue
@@ -582,7 +584,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
         "date_poll": party.date_poll, "date_options": party.date_options or [], "tally": _tally(party, guests),
-        "mail": await _mail_ready(db), "subscribers": sum(1 for g in guests if g.updates and g.email),
+        "mail": await _mail_ready(db, party), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
         "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
@@ -775,7 +777,7 @@ async def decide(party_id: uuid.UUID, payload: DecideIn, request: Request, user:
 async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, user: AdultUser, db: DB) -> dict:
     """A message to every guest who asked for updates by e-mail."""
     party = await _mine(db, user, party_id)
-    if not await _mail_ready(db):
+    if not await _mail_ready(db, party):
         raise HTTPException(status_code=409, detail="E-mail isn't set up on this server")
     sent = await mail_guests(db, party, "message", base=await public_base(db, request), subject=payload.subject.strip(), text=payload.text.strip())
     return {"sent": sent}
@@ -995,7 +997,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
     if host is None:
         host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
-        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db),
+        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db, party),
         "date_poll": party.date_poll, "date_options": party.date_options or [],
         "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
         "invite_image": _version(party.invite_image_key),
