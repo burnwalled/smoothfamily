@@ -6,6 +6,7 @@ import HostedSmartHome from "@/components/settings/HostedSmartHome";
 import RecipeSearchSetting from "@/components/settings/RecipeSearchSetting";
 import TransitKeys from "@/components/settings/TransitKeys";
 import EmailSettings from "@/components/settings/EmailSettings";
+import PlacesSetting from "@/components/settings/PlacesSetting";
 import { useState } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
@@ -85,6 +86,7 @@ export default function ServerServices() {
       <RecipeSearchSetting />
       <HostedSmartHome />
       <TransitKeys />
+      <PlacesSetting />
       <EmailSettings />
     </section>
   );

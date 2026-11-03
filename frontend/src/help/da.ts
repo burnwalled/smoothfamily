@@ -1356,7 +1356,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Serverens adresse, søgemaskinen, den lokale AI og andre tjenester.",
     "blocks": [
       {
-        "p": "Adresse og tjenester har den adresse, serveren nås på – den bruges i alle links, der sendes ud – opskriftssøgningen og websøgningen (SearXNG på serveren selv), Home Assistant for familier på serveren via gatewayen, GIF'er i chatten og at sende feedback. AI-computeren indstiller, hvor Ollama kører, hvilke modeller der bruges, og vækning og dvale for computeren. E-mail opsætter mailtjenesterne – Gmail med en app-adgangskode, Brevo til en adresse på jeres eget domæne eller en anden SMTP-server – hvilken jeres familie sender med, og om de hostede familier også må sende mail (til festgæster, der har bedt om opdateringer)."
+        "p": "Adresse og tjenester har den adresse, serveren nås på – den bruges i alle links, der sendes ud – opskriftssøgningen og websøgningen (SearXNG på serveren selv), Home Assistant for familier på serveren via gatewayen, GIF'er i chatten og at sende feedback. AI-computeren indstiller, hvor Ollama kører, hvilke modeller der bruges, og vækning og dvale for computeren. E-mail opsætter mailtjenesterne – Gmail med en app-adgangskode, Brevo til en adresse på jeres eget domæne eller en anden SMTP-server – hvilken jeres familie sender med, og om de hostede familier også må sende mail (til festgæster, der har bedt om opdateringer). Adresser slår forslagene fra OpenStreetMap i adressefelterne til (via komoots Photon eller jeres egen) – eller fra."
       },
       {
         "shot": "serverservices",

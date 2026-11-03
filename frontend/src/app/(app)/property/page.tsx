@@ -33,6 +33,7 @@ import { AiJob, AiNote, useAiJob, useAiStatus } from "@/components/LocalAi";
 import { uploadReceipt } from "@/lib/receipts";
 import { nextDay } from "@/lib/vehicleKinds";
 import { DWELLING_ORDER, dwellingInfo, dwellingLabel, Upkeep, upkeepLabel } from "@/lib/propertyKinds";
+import AddressInput from "@/components/AddressInput";
 
 const CATEGORIES = ["maintenance", "renovation", "repair", "tax", "insurance", "utility", "loan", "other"] as const;
 const KINDS = ["maintenance", "safety", "inspection", "season", "insurance", "warranty", "other"] as const;
@@ -886,7 +887,7 @@ function SettingsTab({ home, currency, onDeleted }: { home: Property; currency: 
         </label>
         <label className="text-sm">
           <span className="text-xs text-muted">{t("property.address")}</span>
-          <input className="input mt-1 w-full" value={form.address} onChange={(e) => set({ address: e.target.value })} />
+          <AddressInput className="input mt-1 w-full" value={form.address} onChange={(address) => set({ address })} />
         </label>
         <label className="text-sm">
           <span className="text-xs text-muted">{t("property.builtYear")}</span>
@@ -1025,7 +1026,7 @@ export default function PropertyPage() {
           <select className="input" value={newHome.dwelling} aria-label={t("property.dwellingLabel")} onChange={(e) => setNewHome({ ...newHome, dwelling: e.target.value })}>
             {DWELLING_ORDER.map((d) => <option key={d} value={d}>{dwellingInfo(d).icon} {t(dwellingLabel(d))}</option>)}
           </select>
-          <input className="input" value={newHome.address} maxLength={300} placeholder={t("property.address")} aria-label={t("property.address")} onChange={(e) => setNewHome({ ...newHome, address: e.target.value })} />
+          <AddressInput value={newHome.address} placeholder={t("property.address")} aria-label={t("property.address")} showMap={false} onChange={(address) => setNewHome({ ...newHome, address })} />
           <button className="btn-primary" disabled={!newHome.name.trim()}>{t("property.addProperty")}</button>
         </form>
       )}
