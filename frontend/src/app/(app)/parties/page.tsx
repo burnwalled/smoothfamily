@@ -13,13 +13,15 @@ import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
+import ThemePicker from "@/components/parties/ThemePicker";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; coming: number; replies: number; tasks_left: number };
-type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string };
+type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string; email: string | null; updates: boolean };
 type Detail = {
   id: string; title: string; kind: string; person_id: string | null; starts_at: string; ends_at: string; place: string; address: string; theme: string;
   emoji: string; color: string; invitation: string; rsvp_by: string | null; plus_one: boolean; show_guests: "none" | "count" | "names"; wishlist: boolean;
   budget: number | null; spent: number; thanks_text: string; thanks_album_id: string | null; thanks_published: boolean; link: string; qr_svg: string;
+  page_theme: string; thanks_theme: string; mail: boolean; subscribers: number;
   guests: Guest[]; coming: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null }[];
   expenses: { id: string; title: string; amount: number; paid_by: string | null }[];
@@ -110,6 +112,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
         title: form.title.trim(), kind: form.kind, person_id: form.person_id || null, emoji: EMOJIS[form.kind],
         starts_at: starts.toISOString(), ends_at: ends.toISOString(), place: form.place, address: form.address,
         rsvp_by: form.rsvp || null, plus_one: form.plus_one, wishlist: form.wishlist && !!form.person_id, show_guests: form.show_guests,
+        page_theme: form.kind === "dinner" ? "elegant" : "balloons",
       });
       onDone(made.id);
     } catch (e) {
@@ -280,6 +283,9 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
             {(["none", "count", "names"] as const).map((v) => <option key={v} value={v}>{t(`parties.show.${v}` as TranslationKey)}</option>)}
           </select>
         </label>
+        <div className="sm:col-span-2">
+          <ThemePicker label={t("parties.pageTheme")} value={party.page_theme} onChange={(key) => change({ page_theme: key })} />
+        </div>
         <div className="flex items-end">
           <button className="btn-primary" onClick={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })}>
             {t("common.save")}
@@ -320,6 +326,7 @@ function GuestsTab({ party, run, path }: TabProps) {
                 <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : t("parties.no")}</span>
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
+                  {g.updates && g.email && <span className="ml-1 text-xs text-muted" title={g.email}>✉ {g.email}</span>}
                   {g.allergies && <span className="text-muted"> · {g.allergies}</span>}
                   {g.plus_first_name && <span className="block text-xs text-muted">+1: {`${g.plus_first_name} ${g.plus_last_name ?? ""}`.trim()}{g.plus_allergies ? ` · ${g.plus_allergies}` : ""}</span>}
                   {g.message && <span className="block text-xs italic text-muted">“{g.message}”</span>}
@@ -339,6 +346,7 @@ function GuestsTab({ party, run, path }: TabProps) {
             <ul className="space-y-1 text-sm">{party.allergies.map((a) => <li key={a.name}><span className="font-semibold">{a.name}:</span> {a.allergies}</li>)}</ul>
           )}
         </section>
+        {party.mail && <Announce party={party} path={path} />}
         <section className="card space-y-2 p-5" aria-label={t("parties.addGuest")}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.addGuest")}</h2>
           <p className="text-xs text-muted">{t("parties.addGuestHelp")}</p>
@@ -350,6 +358,25 @@ function GuestsTab({ party, run, path }: TabProps) {
         </section>
       </div>
     </div>
+  );
+}
+
+// A message by e-mail to the guests who asked for updates.
+function Announce({ party, path }: { party: Detail; path: string }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ subject: "", text: "" });
+  const [note, setNote] = useState("");
+  return (
+    <section className="card space-y-2 p-5" aria-label={t("parties.announce")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.announce")}</h2>
+      <p className="text-xs text-muted">{t("parties.announceHelp", { n: party.subscribers })}</p>
+      <input className="input" placeholder={t("parties.announceSubject")} aria-label={t("parties.announceSubject")} value={form.subject} maxLength={120} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+      <textarea className="input min-h-20" placeholder={t("parties.announceText")} aria-label={t("parties.announceText")} value={form.text} maxLength={4000} onChange={(e) => setForm({ ...form, text: e.target.value })} />
+      <button className="btn-primary" disabled={!party.subscribers || !form.subject.trim() || !form.text.trim()} onClick={() => api.post<{ sent: number }>(`${path}/announce`, form).then((r) => { setNote(t("parties.announced", { n: r.sent })); setForm({ subject: "", text: "" }); }).catch((e) => setNote(e instanceof Error ? e.message : t("common.error")))}>
+        {t("parties.announceSend")}
+      </button>
+      {note && <p className="text-xs text-accent" role="status">{note}</p>}
+    </section>
   );
 }
 
@@ -449,6 +476,7 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
     <section className="card space-y-3 p-5" aria-label={t("parties.tab.thanks")}>
       <p className="text-xs text-muted">{t("parties.thanksHelp")}</p>
       <label className="block"><span className="label">{t("parties.thanksText")}</span><textarea className="input min-h-24" value={text} maxLength={4000} placeholder={t("parties.thanksPh")} onChange={(e) => setText(e.target.value)} /></label>
+      <ThemePicker label={t("parties.thanksTheme")} allowSame value={party.thanks_theme} onChange={(key) => change({ thanks_theme: key })} />
       <label className="block">
         <span className="label">{t("parties.album")}</span>
         <select className="input" value={party.thanks_album_id ?? ""} onChange={(e) => change({ thanks_album_id: e.target.value || null })}>

@@ -9,10 +9,15 @@ import { useParams } from "next/navigation";
 import { CalendarPlus, ExternalLink, Gift, Heart, MapPin } from "lucide-react";
 import { api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
+import { partyTheme } from "@/lib/partyThemes";
 
-type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string };
+type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string; email: string | null; updates: boolean };
 type Page = {
   language: string;
+  page_theme: string;
+  thanks_theme: string;
+  // The server can send e-mail: the guest may ask for updates.
+  mail: boolean;
   title: string; kind: string; emoji: string; color: string; family_name: string; starts_at: string; ends_at: string; place: string; address: string; theme: string;
   invitation: string; rsvp_by: string | null; plus_one: boolean; open: boolean;
   guests: { coming: number; names?: string[] } | null;
@@ -21,7 +26,7 @@ type Page = {
   mine: Reply | null;
 };
 
-const EMPTY: Reply = { first_name: "", last_name: "", coming: true, allergies: "", message: "", plus_first_name: "", plus_last_name: "", plus_allergies: "" };
+const EMPTY: Reply = { first_name: "", last_name: "", coming: true, allergies: "", message: "", plus_first_name: "", plus_last_name: "", plus_allergies: "", email: "", updates: false };
 
 function stored(name: string): Record<string, string> {
   try {
@@ -49,6 +54,13 @@ export default function PartyInvitation() {
   const [plus, setPlus] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [stopped, setStopped] = useState(false);
+
+  // The link at the bottom of each mail: no more updates.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("unsubscribe");
+    if (code) api.post(`/api/party/${token}/unsubscribe`, { code }).then(() => setStopped(true)).catch(() => {});
+  }, [token]);
 
   const key = () => stored("sf.party-keys")[token];
   const load = useCallback(() => {
@@ -65,7 +77,7 @@ export default function PartyInvitation() {
           if (!localStorage.getItem("sf.locale") && isLocale(p.language)) setLocale(p.language);
         } catch {}
         if (p.mine) {
-          setForm({ ...EMPTY, ...p.mine, plus_first_name: p.mine.plus_first_name ?? "", plus_last_name: p.mine.plus_last_name ?? "" });
+          setForm({ ...EMPTY, ...p.mine, plus_first_name: p.mine.plus_first_name ?? "", plus_last_name: p.mine.plus_last_name ?? "", email: p.mine.email ?? "" });
           setPlus(!!p.mine.plus_first_name);
         }
       })
@@ -77,7 +89,10 @@ export default function PartyInvitation() {
     setError("");
     setSaved(false);
     try {
-      const body = { ...form, plus_first_name: plus ? form.plus_first_name : null, plus_last_name: plus ? form.plus_last_name : null, plus_allergies: plus ? form.plus_allergies : "" };
+      const body = {
+        ...form, plus_first_name: plus ? form.plus_first_name : null, plus_last_name: plus ? form.plus_last_name : null, plus_allergies: plus ? form.plus_allergies : "",
+        email: form.email?.trim() || null, updates: !!form.email?.trim() && form.updates,
+      };
       const existing = key();
       const done = await api.post<{ key: string }>(`/api/party/${token}/reply${existing ? `?key=${encodeURIComponent(existing)}` : ""}`, body);
       keep("sf.party-keys", token, done.key);
@@ -117,16 +132,21 @@ export default function PartyInvitation() {
   const end = new Date(page.ends_at);
   const when = `${start.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long" })} ${start.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}–${end.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}`;
   const mineWish = stored("sf.party-wish-keys");
+  // The thank-you's look once it's out, else the invitation's.
+  const theme = partyTheme(page.thanks ? page.thanks_theme : page.page_theme);
+  const button = { backgroundColor: theme.accent, borderColor: theme.accent };
 
   return (
-    <main className="min-h-screen bg-base">
-      <div className="h-2" style={{ background: page.color }} />
+    <main className="min-h-screen" style={{ background: theme.background }}>
+      <div className="h-2" style={{ background: theme.band }} />
       <div className="mx-auto max-w-xl space-y-5 p-5">
-        <header className="pt-4 text-center">
+        <header className="pt-4 text-center" style={{ color: theme.ink }}>
           <p className="text-5xl" aria-hidden>{page.emoji}</p>
           <h1 className="mt-2 text-3xl font-extrabold">{page.title}</h1>
-          <p className="mt-1 text-sm text-muted">{t("party.from", { family: page.family_name })}</p>
+          <p className="mt-1 text-sm opacity-75">{t("party.from", { family: page.family_name })}</p>
+          <p className="mt-3 flex justify-center gap-3 text-2xl" aria-hidden>{theme.decor.map((d, i) => <span key={i} style={{ transform: `rotate(${(i - 2) * 8}deg)` }}>{d}</span>)}</p>
         </header>
+        {stopped && <p className="card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
         {page.thanks && (
           <section className="card space-y-3 p-5" aria-label={t("party.thanks")}>
@@ -170,7 +190,7 @@ export default function PartyInvitation() {
             {page.rsvp_by && <p className="text-sm text-muted">{t("party.rsvpBy", { date: new Date(`${page.rsvp_by}T12:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "long" }) })}</p>}
             <div className="flex gap-2" role="radiogroup" aria-label={t("party.reply")}>
               {[true, false].map((v) => (
-                <button key={String(v)} role="radio" aria-checked={form.coming === v} className={`flex-1 rounded-xl border-2 px-3 py-2 text-sm font-semibold ${form.coming === v ? "border-accent bg-accent-soft" : "border-edge"}`} onClick={() => setForm({ ...form, coming: v })}>
+                <button key={String(v)} role="radio" aria-checked={form.coming === v} style={form.coming === v ? { borderColor: theme.accent } : undefined} className={`flex-1 rounded-xl border-2 px-3 py-2 text-sm font-semibold ${form.coming === v ? "bg-accent-soft" : "border-edge"}`} onClick={() => setForm({ ...form, coming: v })}>
                   {v ? t("party.coming") : t("party.notComing")}
                 </button>
               ))}
@@ -197,9 +217,18 @@ export default function PartyInvitation() {
               </div>
             )}
             <label className="block"><span className="label">{t("party.message")}</span><input className="input" value={form.message} maxLength={500} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
+            {page.mail && (
+              <div className="space-y-2 rounded-xl border border-edge p-3">
+                <label className="block"><span className="label">{t("party.email")}</span><input className="input" type="email" autoComplete="email" value={form.email ?? ""} maxLength={254} placeholder={t("party.emailPh")} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" disabled={!form.email?.trim()} checked={!!form.email?.trim() && form.updates} onChange={(e) => setForm({ ...form, updates: e.target.checked })} />
+                  <span>{t("party.updates")}<span className="block text-xs text-muted">{t("party.updatesHelp")}</span></span>
+                </label>
+              </div>
+            )}
             {error && <p className="text-sm text-red-700">{error}</p>}
             {saved && <p className="text-sm font-semibold text-accent" role="status">{form.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
-            <button className="btn-primary w-full" disabled={!form.first_name.trim() || (plus && !form.plus_first_name?.trim())} onClick={send}>{page.mine ? t("party.update") : t("party.send")}</button>
+            <button className="btn-primary w-full" style={button} disabled={!form.first_name.trim() || (plus && !form.plus_first_name?.trim())} onClick={send}>{page.mine ? t("party.update") : t("party.send")}</button>
           </section>
         )}
 

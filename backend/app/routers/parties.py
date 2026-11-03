@@ -68,6 +68,12 @@ _STEPS = {
 }
 
 
+async def _mail_ready(db: AsyncSession) -> bool:
+    from app.services import mailer
+
+    return await mailer.configured(db)
+
+
 def _local(moment: datetime) -> datetime:
     return (moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)).astimezone(_tz())
 
@@ -101,6 +107,110 @@ def _starter_steps(party: Party, language: str) -> list[PartyStep]:
     return out
 
 
+# --- Updates by e-mail, for the guests who ask for them ------------------------------------------
+
+THEMES = ("balloons", "jungle", "space", "ocean", "fairytale", "sports", "elegant", "garden")
+
+_MAIL = {
+    "en": {
+        "confirm": ("{title}: thank you for your reply", "Thank you, {name}! We have your reply: {answer}."),
+        "change": ("{title}: a new time or place", "Something has changed for {title}."),
+        "remind": ("{title} is tomorrow", "A reminder: {title} is tomorrow."),
+        "thanks": ("{title}: thank you!", "{text}"),
+        "message": ("{title}: {subject}", "{text}"),
+        "answers": ("coming", "not coming"), "plus": "with {name}",
+        "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
+    },
+    "sv": {
+        "confirm": ("{title}: tack för ditt svar", "Tack, {name}! Vi har fått ditt svar: {answer}."),
+        "change": ("{title}: ny tid eller plats", "Något har ändrats för {title}."),
+        "remind": ("{title} är i morgon", "En påminnelse: {title} är i morgon."),
+        "thanks": ("{title}: tack!", "{text}"),
+        "message": ("{title}: {subject}", "{text}"),
+        "answers": ("kommer", "kommer inte"), "plus": "med {name}",
+        "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
+    },
+    "nb": {
+        "confirm": ("{title}: takk for svaret", "Takk, {name}! Vi har fått svaret ditt: {answer}."),
+        "change": ("{title}: nytt tidspunkt eller sted", "Noe er endret for {title}."),
+        "remind": ("{title} er i morgen", "En påminnelse: {title} er i morgen."),
+        "thanks": ("{title}: takk!", "{text}"),
+        "message": ("{title}: {subject}", "{text}"),
+        "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
+        "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
+    },
+    "da": {
+        "confirm": ("{title}: tak for dit svar", "Tak, {name}! Vi har fået dit svar: {answer}."),
+        "change": ("{title}: nyt tidspunkt eller sted", "Noget er ændret for {title}."),
+        "remind": ("{title} er i morgen", "En påmindelse: {title} er i morgen."),
+        "thanks": ("{title}: tak!", "{text}"),
+        "message": ("{title}: {subject}", "{text}"),
+        "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
+        "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
+    },
+    "fi": {
+        "confirm": ("{title}: kiitos vastauksestasi", "Kiitos, {name}! Saimme vastauksesi: {answer}."),
+        "change": ("{title}: uusi aika tai paikka", "Jotain on muuttunut: {title}."),
+        "remind": ("{title} on huomenna", "Muistutus: {title} on huomenna."),
+        "thanks": ("{title}: kiitos!", "{text}"),
+        "message": ("{title}: {subject}", "{text}"),
+        "answers": ("tulee", "ei tule"), "plus": "seuranaan {name}",
+        "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
+    },
+}
+
+
+async def _host_language(db: AsyncSession, party: Party) -> str:
+    host = await db.get(User, party.created_by) if party.created_by else None
+    if host is None:
+        host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
+    return (host.language if host else None) or "en"
+
+
+def _when_where(party: Party, language: str) -> str:
+    start, end = _local(party.starts_at), _local(party.ends_at)
+    where = ", ".join(x for x in (party.place, party.address) if x)
+    return f"{start.strftime('%Y-%m-%d %H:%M')}–{end.strftime('%H:%M')}" + (f"\n{where}" if where else "")
+
+
+async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[PartyGuest] | None = None, base: str = "", **values) -> int:
+    """Send one kind of update to the guests who asked for them (or the ones given). Returns how
+    many were sent; a guest whose mail fails is skipped."""
+    from app.services import mailer
+
+    if not await mailer.configured(db):
+        return 0
+    if guests is None:
+        guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.updates == True, PartyGuest.email.is_not(None)))).scalars().all()  # noqa: E712
+    language = await _host_language(db, party)
+    texts = _MAIL.get(language, _MAIL["en"])
+    page = f"{base}/party/{decrypt_token(party.token_encrypted)}"
+    sent = 0
+    for guest in guests:
+        if not guest.email or not guest.updates:
+            continue
+        code = secrets.token_urlsafe(18)
+        guest.unsubscribe_hash = _hash(code)
+        subject_t, body_t = texts[kind]
+        answer = texts["answers"][0 if guest.coming else 1]
+        if guest.coming and guest.plus_first_name:
+            answer += " " + texts["plus"].format(name=f"{guest.plus_first_name} {guest.plus_last_name or ''}".strip())
+        fields = {"title": party.title, "name": guest.first_name, "answer": answer, **values}
+        body = "\n\n".join([
+            body_t.format(**fields),
+            _when_where(party, language),
+            texts["page"].format(link=page),
+            texts["stop"].format(link=f"{page}?unsubscribe={code}"),
+        ])
+        try:
+            await mailer.send(db, guest.email, subject_t.format(**fields), body)
+            sent += 1
+        except mailer.MailError:
+            continue
+    await db.commit()
+    return sent
+
+
 # --- The adults' side ----------------------------------------------------------------------
 
 
@@ -121,6 +231,7 @@ class PartyIn(BaseModel):
     show_guests: str = Field(default="count", pattern=r"^(none|count|names)$")
     wishlist: bool = False
     budget: float | None = Field(default=None, ge=0, le=10_000_000)
+    page_theme: str = Field(default="balloons", pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
 
 
 class PartyChange(BaseModel):
@@ -143,6 +254,13 @@ class PartyChange(BaseModel):
     thanks_text: str | None = Field(default=None, max_length=4000)
     thanks_album_id: uuid.UUID | None = None
     thanks_published: bool | None = None
+    page_theme: str | None = Field(default=None, pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+    thanks_theme: str | None = Field(default=None, pattern=r"^(|balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+
+
+class AnnounceIn(BaseModel):
+    subject: str = Field(min_length=1, max_length=120)
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class TaskIn(BaseModel):
@@ -178,6 +296,8 @@ class GuestIn(BaseModel):
     plus_first_name: str | None = Field(default=None, max_length=80)
     plus_last_name: str | None = Field(default=None, max_length=80)
     plus_allergies: str = Field(default="", max_length=300)
+    email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    updates: bool = False
 
 
 def _dt(moment: datetime) -> datetime:
@@ -218,6 +338,7 @@ def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
         "plus_first_name": g.plus_first_name, "plus_last_name": g.plus_last_name, "plus_allergies": g.plus_allergies, "updated_at": g.updated_at,
+        "email": g.email, "updates": bool(g.updates),
     }
 
 
@@ -250,6 +371,8 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "rsvp_by": party.rsvp_by, "plus_one": party.plus_one, "show_guests": party.show_guests, "wishlist": party.wishlist,
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
+        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
+        "mail": await _mail_ready(db), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
         "coming": _people(guests), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
@@ -310,15 +433,31 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         album = await db.get(Album, changes["thanks_album_id"])
         if album is None or album.family_id != user.family_id:
             raise HTTPException(status_code=404, detail="Album not found")
+    before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
         raise HTTPException(status_code=422, detail="The party ends after it starts")
     await _sync_event(db, party, user)
     await db.commit()
+    base = await public_base(db, request)
+    if (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address) != before[:4]:
+        await mail_guests(db, party, "change", base=base)
+    if party.thanks_published and not before[4]:
+        await mail_guests(db, party, "thanks", base=base, text=party.thanks_text or "")
     return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/announce")
+async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, user: AdultUser, db: DB) -> dict:
+    """A message to every guest who asked for updates by e-mail."""
+    party = await _mine(db, user, party_id)
+    if not await _mail_ready(db):
+        raise HTTPException(status_code=409, detail="E-mail isn't set up on this server")
+    sent = await mail_guests(db, party, "message", base=await public_base(db, request), subject=payload.subject.strip(), text=payload.text.strip())
+    return {"sent": sent}
 
 
 @router.delete("/{party_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -431,6 +570,8 @@ def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data = {k: (v.strip() if isinstance(v, str) else v) for k, v in payload.model_dump().items()}
     if not party.plus_one or not data.get("plus_first_name"):
         data.update(plus_first_name=None, plus_last_name=None, plus_allergies="")
+    data["email"] = (data.get("email") or "").lower() or None
+    data["updates"] = bool(data.get("updates") and data["email"])
     return data
 
 
@@ -492,6 +633,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
     if host is None:
         host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
+        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db),
         "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
@@ -518,12 +660,31 @@ async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str
         key = secrets.token_urlsafe(18)
         guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), created_at=now)
         db.add(guest)
+    asked_now = data.get("updates") and not guest.updates
     for k, v in data.items():
         setattr(guest, k, v)
     guest.updated_at = now
     await db.commit()
     await _tell_hosts(db, party, guest)
+    if asked_now:
+        await mail_guests(db, party, "confirm", guests=[guest], base=await public_base(db, request))
     return {"key": key, "mine": _guest_out(guest)}
+
+
+class UnsubscribeIn(BaseModel):
+    code: str = Field(min_length=8, max_length=200)
+
+
+@public.post("/{token}/unsubscribe")
+async def unsubscribe(token: str, payload: UnsubscribeIn, request: Request, db: DB) -> dict:
+    """The link in each mail: no more updates for that guest."""
+    party = await _open(db, token, request)
+    guest = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.unsubscribe_hash == _hash(payload.code)))).scalar_one_or_none()
+    if guest is not None:
+        guest.updates = False
+        guest.unsubscribe_hash = None
+        await db.commit()
+    return {"done": True}
 
 
 async def _tell_hosts(db: AsyncSession, party: Party, guest: PartyGuest) -> None:
@@ -643,4 +804,13 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
             await notify(db, adult, {"title": f"{party.emoji} {party.title}", "body": task.title, "route": f"/parties?id={party.id}", "kind": "party_task"}, pref="calendar_family")
             sent += 1
     await db.commit()
+    # The guests who asked for updates: the day before, at the same morning hour.
+    tomorrow = today + timedelta(days=1)
+    for party in (await db.execute(select(Party).where(Party.guests_reminded_on.is_(None)))).scalars().all():
+        if _local(party.starts_at).date() != tomorrow:
+            continue
+        party.guests_reminded_on = today
+        coming = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.coming == True, PartyGuest.updates == True))).scalars().all()  # noqa: E712
+        await db.commit()
+        sent += await mail_guests(db, party, "remind", guests=coming, base=await public_base(db))
     return sent

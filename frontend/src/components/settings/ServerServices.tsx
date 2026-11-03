@@ -4,6 +4,7 @@
 // home for hosted families). Reports of problems stay on the server since 3.1.0 (Server → Reports).
 import HostedSmartHome from "@/components/settings/HostedSmartHome";
 import RecipeSearchSetting from "@/components/settings/RecipeSearchSetting";
+import EmailSettings from "@/components/settings/EmailSettings";
 import { useState } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
@@ -82,6 +83,7 @@ export default function ServerServices() {
       )}
       <RecipeSearchSetting />
       <HostedSmartHome />
+      <EmailSettings />
     </section>
   );
 }

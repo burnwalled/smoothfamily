@@ -19,11 +19,19 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     await page.getByRole("button", { name: "To do" }).click();
     await expect(page.getByRole("checkbox", { name: "Share the invitation" })).toBeVisible();
 
+    // The invitation page's look: the jungle.
+    await page.getByRole("button", { name: "Invitation" }).click();
+    await page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ }).click();
+    await expect(page.getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
+
     // A guest, without an account.
     const guest = await browser.newContext();
     const g = await guest.newPage();
     await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
     await expect(g.getByRole("heading", { name: title })).toBeVisible();
+    await expect(g.getByText("🦁")).toBeVisible();
+    // No e-mail on this server: no address is asked for.
+    await expect(g.getByLabel("E-mail (optional)")).toHaveCount(0);
     const reply = g.getByRole("region", { name: "Will you come?" });
     await reply.getByLabel("First name").fill("Saga");
     await reply.getByLabel("Last name").fill("Berg");

@@ -21,7 +21,7 @@ from sqlalchemy import select
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
 from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut
-from app.services import file_limit, giphy, public_url, recipe_search, security_policy
+from app.services import file_limit, giphy, mailer, public_url, recipe_search, security_policy
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -791,6 +791,59 @@ async def set_recipe_search(payload: RecipeSearchIn, admin: ServerAdmin, db: DB)
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     await recipe_search.set_url(db, payload.url.rstrip("/") if payload.url else None)
     return await get_recipe_search(admin, db)
+
+
+class EmailIn(BaseModel):
+    host: str = Field(min_length=1, max_length=200)
+    port: int = Field(default=587, ge=1, le=65535)
+    security: str = Field(default="starttls", pattern=r"^(starttls|ssl|none)$")
+    username: str = Field(default="", max_length=200)
+    # Left out (or empty) when changing other settings: the saved password stays.
+    password: str | None = Field(default=None, max_length=300)
+    sender: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    sender_name: str = Field(default="", max_length=120)
+
+
+class EmailTestIn(BaseModel):
+    to: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email_out(conf: dict | None) -> dict:
+    if conf is None:
+        return {"configured": False}
+    return {"configured": True, **{k: conf.get(k) for k in ("host", "port", "security", "username", "sender", "sender_name")}, "has_password": bool(conf.get("password"))}
+
+
+@router.get("/integrations/email")
+async def get_email(admin: ServerAdmin, db: DB) -> dict:
+    """The server's e-mail (SMTP) – never the password."""
+    return _email_out(await mailer.settings(db))
+
+
+@router.put("/integrations/email")
+async def set_email(payload: EmailIn, admin: ServerAdmin, db: DB) -> dict:
+    old = await mailer.settings(db) or {}
+    value = payload.model_dump()
+    if not value.get("password"):
+        value["password"] = old.get("password", "")
+    await mailer.save(db, value)
+    return _email_out(value)
+
+
+@router.delete("/integrations/email")
+async def delete_email(admin: ServerAdmin, db: DB) -> dict:
+    await mailer.save(db, None)
+    return {"configured": False}
+
+
+@router.post("/integrations/email/test")
+async def test_email(payload: EmailTestIn, admin: ServerAdmin, db: DB) -> dict:
+    """Send a test mail – the error from the mail server if it doesn't go."""
+    try:
+        await mailer.send(db, payload.to, "Smooth Family – test", "This is a test from your Smooth Family server. E-mail works.")
+    except mailer.MailError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't send: {exc}") from exc
+    return {"sent": True}
 
 
 @router.get("/integrations/giphy", response_model=GiphySettingOut)

@@ -118,3 +118,45 @@ async def test_no_plus_one_unless_allowed(client):
     assert sent["mine"]["plus_first_name"] is None
     assert party["steps"] == []  # the timeline template is a child's party's
     assert (await client.post("/api/parties", json=_party(start, ends_at=(start - timedelta(hours=1)).isoformat()))).status_code == 422
+
+
+async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monkeypatch):
+    from app.routers.parties import run_party_reminders
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    start = (datetime.now(timezone.utc) + timedelta(days=20)).replace(hour=13, minute=0, second=0, microsecond=0)
+    party = (await client.post("/api/parties", json=_party(start, page_theme="jungle"))).json()
+    token = party["link"].rsplit("/", 1)[1]
+    # No e-mail on the server: the guests aren't asked for an address.
+    assert (await client.get(f"/api/party/{token}")).json()["mail"] is False
+    out = (await client.put("/api/admin/integrations/email", json={"host": "smtp.example.com", "port": 587, "username": "u", "password": "secret-pass", "sender": "fest@example.com"})).json()
+    assert out["configured"] and out["has_password"] and "secret-pass" not in str(out)
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["mail"] is True and page["page_theme"] == "jungle" and page["thanks_theme"] == "jungle"
+
+    # A guest with an address who asks for updates gets a confirmation; one who doesn't, nothing.
+    mine = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "email": "Saga@Example.com", "updates": True})).json()
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "email": "nils@example.com"})
+    assert [s[0] for s in sent] == ["saga@example.com"] and "Majas kalas" in sent[0][1] and "?unsubscribe=" in sent[0][2]
+    # A new time tells her; publishing the thank-you; a message from the hosts.
+    await client.put(f"/api/parties/{party['id']}", json={"starts_at": (start + timedelta(hours=1)).isoformat(), "ends_at": (start + timedelta(hours=3)).isoformat()})
+    await client.put(f"/api/parties/{party['id']}", json={"thanks_text": "Tack!", "thanks_published": True, "thanks_theme": "garden"})
+    assert (await client.post(f"/api/parties/{party['id']}/announce", json={"subject": "Parkering", "text": "Parkera på gatan."})).json() == {"sent": 1}
+    assert len(sent) == 4 and "Parkera på gatan." in sent[-1][2]
+    assert (await client.get(f"/api/party/{token}")).json()["thanks_theme"] == "garden"
+
+    # The day before: a reminder, once.
+    sent.clear()
+    day_before = datetime.combine((start + timedelta(hours=1)).astimezone(timezone.utc).date() - timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc).replace(hour=9)
+    await run_party_reminders(db_session, day_before)
+    await run_party_reminders(db_session, day_before)
+    assert [s[0] for s in sent] == ["saga@example.com"]
+
+    # Stopping them through the link in the mail.
+    code = sent[0][2].rsplit("?unsubscribe=", 1)[1].strip()
+    assert (await client.post(f"/api/party/{token}/unsubscribe", json={"code": code})).json() == {"done": True}
+    assert (await client.post(f"/api/parties/{party['id']}/announce", json={"subject": "x", "text": "y"})).json() == {"sent": 0}
+    assert mine["key"]

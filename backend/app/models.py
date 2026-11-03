@@ -2013,6 +2013,11 @@ class Party(Base):
     thanks_text: Mapped[str] = mapped_column(Text, default="")
     thanks_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
     thanks_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The look of the guests' page and of the thank-you (a theme's key); "" = as the invitation.
+    page_theme: Mapped[str] = mapped_column(String(20), default="balloons", server_default="balloons")
+    thanks_theme: Mapped[str] = mapped_column(String(20), default="", server_default="")
+    # The day before, the guests who asked for updates are reminded (once).
+    guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("family_events.id", ondelete="SET NULL"), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -2034,6 +2039,11 @@ class PartyGuest(Base):
     plus_first_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     plus_last_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     plus_allergies: Mapped[str] = mapped_column(String(300), default="")
+    # Updates by e-mail, if the guest gave an address and asked for them; the link in each mail to
+    # stop them has a code of its own (its hash here).
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    updates: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

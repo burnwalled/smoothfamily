@@ -371,6 +371,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Choose a look for the invitation page and another for the thank-you – balloons, jungle, space, ocean, fairy tale, sports, elegant or garden.",
+          "Guests who give their e-mail and ask for updates get a confirmation, a mail if the time or place changes, a reminder the day before and the thank-you – and the messages you send them from Guests. It needs the server's e-mail, set up by the server admin under Server → Address and services.",
           "The party is in the calendar – as the birthday child's, if it's someone's.",
           "Show the wish list: the guests see the wishes of whose party it is and tick what they'll buy; the one it's for never sees who.",
           "Afterwards, under Thank-you: a thank-you text and the photos from an album in the vault, on the same page the guests already have.",
