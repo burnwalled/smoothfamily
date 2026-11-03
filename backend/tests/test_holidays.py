@@ -77,3 +77,30 @@ async def test_the_red_days_in_the_calendar(client):
     assert (await client.put("/api/dashboard/sources/holidays", json={"country": "US"})).status_code == 422
     await client.put("/api/dashboard/sources/holidays", json={"country": None})
     assert not [e for e in (await client.get("/api/calendar/events?start=2026-12-20&end=2027-01-02")).json() if e["holiday"]]
+
+
+@pytest.mark.parametrize(
+    "day,country,theme",
+    [
+        (date(2026, 12, 31), "SE", "newyear"),
+        (date(2027, 1, 1), "GB-ENG", "newyear"),
+        (date(2026, 11, 28), "SE", ""),
+        (date(2026, 11, 29), "SE", "christmas"),  # first Advent 2026
+        (date(2027, 1, 6), "FI", "christmas"),
+        (date(2027, 1, 7), "FI", ""),
+        (date(2026, 3, 29), "SE", "easter"),  # Palm Sunday
+        (date(2026, 4, 6), "NO", "easter"),  # Easter Monday
+        (date(2026, 4, 7), "NO", ""),
+        (date(2026, 6, 19), "SE", "midsummer"),  # Midsummer Eve 2026
+        (date(2026, 6, 21), "FI", "midsummer"),
+        (date(2026, 6, 22), "SE", ""),
+        (date(2026, 6, 23), "NO", "midsummer"),  # Sankthans
+        (date(2026, 6, 19), "DK", ""),
+        (date(2026, 6, 19), "GB-ENG", ""),
+        (date(2026, 6, 19), None, "midsummer"),
+        (date(2026, 10, 31), "GB-SCT", "halloween"),
+        (date(2026, 10, 23), "SE", ""),
+    ],
+)
+def test_fox_theme(day, country, theme):
+    assert h.fox_theme(day, country) == theme

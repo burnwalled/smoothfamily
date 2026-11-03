@@ -1193,6 +1193,8 @@ export type KioskScreen = {
   // 3.0.4: "" = the app's first theme; the smart home devices it may control.
   theme: string;
   devices: string[];
+  // 3.4.0: the fox dresses up for the holidays and birthdays.
+  fox_themes: boolean;
   url?: string;
   qr_svg?: string;
   widgets: KioskWidget[];
@@ -1226,6 +1228,9 @@ export type KioskView = {
   theme?: string;
   week?: { date: string; name: string; meal_id: string; cook: boolean }[];
   devices?: SmarthomeDeviceState[];
+  // 3.4.0: what the fox dresses up for today ("" = nothing) and whose birthday it is (first names).
+  fox_theme?: "" | "halloween" | "christmas" | "newyear" | "easter" | "midsummer";
+  birthdays?: string[];
 };
 
 export const KIOSK_SCREENSAVERS = ["photos", "flipclock", "calm", "fox", "dark"] as const;

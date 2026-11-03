@@ -510,6 +510,8 @@ export default function KioskPage() {
           weather={shows("weather") ? view.weather : null}
           next={upcoming[0] ?? null}
           tasks={shows("tasks") ? view.tasks.filter((x) => !x.done) : []}
+          foxTheme={view.fox_theme ?? ""}
+          birthdays={view.birthdays ?? []}
           onWake={wake}
         />
       )}

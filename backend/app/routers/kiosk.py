@@ -34,9 +34,11 @@ from app.routers.smarthome import ActionIn, DeviceStateOut, device_states, run_a
 from app.routers.presence import family_presence
 from app.schemas import EventOut
 from app.services import electricity as el
+from app.services import holidays
 from app.services import flows as flow_engine
 from app.services import login_throttle, rotation
 from app.services import pantry_scan as scan
+from app.services.birthdays import birthdays_between
 from app.services.calendar_view import events_between, utc
 from app.services.memories import slideshow
 from app.services.mfa import qr_svg
@@ -81,6 +83,7 @@ class ScreenIn(BaseModel):
     night_to: int = Field(default=6, ge=0, le=23)
     language: ScreenLanguage = ""
     theme: Theme = ""
+    fox_themes: bool = True
 
 
 class ScreenChange(BaseModel):
@@ -96,6 +99,7 @@ class ScreenChange(BaseModel):
     night_to: int | None = Field(default=None, ge=0, le=23)
     language: ScreenLanguage | None = None
     theme: Theme | None = None
+    fox_themes: bool | None = None
     devices: list[uuid.UUID] | None = Field(default=None, max_length=40)
 
 
@@ -116,6 +120,7 @@ class ScreenOut(BaseModel):
     # "" = the family admin's.
     language: str = ""
     theme: str = ""
+    fox_themes: bool = True
     devices: list[uuid.UUID] = []
 
 
@@ -168,6 +173,10 @@ class KioskView(BaseModel):
     # 3.0.4: the week's dinners (the cooking mode where there's a recipe) and the screen's devices.
     week: list[dict] = []
     devices: list[DeviceStateOut] = []
+    # 3.4.0: what the fox dresses up for today ("" = nothing, or the screen has it off) and whose
+    # birthday it is – first names, the people the family keeps birthdays for.
+    fox_theme: str = ""
+    birthdays: list[str] = []
 
 
 def _night(screen: KioskScreen) -> dict:
@@ -183,7 +192,7 @@ def _out(screen: KioskScreen) -> ScreenOut:
         id=screen.id, name=screen.name, created_at=screen.created_at, last_seen_at=screen.last_seen_at, revoked_at=screen.revoked_at,
         pantry_scan=bool(screen.pantry_scan), easy_mode=bool(screen.easy_mode), widgets=shows(screen),
         screensaver=screen.screensaver or "photos", idle_minutes=screen.idle_minutes or 5, **_night(screen),
-        language=screen.language or "", theme=screen.theme or "", devices=screen.devices or [],
+        language=screen.language or "", theme=screen.theme or "", fox_themes=screen.fox_themes is not False, devices=screen.devices or [],
     )
 
 
@@ -199,7 +208,7 @@ async def list_screens(admin: FamilyManager, db: DB) -> list[ScreenOut]:
 @router.post("/kiosks", response_model=ScreenCreated, status_code=status.HTTP_201_CREATED)
 async def create_screen(payload: ScreenIn, request: Request, admin: FamilyManager, db: DB) -> ScreenCreated:
     token = secrets.token_urlsafe(24)
-    screen = KioskScreen(family_id=admin.family_id, name=payload.name.strip(), token_hash=_hash(token), pantry_scan=payload.pantry_scan, easy_mode=payload.easy_mode, screensaver=payload.screensaver, idle_minutes=payload.idle_minutes, night_dim=payload.night_dim, night_from=payload.night_from, night_to=payload.night_to, language=payload.language or None, theme=payload.theme or None, created_by=admin.id, created_at=datetime.now(timezone.utc))
+    screen = KioskScreen(family_id=admin.family_id, name=payload.name.strip(), token_hash=_hash(token), pantry_scan=payload.pantry_scan, easy_mode=payload.easy_mode, screensaver=payload.screensaver, idle_minutes=payload.idle_minutes, night_dim=payload.night_dim, night_from=payload.night_from, night_to=payload.night_to, language=payload.language or None, theme=payload.theme or None, fox_themes=payload.fox_themes, created_by=admin.id, created_at=datetime.now(timezone.utc))
     db.add(screen)
     await db.commit()
     base = await public_base(db, request)
@@ -241,6 +250,8 @@ async def change_screen(screen_id: uuid.UUID, payload: ScreenChange, admin: Fami
         screen.language = payload.language or None
     if payload.theme is not None:
         screen.theme = payload.theme or None
+    if payload.fox_themes is not None:
+        screen.fox_themes = payload.fox_themes
     if payload.devices is not None:
         # Only the family's own devices, and never a lock.
         mine = (await db.execute(select(ExposedDevice).where(ExposedDevice.family_id == admin.family_id))).scalars().all()
@@ -423,6 +434,12 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
 
     devices = await device_states(db, family.id, await _screen_devices(db, screen)) if screen.devices else []
 
+    # The fox's dress (3.4.0), only for a screen that shows it.
+    fox_theme, birthdays = "", []
+    if screen.screensaver == "fox" and screen.fox_themes is not False:
+        fox_theme = holidays.fox_theme(today, family.holiday_country or holidays.BY_LANGUAGE.get(language))
+        birthdays = [(p.name.split() or [p.name])[0] for p, _ in await birthdays_between(db, family.id, today, today + timedelta(days=1))]
+
     return KioskView(
         family_name=family.name,
         language=language,
@@ -446,6 +463,8 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
         theme=screen.theme or "",
         week=week_meals,
         devices=devices,
+        fox_theme=fox_theme,
+        birthdays=birthdays,
     )
 
 

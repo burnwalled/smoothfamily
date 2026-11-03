@@ -9,7 +9,7 @@ import { CalendarEvent, Weather } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { WeatherIcon } from "@/components/widgets/TodaySourcesWidgets";
 import FlipClock, { isNight } from "./FlipClock";
-import FoxScene from "./FoxScene";
+import FoxScene, { FoxDress } from "./FoxScene";
 
 export type ScreensaverTheme = "photos" | "flipclock" | "calm" | "fox" | "dark";
 const SLIDE_MS = 8_000;
@@ -18,7 +18,7 @@ const SLIDE_MS = 8_000;
 const FOX_TASKS = 3;
 
 export default function Screensaver({
-  theme, now, token, slides, weather, next, tasks = [], onWake,
+  theme, now, token, slides, weather, next, tasks = [], foxTheme = "", birthdays = [], onWake,
 }: {
   theme: ScreensaverTheme;
   now: Date;
@@ -28,6 +28,9 @@ export default function Screensaver({
   next: CalendarEvent | null;
   // The day's open tasks (3.0.4), shown by the fox.
   tasks?: { title: string; who: string | null; color: string | null }[];
+  // 3.4.0: the fox's holiday, and whose birthday it is today.
+  foxTheme?: FoxDress;
+  birthdays?: string[];
   onWake: () => void;
 }) {
   const { t, dateLocale } = useI18n();
@@ -48,7 +51,12 @@ export default function Screensaver({
   if (shown === "fox")
     return (
       <button className="fixed inset-0 z-[45] overflow-hidden bg-black" onClick={onWake} aria-label={wake}>
-        <FoxScene now={now} kind={weather?.now?.kind ?? "partly"} temp={weather?.now?.temp ?? null} wind={weather?.now?.wind ?? null} />
+        <FoxScene now={now} kind={weather?.now?.kind ?? "partly"} temp={weather?.now?.temp ?? null} wind={weather?.now?.wind ?? null} dress={birthdays.length ? "birthday" : foxTheme} />
+        {birthdays.length > 0 && (
+          <span className="absolute left-1/2 top-[12vh] -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-[3vw] py-[1vh] text-[min(4.5vw,6vh)] font-bold text-[#8a2b3c] shadow-lg">
+            {t("fox.birthday", { name: new Intl.ListFormat(dateLocale, { type: "conjunction" }).format(birthdays) })}
+          </span>
+        )}
         <span className="absolute bottom-[4vh] left-[4vw] flex items-end gap-5 text-left text-white [text-shadow:0_2px_14px_rgba(0,0,0,0.45)]">
           <span className="text-[min(13vw,18vh)] font-semibold leading-none tabular-nums tracking-tight">{time}</span>
           {weather?.now && (

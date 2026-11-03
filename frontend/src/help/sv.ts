@@ -983,6 +983,9 @@ const texts: Record<string, TopicText> = {
         "p": "Efter de minuter du väljer kommer skärmsläckaren: familjens foton, en flip-klocka, en lugn klocka med vädret, en mörk skärm – eller räven, som visar vädret ute. Den läser när det är grått, flyger drake när molnen drar förbi, håller paraplyet i regnet, bygger snögubbe när det snöar och sover på natten, och dagens uppgifter syns över sjön. Ett tryck väcker skärmen."
       },
       {
+        "p": "Med några minuters mellanrum gör räven något litet som passar vädret – skuttar, plaskar i en vattenpöl, kastar snöboll, tittar på ett stjärnfall – och ibland skuttar en hare förbi eller en fisk hoppar i sjön. Den klär ut sig till halloween, jul, nyår, påsk och midsommar, och på en födelsedag (personerna under Födelsedagar) får den ballonger, partyhatt och en banderoll med namnet. Högtiderna följer familjens land; utklädnaden stängs av per skärm under skärmsläckaren. Med minskade rörelser på surfplattan står räven still."
+      },
+      {
         "steps": [
           "Familjeinställningar → Köksskärm → Koppla en skärm.",
           "Öppna länken på surfplattan (eller skanna QR-koden) och lägg till den på hemskärmen.",
