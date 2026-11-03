@@ -709,7 +709,7 @@ const fi: Dictionary = {
   "color.red": "Punainen",
   "color.gold": "Kulta",
   "settings.feedColor": "Väri",
-  "settings.icalGuideLink": "Vaiheittaiset ohjeet: Google, Outlook, iCloud ja SportAdmin",
+  "settings.icalGuideLink": "Vaiheittaiset ohjeet: Google, Outlook, iCloud, SportAdmin, MyClub ja laget.se",
   "settings.language": "Kieli",
   "settings.memberLanguage": "Sovelluksen kieli",
   "member.listHint": "Avaa jäsen nähdäksesi kaiken hänestä: kirjautuminen, kieli, sovellukset, kuva – ja lapselta syntymäpäivä, viikkoraha, lääkkeet ja hätäkortti.",

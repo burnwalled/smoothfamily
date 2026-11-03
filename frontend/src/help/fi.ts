@@ -253,6 +253,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (seuran ja joukkueen kalenteri)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa seuran MyClub-sivusto (seuranimi.myclub.se) ja siirry joukkueen kalenteriin tai sivulle, jolla kerrotaan kalenterin tilaamisesta.",
+                  "Kopioi tilauslinkki. Joukkueen linkki on muotoa webcal://calendar.myclub.se/public/teams/12345/calendar.ics – koko seuran linkissä on sen sijaan /public/clubs/.",
+                  "Liitä linkki Smooth Familyyn."
+                ]
+              },
+              {
+                "note": "Etkö löydä linkkiä? Pyydä joukkueenjohtajalta kalenterin tilauslinkki – se on sama, jonka seura antaa iPhonea ja Googlea varten. Lisää yksi tilaus joukkuetta kohden, anna kullekin oma värinsä ja valitse lapsi, jota se koskee."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (seuran ja joukkueen kalenteri)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa joukkueen sivu laget.se-palvelussa, esimerkiksi laget.se/Joukkue.",
+                  "Siirry kohtaan Kalender ja napsauta kalenterin alla Prenumerera (tilaa).",
+                  "Kopioi linkki. Se on muotoa webcal://cal.laget.se/Joukkue.ics – sama nimi kuin joukkueen laget.se-osoitteessa.",
+                  "Liitä linkki Smooth Familyyn."
+                ]
+              },
+              {
+                "note": "laget.se-kalenteri näyttää kuukauden taaksepäin ja kuusi kuukautta eteenpäin. Lisää yksi tilaus joukkuetta kohden, anna kullekin oma värinsä ja valitse lapsi, jota se koskee."
+              }
+            ]
+          },
+          {
             "title": "Lisää linkki Smooth Familyyn",
             "blocks": [
               {

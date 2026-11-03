@@ -253,6 +253,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (klubbens og holdets kalender)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åbn klubbens websted på MyClub (klubnavn.myclub.se), og gå til holdets kalender eller siden om at abonnere på kalenderen.",
+                  "Kopiér abonnementslinket. Et holds ser ud som webcal://calendar.myclub.se/public/teams/12345/calendar.ics – hele klubbens har /public/clubs/ i stedet.",
+                  "Indsæt linket i Smooth Family."
+                ]
+              },
+              {
+                "note": "Kan du ikke finde linket? Bed holdlederen om kalenderens abonnementslink – det er det samme, klubben giver til iPhone og Google. Tilføj ét abonnement pr. hold, giv hvert sin egen farve, og vælg det barn, det gælder."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (klubbens og holdets kalender)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åbn holdets side på laget.se, for eksempel laget.se/Holdnavn.",
+                  "Gå til Kalender, og klik på Prenumerera (abonner) under kalenderen.",
+                  "Kopiér linket. Det ser ud som webcal://cal.laget.se/Holdnavn.ics – samme navn som i holdets laget.se-adresse.",
+                  "Indsæt linket i Smooth Family."
+                ]
+              },
+              {
+                "note": "Kalenderen fra laget.se viser en måned tilbage og seks måneder frem. Tilføj ét abonnement pr. hold, giv hvert sin egen farve, og vælg det barn, det gælder."
+              }
+            ]
+          },
+          {
             "title": "Tilføj linket i Smooth Family",
             "blocks": [
               {
