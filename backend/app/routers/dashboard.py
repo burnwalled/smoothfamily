@@ -54,8 +54,9 @@ async def list_widgets(user: CurrentUser, db: DB) -> list[DashboardWidget]:
 
 @router.post("/widgets", response_model=WidgetOut, status_code=status.HTTP_201_CREATED)
 async def create_widget(payload: WidgetCreate, user: CurrentUser, db: DB) -> DashboardWidget:
-    if payload.type == "sl_departures" and not payload.config.get("site_id"):
-        raise HTTPException(status_code=422, detail="SL departures widget needs a site_id in config")
+    # Departures (3.4.0): SL's site_id as before, or another provider's stop_id.
+    if payload.type == "sl_departures" and not (payload.config.get("site_id") or (payload.config.get("provider") and payload.config.get("stop_id"))):
+        raise HTTPException(status_code=422, detail="The departures widget needs a stop in config")
     max_position = (
         await db.execute(
             select(func.coalesce(func.max(DashboardWidget.position), -1)).where(

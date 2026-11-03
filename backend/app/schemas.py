@@ -703,6 +703,38 @@ class SlSite(BaseModel):
     name: str
 
 
+class TransitStop(BaseModel):
+    # A provider's own id for the stop (SL's are numbers).
+    id: str
+    name: str
+
+
+class TransitProviderOut(BaseModel):
+    id: str
+    name: str
+    area: str
+    needs_key: bool
+    # It can be used on this server (no key needed, or the server admin added one).
+    available: bool
+    # The one for the member's language.
+    suggested: bool = False
+
+
+class TransitKeyOut(BaseModel):
+    id: str
+    name: str
+    area: str
+    key: str  # none | required | optional
+    configured: bool
+    signup: str | None
+
+
+class TransitKeyIn(BaseModel):
+    provider: str = Field(max_length=20)
+    # None (or empty) removes it.
+    api_key: str | None = Field(default=None, max_length=300)
+
+
 class SlDeparture(BaseModel):
     line: str
     destination: str
