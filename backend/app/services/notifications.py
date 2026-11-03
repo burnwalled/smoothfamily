@@ -38,7 +38,7 @@ async def run_calendar_reminders(db: AsyncSession, now: datetime | None = None) 
     sent = 0
     for feed in feeds:
         try:
-            raw = await fetch_ical_raw(feed.url)
+            raw = await fetch_ical_raw(feed.url, feed.family_id)
             events = parse_events(raw, window_start.date(), window_end.date())
         except Exception:
             continue
@@ -138,6 +138,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
     from app.routers.trips import run_trip_reminders
     from app.routers.week import run_week_review_reminders
     from app.services.health_ha import run_health_sync
+    from app.services.school_ha import run_school_sync
 
     settings = get_settings()
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
@@ -179,6 +180,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await run_property_meters(db)
                     await run_custody(db)
                     await run_health_sync(db)
+                    await run_school_sync(db)
                     await prune_notifications(db)
             except Exception:
                 pass

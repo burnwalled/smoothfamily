@@ -349,6 +349,61 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "school": {
+    "title": "School",
+    "summary": "The children's school day from InfoMentor or SchoolSoft, through Home Assistant: the school card, the school's calendars and the weekly letter.",
+    "blocks": [
+      {
+        "p": "If the family has connected Home Assistant, the children's school can come into Smooth Family through the community integrations for InfoMentor and SchoolSoft. The school card on Today shows each child's school day, PE the next school day, the after-school hours, homework, absence and what's next – and the weekly letter, which opens right there. The school's calendars – the schedule, tests and trips, after school – come into the calendar as the child's."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (recommended)",
+            "blocks": [
+              {
+                "steps": [
+                  "In Home Assistant, open HACS → ⋮ → Custom repositories, add https://github.com/c14ym0re/infomentor-homeassistant as the type Integration, and install InfoMentor.",
+                  "Restart Home Assistant.",
+                  "Settings → Devices & services → Add integration → InfoMentor. Sign in with BankID (scan the QR code – so far only for Stockholm) or with your e-mail and password if your municipality still has the classic InfoMentor account.",
+                  "Each child becomes a device. In Smooth Family, tick the child under Family members → the child → School from Home Assistant."
+                ]
+              },
+              {
+                "note": "It gives the school day, PE, homework, the weekly letter, absence, the after-school hours, the school calendar and the school's news – and, if you give it your school's Mateo unit, the lunch. Another integration, https://github.com/chrfo892/ha-infomentor, gives the schedule, check-in at after school and unread notifications; it's installed the same way."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (schedule and attendance)",
+            "blocks": [
+              {
+                "steps": [
+                  "In HACS → ⋮ → Custom repositories, add https://github.com/chriseckl/Schoolsoft-for-Home-Assistant as the type Integration, install it and restart Home Assistant.",
+                  "Settings → Devices & services → Add integration → SchoolSoft, and sign in with the guardian's username and password.",
+                  "Add it once per child, then tick each child's account in Smooth Family."
+                ]
+              },
+              {
+                "note": "It gives the schedule as a calendar (lessons marked absent or late), the current and next lesson and the day's start and end. For the lunch menu there's https://github.com/kanylbullen/ha-schoolsoft – the school's name is the one in its SchoolSoft address."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "A new weekly letter, an absence today and news from the school are sent to the child's adults as notifications. The child's school is seen by their adults and the child themself; the kitchen display shows only the school day, never absence or letters."
+      },
+      {
+        "tips": [
+          "Add the School card to Today under Customize – and The school day to the kitchen display under Family settings → Kitchen display, if you like.",
+          "Beta: the integrations are small, unofficial projects, and their sensors are recognised by their names (in English or Swedish). If something is missing, tell us which sensors your integration has.",
+          "A school's calendar can also be added by hand under Calendar settings with the address homeassistant://calendar.name.",
+          "Calendars from Home Assistant need a direct connection – they can't be read through the gateway."
+        ]
+      }
+    ]
+  },
   "health": {
     "title": "Health",
     "summary": "Your workouts and the day's steps, sleep and weight – private, or shared with the family.",

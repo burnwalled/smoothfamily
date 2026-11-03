@@ -9,7 +9,7 @@
 // mode, the smart home devices chosen for it, and tasks made for fingers.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Barcode, CalendarDays, Car, CheckCircle2, ChefHat, Circle, HeartPulse, House, Lightbulb, Maximize2, Minimize2, Repeat, Siren, Soup, Star, Trash2, Users, UtensilsCrossed, WifiOff, X, Zap } from "lucide-react";
+import { Barcode, CalendarDays, Car, CheckCircle2, ChefHat, Circle, GraduationCap, HeartPulse, House, Lightbulb, Maximize2, Minimize2, Repeat, Siren, Soup, Star, Trash2, Users, UtensilsCrossed, WifiOff, X, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, EmergencyCards, KIOSK_WIDGETS, KioskView, KioskWidget, Member, request } from "@/lib/api";
 import { apiKey, shouldRetry } from "@/lib/queryClient";
@@ -454,6 +454,28 @@ export default function KioskPage() {
                 </button>
               ))}
             </div>
+          </Card>
+        )}
+
+        {view.school && view.school.length > 0 && (
+          <Card title={t("widget.school")} icon={GraduationCap} tone="bg-sky-100 text-sky-700">
+            <ul className="space-y-2 text-lg">
+              {view.school.map((s) => (
+                <li key={s.name}>
+                  <span className="flex items-center gap-2 font-semibold">
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: s.color ?? "#999" }} aria-hidden />
+                    {s.name}
+                    {s.school_day && <span className="font-normal text-muted">{s.school_day}</span>}
+                  </span>
+                  <span className="flex flex-wrap gap-x-3 pl-5 text-sm text-muted">
+                    {s.leisure_today && <span>{t("school.leisure", { time: s.leisure_today })}</span>}
+                    {s.pe && <span className="font-semibold text-accent">{t("school.pe")}</span>}
+                    {!!s.assignments && <span>{t("school.assignments", { n: s.assignments })}</span>}
+                    {s.next_event && <span>{t("school.next", { what: s.next_event })}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
 

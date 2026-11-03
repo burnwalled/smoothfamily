@@ -102,7 +102,7 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
         if not visible:
             continue
         try:
-            raw = await fetch_ical_raw(feed.url)
+            raw = await fetch_ical_raw(feed.url, feed.family_id)
             items = parse_events(raw, start, end)
         except Exception:
             # A broken feed must not take down the whole calendar

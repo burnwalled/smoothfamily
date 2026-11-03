@@ -349,6 +349,61 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "school": {
+    "title": "Skolen",
+    "summary": "Børnenes skoledag fra InfoMentor eller SchoolSoft via Home Assistant: skolekortet, skolens kalendere og ugebrevet.",
+    "blocks": [
+      {
+        "p": "Hvis familien har forbundet Home Assistant, kan børnenes skole komme ind i Smooth Family via fællesskabets integrationer til InfoMentor og SchoolSoft. Skolekortet på I dag viser hvert barns skoledag, idræt næste skoledag, SFO-tiderne, lektier, fravær og hvad der sker næste gang – og ugebrevet, som åbnes lige der. Skolens kalendere – skemaet, prøver og udflugter, SFO – kommer ind i kalenderen som barnets."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (anbefales)",
+            "blocks": [
+              {
+                "steps": [
+                  "I Home Assistant: åbn HACS → ⋮ → Brugerdefinerede repositories, tilføj https://github.com/c14ym0re/infomentor-homeassistant af typen Integration, og installér InfoMentor.",
+                  "Genstart Home Assistant.",
+                  "Indstillinger → Enheder og tjenester → Tilføj integration → InfoMentor. Log ind med BankID (scan QR-koden – indtil videre kun for Stockholm) eller med e-mail og adgangskode, hvis kommunen stadig har den klassiske InfoMentor-konto.",
+                  "Hvert barn bliver en enhed. I Smooth Family sætter du flueben ved barnet under Familiemedlemmer → barnet → Skolen fra Home Assistant."
+                ]
+              },
+              {
+                "note": "Den giver skoledagen, idræt, lektier, ugebrevet, fravær, SFO-tiderne, skolens kalender og skolens nyheder – og frokosten, hvis du angiver skolens Mateo-enhed. En anden integration, https://github.com/chrfo892/ha-infomentor, giver skemaet, indtjekning i SFO og ulæste notifikationer; den installeres på samme måde."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (skema og fremmøde)",
+            "blocks": [
+              {
+                "steps": [
+                  "I HACS → ⋮ → Brugerdefinerede repositories: tilføj https://github.com/chriseckl/Schoolsoft-for-Home-Assistant af typen Integration, installér den, og genstart Home Assistant.",
+                  "Indstillinger → Enheder og tjenester → Tilføj integration → SchoolSoft, og log ind med forælderens brugernavn og adgangskode.",
+                  "Tilføj den én gang pr. barn, og sæt derefter flueben ved hvert barns konto i Smooth Family."
+                ]
+              },
+              {
+                "note": "Den giver skemaet som kalender (lektioner markeret fraværende eller forsinket), nuværende og næste lektion samt dagens start og slut. Til madplanen findes https://github.com/kanylbullen/ha-schoolsoft – skolens navn er det i skolens SchoolSoft-adresse."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "Et nyt ugebrev, fravær i dag og nyheder fra skolen sendes til barnets voksne som notifikationer. Barnets skole ses af barnets voksne og af barnet selv; køkkenskærmen viser kun skoledagen, aldrig fravær eller breve."
+      },
+      {
+        "tips": [
+          "Tilføj kortet Skolen på I dag under Tilpas – og Skoledagen på køkkenskærmen under Familieindstillinger → Køkkenskærm, hvis I vil.",
+          "Beta: integrationerne er små, uofficielle projekter, og deres sensorer genkendes på navnene (på engelsk eller svensk). Mangler noget – fortæl os, hvilke sensorer jeres integration har.",
+          "En skolekalender kan også tilføjes i hånden under kalenderindstillingerne med adressen homeassistant://calendar.navn.",
+          "Kalendere fra Home Assistant kræver direkte forbindelse – de kan ikke læses via gatewayen."
+        ]
+      }
+    ]
+  },
   "health": {
     "title": "Sundhed",
     "summary": "Din træning og dagens skridt, søvn og vægt – privat eller delt med familien.",

@@ -168,7 +168,7 @@ async def test_shared_ics_contains_events(client, monkeypatch):
         def today(cls):
             return real_date(2099, 11, 30)
 
-    async def fetch(_url):
+    async def fetch(_url, _family_id=None):
         return ICS_SOURCE
 
     monkeypatch.setattr(calendar_view, "fetch_ical_raw", fetch)
@@ -201,7 +201,7 @@ DTEND:{soon:%Y%m%d}T100000Z
 END:VEVENT
 END:VCALENDAR"""
 
-    async def fetch(_url):
+    async def fetch(_url, _family_id=None):
         return ics
 
     monkeypatch.setattr(calendar_view, "fetch_ical_raw", fetch)

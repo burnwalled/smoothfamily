@@ -23,13 +23,14 @@ def _get_redis() -> aioredis.Redis:
     return _redis
 
 
-async def fetch_ical_raw(url: str) -> bytes:
-    """Fetch raw iCal bytes, via Redis cache when possible."""
+async def fetch_ical_raw(url: str, family_id=None) -> bytes:
+    """Fetch raw iCal bytes, via Redis cache when possible. A `homeassistant://calendar.x` address
+    (3.4.0) is read from the family's own Home Assistant."""
     settings = get_settings()
     # webcal:// is just https in disguise
     if url.startswith("webcal://"):
         url = "https://" + url[len("webcal://"):]
-    cache_key = "ical:" + hashlib.sha256(url.encode()).hexdigest()
+    cache_key = "ical:" + hashlib.sha256(f"{family_id or ''}{url}".encode()).hexdigest()
 
     try:
         cached = await _get_redis().get(cache_key)
@@ -38,12 +39,22 @@ async def fetch_ical_raw(url: str) -> bytes:
     except Exception:
         pass  # Redis down – fetch directly
 
-    async with httpx.AsyncClient(
-        timeout=settings.ical_fetch_timeout_seconds, follow_redirects=True
-    ) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        data = resp.content
+    from app.services import ha_calendar
+
+    if ha_calendar.is_ha(url):
+        if family_id is None:
+            return ha_calendar.to_ics("", [])
+        from app.database import SessionLocal
+
+        async with SessionLocal() as db:
+            data = await ha_calendar.fetch(db, family_id, ha_calendar.entity_of(url))
+    else:
+        async with httpx.AsyncClient(
+            timeout=settings.ical_fetch_timeout_seconds, follow_redirects=True
+        ) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.content
 
     try:
         await _get_redis().set(cache_key, data, ex=settings.ical_cache_ttl_seconds)

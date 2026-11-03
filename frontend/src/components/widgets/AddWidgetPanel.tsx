@@ -10,7 +10,7 @@ import { Bus, ShoppingBasket } from "lucide-react";
 import { useMe } from "@/components/Shell";
 import { widgetAllowed } from "@/lib/nav";
 
-const BUILT_IN: WidgetType[] = ["calendar_today", "tasks_today", "leaderboard", "family_goals", "smart_home", "chat_unread", "waste_collection", "school_lunch", "weather", "presence", "electricity", "memories", "pantry_soon", "upcoming", "custody"];
+const BUILT_IN: WidgetType[] = ["calendar_today", "tasks_today", "leaderboard", "family_goals", "smart_home", "chat_unread", "waste_collection", "school_lunch", "weather", "presence", "electricity", "memories", "pantry_soon", "upcoming", "custody", "school"];
 
 export default function AddWidgetPanel({
   onAdd,
@@ -53,7 +53,7 @@ export default function AddWidgetPanel({
     <div className="card p-5 space-y-4">
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("dashboard.addWidget")}</h2>
       <div className="flex flex-wrap gap-2">
-        {BUILT_IN.filter((type) => widgetAllowed(type, apps) && (type !== "presence" || smarthome)).map((type) => (
+        {BUILT_IN.filter((type) => widgetAllowed(type, apps) && ((type !== "presence" && type !== "school") || smarthome)).map((type) => (
           <button key={type} className="btn-ghost border border-edge" onClick={() => onAdd(type)}>
             {t(`widget.${type}`)}
           </button>

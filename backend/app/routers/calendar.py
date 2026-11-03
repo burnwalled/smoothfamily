@@ -1,5 +1,6 @@
 """Shared family calendar: read-only iCal feed subscriptions plus events created in the app."""
 import secrets
+import re
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
@@ -43,7 +44,8 @@ async def _family_member(db, user, member_id: uuid.UUID | None) -> uuid.UUID | N
 
 @router.post("/feeds", response_model=FeedOut, status_code=status.HTTP_201_CREATED)
 async def create_feed(payload: FeedCreate, user: CurrentUser, db: DB) -> CalendarFeed:
-    if not payload.url.startswith(("https://", "http://", "webcal://")):
+    # 3.4.0: also a calendar in the family's Home Assistant, homeassistant://calendar.<entity>.
+    if not payload.url.startswith(("https://", "http://", "webcal://")) and not re.fullmatch(r"homeassistant://calendar\.[a-z0-9_]+", payload.url):
         raise HTTPException(status_code=422, detail="URL must start with https://, http:// or webcal://")
     feed = CalendarFeed(
         family_id=user.family_id,
