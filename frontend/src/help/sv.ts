@@ -354,7 +354,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Planera en fest tillsammans – en inbjudningssida för gästerna, och checklistan, budgeten och tidsplanen för er.",
     "blocks": [
       {
-        "p": "Under Kalender → Fest planerar du ett barnkalas, en fest eller en middag. Gästerna får en gemensam inbjudningssida – utan konto – där de läser om festen, lägger in det i sin egen kalender och svarar med för- och efternamn och eventuella allergier, och en +1 om ni tillåter det. De kan ändra sitt svar senare på samma enhet. Ni väljer vad de ser av varandra: inget, hur många som kommer eller namnen."
+        "p": "Under Kalender → Fest planerar du ett barnkalas, en fest, en middag, en matchkväll, en grillafton eller en dag utomhus. Gästerna får en gemensam sida – utan konto – först ett spara datumet om ni vill, sedan inbjudan där de svarar med namn, allergier och vilka de tar med så långt ni tillåter, på dagen portalen för deras bilder, och efteråt tacket. De kan ändra sitt svar senare. Ni väljer vad de ser av varandra: inget, hur många som kommer eller namnen."
       },
       {
         "shot": "parties",
@@ -375,7 +375,7 @@ const texts: Record<string, TopicText> = {
         "h": "Planeringen"
       },
       {
-        "p": "En ny fest börjar med en checklista – dela inbjudan, tårtan, dekorationer, påminn dem som inte svarat, räkna gästerna, handla och tacka – med datum; varje morgon något ska göras blir de vuxna påminda. Ändra den som ni vill. Budget håller koll på vad som spenderats mot budgeten, Tidsplan på dagens plan (ett barnkalas börjar med en)."
+        "p": "En ny fest börjar med en checklista för sin typ – före, under och efter festen – med datum; varje morgon något ska göras blir de vuxna påminda. Ändra den som ni vill. Budgeten håller koll på vad som spenderats mot det planerade, och schemat på dagens tider (ett barnkalas börjar med ett) – en punkt kan döljas för gästerna i portalen."
       },
       {
         "shot": "partyportal",
@@ -385,7 +385,7 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "En fest, fyra sidor i samma tema, var och en med sin egen affisch (Affisch): först ett spara datumet om ni vill – gästerna sparar datumet och lämnar sin e-post, och får ett mejl när ni byter länken till inbjudan – sedan inbjudan, festportalen och tacket. Klistra in en samarbetslista i Spotify så kan gästerna önska låtar. Öppna festportalen och skriv ut QR-koden till borden: gästerna laddar upp sina bilder direkt till ett album i Valvet och ser dagens schema.",
           "Appen har ett bildbibliotek: bakgrunder och toppbilder till många av temana, och klistermärken – ballonger, discokula, kräfta, studentmössa, ringar, pumpa med mera – att sätta på affischen i stället för emoji (Affisch → en dekorrad eller emblemet → Bibliotek).",
-          "Under Affisch gör ni inbjudningssidan till er egen: lägg till, flytta och ta bort dess delar (texter, bilder, ett emblem, en dekorrad, när och var som biljett, kort, lista eller stort datum, en nedräkning, kalenderknappar, inbjudan, ett band). Skriv varje text med eget typsnitt, storlek, justering och färg – {namn}, {datum} och liknande fylls i av sig själva. Byt emojierna mot andra eller mot egna bilder, och välj vilka kalenderknappar gästerna får: kalenderfil, Google, Outlook eller Apple. Temats affisch är alltid ett tryck bort.",
+          "Under Affisch gör ni inbjudningssidan till er egen: lägg till, flytta och ta bort dess delar (texter, bilder, ett emblem, en dekorrad, när och var som biljett, kort, lista eller stort datum, en nedräkning, kalenderknappar, inbjudan, ett band). Skriv varje text med eget typsnitt, storlek, justering och färg – {namn}, {datum} och liknande fylls i av sig själva. Byt emojierna mot andra eller mot egna bilder, och välj vilka kalenderknappar gästerna får: kalenderfil (den öppnar Apples Kalender på iPhone och Mac, och de flesta andra), Google eller Outlook. Temats affisch är alltid ett tryck bort.",
           "Inget bestämt datum än: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
           "Välj vad varje gäst får ta med: ingen, en +1 eller familjen – då lägger de till alla i sitt sällskap, var och en med allergier och om det är ett barn. En middag, en grillafton eller en utomhusaktivitet börjar med familjen.",
           "Välj ett tema för inbjudningssidan och ett för tacksidan – de som passar typen av fest först (ballonger, pirater och dinosaurier för kalas; disco, glitter, 80-tal och champagne för fest; bistro, jul och kräftskiva för middag; fotboll och hockey för match; grill, brännboll och badstrand utomhus). Eller skapa ett eget: färger, mönster, emoji och egna bilder överst och i bakgrunden – sparat att använda igen. En egen bild kan också ligga på inbjudan.",

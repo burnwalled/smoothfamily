@@ -354,7 +354,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Plan a party together – one invitation page for the guests, and the checklist, budget and timeline for you.",
     "blocks": [
       {
-        "p": "Under Calendar → Parties, plan a child's birthday party, a celebration or a dinner. The guests get one shared invitation page – no account – where they read about the party, add it to their own calendar and reply with their first and last name and any allergies, and a +1 if you allow it. They can change their reply later on the same device. You choose what they see of each other: nothing, how many are coming, or the names."
+        "p": "Under Calendar → Parties, plan a child's birthday party, a celebration, a dinner, a match night, a barbecue or a day outdoors. The guests get one shared page – no account – first a save-the-date if you like, then the invitation where they reply with their name, allergies and whoever they bring as far as you allow, on the day the portal for their photos, and afterwards the thank-you. They can change their reply later. You choose what they see of each other: nothing, how many are coming, or the names."
       },
       {
         "shot": "parties",
@@ -375,7 +375,7 @@ const texts: Record<string, TopicText> = {
         "h": "Planning"
       },
       {
-        "p": "A new party starts with a checklist – share the invitation, the cake, decorations, remind those who haven't replied, count the guests, the shopping, and the thank-you – with dates; each morning one is due, the adults are reminded. Change it as you like. Budget keeps what's spent against the budget, Timeline the day's plan (a child's party starts with one)."
+        "p": "A new party starts with a checklist for its kind – before, on the day and after – with dates; each morning one is due, the adults are reminded. Change it as you like. The budget keeps what's spent against what you planned, and the day's plan its times (a child's party starts with one) – a point can be hidden from the guests on the portal."
       },
       {
         "shot": "partyportal",
@@ -385,7 +385,7 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "One party, four pages in the same theme, each with a poster of its own (Poster): a save-the-date first if you like – the guests save the date and leave their e-mail, and get a mail when you switch the link to the invitation – then the invitation, the party day's portal and the thank-you. Paste a collaborative Spotify playlist and the guests can wish for songs. Open the portal and print its QR code for the tables: the guests upload their photos straight to an album in the vault and see the day's plan.",
           "The app comes with a picture library: backgrounds and top pictures for many of the themes, and stickers – balloons, a disco ball, a crayfish, a student cap, rings, a pumpkin and more – to put on the poster in place of emoji (Poster → a decoration row or the emblem → Library).",
-          "Under Poster, make the invitation's page your own: add, move and remove its parts (texts, pictures, an emblem, a decoration row, when and where as a ticket, a card, a list or a big date, a countdown, calendar buttons, the invitation, a ribbon). Write every text with its typeface, size, alignment and colour – {title}, {date} and the like fill themselves in. Swap the emoji for others or for pictures of your own, and choose which calendar buttons the guests get: a calendar file, Google, Outlook or Apple. The theme's poster is always one tap away.",
+          "Under Poster, make the invitation's page your own: add, move and remove its parts (texts, pictures, an emblem, a decoration row, when and where as a ticket, a card, a list or a big date, a countdown, calendar buttons, the invitation, a ribbon). Write every text with its typeface, size, alignment and colour – {title}, {date} and the like fill themselves in. Swap the emoji for others or for pictures of your own, and choose which calendar buttons the guests get: a calendar file (it opens Apple's Calendar on an iPhone or a Mac, and most others), Google or Outlook. The theme's poster is always one tap away.",
           "No set date yet: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
           "Choose what each guest may bring: no one, a +1, or the family – then they add everyone in their party, each with their allergies and whether they're a child. A dinner, a barbecue or a day outdoors starts with the family.",
           "Choose a look for the invitation page and another for the thank-you – the ones for the kind of party first (balloons, pirates and dinosaurs for a child's party; disco, glitter, the 80s and champagne for a party; bistro, Christmas and a crayfish party for a dinner; football and hockey for a match; barbecue, rounders and the beach outdoors). Or create your own: colours, a pattern, emoji and your own pictures at the top and in the background – kept to use again. A picture of your own can go on the invitation too.",
