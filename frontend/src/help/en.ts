@@ -1356,7 +1356,7 @@ const texts: Record<string, TopicText> = {
     "summary": "The server's address, the search engine, the local AI and other services.",
     "blocks": [
       {
-        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer. E-mail sets up the mail services – Gmail with an app password, Brevo for an address on your own domain, or another SMTP server – which one your family sends with, and whether the hosted families may send mail too (to a party's guests who asked for updates)."
+        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer. E-mail sets up the mail services – Gmail with an app password, Brevo for an address on your own domain, or another SMTP server – which one your family sends with, and whether the hosted families may send mail too (to a party's guests who asked for updates). Addresses turns on the suggestions from OpenStreetMap in the address fields (through komoot's Photon or one of your own) – or off."
       },
       {
         "shot": "serverservices",

@@ -10,6 +10,7 @@ import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
+import AddressInput from "@/components/AddressInput";
 
 type Summary = {
   id: string;
@@ -343,7 +344,7 @@ export default function TripsPage() {
           <section className="card space-y-3 p-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-muted">{t("trips.name")}<input className="input mt-1 w-full" value={form.name} maxLength={120} placeholder={t("trips.namePh")} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-              <label className="text-xs text-muted">{t("trips.destination")}<input className="input mt-1 w-full" value={form.destination} maxLength={200} onChange={(e) => setForm({ ...form, destination: e.target.value })} /></label>
+              <label className="text-xs text-muted">{t("trips.destination")}<AddressInput className="input mt-1 w-full" value={form.destination} maxLength={200} onChange={(destination) => setForm({ ...form, destination })} /></label>
               <label className="text-xs text-muted">{t("trips.from")}<input className="input mt-1 w-full" type="date" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value, end: form.end || e.target.value })} /></label>
               <label className="text-xs text-muted">{t("trips.to")}<input className="input mt-1 w-full" type="date" value={form.end} min={form.start} onChange={(e) => setForm({ ...form, end: e.target.value })} /></label>
               <label className="text-xs text-muted">{t("trips.budget")}<input className="input mt-1 w-full" inputMode="decimal" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></label>

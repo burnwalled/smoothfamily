@@ -21,7 +21,7 @@ from sqlalchemy import select
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
 from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut, TransitKeyIn, TransitKeyOut
-from app.services import file_limit, giphy, mailer, public_url, recipe_search, security_policy, transit
+from app.services import file_limit, giphy, mailer, places, public_url, recipe_search, security_policy, transit
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -791,6 +791,23 @@ async def set_recipe_search(payload: RecipeSearchIn, admin: ServerAdmin, db: DB)
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     await recipe_search.set_url(db, payload.url.rstrip("/") if payload.url else None)
     return await get_recipe_search(admin, db)
+
+
+class PlacesIn(BaseModel):
+    enabled: bool = True
+    # A Photon of the server's own; empty = komoot's public one.
+    url: str | None = Field(default=None, max_length=300, pattern=r"^$|^https?://[^\s]+$")
+
+
+@router.get("/integrations/places")
+async def get_places(admin: ServerAdmin, db: DB) -> dict:
+    """Address suggestions from OpenStreetMap: on or off, and through which Photon."""
+    return {**await places.settings(db), "default_url": places.DEFAULT_URL}
+
+
+@router.put("/integrations/places")
+async def set_places(payload: PlacesIn, admin: ServerAdmin, db: DB) -> dict:
+    return {**await places.save(db, payload.enabled, payload.url), "default_url": places.DEFAULT_URL}
 
 
 class EmailIn(BaseModel):
