@@ -2028,6 +2028,21 @@ class Party(Base):
     # buttons …) in order; None = the theme's own. And the pictures it uses: [{id, key}].
     layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
     assets: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The other posters, in the same theme: save the date, the party day's portal, the thank-you.
+    save_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    portal_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    thanks_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # What the link shows first: save | invite (the thank-you once it's published).
+    phase: Mapped[str] = mapped_column(String(10), default="invite", server_default="invite")
+    # A shared playlist the guests can add songs to (Spotify).
+    playlist_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # The party day's portal: its own link (for a QR code on the table) where the guests see the
+    # day's plan and upload their photos to an album in the vault.
+    portal_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    portal_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    portal_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    portal_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    portal_gallery: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # The day before, the guests who asked for updates are reminded (once).
     guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;
@@ -2061,6 +2076,8 @@ class PartyGuest(Base):
     unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # The dates that suit them, while the hosts let the guests vote (the options' ISO starts).
     date_votes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Signed up for updates from the save-the-date, not replied yet.
+    pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

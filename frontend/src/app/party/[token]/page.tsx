@@ -14,7 +14,7 @@ import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThe
 import { FONTS } from "@/lib/partyFonts";
 import PartySky from "@/components/parties/PartySky";
 import Poster from "@/components/parties/Poster";
-import { Block, PosterData, defaultPoster } from "@/lib/poster";
+import { Block, PosterData, Stage, defaultPoster } from "@/lib/poster";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
@@ -29,6 +29,10 @@ type Page = {
   // The hosts' own poster (its blocks; none = the theme's) and its pictures.
   layout: Block[] | null;
   assets: { id: string; v: string | null }[];
+  // The posters by stage, what the link shows first, and the playlist.
+  layouts: Partial<Record<Stage, Block[] | null>>;
+  phase: "save" | "invite";
+  playlist_url: string | null;
   // The server can send e-mail: the guest may ask for updates.
   mail: boolean;
   // A vote on the date (the options' starts, and how many each suits if the hosts show it).
@@ -59,6 +63,38 @@ function keep(name: string, key: string, value: string | null) {
     else delete all[key];
     localStorage.setItem(name, JSON.stringify(all));
   } catch {}
+}
+
+// From the save-the-date: a name and an e-mail, for the invitation when it's out.
+function Subscribe({ token, onDone, mine }: { token: string; onDone: (key: string) => void; mine: boolean }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "" });
+  const [done, setDone] = useState(mine);
+  const [error, setError] = useState("");
+  if (done) return <p className="text-lg font-semibold text-accent" role="status">{t("party.subscribed")}</p>;
+  return (
+    <form className="space-y-3" onSubmit={async (e) => {
+      e.preventDefault();
+      setError("");
+      try {
+        const existing = stored("sf.party-keys")[token];
+        const r = await api.post<{ key: string }>(`/api/party/${token}/subscribe${existing ? `?key=${encodeURIComponent(existing)}` : ""}`, form);
+        onDone(r.key);
+        setDone(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("common.error"));
+      }
+    }}>
+      <p className="text-sm text-muted">{t("party.subscribeHelp")}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label><span className="label">{t("parties.firstName")}</span><input className="input" autoComplete="given-name" value={form.first_name} maxLength={80} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></label>
+        <label><span className="label">{t("parties.lastName")}</span><input className="input" autoComplete="family-name" value={form.last_name} maxLength={80} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></label>
+      </div>
+      <label className="block"><span className="label">{t("party.email")}</span><input className="input" type="email" autoComplete="email" value={form.email} maxLength={254} placeholder={t("party.emailPh")} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <button className="pt-btn" type="submit" disabled={!form.first_name.trim() || !form.email.includes("@")}>{t("party.subscribeButton")}</button>
+    </form>
+  );
 }
 
 export default function PartyInvitation() {
@@ -162,9 +198,13 @@ export default function PartyInvitation() {
     invitation: page.invitation, rsvp: page.rsvp_by ? new Date(`${page.rsvp_by}T12:00:00`) : null, poll, guests: page.guests, locale: dateLocale,
     inviteImage: page.invite_image ? `/api/party/${token}/picture?v=${page.invite_image}` : null,
     asset: (id) => `/api/party/${token}/assets/${id}?v=${page.assets?.find((x) => x.id === id)?.v ?? ""}`,
-    ics: `/api/party/${token}/calendar.ics`, thanks: !!page.thanks,
+    ics: `/api/party/${token}/calendar.ics`, thanks: !!page.thanks, playlist: page.playlist_url, steps: [],
   };
-  const blocks = page.layout?.length ? page.layout : defaultPoster(theme, poster, t);
+  // The thank-you once it's out; before the invitation, the save-the-date if the hosts chose one.
+  const stage: Stage = page.thanks ? "thanks" : page.phase === "save" ? "save" : "invite";
+  const own_blocks = page.layouts?.[stage] ?? (stage === "invite" ? page.layout : null);
+  const blocks = own_blocks?.length ? own_blocks : defaultPoster(theme, poster, t, stage);
+  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null };
 
   return (
     <main className="pt" lang={page.language} style={themeStyle(theme)}>
@@ -175,7 +215,7 @@ export default function PartyInvitation() {
         <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
       <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-6 sm:px-6">
-        <Poster blocks={blocks} d={poster} theme={theme} />
+        <Poster blocks={blocks} d={poster} theme={theme} slots={slots} />
         {stopped && <p className="pt-card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
         {page.thanks && (
@@ -195,7 +235,7 @@ export default function PartyInvitation() {
           </section>
         )}
 
-        {page.open && (
+        {page.open && stage !== "save" && (
           <section className="pt-card space-y-3 p-5 sm:p-8" aria-label={t("party.reply")}>
             <h2 className={`pt-display text-3xl ${fonts.caps ? "uppercase" : ""}`}>{page.mine ? t("party.yourReply") : t("party.reply")}</h2>
             {page.rsvp_by && <p className="text-sm text-muted">{t("party.rsvpBy", { date: new Date(`${page.rsvp_by}T12:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "long" }) })}</p>}
@@ -276,7 +316,7 @@ export default function PartyInvitation() {
           </section>
         )}
 
-        {page.wishes && page.wishes.length > 0 && (
+        {stage !== "save" && page.wishes && page.wishes.length > 0 && (
           <section className="pt-card space-y-2 p-5 sm:p-8" aria-label={t("party.wishes")}>
             <h2 className={`pt-display flex items-center gap-2 text-3xl ${fonts.caps ? "uppercase" : ""}`}><Gift className="h-5 w-5 text-accent" aria-hidden />{t("party.wishes")}</h2>
             <p className="text-xs text-muted">{t("party.wishesHelp")}</p>

@@ -2,8 +2,8 @@
 
 // A party's poster (3.4.0), drawn from its blocks – on the guests' page and in the hosts' editor.
 // Blocks side by side (left, right) share a row on a wide screen; texts are only ever text.
-import { useEffect, useState } from "react";
-import { CalendarPlus, Navigation } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
+import { CalendarPlus, Music, Navigation } from "lucide-react";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { mapLinks } from "@/lib/maps";
 import type { PartyTheme } from "@/lib/partyThemes";
@@ -110,7 +110,7 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
   }
   if (b.variant === "bigdate") {
     return (
-      <div className="pt-card grid items-center gap-6 p-6 sm:grid-cols-[auto_1fr] sm:p-8">
+      <div className="pt-card pt-bigdate p-6 sm:p-8">
         {!d.poll && (
           <div className="text-center">
             <div className="pt-gold leading-none" style={{ fontFamily: fontFamily("theme-display", theme, "display"), fontSize: "clamp(4rem,12vw,7rem)" }}>{d.start.getDate()}</div>
@@ -137,7 +137,7 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
         {heading && <h2 className={`${h.cls} mb-3`} style={h.style}>{heading}</h2>}
         <dl className="divide-y divide-edge">
           {fields.map(([f, v]) => (
-            <div key={f} className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr]">
+            <div key={f} className="pt-listrow py-3">
               <dt className="pt-k self-center">{label(f)}</dt>
               <dd className="m-0"><span className="text-lg font-semibold">{v!.v}</span>{v!.s && <span className="pt-s block first-letter:uppercase">{v!.s}</span>}{mapLine(v!.map)}</dd>
             </div>
@@ -149,7 +149,7 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
   return (
     <div className="pt-card p-5 sm:p-8">
       {heading && <h2 className={`${h.cls} mb-4`} style={h.style}>{heading}</h2>}
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="pt-grid2">
         {fields.map(([f, v]) => (
           <div key={f}>
             <div className="pt-k">{label(f)}</div>
@@ -168,11 +168,13 @@ function Calendar({ b, d }: { b: Extract<Block, { type: "calendar" }>; d: Poster
   if (d.poll) return null;
   const links = calendarLinks(d);
   const where = d.address || d.place;
-  const label: Record<CalendarButton, string> = { ics: t("poster.cal.ics"), google: t("poster.cal.google"), outlook: t("poster.cal.outlook"), apple: t("poster.cal.apple") };
+  const label: Record<CalendarButton, string> = { ics: t("poster.cal.ics"), google: t("poster.cal.google"), outlook: t("poster.cal.outlook"), apple: t("poster.cal.ics") };
+  // An older poster's Apple button is the file – shown once.
+  const buttons = Array.from(new Set(b.buttons.map((k) => (k === "apple" ? "ics" : k))));
   return (
     <div className={`flex flex-wrap gap-3 ${JUSTIFY[b.align ?? "left"]}`}>
-      {b.buttons.map((k, i) => (
-        <a key={k} className={i === 0 ? "pt-btn" : "pt-ghost"} href={links[k]} target={k === "ics" || k === "apple" ? undefined : "_blank"} rel="noreferrer" download={k === "ics" ? "" : undefined}>
+      {buttons.map((k, i) => (
+        <a key={k} className={i === 0 ? "pt-btn" : "pt-ghost"} href={links[k]} target={k === "ics" ? undefined : "_blank"} rel="noreferrer" download={k === "ics" ? "" : undefined}>
           <CalendarPlus className="h-4 w-4" aria-hidden />
           {label[k]}
         </a>
@@ -189,7 +191,35 @@ function Divider({ b }: { b: Extract<Block, { type: "divider" }> }) {
   return <div className={`flex gap-3 text-accent ${just}`} aria-hidden>{(b.style === "stars" ? "✦ ✦ ✦" : "• • •").split(" ").map((x, i) => <span key={i}>{x}</span>)}</div>;
 }
 
-function BlockView({ b, d, theme, first }: { b: Block; d: PosterData; theme: PartyTheme; first: boolean }) {
+// What the interactive pieces hold on the page they're on; in the editor, a picture of them.
+export type Slots = Partial<Record<"subscribe" | "upload" | "gallery", ReactNode>>;
+
+function Section({ heading, s, theme, d, children }: { heading?: string; s: TextStyle; theme: PartyTheme; d: PosterData; children: ReactNode }) {
+  const { t } = useI18n();
+  const text = heading ? fill(heading, d, t("party.dateOpen")) : "";
+  const h = styled(s, theme, text, "display");
+  return (
+    <section className="pt-card space-y-3 p-5 sm:p-8">
+      {text && <h2 className={h.cls} style={h.style}>{text}</h2>}
+      {children}
+    </section>
+  );
+}
+
+// Spotify's player for a playlist link, and the link itself to add songs.
+function Playlist({ url }: { url: string }) {
+  const { t } = useI18n();
+  const m = url.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album)\/([A-Za-z0-9]+)/);
+  return (
+    <div className="space-y-3">
+      {m && <iframe title="Spotify" src={`https://open.spotify.com/embed/${m[1]}/${m[2]}`} className="h-[352px] w-full rounded-xl border-0" loading="lazy" allow="encrypted-media" />}
+      <p className="text-sm text-muted">{t("party.playlistHelp")}</p>
+      <a className="pt-btn" href={url} target="_blank" rel="noreferrer"><Music className="h-4 w-4" aria-hidden />{t("party.playlistOpen")}</a>
+    </div>
+  );
+}
+
+function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; theme: PartyTheme; first: boolean; slots: Slots }) {
   const { t } = useI18n();
   const pending = t("party.dateOpen");
   switch (b.type) {
@@ -258,6 +288,22 @@ function BlockView({ b, d, theme, first }: { b: Block; d: PosterData; theme: Par
       return <Divider b={b} />;
     case "spacer":
       return <div className={b.size === "s" ? "h-4" : b.size === "l" ? "h-16" : "h-8"} aria-hidden />;
+    case "playlist":
+      return d.playlist ? <Section heading={b.heading} s={b} theme={theme} d={d}><Playlist url={d.playlist} /></Section> : null;
+    case "schedule":
+      return d.steps.length ? (
+        <Section heading={b.heading} s={b} theme={theme} d={d}>
+          <ol className="divide-y divide-edge">
+            {d.steps.map((st, i) => (
+              <li key={i} className="flex gap-4 py-2"><span className="pt-v w-16 shrink-0 tabular-nums" style={{ fontFamily: fontFamily("theme-display", theme, "display"), marginTop: 0 }}>{st.at}</span><span className="text-lg">{st.title}</span></li>
+            ))}
+          </ol>
+        </Section>
+      ) : null;
+    case "subscribe":
+    case "upload":
+    case "gallery":
+      return slots[b.type] === null ? null : <Section heading={b.heading} s={b} theme={theme} d={d}>{slots[b.type] ?? <p className="text-sm text-muted">{t(`poster.slot.${b.type}`)}</p>}</Section>;
   }
 }
 
@@ -274,10 +320,10 @@ function rows(blocks: Block[]): ({ kind: "full"; b: Block } | { kind: "pair"; le
   return out;
 }
 
-export default function Poster({ blocks, d, theme, selected, onSelect }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void }) {
+export default function Poster({ blocks, d, theme, selected, onSelect, slots = {} }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void; slots?: Slots }) {
   const titleId = blocks.find((b) => b.type === "text" && /\{(title|name|namn|navn|nimi)\}/i.test(b.text))?.id;
   const wrap = (b: Block) => {
-    const view = <BlockView b={b} d={d} theme={theme} first={b.id === titleId} />;
+    const view = <BlockView b={b} d={d} theme={theme} first={b.id === titleId} slots={slots} />;
     if (!onSelect) return <div key={b.id}>{view}</div>;
     return (
       <div key={b.id} role="button" tabIndex={0} aria-pressed={selected === b.id} onClick={(e) => { e.stopPropagation(); onSelect(b.id); }} onKeyDown={(e) => e.key === "Enter" && onSelect(b.id)}
