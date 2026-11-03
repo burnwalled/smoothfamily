@@ -10,7 +10,8 @@ export type Align = "left" | "center" | "right";
 export type Side = "full" | "left" | "right";
 export type FontChoice = "theme-display" | "theme-script" | "theme-body" | `${FontSet}-${"display" | "script" | "body"}`;
 export type TextStyle = { font?: FontChoice; size?: "s" | "m" | "l" | "xl" | "xxl"; align?: Align; color?: "ink" | "accent" | "gold" | "muted"; caps?: boolean };
-export type DecorItem = { kind: "emoji" | "sticker"; value: string };
+// An emoji, one of the library's stickers, or a picture the hosts added ("sticker").
+export type DecorItem = { kind: "emoji" | "library" | "sticker"; value: string };
 export type CalendarButton = "ics" | "google" | "outlook" | "apple";
 export type DetailField = "when" | "where" | "what" | "rsvp" | "guests";
 
@@ -18,7 +19,7 @@ type Base = { id: string; side?: Side };
 export type Block = Base & (
   | ({ type: "text"; text: string } & TextStyle)
   | { type: "decor"; items: DecorItem[]; align?: Align; size?: "s" | "m" | "l" }
-  | { type: "image"; source: "invite" | "asset"; asset?: string; style?: "poster" | "plain" | "round" | "polaroid"; tag?: string; align?: Align }
+  | { type: "image"; source: "invite" | "asset" | "library"; asset?: string; style?: "poster" | "plain" | "round" | "polaroid"; tag?: string; align?: Align }
   | { type: "emblem"; item: DecorItem }
   | ({ type: "details"; variant: "ticket" | "card" | "list" | "bigdate"; heading?: string; fields: DetailField[]; labels?: Partial<Record<DetailField, string>> } & TextStyle)
   | ({ type: "countdown"; heading?: string } & TextStyle)
@@ -83,6 +84,8 @@ export function calendarLinks(d: PosterData) {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+// A theme's decoration: its stickers when the library has some, else its emoji.
+const decorOf = (theme: PartyTheme): DecorItem[] => (theme.stickers.length ? theme.stickers.map((v) => ({ kind: "library", value: v })) : theme.decor.map((e) => ({ kind: "emoji", value: e })));
 export const newId = uid;
 
 type T = (key: TranslationKey, values?: Record<string, string | number>) => string;
@@ -105,11 +108,12 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
   if (d.theme) out.push({ id: uid(), type: "text", side, text: f("theme"), font: "theme-script", size: "l" });
   out.push(
     { id: uid(), type: "text", side, text: t("party.from", { family: f("family") }), font: "theme-body", size: "s", color: "muted", caps: true },
-    { id: uid(), type: "decor", side, items: theme.decor.map((e) => ({ kind: "emoji", value: e })), size: "m" },
+    // With no picture of the hosts', the emblem wears the theme's first sticker – the row the others.
+    { id: uid(), type: "decor", side, items: !d.inviteImage && theme.stickers.length > 1 ? decorOf(theme).slice(1) : decorOf(theme), size: theme.stickers.length ? "l" : "m" },
     d.inviteImage
       ? { id: uid(), type: "image", side: "right", source: "invite", style: "poster", tag: d.thanks ? "" : t("party.saveTheDate") }
-      : { id: uid(), type: "emblem", side: "right", item: { kind: "emoji", value: d.emoji || theme.decor[0] || "🎉" } },
-    { id: uid(), type: "details", variant: DETAILS[theme.category], heading: t("party.ticket"), fields: ["when", "where", "what", "rsvp", "guests"], font: "theme-display", size: "l", color: "gold" },
+      : { id: uid(), type: "emblem", side: "right", item: theme.stickers[0] ? { kind: "library", value: theme.stickers[0] } : { kind: "emoji", value: d.emoji || theme.decor[0] || "🎉" } },
+    { id: uid(), type: "details", variant: DETAILS[theme.category], heading: DETAILS[theme.category] === "ticket" ? t("party.ticket") : t("party.about"), fields: ["when", "where", "what", "rsvp", "guests"], font: "theme-display", size: "l", color: "gold" },
     { id: uid(), type: "calendar", buttons: ["ics", "google", "outlook", "apple"], map: true },
     { id: uid(), type: "countdown", heading: t("party.countdown"), font: "theme-script", size: "xl", align: "center" },
   );
@@ -123,8 +127,8 @@ export function blankBlock(type: BlockType, theme: PartyTheme, t: T): Block {
   switch (type) {
     case "text": return { id, type, text: t("poster.newText"), font: "theme-body", size: "m" };
     case "image": return { id, type, source: "invite", style: "poster" };
-    case "emblem": return { id, type, item: { kind: "emoji", value: theme.decor[0] ?? "🎉" } };
-    case "decor": return { id, type, items: theme.decor.slice(0, 4).map((e) => ({ kind: "emoji", value: e })), size: "m" };
+    case "emblem": return { id, type, item: theme.stickers[0] ? { kind: "library", value: theme.stickers[0] } : { kind: "emoji", value: theme.decor[0] ?? "🎉" } };
+    case "decor": return { id, type, items: decorOf(theme).slice(0, 4), size: "m" };
     case "details": return { id, type, variant: "card", heading: t("party.about"), fields: ["when", "where"], font: "theme-display", size: "l" };
     case "countdown": return { id, type, heading: t("party.countdown"), font: "theme-script", size: "xl", align: "center" };
     case "calendar": return { id, type, buttons: ["ics", "google"], map: true };

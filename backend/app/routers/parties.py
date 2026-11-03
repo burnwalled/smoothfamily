@@ -165,8 +165,8 @@ def _starter_steps(party: Party, language: str) -> list[PartyStep]:
 # of the family's own.
 THEMES = (
     "balloons", "jungle", "space", "ocean", "fairytale", "pirate", "dinosaur", "superhero", "unicorn",
-    "disco", "glitter", "eighties", "nineties", "glamour", "techno", "champagne", "neon",
-    "elegant", "bistro", "christmas", "midsummer", "crayfish", "garden",
+    "disco", "glitter", "eighties", "nineties", "glamour", "techno", "champagne", "neon", "student", "halloween", "newyear",
+    "wedding", "elegant", "bistro", "christmas", "midsummer", "crayfish", "garden",
     "football", "hockey", "sports",
     "bbq", "brannboll", "beach", "picnic",
 )

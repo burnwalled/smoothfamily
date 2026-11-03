@@ -371,6 +371,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Appen har ett bildbibliotek: bakgrunder och toppbilder till många av temana, och klistermärken – ballonger, discokula, kräfta, studentmössa, ringar, pumpa med mera – att sätta på affischen i stället för emoji (Affisch → en dekorrad eller emblemet → Bibliotek).",
           "Under Affisch gör ni inbjudningssidan till er egen: lägg till, flytta och ta bort dess delar (texter, bilder, ett emblem, en dekorrad, när och var som biljett, kort, lista eller stort datum, en nedräkning, kalenderknappar, inbjudan, ett band). Skriv varje text med eget typsnitt, storlek, justering och färg – {namn}, {datum} och liknande fylls i av sig själva. Byt emojierna mot andra eller mot egna bilder, och välj vilka kalenderknappar gästerna får: kalenderfil, Google, Outlook eller Apple. Temats affisch är alltid ett tryck bort.",
           "Inget bestämt datum än: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
           "Välj vad varje gäst får ta med: ingen, en +1 eller familjen – då lägger de till alla i sitt sällskap, var och en med allergier och om det är ett barn. En middag, en grillafton eller en utomhusaktivitet börjar med familjen.",

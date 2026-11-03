@@ -371,6 +371,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Appen har et bildebibliotek: bakgrunner og toppbilder til mange av temaene, og klistremerker – ballonger, discokule, kreps, russelue, ringer, gresskar med mer – å sette på plakaten i stedet for emoji (Plakat → en dekorasjonsrad eller emblemet → Bibliotek).",
           "Under Plakat gjør dere invitasjonssiden til deres egen: legg til, flytt og fjern delene (tekster, bilder, et emblem, en dekorasjonsrad, når og hvor som billett, kort, liste eller stor dato, en nedtelling, kalenderknapper, invitasjonen, et bånd). Skriv hver tekst med egen skrift, størrelse, justering og farge – {navn}, {dato} og lignende fylles inn av seg selv. Bytt emojiene mot andre eller mot egne bilder, og velg hvilke kalenderknapper gjestene får: kalenderfil, Google, Outlook eller Apple. Temaets plakat er alltid ett trykk unna.",
           "Ingen bestemt dato ennå: kryss av for La gjestene stemme over datoen, og legg til datoene som passer dere. Gjestene krysser av for dem som passer dem; under Invitasjon ser dere hvor mange hver dato passer for, og velger én – da havner festen i kalenderen, de som stemte på den regnes som at de kommer, og de som har bedt om oppdateringer får en e-post.",
           "Velg hva hver gjest kan ta med: ingen, en +1 eller familien – da legger de til alle i følget, hver med allergier og om det er et barn. En middag, en grillkveld eller en utendørsaktivitet starter med familien.",

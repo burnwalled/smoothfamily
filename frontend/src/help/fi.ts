@@ -371,6 +371,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Sovelluksessa on kuvakirjasto: taustat ja yläkuvat moniin teemoihin sekä tarroja – ilmapallot, diskopallo, rapu, ylioppilaslakki, sormukset, kurpitsa ja muuta – julisteeseen emojien tilalle (Juliste → koristerivi tai tunnus → Kirjasto).",
           "Juliste-kohdassa teette kutsusivusta omannäköisen: lisää, siirrä ja poista sen osia (tekstit, kuvat, tunnus, koristerivi, milloin ja missä lippuna, korttina, listana tai isona päivämääränä, lähtölaskenta, kalenteripainikkeet, kutsu, nauha). Kirjoita jokainen teksti omalla kirjasimella, koolla, tasauksella ja värillä – {nimi}, {päivä} ja vastaavat täyttyvät itsestään. Vaihda emojit toisiin tai omiin kuviin ja valitse, mitkä kalenteripainikkeet vieraat saavat: kalenteritiedosto, Google, Outlook tai Apple. Teeman juliste on aina yhden napautuksen päässä.",
           "Päivää ei ole vielä sovittu: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
           "Valitse, mitä kukin vieras saa tuoda: ei ketään, +1 tai perheensä – silloin he lisäävät koko seurueen, jokaisen allergioineen ja tiedon, onko kyseessä lapsi. Illallinen, grilli-ilta tai ulkoilupäivä alkaa perheillä.",

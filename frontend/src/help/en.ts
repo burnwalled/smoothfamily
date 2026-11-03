@@ -371,6 +371,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "The app comes with a picture library: backgrounds and top pictures for many of the themes, and stickers – balloons, a disco ball, a crayfish, a student cap, rings, a pumpkin and more – to put on the poster in place of emoji (Poster → a decoration row or the emblem → Library).",
           "Under Poster, make the invitation's page your own: add, move and remove its parts (texts, pictures, an emblem, a decoration row, when and where as a ticket, a card, a list or a big date, a countdown, calendar buttons, the invitation, a ribbon). Write every text with its typeface, size, alignment and colour – {title}, {date} and the like fill themselves in. Swap the emoji for others or for pictures of your own, and choose which calendar buttons the guests get: a calendar file, Google, Outlook or Apple. The theme's poster is always one tap away.",
           "No set date yet: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
           "Choose what each guest may bring: no one, a +1, or the family – then they add everyone in their party, each with their allergies and whether they're a child. A dinner, a barbecue or a day outdoors starts with the family.",

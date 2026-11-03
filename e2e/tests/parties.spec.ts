@@ -29,7 +29,8 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     const g = await guest.newPage();
     await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
     await expect(g.getByRole("heading", { name: title })).toBeVisible();
-    await expect(g.getByText("🦁")).toBeVisible();
+    // The jungle's own sticker from the picture library, not an emoji.
+    await expect(g.locator('img[src="/party-assets/lion.webp"]').first()).toBeVisible();
     // No e-mail on this server: no address is asked for.
     await expect(g.getByLabel("E-mail (optional)")).toHaveCount(0);
     const reply = g.getByRole("region", { name: "Will you come?" });
@@ -177,7 +178,12 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
     await settings.getByRole("radio", { name: "Centred" }).click();
     // The decoration row: a champagne bottle instead of the first emoji.
     await parts.getByRole("button", { name: /^Decoration row/ }).click();
+    await settings.getByRole("radiogroup", { name: "Emoji or picture" }).first().getByRole("radio", { name: "Emoji" }).click();
     await settings.getByRole("textbox", { name: "Emoji" }).first().fill("🍾");
+    // The second: another sticker from the library.
+    await settings.getByRole("group").first().waitFor({ state: "attached" }).catch(() => {});
+    await settings.locator("summary", { hasText: "Choose" }).first().click();
+    await settings.getByRole("option", { name: "Disco ball" }).click();
     // The calendar: Google and Outlook only.
     await parts.getByRole("button", { name: /^Calendar buttons/ }).click();
     await settings.getByLabel("Calendar file (.ics)").uncheck();
@@ -190,6 +196,7 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
     await g.goto(`/party/${made.link.split("/party/")[1]}`);
     await expect(g.getByText(`Skål för ${title}!`)).toBeVisible();
     await expect(g.getByText("🍾")).toBeVisible();
+    await expect(g.locator('img[src="/party-assets/disco-ball.webp"]').first()).toBeVisible();
     await expect(g.getByRole("link", { name: "Google Calendar" })).toHaveAttribute("href", /calendar\.google\.com\/calendar\/render/);
     await expect(g.getByRole("link", { name: "Outlook" })).toHaveAttribute("href", /outlook\.live\.com/);
     await expect(g.getByRole("link", { name: "Calendar file (.ics)" })).toHaveCount(0);

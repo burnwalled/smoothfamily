@@ -8,6 +8,7 @@ import { TranslationKey, useI18n } from "@/lib/i18n";
 import { mapLinks } from "@/lib/maps";
 import type { PartyTheme } from "@/lib/partyThemes";
 import { Block, CalendarButton, DecorItem, DetailField, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { libraryUrl } from "@/lib/partyLibrary";
 import "@/app/party/[token]/party.css";
 
 const SIZES: Record<NonNullable<TextStyle["size"]>, string> = { s: "pt-fs-s", m: "pt-fs-m", l: "pt-fs-l", xl: "pt-fs-xl", xxl: "pt-fs-xxl" };
@@ -34,9 +35,9 @@ function styled(s: TextStyle, theme: PartyTheme, text: string, role: "display" |
 }
 
 function Item({ item, d, size }: { item: DecorItem; d: PosterData; size: string }) {
-  if (item.kind === "sticker") {
+  if (item.kind === "sticker" || item.kind === "library") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={d.asset(item.value)} alt="" className={`${size} inline-block object-contain`} />;
+    return <img src={item.kind === "library" ? libraryUrl(item.value) : d.asset(item.value)} alt="" className={`${size} inline-block object-contain drop-shadow-md`} />;
   }
   return <span className="inline-block">{item.value}</span>;
 }
@@ -199,7 +200,7 @@ function BlockView({ b, d, theme, first }: { b: Block; d: PosterData; theme: Par
       return first ? <h1 className={s.cls} style={s.style}>{text}</h1> : <p className={`${s.cls} whitespace-pre-line`} style={s.style}>{text}</p>;
     }
     case "decor": {
-      const size = b.size === "s" ? "h-6 w-6" : b.size === "l" ? "h-14 w-14" : "h-9 w-9";
+      const size = b.size === "s" ? "h-8 w-8" : b.size === "l" ? "h-20 w-20" : "h-12 w-12";
       return (
         <p className={`flex flex-wrap gap-3 ${JUSTIFY[b.align ?? "left"]} ${b.size === "s" ? "text-xl" : b.size === "l" ? "text-5xl" : "text-3xl"}`} aria-hidden>
           {b.items.map((it, i) => <span key={i} className="inline-block" style={{ transform: `rotate(${(i - (b.items.length - 1) / 2) * 9}deg) translateY(${i % 2 ? 4 : -4}px)` }}><Item item={it} d={d} size={size} /></span>)}
@@ -207,7 +208,7 @@ function BlockView({ b, d, theme, first }: { b: Block; d: PosterData; theme: Par
       );
     }
     case "image": {
-      const src = b.source === "invite" ? d.inviteImage : b.asset ? d.asset(b.asset) : null;
+      const src = b.source === "invite" ? d.inviteImage : !b.asset ? null : b.source === "library" ? libraryUrl(b.asset) : d.asset(b.asset);
       if (!src) return null;
       const tag = b.tag ? fill(b.tag, d, pending) : "";
       const style = b.style ?? "poster";

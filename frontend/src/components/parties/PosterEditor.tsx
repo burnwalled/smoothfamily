@@ -15,6 +15,7 @@ import {
   blankBlock, defaultPoster, fill, fontFamily,
 } from "@/lib/poster";
 import Poster from "@/components/parties/Poster";
+import { LIBRARY, libraryUrl } from "@/lib/partyLibrary";
 
 type Asset = { id: string; v: string | null };
 type Props = {
@@ -128,10 +129,28 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
       </div>
     );
   };
+  // The library's stickers: the theme's own first.
+  const stickers = [...LIBRARY.filter((x) => x.kind === "sticker" && theme.stickers.includes(x.id)), ...LIBRARY.filter((x) => x.kind === "sticker" && !theme.stickers.includes(x.id))];
   const itemPick = (item: DecorItem, onChange: (i: DecorItem) => void, onRemove?: () => void, key?: number) => (
-    <div key={key} className="flex items-center gap-2">
-      <Seg label={t("poster.itemKind")} value={item.kind} onChange={(kind) => onChange({ kind, value: kind === "emoji" ? "🎉" : assets[0]?.id ?? "" })} options={[{ v: "emoji", label: t("poster.emoji") }, { v: "sticker", label: t("poster.picture") }]} />
-      {item.kind === "emoji" ? (
+    <div key={key} className="flex flex-wrap items-center gap-2">
+      <Seg label={t("poster.itemKind")} value={item.kind} onChange={(kind) => onChange({ kind, value: kind === "emoji" ? "🎉" : kind === "library" ? stickers[0]?.id ?? "" : assets[0]?.id ?? "" })} options={[{ v: "emoji", label: t("poster.emoji") }, { v: "library", label: t("poster.library") }, { v: "sticker", label: t("poster.own") }]} />
+      {item.kind === "library" ? (
+        <details className="relative">
+          <summary className="flex cursor-pointer list-none items-center gap-1 rounded-lg border border-edge px-2 py-1 text-xs" aria-label={t("poster.chooseSticker")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={libraryUrl(item.value)} alt="" className="h-7 w-7 object-contain" />
+            {t("poster.chooseSticker")}
+          </summary>
+          <div className="absolute right-0 z-30 mt-1 grid w-72 grid-cols-6 gap-1 rounded-xl border border-edge bg-surface p-2 shadow-xl" role="listbox" aria-label={t("poster.library")}>
+            {stickers.map((x) => (
+              <button key={x.id} type="button" role="option" aria-selected={item.value === x.id} title={T(`lib.${x.id}`)} aria-label={T(`lib.${x.id}`)} onClick={(e) => { onChange({ kind: "library", value: x.id }); (e.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); }} className={`rounded-lg p-1 hover:bg-base ${item.value === x.id ? "ring-2 ring-accent" : ""}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={libraryUrl(x.id)} alt="" className="h-9 w-9 object-contain" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : item.kind === "emoji" ? (
         <input className="input !w-20 text-center text-xl" value={item.value} maxLength={16} aria-label={t("poster.emoji")} onChange={(e) => onChange({ kind: "emoji", value: e.target.value })} />
       ) : assets.length ? (
         <select className="input !w-auto" value={item.value} aria-label={t("poster.picture")} onChange={(e) => onChange({ kind: "sticker", value: e.target.value })}>
@@ -163,9 +182,13 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <label><span className="label">{t("poster.imageSource")}</span>
-              <select className="input" value={b.source === "invite" ? "invite" : b.asset ?? ""} onChange={(e) => patch(b.id, e.target.value === "invite" ? { source: "invite", asset: undefined } : { source: "asset", asset: e.target.value })}>
+              <select className="input" value={b.source === "invite" ? "invite" : `${b.source}:${b.asset ?? ""}`} onChange={(e) => { const [src, id] = e.target.value.split(":"); patch(b.id, src === "invite" ? { source: "invite", asset: undefined } : { source: src as "asset" | "library", asset: id }); }}>
                 <option value="invite">{t("parties.invitePicture")}</option>
-                {assets.map((a, i) => <option key={a.id} value={a.id}>{t("poster.pictureN", { n: i + 1 })}</option>)}
+                {assets.map((a, i) => <option key={a.id} value={`asset:${a.id}`}>{t("poster.pictureN", { n: i + 1 })}</option>)}
+                <optgroup label={t("poster.library")}>
+                  {LIBRARY.filter((x) => x.kind !== "sticker").map((x) => <option key={x.id} value={`library:${x.id}`}>{`${T(`parties.theme.${x.theme}`)} – ${T(`poster.lib.${x.kind}`)}`}</option>)}
+                  {stickers.map((x) => <option key={x.id} value={`library:${x.id}`}>{T(`lib.${x.id}`)}</option>)}
+                </optgroup>
               </select>
             </label>
             <label><span className="label">{t("poster.imageStyle")}</span>
@@ -226,9 +249,9 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
 
   const summary = (b: Block) => {
     if (b.type === "text" || b.type === "ribbon") return fill(b.text, preview, t("party.dateOpen")).slice(0, 40);
-    if (b.type === "decor") return b.items.map((i) => (i.kind === "emoji" ? i.value : "🖼")).join(" ");
+    if (b.type === "decor") return b.items.map((i) => (i.kind === "emoji" ? i.value : i.kind === "library" ? T(`lib.${i.value}`) : "🖼")).join(" ");
     if (b.type === "details") return T(`poster.details.${b.variant}`);
-    if (b.type === "emblem") return b.item.kind === "emoji" ? b.item.value : "🖼";
+    if (b.type === "emblem") return b.item.kind === "emoji" ? b.item.value : b.item.kind === "library" ? T(`lib.${b.item.value}`) : "🖼";
     return "";
   };
 
