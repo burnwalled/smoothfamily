@@ -12,15 +12,15 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
   await form.getByLabel("The guests see").selectOption("names");
   await form.getByRole("button", { name: "Create the party" }).click();
   await expect(page.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
-  const link = await page.getByLabel("The invitation link").inputValue();
   const party = (await (await adminApi.get("/api/parties")).json()).find((p: { title: string }) => p.title === title);
+  const link: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link;
   try {
     // The checklist it started with.
-    await page.getByRole("button", { name: "To do" }).click();
+    await page.getByRole("button", { name: /^\d\s?To do$/ }).click();
     await expect(page.getByRole("checkbox", { name: "Share the invitation" })).toBeVisible();
 
     // The invitation page's look: the jungle.
-    await page.getByRole("button", { name: "Invitation" }).click();
+    await page.getByRole("button", { name: /^\d\s?Details$/ }).click();
     await page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ }).click();
     await expect(page.getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
 
@@ -50,7 +50,7 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
 
     // The hosts see it, with the allergies gathered.
     await page.reload();
-    await page.getByRole("button", { name: "Guests" }).click();
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
     await expect(page.getByRole("region", { name: "Guests" }).getByText("Saga Berg")).toBeVisible();
     await expect(page.getByRole("region", { name: "Allergies and diets" }).getByText("Nuts")).toBeVisible();
   } finally {
@@ -71,8 +71,8 @@ test("a dinner: the guests vote on the date and say how many are coming", async 
   await form.getByRole("button", { name: "Create the party" }).click();
   await expect(page.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
   await expect(page.getByText("The date is being voted on").first()).toBeVisible();
-  const link = await page.getByLabel("The invitation link").inputValue();
   const party = (await (await adminApi.get("/api/parties")).json()).find((p: { title: string }) => p.title === title);
+  const link: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link;
   try {
     const guest = await browser.newContext();
     const g = await guest.newPage();
@@ -99,7 +99,7 @@ test("a dinner: the guests vote on the date and say how many are coming", async 
     await poll.getByRole("button", { name: "Choose this date" }).first().click();
     await expect(page.getByRole("button", { name: "Choose this date" })).toHaveCount(0);
     await expect(page.getByText("3 coming · 0 not coming").first()).toBeVisible();
-    await page.getByRole("button", { name: "Guests" }).click();
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
     await expect(page.getByRole("region", { name: "Guests" }).getByText("With: Lars, Ella (child)")).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
@@ -117,8 +117,8 @@ test("a party in an own theme", async ({ adminPage: page, adminApi, browser }) =
   await form.getByLabel("Kind").selectOption({ label: "🎉 Party" });
   await form.getByRole("button", { name: "Create the party" }).click();
   await expect(page.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
-  const link = await page.getByLabel("The invitation link").inputValue();
   const party = (await (await adminApi.get("/api/parties")).json()).find((p: { title: string }) => p.title === title);
+  const link: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link;
   try {
     // The party's own category first: Disco is there.
     const picker = page.getByRole("radiogroup", { name: "The invitation page's look" });
@@ -155,7 +155,7 @@ test("a party kept from an older version still opens", async ({ adminPage: page,
     });
     await page.goto(`/parties?id=${made.id}`);
     await expect(page.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
-    await page.getByRole("button", { name: "Guests" }).click();
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
     await expect(page.getByRole("region", { name: "Guests" }).getByText("Saga Berg")).toBeVisible();
   } finally {
     await page.unrouteAll({ behavior: "ignoreErrors" });
@@ -169,7 +169,7 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
   const made = await (await adminApi.post("/api/parties", { data: { title, kind: "party", page_theme: "glamour", place: "Folkets hus", starts_at: new Date(Date.now() + 20 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 20 * 86_400_000 + 7_200_000).toISOString() } })).json();
   try {
     await page.goto(`/parties?id=${made.id}`);
-    await page.getByRole("button", { name: "Poster" }).click();
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     // The invitation's poster, in the full-screen editor.
     await page.getByRole("region", { name: "The posters" }).getByRole("listitem").filter({ hasText: "Invitation" }).getByRole("button", { name: "Edit" }).click();
     const parts = page.getByRole("dialog").getByRole("region", { name: "The poster's parts" });
@@ -213,7 +213,7 @@ test("a save-the-date, then the party day's portal", async ({ adminPage: page, a
   const made = await (await adminApi.post("/api/parties", { data: { title, kind: "party", page_theme: "glamour", starts_at: new Date(Date.now() + 30 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 30 * 86_400_000 + 7_200_000).toISOString() } })).json();
   try {
     await page.goto(`/parties?id=${made.id}`);
-    await page.getByRole("button", { name: "Poster" }).click();
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     await page.getByLabel("The link shows").selectOption("save");
     await page.getByRole("button", { name: "Open the portal" }).click();
     const portal = await page.getByLabel("The portal's link").inputValue();
@@ -233,7 +233,7 @@ test("a save-the-date, then the party day's portal", async ({ adminPage: page, a
     await expect(g.getByRole("status")).toContainText("1 shared");
     await guest.close();
     await page.reload();
-    await page.getByRole("button", { name: "Poster" }).click();
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     await expect(page.getByText("1 photos from the guests")).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${made.id}`);

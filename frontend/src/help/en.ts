@@ -358,9 +358,9 @@ const texts: Record<string, TopicText> = {
       },
       {
         "steps": [
-          "Calendar → Parties → New party: the name, kind, whose party, the time and the place, the reply date and whether a +1 is allowed.",
-          "Under Invitation, write the invitation and tap Share – the phone's own share menu opens with the text and the link (or copy the link, or print the QR code).",
-          "Follow the replies under Guests – with the allergies gathered in one place – and add a reply that came by text yourself."
+          "Calendar → Parties → New party: the name, kind, whose party, the time and the place – then the party walks you through seven steps.",
+          "1 Details and the theme · 2 Design: the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
+          "4 To do – before, on the day and after · 5 Budget · 6 The day's plan, with points you can hide from the guests · 7 Sending out: mails at their time (with the server's e-mail), or the links to share yourself."
         ]
       },
       {

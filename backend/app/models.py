@@ -2076,8 +2076,10 @@ class PartyGuest(Base):
     unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # The dates that suit them, while the hosts let the guests vote (the options' ISO starts).
     date_votes: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    # Signed up for updates from the save-the-date, not replied yet.
+    # Signed up for updates from the save-the-date, or put on the list by the hosts – not replied yet.
     pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The guest's own key, kept encrypted so the mails can carry their own link to reply with.
+    key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -2139,6 +2141,27 @@ class PartyTheme(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class PartyMailing(Base):
+    """A mail to the guests, sent at its time: the save-the-date, the invitation, a reminder, the
+    thank-you, or the hosts' own message – to everyone, those who haven't replied, or those coming."""
+
+    __tablename__ = "party_mailings"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    # save | invite | remind | thanks | custom
+    kind: Mapped[str] = mapped_column(String(10))
+    # all | waiting | coming
+    audience: Mapped[str] = mapped_column(String(10), default="all")
+    subject: Mapped[str] = mapped_column(String(120), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
 class PartyStep(Base):
     """The day's timeline: at 14:00 the guests come, 14:30 games, 15:15 the cake …"""
 
@@ -2149,3 +2172,5 @@ class PartyStep(Base):
     party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
     at: Mapped[str] = mapped_column(String(5))  # HH:MM
     title: Mapped[str] = mapped_column(String(200))
+    # For the hosts only – not on the guests' portal (the surprise, the speeches' order …).
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
