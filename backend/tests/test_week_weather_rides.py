@@ -149,6 +149,34 @@ async def test_rides_and_packing(client, db_session, utc_zone):
     assert [n["kind"] for n in (await client.get("/api/notifications")).json()] == ["ride_needed"]
 
 
+async def test_someone_outside_the_family_drives(client, db_session, utc_zone):
+    """3.4.0: free text for a driver who isn't in the family – and the ride is then covered."""
+    from app.services.event_reminders import run_ride_reminders
+
+    ids = await _family(client)
+    start = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+    event = (await client.post("/api/calendar/family-events", json={"title": "Match", "start": start.isoformat(), "end": (start + timedelta(hours=2)).isoformat(), "member_ids": [ids["kid1"]]})).json()
+    target = {"key": f"app:{event['id']}", "title": "Match", "start": start.isoformat()}
+    plan = (await client.post("/api/calendar/plan/ride", json={**target, "leg": "drop_off", "claim": True, "other": "  Saga's dad "})).json()
+    assert plan["drop_off_text"] == "Saga's dad" and plan["drop_off_by"] is None and plan["needs_ride"]
+    # Taken: another adult can't take it over, but can let it go.
+    await _login(client, "adult1")
+    assert (await client.post("/api/calendar/plan/ride", json={**target, "leg": "drop_off", "claim": True})).status_code == 409
+    plan = (await client.post("/api/calendar/plan/ride", json={**target, "leg": "pick_up", "claim": True})).json()
+    assert plan["pick_up_by"] == ids["adult1"]
+    day = start.date()
+    [listed] = (await client.get(f"/api/calendar/events?start={day}&end={day + timedelta(days=1)}")).json()
+    assert listed["drop_off_text"] == "Saga's dad" and listed["pick_up_by"] == ids["adult1"]
+    # Both legs covered: no one is asked the evening before.
+    evening = datetime.combine(day - timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc).replace(hour=18)
+    assert await run_ride_reminders(db_session, evening) == 0
+    # The name is suggested next time.
+    assert (await client.get("/api/calendar/plan/others")).json() == ["Saga's dad"]
+    # Let go: both the member and the text.
+    plan = (await client.post("/api/calendar/plan/ride", json={**target, "leg": "drop_off", "claim": False})).json()
+    assert plan["drop_off_text"] is None and plan["drop_off_by"] is None
+
+
 # --- Söndagskollen --------------------------------------------------------------------------
 
 

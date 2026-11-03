@@ -1,14 +1,16 @@
 "use client";
 
 // Who drives and the packing list for one calendar event (#53). Adults take the drop-off or the
-// pick-up; anyone can say a ride is needed and tick off the packing list. The list itself is kept
-// per title, so every "Football practice" gets the same one.
-import { useState } from "react";
+// pick-up – or write that someone outside the family does (3.4.0); anyone can say a ride is needed
+// and tick off the packing list. The list itself is kept per title, so every "Football practice"
+// gets the same one.
+import { useId, useState } from "react";
 import { Backpack, Car } from "lucide-react";
 import { api, CalendarEvent, EventPlan, Member, PackingItem } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useMe } from "@/components/Shell";
 import PackDay from "@/components/PackDay";
+import { NONE, useApi } from "@/lib/query";
 
 type Leg = "drop_off" | "pick_up";
 
@@ -20,11 +22,11 @@ function target(event: CalendarEvent) {
 export function EventPlanBadges({ event, members }: { event: CalendarEvent; members: Member[] }) {
   const { t } = useI18n();
   const packing = event.packing ?? [];
-  const drivers = [event.drop_off_by, event.pick_up_by]
-    .filter((id, i, all): id is string => !!id && all.indexOf(id) === i)
-    .map((id) => members.find((m) => m.id === id)?.display_name)
-    .filter(Boolean);
-  const missing = event.needs_ride && (!event.drop_off_by || !event.pick_up_by);
+  const drivers = [
+    event.drop_off_by ? members.find((m) => m.id === event.drop_off_by)?.display_name : event.drop_off_text,
+    event.pick_up_by ? members.find((m) => m.id === event.pick_up_by)?.display_name : event.pick_up_text,
+  ].filter((name, i, all): name is string => !!name && all.indexOf(name) === i);
+  const missing = event.needs_ride && (!(event.drop_off_by || event.drop_off_text) || !(event.pick_up_by || event.pick_up_text));
   if (!drivers.length && !missing && !packing.length) return null;
   return (
     <span className="flex items-center gap-1.5 text-[11px] text-muted">
@@ -54,10 +56,16 @@ export default function EventPlanPanel({ event, members, onChanged }: { event: C
     needs_ride: !!event.needs_ride,
     drop_off_by: event.drop_off_by ?? null,
     pick_up_by: event.pick_up_by ?? null,
+    drop_off_text: event.drop_off_text ?? null,
+    pick_up_text: event.pick_up_text ?? null,
     packing: event.packing ?? [],
     pack_tasks: event.pack_tasks ?? [],
   });
   const [editing, setEditing] = useState(false);
+  // Writing who outside the family takes a leg.
+  const [other, setOther] = useState<{ leg: Leg; name: string } | null>(null);
+  const others = useApi<string[]>(adult ? "/api/calendar/plan/others" : null).data ?? NONE;
+  const listId = useId();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
 
@@ -73,8 +81,8 @@ export default function EventPlanPanel({ event, members, onChanged }: { event: C
     }
   }
 
-  function ride(leg: Leg, claim: boolean) {
-    return run(() => api.post<EventPlan>("/api/calendar/plan/ride", { ...target(event), leg, claim }));
+  function ride(leg: Leg, claim: boolean, otherName?: string) {
+    return run(() => api.post<EventPlan>("/api/calendar/plan/ride", { ...target(event), leg, claim, other: otherName ?? null }));
   }
 
   async function savePacking() {
@@ -91,10 +99,11 @@ export default function EventPlanPanel({ event, members, onChanged }: { event: C
     }
   }
 
-  const legs: { leg: Leg; by: string | null; label: string; take: string }[] = [
-    { leg: "drop_off", by: plan.drop_off_by, label: t("rides.dropOff"), take: t("rides.takeDropOff") },
-    { leg: "pick_up", by: plan.pick_up_by, label: t("rides.pickUp"), take: t("rides.takePickUp") },
+  const legs: { leg: Leg; by: string | null; text: string | null; label: string; take: string }[] = [
+    { leg: "drop_off", by: plan.drop_off_by, text: plan.drop_off_text ?? null, label: t("rides.dropOff"), take: t("rides.takeDropOff") },
+    { leg: "pick_up", by: plan.pick_up_by, text: plan.pick_up_text ?? null, label: t("rides.pickUp"), take: t("rides.takePickUp") },
   ];
+  const anyDriver = !!(plan.drop_off_by || plan.pick_up_by || plan.drop_off_text || plan.pick_up_text);
 
   return (
     <div className="mt-2 grid gap-3 rounded-lg border border-edge bg-base/50 p-3 text-sm sm:grid-cols-2" aria-label={t("rides.panel", { title: event.title ?? "" })}>
@@ -103,30 +112,59 @@ export default function EventPlanPanel({ event, members, onChanged }: { event: C
           <Car className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
           {t("rides.title")}
         </p>
-        {plan.needs_ride || plan.drop_off_by || plan.pick_up_by ? (
+        {plan.needs_ride || anyDriver ? (
           <ul className="space-y-1.5">
-            {legs.map(({ leg, by, label, take }) => (
+            {legs.map(({ leg, by, text, label, take }) => (
               <li key={leg} className="flex flex-wrap items-center gap-2">
                 <span className="w-16 shrink-0 text-xs text-muted">{label}</span>
-                {by ? (
+                {by || text ? (
                   <>
-                    <span className="font-semibold">{by === me.id ? t("rides.you") : nameOf(by)}</span>
+                    <span className="font-semibold">{by ? (by === me.id ? t("rides.you") : nameOf(by)) : text}</span>
                     {(by === me.id || adult) && (
                       <button className="btn-ghost px-2 py-0.5 text-xs" onClick={() => ride(leg, false)}>
                         {t("rides.release")}
                       </button>
                     )}
                   </>
+                ) : other?.leg === leg ? (
+                  <form
+                    className="flex flex-wrap items-center gap-1.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (other.name.trim()) void ride(leg, true, other.name.trim()).then(() => setOther(null));
+                    }}
+                  >
+                    <input
+                      className="input !w-44 py-0.5 text-xs"
+                      autoFocus
+                      list={listId}
+                      maxLength={80}
+                      aria-label={t("rides.otherLabel", { leg: label })}
+                      placeholder={t("rides.otherPh")}
+                      value={other.name}
+                      onChange={(e) => setOther({ leg, name: e.target.value })}
+                    />
+                    <button type="submit" className="btn-ghost border border-edge px-2 py-0.5 text-xs" disabled={!other.name.trim()}>{t("common.save")}</button>
+                    <button type="button" className="text-xs text-muted hover:underline" onClick={() => setOther(null)}>{t("common.cancel")}</button>
+                  </form>
                 ) : adult ? (
-                  <button className="btn-ghost border border-edge px-2 py-0.5 text-xs" onClick={() => ride(leg, true)}>
-                    {take}
-                  </button>
+                  <>
+                    <button className="btn-ghost border border-edge px-2 py-0.5 text-xs" onClick={() => ride(leg, true)}>
+                      {take}
+                    </button>
+                    <button className="text-xs text-muted hover:underline" onClick={() => setOther({ leg, name: "" })}>
+                      {t("rides.someoneElse")}
+                    </button>
+                  </>
                 ) : (
                   <span className="text-xs text-accent">{t("rides.nobody")}</span>
                 )}
               </li>
             ))}
-            {!plan.drop_off_by && !plan.pick_up_by && (
+            <datalist id={listId}>
+              {others.map((name) => <option key={name} value={name} />)}
+            </datalist>
+            {!anyDriver && (
               <li>
                 <button
                   className="text-xs text-muted hover:underline"

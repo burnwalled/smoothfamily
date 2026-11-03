@@ -247,6 +247,9 @@ export type CalendarEvent = {
   needs_ride?: boolean;
   drop_off_by?: string | null;
   pick_up_by?: string | null;
+  // Someone outside the family drives (3.4.0), instead of a member.
+  drop_off_text?: string | null;
+  pick_up_text?: string | null;
   packing?: PackingItem[];
   pack_tasks?: PackTask[];
 };
@@ -258,6 +261,8 @@ export type EventPlan = {
   needs_ride: boolean;
   drop_off_by: string | null;
   pick_up_by: string | null;
+  drop_off_text?: string | null;
+  pick_up_text?: string | null;
   packing: PackingItem[];
   pack_tasks?: PackTask[];
 };
