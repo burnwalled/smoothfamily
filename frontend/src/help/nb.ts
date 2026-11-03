@@ -733,6 +733,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "En oppgave kan gjentas hver hverdag (mandag–fredag som ikke er røde dager) eller hver helgedag og rød dag – lufte hunden, mate katten. De røde dagene følger familiens land, så jul og påske regnes som helg av seg selv.",
           "Hvilken som helst plan: hver dag eller annenhver dag, valgte ukedager (hverdager, helg), med noen ukers mellomrom, en dato eller en ukedag i måneden (første lørdag), med noen måneders mellomrom, en gang i året – med poeng. Kjæledyr, hjemmet og kjøretøyene har sine gjentakende oppgaver med de samme valgene.",
           "Barn kan foreslå oppgaver; en voksen gjør dem om til oppgaver eller sier nei.",
           "Poengene går til butikken og ukepengene – se de temaene.",
@@ -989,6 +990,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "Et kjæledyr med stellet sitt."
+      },
+      {
+        "tips": [
+          "En oppgave kan gjentas hver hverdag (mandag–fredag som ikke er røde dager) eller hver helgedag og rød dag – lufte hunden, mate katten. De røde dagene følger familiens land, så jul og påske regnes som helg av seg selv."
+        ]
       }
     ]
   },

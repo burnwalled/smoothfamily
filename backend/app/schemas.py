@@ -307,7 +307,7 @@ class TaskCreate(BaseModel):
     description: str | None = None
     points: int = Field(default=10, ge=1, le=1000)
     assignee_id: uuid.UUID | None = None
-    recurrence: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly|yearly)$")
+    recurrence: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly|yearly|workdays|weekends)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] = Field(default=[], max_length=7)
     interval_weeks: int = Field(default=1, ge=1, le=8)
@@ -337,7 +337,7 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     points: int | None = Field(default=None, ge=1, le=1000)
     assignee_id: uuid.UUID | None = None
-    recurrence: str | None = Field(default=None, pattern=r"^(none|daily|weekly|monthly|yearly)$")
+    recurrence: str | None = Field(default=None, pattern=r"^(none|daily|weekly|monthly|yearly|workdays|weekends)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] | None = Field(default=None, max_length=7)
     interval_weeks: int | None = Field(default=None, ge=1, le=8)

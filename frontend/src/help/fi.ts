@@ -733,6 +733,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Tehtävä voi toistua joka arkipäivä (maanantai–perjantai, jotka eivät ole pyhäpäiviä) tai joka viikonloppu- ja pyhäpäivä – koiran ulkoilutus, kissan ruokinta. Pyhäpäivät seuraavat perheen maata, joten joulu, pääsiäinen ja juhannusaatto lasketaan viikonlopuksi itsestään.",
           "Mikä tahansa aikataulu: joka päivä tai joka toinen päivä, valitut viikonpäivät (arkipäivät, viikonloppu), muutaman viikon välein, kuukauden päivämäärä tai viikonpäivä (ensimmäinen lauantai), muutaman kuukauden välein, kerran vuodessa – pisteineen. Lemmikeillä, kodilla ja ajoneuvoilla on toistuvat tehtävänsä samoin valinnoin.",
           "Lapset voivat ehdottaa tehtäviä; aikuinen tekee niistä tehtäviä tai kieltäytyy.",
           "Pisteet menevät kauppaan ja viikkorahaan – katso niiden aiheet.",
@@ -989,6 +990,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "Lemmikki hoitoineen."
+      },
+      {
+        "tips": [
+          "Tehtävä voi toistua joka arkipäivä (maanantai–perjantai, jotka eivät ole pyhäpäiviä) tai joka viikonloppu- ja pyhäpäivä – koiran ulkoilutus, kissan ruokinta. Pyhäpäivät seuraavat perheen maata, joten joulu, pääsiäinen ja juhannusaatto lasketaan viikonlopuksi itsestään."
+        ]
       }
     ]
   },

@@ -5,6 +5,7 @@ work like holidays (julafton …) are marked as eves. Another country is added a
 subscription (a public ICS feed) instead.
 """
 from datetime import date, timedelta
+from functools import lru_cache
 
 COUNTRIES = ("SE", "NO", "DK", "FI", "GB-ENG", "GB-SCT", "GB-NIR")
 # A new family's country from its admin's language – changed or turned off in Family settings.
@@ -137,6 +138,16 @@ def fox_theme(day: date, country: str | None) -> str:
     if day.month == 10 and day.day >= 24:
         return "halloween"
     return ""
+
+
+@lru_cache(maxsize=64)
+def _red(country: str, year: int) -> frozenset[date]:
+    return frozenset(d for d, _, _ in holidays(country, year))
+
+
+def is_red(country: str | None, day: date) -> bool:
+    """A public holiday or an eve that works like one (julafton, nyårsafton, midsommarafton …)."""
+    return bool(country) and country in COUNTRIES and day in _red(country, day.year)
 
 
 def between(country: str | None, start: date, end: date) -> list[tuple[date, str, bool]]:
