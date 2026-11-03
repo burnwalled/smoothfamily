@@ -364,7 +364,7 @@ async def _ha_available(db, user: User) -> bool:
 
 
 def _metrics_for(owner: User) -> list[str]:
-    return [m for m in health_ha.METRICS if not (m == "weight" and owner.role == "child")]
+    return [m for m in health_ha.SOURCES if not (m == "weight" and owner.role == "child")]
 
 
 async def _member(db, admin: User, user_id: uuid.UUID) -> User:
@@ -417,7 +417,7 @@ async def set_links(user_id: uuid.UUID, payload: LinksIn, admin: FamilyManager, 
     known = {a["entry"]: a for a in accounts}
     linked = [e for e in payload.accounts if e in known]
     for entity in payload.chosen.values():
-        if entity is not None and not re.fullmatch(r"sensor\.[a-z0-9_]+", entity):
+        if entity is not None and not re.fullmatch(r"(sensor|calendar)\.[a-z0-9_]+", entity):
             raise HTTPException(status_code=422, detail="Choose a sensor")
     chosen = {m: e for m, e in payload.chosen.items() if m in _metrics_for(member)}
     mapping = health_ha.resolve(accounts, linked, chosen)

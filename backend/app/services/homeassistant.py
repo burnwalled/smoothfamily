@@ -87,6 +87,21 @@ async def call_service(
         return True
 
 
+async def calendar_events(base_url: str, token: str, entity_id: str, start: str, end: str) -> list[dict]:
+    """A calendar's events between two ISO times (GET /api/calendars/<entity>) – e.g. Withings'
+    workouts. Not through the gateway."""
+    if ha_sim.is_sim(base_url):
+        return await ha_sim.calendar_events(base_url, entity_id)
+    if gateway.is_gateway(base_url):
+        raise HomeAssistantError("Not available through the gateway")
+    url = base_url.rstrip("/") + f"/api/calendars/{entity_id}"
+    async with httpx.AsyncClient(timeout=HA_TIMEOUT) as client:
+        resp = await client.get(url, headers={"Authorization": f"Bearer {token}"}, params={"start": start, "end": end})
+        if resp.status_code != 200:
+            raise HomeAssistantError(f"HA returned {resp.status_code}")
+        return resp.json()
+
+
 async def render_template(base_url: str, token: str, template: str) -> str:
     """Render a Jinja template in Home Assistant (POST /api/template) – e.g. to learn which
     integration and account each sensor belongs to. Not through the gateway."""

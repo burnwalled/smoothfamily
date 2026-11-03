@@ -393,7 +393,7 @@ const texts: Record<string, TopicText> = {
           "One account per person in Home Assistant: add the Withings, Garmin or Google Health integration once for each of you, each with your own login – and the companion app on each phone.",
           "Steps and sleep from your phone: install the Home Assistant companion app and turn on its sensors – on Android the Health Connect ones (steps, sleep, heart rate, weight…), on iPhone the pedometer (steps).",
           "A scale or a watch: Withings has its own integration in Home Assistant; Garmin, Fitbit, Oura and others are available as integrations from the community (HACS).",
-          "Workouts are still logged here by hand."
+          "Workouts (beta): from Withings' workout calendar, or an integration's last-activities sensor such as Garmin Connect or Strava – the last two weeks, each workout once, also when it's logged here by hand."
         ]
       }
     ]

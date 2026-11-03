@@ -76,6 +76,9 @@ test("health from Home Assistant: linked by the admin, turned on by the person",
     await page.goto(`/settings/members/${me.id}`);
     const links = page.getByRole("region", { name: "Health from Home Assistant" });
     await links.getByRole("checkbox", { name: /Home Assistant app · Anna's phone/ }).check();
+    // Withings: the weight, and the workout calendar (3.4.0).
+    await links.getByRole("checkbox", { name: /Withings · Anna/ }).check();
+    await expect(links.getByRole("combobox", { name: "Workouts" })).toHaveValue("calendar.withings_workouts");
     await expect(links.getByRole("combobox", { name: "Sleep" })).toHaveValue("sensor.anna_phone_sleep_duration");
     await expect(links.getByText(/hasn't turned fetching on yet/)).toBeVisible();
 
@@ -88,9 +91,13 @@ test("health from Home Assistant: linked by the admin, turned on by the person",
     // Sleep, in hours in Home Assistant, as hours and minutes here (the steps were entered by hand
     // earlier today, and what's entered by hand wins).
     await expect(page.getByRole("region", { name: "The days" }).getByText("7:30").first()).toBeVisible();
+    // The workout calendar's swim, taken in.
+    await expect(page.getByRole("region", { name: "Workouts" }).getByText(/Swim · 40 min/)).toBeVisible();
   } finally {
     await adminApi.put(`/api/health/people/${me.id}/import`, { data: { on: false } });
-    await adminApi.put(`/api/health/links/${me.id}`, { data: { accounts: [], chosen: { steps: null, sleep: null, weight: null, resting_hr: null } } });
+    await adminApi.put(`/api/health/links/${me.id}`, { data: { accounts: [], chosen: { steps: null, sleep: null, weight: null, resting_hr: null, workouts: null } } });
+    const mine = await (await adminApi.get(`/api/health/people/${me.id}?days=28`)).json();
+    for (const w of mine.workouts.filter((x: { source: string }) => x.source === "home_assistant")) await adminApi.delete(`/api/health/workouts/${w.id}`);
     await adminApi.delete("/api/smarthome/connection");
   }
 });
