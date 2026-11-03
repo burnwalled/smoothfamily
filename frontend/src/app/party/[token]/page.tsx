@@ -146,7 +146,7 @@ export default function PartyInvitation() {
         )}
 
         <section className="card space-y-2 p-5" aria-label={t("party.about")}>
-          <p className="font-semibold capitalize">{when}</p>
+          <p className="font-semibold first-letter:uppercase">{when}</p>
           {(page.place || page.address) && (
             <p className="flex items-start gap-1.5 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />{[page.place, page.address].filter(Boolean).join(", ")}</p>
           )}
