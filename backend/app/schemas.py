@@ -307,7 +307,10 @@ class TaskCreate(BaseModel):
     recurrence: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly|yearly)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] = Field(default=[], max_length=7)
-    interval_weeks: int = Field(default=1, ge=1, le=4)
+    interval_weeks: int = Field(default=1, ge=1, le=8)
+    interval_days: int = Field(default=1, ge=1, le=30)
+    interval_months: int = Field(default=1, ge=1, le=12)
+    month_nth: int | None = Field(default=None, ge=-1, le=4)
     month: int | None = Field(default=None, ge=1, le=12)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     due_date: date | None = None
@@ -332,7 +335,10 @@ class TaskUpdate(BaseModel):
     recurrence: str | None = Field(default=None, pattern=r"^(none|daily|weekly|monthly|yearly)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] | None = Field(default=None, max_length=7)
-    interval_weeks: int | None = Field(default=None, ge=1, le=4)
+    interval_weeks: int | None = Field(default=None, ge=1, le=8)
+    interval_days: int | None = Field(default=None, ge=1, le=30)
+    interval_months: int | None = Field(default=None, ge=1, le=12)
+    month_nth: int | None = Field(default=None, ge=-1, le=4)
     month: int | None = Field(default=None, ge=1, le=12)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     due_date: date | None = None
@@ -359,6 +365,10 @@ class TaskOut(ORMModel):
     weekday: int | None
     weekdays: list[int] = []
     interval_weeks: int = 1
+    interval_days: int = 1
+    interval_months: int = 1
+    month_nth: int | None = None
+    anchor_date: date | None = None
     month: int | None
     day_of_month: int | None
     due_date: date | None

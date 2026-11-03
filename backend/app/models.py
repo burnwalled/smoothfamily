@@ -204,6 +204,11 @@ class Task(Base):
     weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # first of weekdays (older clients)
     weekdays: Mapped[list] = mapped_column(JSON, default=list)
     interval_weeks: Mapped[int] = mapped_column(Integer, default=1)
+    # 3.4.0: daily every N days, monthly every N months (both counted from anchor_date), and monthly on
+    # a weekday instead of a date: month_nth 1–4 or -1 (the last) of weekdays[0] – the first Saturday.
+    interval_days: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    interval_months: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    month_nth: Mapped[int | None] = mapped_column(Integer, nullable=True)
     anchor_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     day_of_month: Mapped[int | None] = mapped_column(Integer, nullable=True)

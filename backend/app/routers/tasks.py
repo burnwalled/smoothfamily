@@ -34,7 +34,7 @@ from app.services.schedule import due_on, due_today, week_start
 router = APIRouter(prefix="/api/tasks", tags=["tasks"], dependencies=[require_app("tasks")])
 
 
-SCHEDULE_FIELDS = ("recurrence", "weekday", "weekdays", "interval_weeks", "month", "day_of_month", "due_date")
+SCHEDULE_FIELDS = ("recurrence", "weekday", "weekdays", "interval_weeks", "interval_days", "interval_months", "month_nth", "month", "day_of_month", "due_date")
 
 
 def _normalized_schedule(values: dict) -> dict:
@@ -45,10 +45,15 @@ def _normalized_schedule(values: dict) -> dict:
         "weekday": None,
         "weekdays": [],
         "interval_weeks": 1,
+        "interval_days": 1,
+        "interval_months": 1,
+        "month_nth": None,
         "month": None,
         "day_of_month": None,
         "due_date": None,
     }
+    if recurrence == "daily":
+        out["interval_days"] = values.get("interval_days") or 1
     if recurrence == "weekly":
         days = sorted(set(values.get("weekdays") or []))
         if not days and values.get("weekday") is not None:
@@ -57,9 +62,18 @@ def _normalized_schedule(values: dict) -> dict:
             raise HTTPException(status_code=422, detail="Weekly tasks need at least one weekday")
         out.update(weekdays=days, weekday=days[0], interval_weeks=values.get("interval_weeks") or 1)
     elif recurrence == "monthly":
-        if values.get("day_of_month") is None:
+        out["interval_months"] = values.get("interval_months") or 1
+        nth = values.get("month_nth")
+        if nth is not None:
+            # The first … fourth or the last (-1) of a weekday – the first Saturday.
+            days = values.get("weekdays") or ([values["weekday"]] if values.get("weekday") is not None else [])
+            if nth == 0 or len(days) != 1 or not 0 <= days[0] <= 6:
+                raise HTTPException(status_code=422, detail="A monthly weekday needs one weekday and first–fourth or last")
+            out.update(month_nth=nth, weekdays=days, weekday=days[0])
+        elif values.get("day_of_month") is None:
             raise HTTPException(status_code=422, detail="Monthly tasks need day_of_month")
-        out["day_of_month"] = values["day_of_month"]
+        else:
+            out["day_of_month"] = values["day_of_month"]
     elif recurrence == "yearly":
         if values.get("month") is None or values.get("day_of_month") is None:
             raise HTTPException(status_code=422, detail="Yearly tasks need month and day_of_month")
@@ -530,8 +544,13 @@ async def update_task(task_id: uuid.UUID, payload: TaskUpdate, user: CurrentUser
         if "weekday" in data and "weekdays" not in data:
             current["weekdays"] = []  # an older client changed the single weekday
         schedule = _normalized_schedule({**current, **{k: v for k, v in data.items() if k in SCHEDULE_FIELDS}})
-        if schedule["interval_weeks"] != task.interval_weeks or task.anchor_date is None:
-            # "Every other week" counts from the week it was set up in.
+        if (
+            schedule["interval_weeks"] != task.interval_weeks
+            or schedule["interval_days"] != task.interval_days
+            or schedule["interval_months"] != task.interval_months
+            or task.anchor_date is None
+        ):
+            # "Every other week / day / month" counts from when it was set up.
             data["anchor_date"] = date.today()
         data.update(schedule)
     if data.get("assignee_id") is not None:

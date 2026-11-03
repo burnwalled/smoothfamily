@@ -9,6 +9,7 @@ import { api, Member, Pet } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
+import LinkedTasks from "@/components/tasks/LinkedTasks";
 
 const SPECIES = ["dog", "cat", "rabbit", "guinea_pig", "hamster", "bird", "fish", "horse", "reptile", "other"] as const;
 const CARE = ["vet", "vaccination", "deworming", "grooming", "other"] as const;
@@ -23,7 +24,6 @@ export default function PetsPage() {
   const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const [newPet, setNewPet] = useState({ name: "", species: "dog", birth: "" });
   const [care, setCare] = useState<Record<string, { kind: string; title: string; date: string; next: string }>>({});
-  const [chore, setChore] = useState<Record<string, { title: string; turns: string[] }>>({});
   const [error, setError] = useState("");
 
 
@@ -53,7 +53,6 @@ export default function PetsPage() {
 
       {pets.map((pet) => {
         const c = care[pet.id] ?? { kind: "vet", title: "", date: "", next: "" };
-        const ch = chore[pet.id] ?? { title: "", turns: [] };
         return (
           <section key={pet.id} className="card mt-6 p-5">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -119,8 +118,10 @@ export default function PetsPage() {
               </div>
             )}
 
-            <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted">{t("pets.chores")}</h3>
-            {pet.chores.length === 0 ? (
+            <h3 className="mt-5 mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t("pets.chores")}</h3>
+            {isAdult ? (
+              <LinkedTasks link={{ pet_id: pet.id }} placeholder={t("pets.addChore")} />
+            ) : pet.chores.length === 0 ? (
               <p className="mt-1 text-sm text-muted">{t("pets.noChores")}</p>
             ) : (
               <ul className="mt-1 space-y-1 text-sm">
@@ -132,48 +133,6 @@ export default function PetsPage() {
                   </li>
                 ))}
               </ul>
-            )}
-            {isAdult && (
-              <div className="mt-2 space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  <input className="input min-w-48 flex-1" placeholder={t("pets.chorePh", { name: pet.name })} value={ch.title} onChange={(e) => setChore({ ...chore, [pet.id]: { ...ch, title: e.target.value } })} aria-label={t("pets.chorePh", { name: pet.name })} />
-                  <button
-                    className="btn-ghost border border-edge"
-                    disabled={!ch.title.trim() || ch.turns.length === 1}
-                    onClick={() =>
-                      run(() =>
-                        api.post("/api/tasks?force=true", {
-                          title: ch.title.trim(),
-                          recurrence: "daily",
-                          points: 5,
-                          pet_id: pet.id,
-                          rotation_user_ids: ch.turns,
-                          assignee_id: ch.turns[0] ?? null,
-                        })
-                      ).then((ok) => ok && setChore({ ...chore, [pet.id]: { title: "", turns: [] } }))
-                    }
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2} aria-hidden />
-                    {t("pets.addChore")}
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="text-muted">{t("pets.choreTurns")}</span>
-                  {members.map((m) => {
-                    const at = ch.turns.indexOf(m.id);
-                    return (
-                      <button
-                        key={m.id}
-                        className={`rounded-full border px-2.5 py-0.5 ${at >= 0 ? "border-accent bg-accent-soft font-semibold" : "border-edge"}`}
-                        onClick={() => setChore({ ...chore, [pet.id]: { ...ch, turns: at >= 0 ? ch.turns.filter((x) => x !== m.id) : [...ch.turns, m.id] } })}
-                        aria-pressed={at >= 0}
-                      >
-                        {at >= 0 ? `${at + 1}. ` : ""}{m.display_name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             )}
           </section>
         );

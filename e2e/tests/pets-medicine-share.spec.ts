@@ -10,12 +10,19 @@ test("a pet with a chore the children take turns on", async ({ adminPage: page, 
   const card = page.locator("section").filter({ hasText: pet }).first();
   await expect(card.getByRole("heading", { name: new RegExp(pet) })).toBeVisible();
 
-  await card.getByLabel(/^Chore for/).fill(`Walk ${pet}`);
+  // The same form as Tasks (3.4.0): every other day, taking turns, its points.
+  await card.getByRole("button", { name: "Add chore" }).click();
+  await card.getByLabel("What needs doing?").fill(`Walk ${pet}`);
+  await card.getByLabel("How often").selectOption({ label: "Every other day" });
+  await card.getByRole("spinbutton", { name: "Points" }).fill("7");
+  await card.getByLabel("Take turns").check();
   await card.getByRole("button", { name: KID.name }).click();
   await card.getByRole("button", { name: "Alex Admin" }).click();
-  await card.getByRole("button", { name: "Add chore" }).click();
-  await expect(card.getByText(`Walk ${pet}`)).toBeVisible();
-  await expect(card.getByText(`${KID.name}'s turn`)).toBeVisible();
+  await card.getByRole("button", { name: "Save task" }).click();
+  const chore = card.getByRole("listitem").filter({ hasText: `Walk ${pet}` });
+  await expect(chore).toContainText("Every other day");
+  await expect(chore).toContainText(KID.name);
+  await expect(chore).toContainText("7");
 
   const pets = await (await adminApi.get("/api/pets")).json();
   const id = pets.find((p: { name: string }) => p.name === pet).id;
