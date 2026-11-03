@@ -549,6 +549,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Hvilken som helst plan: hver dag eller hver anden dag, valgte ugedage (hverdage, weekend), med nogle ugers mellemrum, en dato eller en ugedag i måneden (første lørdag), med nogle måneders mellemrum, en gang om året – med point. Kæledyr, hjemmet og køretøjerne har deres tilbagevendende opgaver med de samme valg.",
           "Børn kan foreslå opgaver; en voksen gør dem til opgaver eller siger nej tak.",
           "Pointene går til butikken og lommepengene – se de emner.",
           "En opgave, flere kan gøre sammen, deler pointene mellem dem, der gjorde den: vælg hvem, når den krydses af.",

@@ -4,6 +4,7 @@
 // costs against last year, the energy use and the open projects – and, for the chosen one, its
 // maintenance (which can become a task), costs, projects, the things in it, energy, documents and
 // settings. A receipt or invoice can be read by the local AI; everything works by hand too.
+import LinkedTasks from "@/components/tasks/LinkedTasks";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Camera, Download, ExternalLink, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
@@ -294,6 +295,11 @@ function UpkeepTab({ home, reminders, currency }: { home: Property; reminders: P
           </button>
         </div>
       )}
+      <div className="border-t border-edge pt-4">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t("linkedTasks.title")}</h3>
+        <p className="mb-2 text-xs text-muted">{t("linkedTasks.homeHint")}</p>
+        <LinkedTasks link={{ property_id: home.id }} placeholder={t("linkedTasks.add")} />
+      </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
     </div>
   );

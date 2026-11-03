@@ -549,6 +549,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Vilket schema som helst: varje dag eller varannan dag, valda veckodagar (vardagar, helg), med några veckors mellanrum, ett datum eller en veckodag i månaden (första lördagen), med några månaders mellanrum, en gång om året – med poäng. Husdjur, hemmet och fordonen har sina återkommande uppgifter med samma val.",
           "Barn kan föreslå uppgifter; en vuxen gör om dem till uppgifter eller tackar nej.",
           "Poängen går till butiken och veckopengen – se de ämnena.",
           "En uppgift som flera kan göra tillsammans delar poängen mellan dem som gjorde den: välj vilka när den bockas av.",

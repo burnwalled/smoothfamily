@@ -549,6 +549,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Any schedule: every day or every other day, chosen weekdays (weekdays, the weekend), every few weeks, a date or a weekday of the month (the first Saturday), every few months, once a year – with points. Pets, the home and vehicles have their recurring tasks with the same choices.",
           "Children can suggest tasks; an adult turns them into tasks or declines.",
           "Points go to the shop and the allowance – see those topics.",
           "A task several can do together shares its points between those who did it: choose who when it's ticked off.",

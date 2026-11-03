@@ -305,6 +305,12 @@ export type Task = {
   // Weekly: the weekdays (0 = Monday) and every how many weeks.
   weekdays: number[];
   interval_weeks: number;
+  // 3.4.0: daily every N days, monthly every N months (from anchor_date), and monthly on the
+  // first … fourth or last (-1) of weekdays[0] instead of a date.
+  interval_days: number;
+  interval_months: number;
+  month_nth: number | null;
+  anchor_date?: string | null;
   month: number | null;
   day_of_month: number | null;
   due_date: string | null;
