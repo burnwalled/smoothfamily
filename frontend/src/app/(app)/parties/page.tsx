@@ -266,10 +266,29 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
   );
 }
 
+// A party as the browser may have kept it from an older version: what's missing gets its default,
+// so the page shows it until the fresh one comes.
+function withDefaults(d: Detail): Detail {
+  return {
+    ...d,
+    bring: d.bring ?? "none",
+    person_ids: d.person_ids ?? (d.person_id ? [d.person_id] : []),
+    page_custom_id: d.page_custom_id ?? null,
+    thanks_custom_id: d.thanks_custom_id ?? null,
+    invite_image: d.invite_image ?? null,
+    date_poll: d.date_poll ?? false,
+    date_options: d.date_options ?? [],
+    tally: d.tally ?? [],
+    children: d.children ?? 0,
+    guests: (d.guests ?? []).map((g) => ({ ...g, companions: g.companions ?? [], date_votes: g.date_votes ?? [] })),
+  };
+}
+
 function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
   const { t, dateLocale } = useI18n();
   const path = `/api/parties/${id}`;
-  const party = useApi<Detail>(path).data;
+  const fetched = useApi<Detail>(path).data;
+  const party = fetched && withDefaults(fetched);
   const [tab, setTab] = useState<Tab>("invite");
   const [error, setError] = useState("");
 

@@ -139,3 +139,23 @@ test("a party in an own theme", async ({ adminPage: page, adminApi, browser }) =
     for (const th of themes.filter((x) => x.name === name)) await adminApi.delete(`/api/parties/themes/${th.id}`);
   }
 });
+
+// A party as an older version sent it (kept in the browser's cache): the page still opens.
+test("a party kept from an older version still opens", async ({ adminPage: page, adminApi }) => {
+  const title = unique("Gammal fest");
+  const made = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: new Date(Date.now() + 9 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 9 * 86_400_000 + 7_200_000).toISOString() } })).json();
+  try {
+    await page.route(`**/api/parties/${made.id}`, async (route) => {
+      const fresh = await (await route.fetch()).json();
+      const old = { ...fresh, plus_one: true, guests: [{ id: "x", first_name: "Saga", last_name: "Berg", coming: true, allergies: "", message: "", plus_first_name: "Ella", plus_last_name: "Berg", plus_allergies: "", email: null, updates: false }] };
+      for (const k of ["bring", "person_ids", "page_custom_id", "thanks_custom_id", "invite_image", "date_poll", "date_options", "tally", "children"]) delete old[k];
+      await route.fulfill({ json: old });
+    });
+    await page.goto(`/parties?id=${made.id}`);
+    await expect(page.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
+    await page.getByRole("button", { name: "Guests" }).click();
+    await expect(page.getByRole("region", { name: "Guests" }).getByText("Saga Berg")).toBeVisible();
+  } finally {
+    await adminApi.delete(`/api/parties/${made.id}`);
+  }
+});
