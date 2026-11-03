@@ -222,6 +222,14 @@ async def test_own_themes_pictures_and_more_kinds(client):
     Image.new("RGB", (2400, 1200), "#7c3aed").save(buf, "PNG")
     theme = (await client.post(f"/api/parties/themes/{theme['id']}/pictures/header", files={"file": ("top.png", buf.getvalue(), "image/png")})).json()
     assert theme["header"] and theme["background"] is None
+    # A see-through picture is laid on the theme's colour (not black); the font and effect are kept.
+    clear = io.BytesIO()
+    Image.new("RGBA", (40, 40), (0, 0, 0, 0)).save(clear, "PNG")
+    theme = (await client.post(f"/api/parties/themes/{theme['id']}/pictures/background", files={"file": ("logo.png", clear.getvalue(), "image/png")})).json()
+    back = await client.get(f"/api/parties/themes/{theme['id']}/pictures/background")
+    assert Image.open(io.BytesIO(back.content)).convert("RGB").getpixel((20, 20))[0] > 200  # #f3e8ff, not black
+    theme = (await client.put(f"/api/parties/themes/{theme['id']}", json={"name": "Majas lila", "bg": "#f3e8ff", "bg2": "#fff7fb", "accent": "#7c3aed", "ink": "#2e1065", "pattern": "stars", "decor": "💜🦄⭐", "font": "gala", "effect": "bokeh"})).json()
+    assert theme["font"] == "gala" and theme["effect"] == "bokeh"
     assert (await client.post(f"/api/parties/themes/{theme['id']}/pictures/header", files={"file": ("x.txt", b"hello", "text/plain")})).status_code == 422
     assert [t["name"] for t in (await client.get("/api/parties/themes")).json()] == ["Majas lila"]
 

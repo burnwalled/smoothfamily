@@ -7,18 +7,19 @@ import { ImagePlus, Trash2, X } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData } from "@/lib/query";
-import { CustomTheme, PatternKey, customTheme, themeStyle } from "@/lib/partyThemes";
+import { CustomTheme, EFFECTS, Effect, PatternKey, customTheme, themeStyle } from "@/lib/partyThemes";
+import { FONTS, FONT_SETS, FontSet } from "@/lib/partyFonts";
 import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
 
 const PATTERNS: PatternKey[] = ["none", "confetti", "dots", "stars", "stripes", "hearts", "check"];
-const START = { name: "", bg: "#fff1f4", bg2: "#f4f7ff", accent: "#e85d75", ink: "#3b2430", pattern: "confetti" as PatternKey, decor: "🎉🎈✨" };
+const START = { name: "", bg: "#fff1f4", bg2: "#f4f7ff", accent: "#e85d75", ink: "#3b2430", pattern: "confetti" as PatternKey, decor: "🎉🎈✨", font: "playful" as FontSet, effect: "confetti" as Effect };
 
 type Props = { theme: CustomTheme | null; onClose: () => void; onSaved: (t: CustomTheme) => void; onDeleted: () => void };
 
 export default function ThemeEditor({ theme, onClose, onSaved, onDeleted }: Props) {
   const { t } = useI18n();
   const [saved, setSaved] = useState<CustomTheme | null>(theme);
-  const [form, setForm] = useState(theme ? { name: theme.name, bg: theme.bg, bg2: theme.bg2, accent: theme.accent, ink: theme.ink, pattern: theme.pattern, decor: theme.decor } : START);
+  const [form, setForm] = useState(theme ? { name: theme.name, bg: theme.bg, bg2: theme.bg2, accent: theme.accent, ink: theme.ink, pattern: theme.pattern, decor: theme.decor, font: theme.font ?? "playful", effect: theme.effect ?? "confetti" } : START);
   const [error, setError] = useState("");
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const keep = (next: CustomTheme) => {
@@ -45,6 +46,7 @@ export default function ThemeEditor({ theme, onClose, onSaved, onDeleted }: Prop
   const picture = (slot: "header" | "background") => (
     <div className="space-y-1">
       <span className="label">{t(slot === "header" ? "parties.headerPicture" : "parties.backgroundPicture")}</span>
+      <span className="block text-xs text-muted">{t(slot === "header" ? "parties.headerPictureHelp" : "parties.backgroundPictureHelp")}</span>
       {saved?.[slot] ? (
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -95,12 +97,27 @@ export default function ThemeEditor({ theme, onClose, onSaved, onDeleted }: Prop
               {PATTERNS.map((p) => <option key={p} value={p}>{t(`parties.pattern.${p}` as TranslationKey)}</option>)}
             </select>
           </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="label">{t("parties.fonts")}</span>
+              <select className="input" value={form.font} onChange={(e) => set({ font: e.target.value as FontSet })}>
+                {FONT_SETS.map((f) => <option key={f} value={f} style={{ fontFamily: FONTS[f].display }}>{t(`parties.font.${f}` as TranslationKey)}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="label">{t("parties.effect")}</span>
+              <select className="input" value={form.effect} onChange={(e) => set({ effect: e.target.value as Effect })}>
+                {EFFECTS.map((f) => <option key={f} value={f}>{t(`parties.effect.${f}` as TranslationKey)}</option>)}
+              </select>
+            </label>
+          </div>
           <label className="block"><span className="label">{t("parties.decor")}</span><input className="input text-lg" value={form.decor} maxLength={60} onChange={(e) => set({ decor: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
             {picture("header")}
             {picture("background")}
           </div>
           {!saved && <p className="text-xs text-muted">{t("parties.picturesAfterSave")}</p>}
+          <p className="text-xs text-muted">{t("parties.pictureFormats")}</p>
         </div>
         <div className="overflow-hidden rounded-xl border border-edge" aria-hidden>
           <div className="h-48" style={themeStyle(preview)}>
@@ -109,7 +126,8 @@ export default function ThemeEditor({ theme, onClose, onSaved, onDeleted }: Prop
               // eslint-disable-next-line @next/next/no-img-element
               <img src={preview.header} alt="" className="h-16 w-full object-cover" />
             )}
-            <p className="mt-2 text-center text-2xl font-extrabold" style={{ color: preview.ink }}>{form.name || t("parties.themeNamePh")}</p>
+            <p className="mt-1 text-center text-lg" style={{ color: preview.ink, fontFamily: FONTS[form.font].script }}>{t("party.welcomeTo")}</p>
+            <p className="text-center text-2xl leading-tight" style={{ color: preview.accent, fontFamily: FONTS[form.font].display, textTransform: FONTS[form.font].caps ? "uppercase" : undefined }}>{form.name || t("parties.themeNamePh")}</p>
             <p className="mt-1 text-center text-xl">{preview.decor.slice(0, 5).join(" ")}</p>
             <div className="mx-auto mt-2 w-28 rounded-lg py-1 text-center text-xs font-semibold text-white" style={{ backgroundColor: preview.accent }}>{t("party.send")}</div>
           </div>

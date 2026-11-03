@@ -354,6 +354,8 @@ class ThemeIn(BaseModel):
     ink: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     pattern: str = Field(default="confetti", pattern=rf"^({'|'.join(PATTERNS)})$")
     decor: str = Field(default="", max_length=60)
+    font: str = Field(default="playful", pattern=r"^(gala|playful|retro|classic|sporty)$")
+    effect: str = Field(default="confetti", pattern=r"^(none|confetti|bokeh|stars|bubbles|snow|leaves|embers)$")
 
 
 class DecideIn(BaseModel):
@@ -465,14 +467,20 @@ def _version(key: str | None) -> str | None:
     return key.rsplit("-", 1)[-1].split(".")[0] if key else None
 
 
-def _save_picture(family_id: uuid.UUID, prefix: str, data: bytes, old: str | None) -> str:
-    """A picture made web-sized (at most 1600 px, JPEG) and stored; the old one goes."""
+def _save_picture(family_id: uuid.UUID, prefix: str, data: bytes, old: str | None, behind: str = "#ffffff") -> str:
+    """A picture made web-sized (at most 1600 px, JPEG) and stored; the old one goes. What's
+    see-through (a PNG's logo) is laid on the theme's colour, not left black."""
     import io
 
     from PIL import Image, ImageOps
 
     try:
         img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+        if img.mode in ("RGBA", "LA", "P", "PA"):
+            img = img.convert("RGBA")
+            flat = Image.new("RGBA", img.size, behind)
+            flat.alpha_composite(img)
+            img = flat
         img = img.convert("RGB")
     except Exception as exc:
         raise HTTPException(status_code=422, detail="That isn't a picture") from exc
@@ -506,7 +514,7 @@ def _picture(family_id: uuid.UUID, key: str | None) -> Response:
 
 def _theme_out(t: PartyTheme) -> dict:
     return {
-        "id": t.id, "name": t.name, "bg": t.bg, "bg2": t.bg2, "accent": t.accent, "ink": t.ink, "pattern": t.pattern, "decor": t.decor,
+        "id": t.id, "name": t.name, "bg": t.bg, "bg2": t.bg2, "accent": t.accent, "ink": t.ink, "pattern": t.pattern, "decor": t.decor, "font": t.font, "effect": t.effect,
         "header": _version(t.header_key), "background": _version(t.background_key),
     }
 
@@ -688,7 +696,8 @@ async def set_theme_picture(theme_id: uuid.UUID, slot: str, file: UploadFile, us
     if slot not in ("header", "background"):
         raise HTTPException(status_code=404, detail="Not found")
     field = f"{slot}_key"
-    setattr(theme, field, _save_picture(theme.family_id, f"themes/{theme.id}-{slot}", await _read_picture(file), getattr(theme, field)))
+    behind = theme.bg if slot == "background" else theme.bg2
+    setattr(theme, field, _save_picture(theme.family_id, f"themes/{theme.id}-{slot}", await _read_picture(file), getattr(theme, field), behind))
     await db.commit()
     return _theme_out(theme)
 

@@ -2109,6 +2109,9 @@ class PartyTheme(Base):
     # none | confetti | dots | stars | stripes | hearts
     pattern: Mapped[str] = mapped_column(String(12), default="confetti")
     decor: Mapped[str] = mapped_column(String(60), default="")
+    # The typefaces (gala | playful | retro | classic | sporty) and the moving effect behind the page.
+    font: Mapped[str] = mapped_column(String(12), default="playful", server_default="playful")
+    effect: Mapped[str] = mapped_column(String(12), default="confetti", server_default="confetti")
     header_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     background_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
