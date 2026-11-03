@@ -1,34 +1,41 @@
 "use client";
 
 // A party's invitation page (3.4.0), for the guests – no account: what, when and where, the
-// reply (first and last name, allergies, and a +1 if the hosts allow it), "add to my calendar",
+// reply (first and last name, allergies, and whoever they bring as far as the hosts allow – a +1
+// or the whole family), a vote on the date if it's still open, "add to my calendar",
 // the wish list if the hosts chose it, and afterwards the thank-you with the day's photos. The
 // keys to change your reply and your reservations stay in this browser.
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CalendarPlus, ExternalLink, Gift, Heart, MapPin } from "lucide-react";
+import { CalendarPlus, ExternalLink, Gift, Heart, MapPin, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
-import { partyTheme } from "@/lib/partyThemes";
+import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
 
-type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string; email: string | null; updates: boolean; date_votes: string[]; adults: number; children: number };
+type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
+type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
 type Page = {
   language: string;
   page_theme: string;
   thanks_theme: string;
+  // The family's own themes, when "custom", and a picture on the invitation (its version).
+  page_custom: CustomTheme | null;
+  thanks_custom: CustomTheme | null;
+  invite_image: string | null;
   // The server can send e-mail: the guest may ask for updates.
   mail: boolean;
-  // A vote on the date (the options' starts, and how many each suits if the hosts show it), and one reply per family.
-  date_poll: boolean; date_options: string[]; households: boolean; tally: { option: string; votes: number; people: number }[] | null;
+  // A vote on the date (the options' starts, and how many each suits if the hosts show it).
+  date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number }[] | null;
   title: string; kind: string; emoji: string; color: string; family_name: string; starts_at: string; ends_at: string; place: string; address: string; theme: string;
-  invitation: string; rsvp_by: string | null; plus_one: boolean; open: boolean;
+  invitation: string; rsvp_by: string | null; bring: "none" | "one" | "family"; open: boolean;
   guests: { coming: number; names?: string[] } | null;
   wishes: { id: string; title: string; url: string | null; note: string | null; reserved: boolean; reserved_by_you: boolean }[] | null;
   thanks: { text: string; photos: string[] } | null;
   mine: Reply | null;
 };
 
-const EMPTY: Reply = { first_name: "", last_name: "", coming: true, allergies: "", message: "", plus_first_name: "", plus_last_name: "", plus_allergies: "", email: "", updates: false, date_votes: [], adults: 1, children: 0 };
+const EMPTY: Reply = { first_name: "", last_name: "", coming: true, allergies: "", message: "", companions: [], email: "", updates: false, date_votes: [] };
+const NOBODY: Companion = { first_name: "", last_name: "", child: false, allergies: "" };
 
 function stored(name: string): Record<string, string> {
   try {
@@ -53,7 +60,6 @@ export default function PartyInvitation() {
   const [page, setPage] = useState<Page | null>(null);
   const [invalid, setInvalid] = useState(false);
   const [form, setForm] = useState<Reply>(EMPTY);
-  const [plus, setPlus] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [stopped, setStopped] = useState(false);
@@ -79,8 +85,7 @@ export default function PartyInvitation() {
           if (!localStorage.getItem("sf.locale") && isLocale(p.language)) setLocale(p.language);
         } catch {}
         if (p.mine) {
-          setForm({ ...EMPTY, ...p.mine, plus_first_name: p.mine.plus_first_name ?? "", plus_last_name: p.mine.plus_last_name ?? "", email: p.mine.email ?? "" });
-          setPlus(!!p.mine.plus_first_name);
+          setForm({ ...EMPTY, ...p.mine, email: p.mine.email ?? "" });
         }
       })
       .catch(() => setInvalid(true));
@@ -92,7 +97,7 @@ export default function PartyInvitation() {
     setSaved(false);
     try {
       const body = {
-        ...form, plus_first_name: plus ? form.plus_first_name : null, plus_last_name: plus ? form.plus_last_name : null, plus_allergies: plus ? form.plus_allergies : "",
+        ...form, companions: form.companions.filter((c) => c.first_name.trim()),
         email: form.email?.trim() || null, updates: !!form.email?.trim() && form.updates,
         coming: page?.date_poll ? form.date_votes.length > 0 : form.coming,
       };
@@ -136,21 +141,29 @@ export default function PartyInvitation() {
   const when = `${start.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long" })} ${start.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}–${end.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}`;
   const mineWish = stored("sf.party-wish-keys");
   // The thank-you's look once it's out, else the invitation's.
-  const theme = partyTheme(page.thanks ? page.thanks_theme : page.page_theme);
+  const themeKey = page.thanks ? page.thanks_theme : page.page_theme;
+  const own = page.thanks ? page.thanks_custom : page.page_custom;
+  const theme = themeKey === "custom" && own ? customTheme(own, (slot, v) => `/api/party/${token}/themes/${own.id}/${slot}?v=${v}`) : partyTheme(themeKey);
   const button = { backgroundColor: theme.accent, borderColor: theme.accent };
   const poll = page.date_poll;
   const coming = poll || form.coming;
+  const most = page.bring === "one" ? 1 : page.bring === "family" ? 20 : 0;
+  const setCompanion = (i: number, patch: Partial<Companion>) => setForm({ ...form, companions: form.companions.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   const vote = (option: string, on: boolean) => setForm({ ...form, date_votes: on ? [...form.date_votes, option] : form.date_votes.filter((x) => x !== option) });
 
   return (
-    <main className="min-h-screen" style={{ background: theme.background }}>
+    <main className="min-h-screen" style={themeStyle(theme)}>
       <div className="h-2" style={{ background: theme.band }} />
+      {theme.header && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={theme.header} alt="" className="mx-auto h-40 w-full max-w-3xl object-cover sm:h-56 sm:rounded-b-3xl" />
+      )}
       <div className="mx-auto max-w-xl space-y-5 p-5">
         <header className="pt-4 text-center" style={{ color: theme.ink }}>
-          <p className="text-5xl" aria-hidden>{page.emoji}</p>
-          <h1 className="mt-2 text-3xl font-extrabold">{page.title}</h1>
-          <p className="mt-1 text-sm opacity-75">{t("party.from", { family: page.family_name })}</p>
-          <p className="mt-3 flex justify-center gap-3 text-2xl" aria-hidden>{theme.decor.map((d, i) => <span key={i} style={{ transform: `rotate(${(i - 2) * 8}deg)` }}>{d}</span>)}</p>
+          <p className="text-6xl drop-shadow-sm" aria-hidden>{page.emoji}</p>
+          <h1 className="mt-2 text-4xl font-black tracking-tight drop-shadow-sm">{page.title}</h1>
+          <p className="mt-1 text-sm opacity-80">{t("party.from", { family: page.family_name })}</p>
+          <p className="mt-3 flex justify-center gap-3 text-3xl" aria-hidden>{theme.decor.map((d, i) => <span key={i} className="inline-block" style={{ transform: `rotate(${(i - (theme.decor.length - 1) / 2) * 9}deg) translateY(${i % 2 ? 4 : -4}px)` }}>{d}</span>)}</p>
         </header>
         {stopped && <p className="card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
@@ -172,6 +185,10 @@ export default function PartyInvitation() {
         )}
 
         <section className="card space-y-2 p-5" aria-label={t("party.about")}>
+          {page.invite_image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/party/${token}/picture?v=${page.invite_image}`} alt="" className="-mx-5 -mt-5 mb-3 max-h-80 w-[calc(100%+2.5rem)] max-w-none rounded-t-xl object-cover" />
+          )}
           <p className="font-semibold first-letter:uppercase">{poll ? t("party.datePending") : when}</p>
           {(page.place || page.address) && (
             <p className="flex items-start gap-1.5 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />{[page.place, page.address].filter(Boolean).join(", ")}</p>
@@ -229,31 +246,33 @@ export default function PartyInvitation() {
               <label><span className="label">{t("parties.firstName")}</span><input className="input" autoComplete="given-name" value={form.first_name} maxLength={80} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></label>
               <label><span className="label">{t("parties.lastName")}</span><input className="input" autoComplete="family-name" value={form.last_name} maxLength={80} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></label>
             </div>
-            {coming && page.households && (
-              <fieldset>
-                <legend className="label">{t("party.howMany")}</legend>
-                <div className="grid grid-cols-2 gap-2">
-                  <label><span className="text-xs text-muted">{t("parties.adults")}</span><input className="input" type="number" min={0} max={30} value={form.adults} onChange={(e) => setForm({ ...form, adults: Math.max(0, Math.min(30, Number(e.target.value))) })} /></label>
-                  <label><span className="text-xs text-muted">{t("parties.children")}</span><input className="input" type="number" min={0} max={30} value={form.children} onChange={(e) => setForm({ ...form, children: Math.max(0, Math.min(30, Number(e.target.value))) })} /></label>
-                </div>
-              </fieldset>
-            )}
             {coming && (
-              <label className="block"><span className="label">{page.households ? t("party.familyAllergies") : t("parties.allergiesLabel")}</span><input className="input" value={form.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setForm({ ...form, allergies: e.target.value })} /></label>
+              <label className="block"><span className="label">{t("parties.allergiesLabel")}</span><input className="input" value={form.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setForm({ ...form, allergies: e.target.value })} /></label>
             )}
-            {form.coming && !poll && page.plus_one && !page.households && (
-              <div className="space-y-2 rounded-xl border border-edge p-3">
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={plus} onChange={(e) => setPlus(e.target.checked)} />{t("party.bringPlusOne")}</label>
-                {plus && (
-                  <>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <label><span className="label">{t("party.plusFirst")}</span><input className="input" value={form.plus_first_name ?? ""} maxLength={80} onChange={(e) => setForm({ ...form, plus_first_name: e.target.value })} /></label>
-                      <label><span className="label">{t("party.plusLast")}</span><input className="input" value={form.plus_last_name ?? ""} maxLength={80} onChange={(e) => setForm({ ...form, plus_last_name: e.target.value })} /></label>
+            {coming && most > 0 && (
+              <fieldset className="space-y-2 rounded-xl border border-edge p-3">
+                <legend className="px-1 text-sm font-semibold">{most === 1 ? t("party.plusOne") : t("party.company")}</legend>
+                {most > 1 && <p className="text-xs text-muted">{t("party.companyHelp")}</p>}
+                {form.companions.map((c, i) => (
+                  <div key={i} className="space-y-2 rounded-lg bg-base/60 p-2" role="group" aria-label={t("party.companion", { n: i + 1 })}>
+                    <div className="flex items-start gap-2">
+                      <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                        <label><span className="label">{t("parties.firstName")}</span><input className="input" value={c.first_name} maxLength={80} onChange={(e) => setCompanion(i, { first_name: e.target.value })} /></label>
+                        <label><span className="label">{t("parties.lastName")}</span><input className="input" value={c.last_name} maxLength={80} onChange={(e) => setCompanion(i, { last_name: e.target.value })} /></label>
+                      </div>
+                      <button type="button" className="mt-6 text-muted hover:text-red-700" aria-label={t("party.removeCompanion", { name: c.first_name || String(i + 1) })} onClick={() => setForm({ ...form, companions: form.companions.filter((_, j) => j !== i) })}><X className="h-4 w-4" aria-hidden /></button>
                     </div>
-                    <label className="block"><span className="label">{t("party.plusAllergies")}</span><input className="input" value={form.plus_allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setForm({ ...form, plus_allergies: e.target.value })} /></label>
-                  </>
+                    <label className="block"><span className="label">{t("parties.allergiesLabel")}</span><input className="input" value={c.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setCompanion(i, { allergies: e.target.value })} /></label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={c.child} onChange={(e) => setCompanion(i, { child: e.target.checked })} />{t("party.isChild")}</label>
+                  </div>
+                ))}
+                {form.companions.length < most && (
+                  <button type="button" className="flex items-center gap-1.5 rounded-lg border border-edge px-3 py-1.5 text-sm font-semibold hover:bg-surface" onClick={() => setForm({ ...form, companions: [...form.companions, { ...NOBODY, last_name: form.last_name }] })}>
+                    <Plus className="h-4 w-4" aria-hidden />
+                    {most === 1 ? t("party.bringPlusOne") : t("party.addCompanion")}
+                  </button>
                 )}
-              </div>
+              </fieldset>
             )}
             <label className="block"><span className="label">{t("party.message")}</span><input className="input" value={form.message} maxLength={500} onChange={(e) => setForm({ ...form, message: e.target.value })} /></label>
             {page.mail && (
@@ -267,7 +286,7 @@ export default function PartyInvitation() {
             )}
             {error && <p className="text-sm text-red-700">{error}</p>}
             {saved && <p className="text-sm font-semibold text-accent" role="status">{poll ? t("party.savedVoted") : form.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
-            <button className="btn-primary w-full" style={button} disabled={!form.first_name.trim() || (plus && !page.households && !form.plus_first_name?.trim()) || (coming && page.households && form.adults + form.children < 1)} onClick={send}>{page.mine ? t("party.update") : poll ? t("party.vote") : t("party.send")}</button>
+            <button className="btn-primary w-full" style={button} disabled={!form.first_name.trim() || form.companions.some((c) => !c.first_name.trim())} onClick={send}>{page.mine ? t("party.update") : poll ? t("party.vote") : t("party.send")}</button>
           </section>
         )}
 

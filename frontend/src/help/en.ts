@@ -371,11 +371,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "A dinner without a set date: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
-          "One reply per family: the guests say how many adults and children are coming instead of a +1 – the count of guests adds them up. A dinner starts with it on.",
-          "Choose a look for the invitation page and another for the thank-you – balloons, jungle, space, ocean, fairy tale, sports, elegant or garden.",
+          "No set date yet: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
+          "Choose what each guest may bring: no one, a +1, or the family – then they add everyone in their party, each with their allergies and whether they're a child. A dinner, a barbecue or a day outdoors starts with the family.",
+          "Choose a look for the invitation page and another for the thank-you – the ones for the kind of party first (balloons, pirates and dinosaurs for a child's party; disco, glitter, the 80s and champagne for a party; bistro, Christmas and a crayfish party for a dinner; football and hockey for a match; barbecue, rounders and the beach outdoors). Or create your own: colours, a pattern, emoji and your own pictures at the top and in the background – kept to use again. A picture of your own can go on the invitation too.",
           "Guests who give their e-mail and ask for updates get a confirmation, a mail if the time or place changes, a reminder the day before and the thank-you – and the messages you send them from Guests. It needs the server's e-mail, set up by the server admin under Server → Address and services.",
-          "The party is in the calendar – as the birthday child's, if it's someone's.",
+          "The party goes in the calendar by itself – for everyone whose party it is (tick one or more of the family), and you choose whose wish list is on the invitation.",
           "Show the wish list: the guests see the wishes of whose party it is and tick what they'll buy; the one it's for never sees who.",
           "Afterwards, under Thank-you: a thank-you text and the photos from an album in the vault, on the same page the guests already have.",
           "Only the adults plan parties – the wish list's reservations are on the planning."

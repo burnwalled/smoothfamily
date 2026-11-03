@@ -371,11 +371,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "En middag uten bestemt dato: kryss av for La gjestene stemme over datoen, og legg til datoene som passer dere. Gjestene krysser av for dem som passer dem; under Invitasjon ser dere hvor mange hver dato passer for, og velger én – da havner festen i kalenderen, de som stemte på den regnes som at de kommer, og de som har bedt om oppdateringer får en e-post.",
-          "Ett svar per familie: gjestene oppgir hvor mange voksne og barn som kommer i stedet for en +1 – antallet gjester legger dem sammen. En middag har det slått på fra start.",
-          "Velg et tema for invitasjonssiden og et for takkesiden – ballonger, jungel, verdensrommet, havet, eventyr, sport, elegant eller hage.",
+          "Ingen bestemt dato ennå: kryss av for La gjestene stemme over datoen, og legg til datoene som passer dere. Gjestene krysser av for dem som passer dem; under Invitasjon ser dere hvor mange hver dato passer for, og velger én – da havner festen i kalenderen, de som stemte på den regnes som at de kommer, og de som har bedt om oppdateringer får en e-post.",
+          "Velg hva hver gjest kan ta med: ingen, en +1 eller familien – da legger de til alle i følget, hver med allergier og om det er et barn. En middag, en grillkveld eller en utendørsaktivitet starter med familien.",
+          "Velg et tema for invitasjonssiden og et for takkesiden – de som passer festen først (ballonger, pirater og dinosaurer for barnebursdag; disco, glitter, 80-tallet og champagne for fest; bistro, jul og krepsefest for middag; fotball og hockey for kamp; grill, slåball og strand utendørs). Eller lag et eget: farger, mønster, emoji og egne bilder øverst og i bakgrunnen – lagret til senere. Et eget bilde kan også ligge på invitasjonen.",
           "Gjester som oppgir e-post og ber om oppdateringer, får en bekreftelse, en e-post hvis tid eller sted endres, en påminnelse dagen før og takken – og meldingene dere sender under Gjester. Det krever serverens e-post, som serveradministratoren setter opp under Server → Adresse og tjenester.",
-          "Selskapet ligger i kalenderen – som bursdagsbarnets, hvis det er noens.",
+          "Festen legges i kalenderen av seg selv – for alle den gjelder (kryss av for én eller flere i familien), og dere velger hvem sin ønskeliste som vises på invitasjonen.",
           "Vis ønskelisten: gjestene ser ønskene til den selskapet gjelder og krysser av det de kjøper; den det gjelder ser aldri hvem.",
           "Etterpå, under Takk: en takketekst og bildene fra et album i Hvelvet, på samme side som gjestene allerede har.",
           "Bare de voksne planlegger selskap – ønskelistens reservasjoner ligger i planleggingen."

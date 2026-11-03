@@ -371,11 +371,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "En middag utan bestämt datum: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
-          "Ett svar per familj: gästerna anger hur många vuxna och barn som kommer i stället för en +1 – antalet gäster räknar ihop dem. En middag har det påslaget från början.",
-          "Välj ett tema för inbjudningssidan och ett för tacksidan – ballonger, djungel, rymden, havet, saga, sport, elegant eller trädgård.",
+          "Inget bestämt datum än: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
+          "Välj vad varje gäst får ta med: ingen, en +1 eller familjen – då lägger de till alla i sitt sällskap, var och en med allergier och om det är ett barn. En middag, en grillafton eller en utomhusaktivitet börjar med familjen.",
+          "Välj ett tema för inbjudningssidan och ett för tacksidan – de som passar typen av fest först (ballonger, pirater och dinosaurier för kalas; disco, glitter, 80-tal och champagne för fest; bistro, jul och kräftskiva för middag; fotboll och hockey för match; grill, brännboll och badstrand utomhus). Eller skapa ett eget: färger, mönster, emoji och egna bilder överst och i bakgrunden – sparat att använda igen. En egen bild kan också ligga på inbjudan.",
           "Gäster som anger sin e-post och ber om uppdateringar får en bekräftelse, ett mejl om tid eller plats ändras, en påminnelse dagen innan och tacket – och de meddelanden ni skickar under Gäster. Det kräver serverns e-post, som serveradministratören ställer in under Server → Adress och tjänster.",
-          "Festen finns i kalendern – som födelsedagsbarnets, om det är någons.",
+          "Festen läggs in i kalendern av sig själv – för alla den gäller (kryssa i en eller flera i familjen), och ni väljer vems önskelista som visas på inbjudan.",
           "Visa önskelistan: gästerna ser önskningarna för den festen gäller och bockar för vad de köper; den det gäller ser aldrig vem.",
           "Efteråt, under Tack: en tacktext och bilderna från ett album i Valvet, på samma sida som gästerna redan har.",
           "Bara de vuxna planerar fest – önskelistans reservationer finns i planeringen."

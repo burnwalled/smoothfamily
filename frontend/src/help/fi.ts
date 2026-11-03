@@ -371,11 +371,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Illallinen ilman sovittua päivää: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
-          "Yksi vastaus perhettä kohden: vieraat kertovat, montako aikuista ja lasta tulee, +1:n sijaan – vierasmäärä laskee ne yhteen. Illallisella se on valmiiksi päällä.",
-          "Valitse teema kutsusivulle ja toinen kiitossivulle – ilmapallot, viidakko, avaruus, meri, satu, urheilu, tyylikäs tai puutarha.",
+          "Päivää ei ole vielä sovittu: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
+          "Valitse, mitä kukin vieras saa tuoda: ei ketään, +1 tai perheensä – silloin he lisäävät koko seurueen, jokaisen allergioineen ja tiedon, onko kyseessä lapsi. Illallinen, grilli-ilta tai ulkoilupäivä alkaa perheillä.",
+          "Valitse teema kutsusivulle ja toinen kiitossivulle – juhlaan sopivat ensin (ilmapallot, merirosvot ja dinosaurukset lastenjuhliin; disko, glitter, 80-luku ja samppanja juhliin; bistro, joulu ja rapujuhlat illalliselle; jalkapallo ja jääkiekko otteluun; grilli, polttopallo ja uimaranta ulos). Tai luo oma: värit, kuvio, emojit ja omat kuvat ylhäälle ja taustalle – tallessa myöhempää varten. Oman kuvan voi lisätä myös kutsuun.",
           "Vieraat, jotka antavat sähköpostinsa ja pyytävät päivityksiä, saavat vahvistuksen, viestin jos aika tai paikka muuttuu, muistutuksen edellisenä päivänä ja kiitoksen – sekä viestit, jotka lähetätte kohdasta Vieraat. Se vaatii palvelimen sähköpostin, jonka ylläpitäjä asettaa kohdassa Palvelin → Osoite ja palvelut.",
-          "Juhlat ovat kalenterissa – päivänsankarin, jos ne ovat jonkun.",
+          "Juhlat lisätään kalenteriin itsestään – kaikille, joita ne koskevat (rastita yksi tai useampi perheestä), ja valitsette, kenen toivelista näkyy kutsussa.",
           "Näytä toivelista: vieraat näkevät päivänsankarin toiveet ja merkitsevät, mitä ostavat; lahjan saaja ei koskaan näe kuka.",
           "Jälkeenpäin, kohdassa Kiitos: kiitosteksti ja kuvat Holvin albumista samalle sivulle, joka vierailla jo on.",
           "Vain aikuiset suunnittelevat juhlia – toivelistan varaukset näkyvät suunnittelussa."

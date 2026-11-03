@@ -37,7 +37,7 @@ async def test_a_party_from_invitation_to_thanks(client, db_session):
     await client.post(f"/api/birthdays/people/{person['id']}/wishes", json={"title": "Lego"})
     await client.post(f"/api/birthdays/people/{person['id']}/wishes", json={"title": "Pyssel"})
 
-    party = (await client.post("/api/parties", json=_party(start, plus_one=True, show_guests="names", wishlist=True, person_id=person["id"], budget=1500))).json()
+    party = (await client.post("/api/parties", json=_party(start, bring="one", show_guests="names", wishlist=True, person_id=person["id"], budget=1500))).json()
     # Started with a checklist (in the admin's language) and, for a child's party, the day's timeline.
     assert any(t["title"] == "Dela inbjudan" for t in party["tasks"]) and any(t["title"] == "Påminn dem som inte svarat" for t in party["tasks"])
     assert [s["title"] for s in party["steps"]][0] == "Gästerna kommer" and party["steps"][-1]["title"] == "Hämtning"
@@ -50,10 +50,10 @@ async def test_a_party_from_invitation_to_thanks(client, db_session):
 
     # A guest replies (with a +1), sees the wish list, reserves a wish and changes the reply later.
     page = (await client.get(f"/api/party/{token}")).json()
-    assert page["title"] == "Majas kalas" and page["plus_one"] and page["guests"] == {"coming": 0, "names": []}
+    assert page["title"] == "Majas kalas" and page["bring"] == "one" and page["guests"] == {"coming": 0, "names": []}
     assert page["language"] == "sv"  # the host's
     assert [w["title"] for w in page["wishes"]] == ["Lego", "Pyssel"]
-    sent = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "allergies": "Nötter", "plus_first_name": "Ella", "plus_last_name": "Berg", "plus_allergies": "Laktos"})).json()
+    sent = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "allergies": "Nötter", "companions": [{"first_name": "Ella", "last_name": "Berg", "allergies": "Laktos"}, {"first_name": "Smygis"}]})).json()
     key = sent["key"]
     lego = page["wishes"][0]["id"]
     wkey = (await client.post(f"/api/party/{token}/wishes/{lego}/reserve", json={"name": "Saga"})).json()["key"]
@@ -114,8 +114,8 @@ async def test_no_plus_one_unless_allowed(client):
     start = datetime.now(timezone.utc) + timedelta(days=10)
     party = (await client.post("/api/parties", json=_party(start, kind="party", title="Middag"))).json()
     token = party["link"].rsplit("/", 1)[1]
-    sent = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Per", "plus_first_name": "Smygis"})).json()
-    assert sent["mine"]["plus_first_name"] is None
+    sent = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Per", "companions": [{"first_name": "Smygis"}]})).json()
+    assert sent["mine"]["companions"] == []
     assert party["steps"] == []  # the timeline template is a child's party's
     assert (await client.post("/api/parties", json=_party(start, ends_at=(start - timedelta(hours=1)).isoformat()))).status_code == 422
 
@@ -171,10 +171,10 @@ async def test_a_dinner_votes_on_the_date_and_families_say_how_many(client, db_s
     await client.put("/api/admin/integrations/email", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
     start = (datetime.now(timezone.utc) + timedelta(days=40)).replace(hour=17, minute=0, second=0, microsecond=0)
     second, third = start + timedelta(days=7), start + timedelta(days=14)
-    body = _party(start, kind="dinner", title="Julmiddag", date_poll=True, households=True, show_guests="names", date_options=[second.isoformat(), third.isoformat()])
+    body = _party(start, kind="dinner", title="Julmiddag", date_poll=True, bring="family", show_guests="names", date_options=[second.isoformat(), third.isoformat()])
     assert (await client.post("/api/parties", json={**body, "date_options": []})).status_code == 422  # one date isn't a vote
     party = (await client.post("/api/parties", json=body)).json()
-    assert party["date_poll"] and len(party["date_options"]) == 3 and party["households"]
+    assert party["date_poll"] and len(party["date_options"]) == 3 and party["bring"] == "family"
     # Not in the calendar while the date is open.
     events = (await client.get(f"/api/calendar/events?start={start.date()}&end={(third + timedelta(days=1)).date()}")).json()
     assert not any("Julmiddag" in e["title"] for e in events)
@@ -183,14 +183,14 @@ async def test_a_dinner_votes_on_the_date_and_families_say_how_many(client, db_s
 
     # The families vote and say how many are coming; a date not on offer is dropped.
     page = (await client.get(f"/api/party/{token}")).json()
-    assert page["date_poll"] and page["date_options"] == [first, mid, last] and page["households"]
-    berg = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "adults": 2, "children": 2, "date_votes": [mid, last, "2020-01-01T00:00:00+00:00"], "email": "saga@example.com", "updates": True})).json()
+    assert page["date_poll"] and page["date_options"] == [first, mid, last] and page["bring"] == "family"
+    berg = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "companions": [{"first_name": "Lars", "last_name": "Berg"}, {"first_name": "Ella", "child": True, "allergies": "Laktos"}, {"first_name": "Ture", "child": True}], "date_votes": [mid, last, "2020-01-01T00:00:00+00:00"], "email": "saga@example.com", "updates": True})).json()
     assert berg["mine"]["date_votes"] == [mid, last] and berg["mine"]["coming"] and "röstat på 2 datum" in sent[0][2]
-    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "adults": 1, "children": 0, "date_votes": [first, mid]})
-    await client.post(f"/api/party/{token}/reply", json={"first_name": "Ola", "adults": 2, "date_votes": []})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "date_votes": [first, mid]})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Ola", "companions": [{"first_name": "Eva"}], "date_votes": []})
     page = (await client.get(f"/api/party/{token}")).json()
     assert [(r["votes"], r["people"]) for r in page["tally"]] == [(1, 1), (2, 5), (1, 4)]
-    assert "Saga Berg (+3)" in page["guests"]["names"]
+    assert page["guests"]["names"][:4] == ["Saga Berg", "Lars Berg", "Ella", "Ture"]
     detail = (await client.get(f"/api/parties/{party['id']}")).json()
     assert detail["tally"][1]["names"] == ["Saga Berg", "Nils"] and detail["not_coming"] == 1
 
@@ -202,5 +202,50 @@ async def test_a_dinner_votes_on_the_date_and_families_say_how_many(client, db_s
     events = (await client.get(f"/api/calendar/events?start={second.date()}&end={(second + timedelta(days=1)).date()}")).json()
     assert any("Julmiddag" in e["title"] for e in events)
     # After the vote, a reply is an ordinary yes or no again (with the family's count).
-    again = (await client.post(f"/api/party/{token}/reply?key={berg['key']}", json={"first_name": "Saga", "last_name": "Berg", "adults": 2, "children": 1, "coming": True})).json()
+    again = (await client.post(f"/api/party/{token}/reply?key={berg['key']}", json={"first_name": "Saga", "last_name": "Berg", "companions": [{"first_name": "Lars", "last_name": "Berg"}, {"first_name": "Ella", "child": True}], "coming": True})).json()
     assert again["mine"]["date_votes"] == [mid, last] and (await client.get(f"/api/parties/{party['id']}")).json()["coming"] == 4
+
+
+async def test_own_themes_pictures_and_more_kinds(client):
+    import io
+
+    from PIL import Image
+
+    ids = await _family(client)
+    maja = (await client.post("/api/birthdays/people", json={"name": "Maja", "user_id": ids["maja"]})).json()
+    leo = (await client.post("/api/birthdays/people", json={"name": "Leo"})).json()
+    start = (datetime.now(timezone.utc) + timedelta(days=30)).replace(hour=15, minute=0, second=0, microsecond=0)
+
+    # An own theme, kept to use again, with its own pictures.
+    theme = (await client.post("/api/parties/themes", json={"name": "Majas lila", "bg": "#f3e8ff", "bg2": "#fff7fb", "accent": "#7c3aed", "ink": "#2e1065", "pattern": "stars", "decor": "💜🦄⭐"})).json()
+    buf = io.BytesIO()
+    Image.new("RGB", (2400, 1200), "#7c3aed").save(buf, "PNG")
+    theme = (await client.post(f"/api/parties/themes/{theme['id']}/pictures/header", files={"file": ("top.png", buf.getvalue(), "image/png")})).json()
+    assert theme["header"] and theme["background"] is None
+    assert (await client.post(f"/api/parties/themes/{theme['id']}/pictures/header", files={"file": ("x.txt", b"hello", "text/plain")})).status_code == 422
+    assert [t["name"] for t in (await client.get("/api/parties/themes")).json()] == ["Majas lila"]
+
+    # A party for two of the children, with the theme and a picture on the invitation; another kind.
+    party = (await client.post("/api/parties", json=_party(start, person_ids=[maja["id"], leo["id"]], person_id=maja["id"], page_theme="custom", page_custom_id=theme["id"], bring="family"))).json()
+    assert party["person_ids"] == [maja["id"], leo["id"]] and party["page_custom_id"] == theme["id"]
+    party = (await client.post(f"/api/parties/{party['id']}/picture", files={"file": ("maja.jpg", buf.getvalue(), "image/png")})).json()
+    assert party["invite_image"]
+    token = party["link"].rsplit("/", 1)[1]
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["page_theme"] == "custom" and page["page_custom"]["decor"] == "💜🦄⭐" and page["thanks_custom"]["id"] == theme["id"]
+    pic = await client.get(f"/api/party/{token}/themes/{theme['id']}/header")
+    assert pic.status_code == 200 and pic.headers["content-type"] == "image/jpeg"
+    assert Image.open(io.BytesIO(pic.content)).size == (1600, 800)  # web-sized
+    assert (await client.get(f"/api/party/{token}/picture")).status_code == 200
+    other = (await client.post("/api/parties/themes", json={"name": "Annan", "bg": "#ffffff", "bg2": "#ffffff", "accent": "#000000", "ink": "#000000"})).json()
+    assert (await client.get(f"/api/party/{token}/themes/{other['id']}/header")).status_code == 404
+
+    # Deleting the theme: the party falls back to a built-in look.
+    assert (await client.delete(f"/api/parties/themes/{theme['id']}")).status_code == 204
+    assert (await client.get(f"/api/parties/{party['id']}")).json()["page_theme"] == "balloons"
+
+    # A match night starts with its own checklist, not a cake.
+    match = (await client.post("/api/parties", json=_party(start, kind="match", title="Finalen", page_theme="football"))).json()
+    titles = [t["title"] for t in match["tasks"]]
+    assert "Kolla avsparken och var den sänds" in titles and not any("tårta" in t.lower() for t in titles)
+    assert (await client.post("/api/parties", json=_party(start, page_theme="nope"))).status_code == 422

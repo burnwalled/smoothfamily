@@ -371,11 +371,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "En middag uden fastlagt dato: sæt kryds ved Lad gæsterne stemme om datoen, og tilføj de datoer, der passer jer. Gæsterne krydser dem af, der passer dem; under Invitation ser I, hvor mange hver dato passer, og vælger én – så kommer festen i kalenderen, de, der stemte på den, regnes som kommende, og de, der har bedt om opdateringer, får en mail.",
-          "Ét svar per familie: gæsterne angiver, hvor mange voksne og børn der kommer, i stedet for en +1 – antallet af gæster lægger dem sammen. En middag har det slået til fra start.",
-          "Vælg et tema til invitationssiden og et til taksiden – balloner, jungle, rummet, havet, eventyr, sport, elegant eller have.",
+          "Ingen fastlagt dato endnu: sæt kryds ved Lad gæsterne stemme om datoen, og tilføj de datoer, der passer jer. Gæsterne krydser dem af, der passer dem; under Invitation ser I, hvor mange hver dato passer, og vælger én – så kommer festen i kalenderen, de, der stemte på den, regnes som kommende, og de, der har bedt om opdateringer, får en mail.",
+          "Vælg, hvad hver gæst må tage med: ingen, en +1 eller familien – så tilføjer de alle i selskabet, hver med allergier, og om det er et barn. En middag, en grillaften eller en udendørsaktivitet starter med familien.",
+          "Vælg et tema til invitationssiden og et til taksiden – dem, der passer til festen, først (balloner, pirater og dinosaurer til børnefødselsdag; disco, glimmer, 80'erne og champagne til fest; bistro, jul og krebsegilde til middag; fodbold og ishockey til kamp; grill, rundbold og strand udendørs). Eller lav jeres eget: farver, mønster, emoji og egne billeder øverst og i baggrunden – gemt til senere. Et eget billede kan også komme på invitationen.",
           "Gæster, der angiver deres e-mail og beder om opdateringer, får en bekræftelse, en mail, hvis tid eller sted ændres, en påmindelse dagen før og takken – og de beskeder, I sender under Gæster. Det kræver serverens e-mail, som serveradministratoren opsætter under Server → Adresse og tjenester.",
-          "Festen ligger i kalenderen – som fødselsdagsbarnets, hvis den er nogens.",
+          "Festen kommer i kalenderen af sig selv – for alle, den gælder (sæt kryds ved én eller flere i familien), og I vælger, hvis ønskeliste der vises på invitationen.",
           "Vis ønskelisten: gæsterne ser ønskerne for den, festen gælder, og sætter flueben ved det, de køber; den, det gælder, ser aldrig hvem.",
           "Bagefter, under Tak: en taktekst og billederne fra et album i Boksen, på samme side, som gæsterne allerede har.",
           "Kun de voksne planlægger fester – ønskelistens reservationer ligger i planlægningen."

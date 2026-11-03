@@ -18,13 +18,13 @@ import secrets
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, AdultUser, require_app
-from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyStep, PartyTask, Person, User, WishItem
+from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyStep, PartyTask, PartyTheme, Person, User, WishItem
 from app.services import login_throttle
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
@@ -35,7 +35,8 @@ from app.services.weather import _tz
 router = APIRouter(prefix="/api/parties", tags=["parties"], dependencies=[require_app("calendar")])
 public = APIRouter(prefix="/api/party", tags=["party-public"])
 
-KINDS = ("child_birthday", "birthday", "party", "dinner")
+KINDS = ("child_birthday", "birthday", "party", "dinner", "match", "bbq", "outdoor")
+KIND_PATTERN = rf"^({'|'.join(KINDS)})$"
 NO_STORE = {"Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
 
 
@@ -46,18 +47,68 @@ def _hash(token: str) -> str:
 # --- What a new party starts with ------------------------------------------------------------
 
 # (days before the party, title) – negative days are before; the RSVP ones move with the RSVP date.
-_TASKS = {
-    "en": [(-21, "Share the invitation"), (-14, "Order or plan the cake"), (-7, "Buy decorations"), ("rsvp-2", "Remind those who haven't replied"),
-           ("rsvp+1", "Count the guests and check the allergies"), (-2, "Shop for the food"), (-1, "Get the games and music ready"), (1, "Publish the thank-you page with the photos")],
-    "sv": [(-21, "Dela inbjudan"), (-14, "Beställ eller planera tårtan"), (-7, "Köp dekorationer"), ("rsvp-2", "Påminn dem som inte svarat"),
-           ("rsvp+1", "Räkna gästerna och kolla allergierna"), (-2, "Handla maten"), (-1, "Förbered lekar och musik"), (1, "Publicera tacksidan med bilderna")],
-    "nb": [(-21, "Del invitasjonen"), (-14, "Bestill eller planlegg kaken"), (-7, "Kjøp dekorasjoner"), ("rsvp-2", "Påminn dem som ikke har svart"),
-           ("rsvp+1", "Tell gjestene og sjekk allergiene"), (-2, "Handle maten"), (-1, "Forbered leker og musikk"), (1, "Publiser takkesiden med bildene")],
-    "da": [(-21, "Del invitationen"), (-14, "Bestil eller planlæg kagen"), (-7, "Køb pynt"), ("rsvp-2", "Påmind dem, der ikke har svaret"),
-           ("rsvp+1", "Tæl gæsterne, og tjek allergierne"), (-2, "Køb ind til maden"), (-1, "Forbered lege og musik"), (1, "Udgiv taksiden med billederne")],
-    "fi": [(-21, "Jaa kutsu"), (-14, "Tilaa tai suunnittele kakku"), (-7, "Osta koristeet"), ("rsvp-2", "Muistuta niitä, jotka eivät ole vastanneet"),
-           ("rsvp+1", "Laske vieraat ja tarkista allergiat"), (-2, "Tee ruokaostokset"), (-1, "Valmistele leikit ja musiikki"), (1, "Julkaise kiitossivu kuvineen")],
+# Each kind of party starts with its own list.
+_REMIND = {"en": "Remind those who haven't replied", "sv": "Påminn dem som inte svarat", "nb": "Påminn dem som ikke har svart", "da": "Påmind dem, der ikke har svaret", "fi": "Muistuta niitä, jotka eivät ole vastanneet"}
+_COUNT = {"en": "Count the guests and check the allergies", "sv": "Räkna gästerna och kolla allergierna", "nb": "Tell gjestene og sjekk allergiene", "da": "Tæl gæsterne, og tjek allergierne", "fi": "Laske vieraat ja tarkista allergiat"}
+_SHARE = {"en": "Share the invitation", "sv": "Dela inbjudan", "nb": "Del invitasjonen", "da": "Del invitationen", "fi": "Jaa kutsu"}
+_THANK = {"en": "Publish the thank-you page with the photos", "sv": "Publicera tacksidan med bilderna", "nb": "Publiser takkesiden med bildene", "da": "Udgiv taksiden med billederne", "fi": "Julkaise kiitossivu kuvineen"}
+_WEATHER = {"en": "Check the weather – and a plan B", "sv": "Kolla vädret – och en plan B", "nb": "Sjekk været – og en plan B", "da": "Tjek vejret – og en plan B", "fi": "Tarkista sää – ja varasuunnitelma"}
+_OWN = {
+    "kids": {
+        "en": [(-14, "Order or plan the cake"), (-7, "Buy decorations"), (-2, "Shop for the food"), (-1, "Get the games and music ready")],
+        "sv": [(-14, "Beställ eller planera tårtan"), (-7, "Köp dekorationer"), (-2, "Handla maten"), (-1, "Förbered lekar och musik")],
+        "nb": [(-14, "Bestill eller planlegg kaken"), (-7, "Kjøp dekorasjoner"), (-2, "Handle maten"), (-1, "Forbered leker og musikk")],
+        "da": [(-14, "Bestil eller planlæg kagen"), (-7, "Køb pynt"), (-2, "Køb ind til maden"), (-1, "Forbered lege og musik")],
+        "fi": [(-14, "Tilaa tai suunnittele kakku"), (-7, "Osta koristeet"), (-2, "Tee ruokaostokset"), (-1, "Valmistele leikit ja musiikki")],
+    },
+    "party": {
+        "en": [(-14, "Plan the food and drinks"), (-7, "Make the playlist"), (-7, "Buy decorations"), (-2, "Shop for the food and drinks"), (0, "Decorate and set up")],
+        "sv": [(-14, "Planera mat och dryck"), (-7, "Gör spellistan"), (-7, "Köp dekorationer"), (-2, "Handla mat och dryck"), (0, "Dekorera och duka fram")],
+        "nb": [(-14, "Planlegg mat og drikke"), (-7, "Lag spillelisten"), (-7, "Kjøp dekorasjoner"), (-2, "Handle mat og drikke"), (0, "Pynt og rigg til")],
+        "da": [(-14, "Planlæg mad og drikke"), (-7, "Lav playlisten"), (-7, "Køb pynt"), (-2, "Køb ind til mad og drikke"), (0, "Pynt op, og stil frem")],
+        "fi": [(-14, "Suunnittele ruoat ja juomat"), (-7, "Tee soittolista"), (-7, "Osta koristeet"), (-2, "Osta ruoat ja juomat"), (0, "Koristele ja kattaa")],
+    },
+    "dinner": {
+        "en": [(-14, "Plan the menu"), (-7, "Choose the drinks"), (-2, "Shop for the food"), (0, "Set the table – flowers and candles")],
+        "sv": [(-14, "Planera menyn"), (-7, "Välj drycker"), (-2, "Handla maten"), (0, "Duka – blommor och ljus")],
+        "nb": [(-14, "Planlegg menyen"), (-7, "Velg drikke"), (-2, "Handle maten"), (0, "Dekk bordet – blomster og lys")],
+        "da": [(-14, "Planlæg menuen"), (-7, "Vælg drikkevarer"), (-2, "Køb ind til maden"), (0, "Dæk bord – blomster og lys")],
+        "fi": [(-14, "Suunnittele menu"), (-7, "Valitse juomat"), (-2, "Tee ruokaostokset"), (0, "Kattaa pöytä – kukat ja kynttilät")],
+    },
+    "match": {
+        "en": [(-7, "Check the kick-off and where it's shown"), (-3, "Find the jerseys, scarves and flags"), (-1, "Shop for snacks and drinks"), (0, "Test the TV and the sound")],
+        "sv": [(-7, "Kolla avsparken och var den sänds"), (-3, "Fram med tröjor, halsdukar och flaggor"), (-1, "Handla snacks och dryck"), (0, "Testa tv:n och ljudet")],
+        "nb": [(-7, "Sjekk avspark og hvor kampen vises"), (-3, "Finn fram drakter, skjerf og flagg"), (-1, "Handle snacks og drikke"), (0, "Test tv-en og lyden")],
+        "da": [(-7, "Tjek kampstart, og hvor den vises"), (-3, "Find trøjer, halstørklæder og flag frem"), (-1, "Køb snacks og drikke"), (0, "Test tv'et og lyden")],
+        "fi": [(-7, "Tarkista aloitusaika ja missä ottelu näytetään"), (-3, "Esiin pelipaidat, huivit ja liput"), (-1, "Osta naposteltavat ja juomat"), (0, "Testaa tv ja ääni")],
+    },
+    "bbq": {
+        "en": [(-7, "Check the grill – charcoal or gas"), (-2, "W"), (-1, "Shop – something vegetarian too"), (0, "Light the grill in good time")],
+        "sv": [(-7, "Kolla grillen – kol eller gasol"), (-2, "W"), (-1, "Handla – något vegetariskt också"), (0, "Tänd grillen i god tid")],
+        "nb": [(-7, "Sjekk grillen – kull eller gass"), (-2, "W"), (-1, "Handle – noe vegetarisk også"), (0, "Tenn grillen i god tid")],
+        "da": [(-7, "Tjek grillen – kul eller gas"), (-2, "W"), (-1, "Køb ind – også noget vegetarisk"), (0, "Tænd grillen i god tid")],
+        "fi": [(-7, "Tarkista grilli – hiilet tai kaasu"), (-2, "W"), (-1, "Tee ostokset – myös jotain kasvisruokaa"), (0, "Sytytä grilli ajoissa")],
+    },
+    "outdoor": {
+        "en": [(-3, "Get the gear – bats, balls, cones"), (-1, "W"), (-1, "Pack water, snacks and sunscreen")],
+        "sv": [(-3, "Fixa utrustningen – trä, bollar, koner"), (-1, "W"), (-1, "Packa vatten, fika och solkräm")],
+        "nb": [(-3, "Skaff utstyret – balltre, baller, kjegler"), (-1, "W"), (-1, "Pakk vann, mat og solkrem")],
+        "da": [(-3, "Find udstyret – bat, bolde, kegler"), (-1, "W"), (-1, "Pak vand, snacks og solcreme")],
+        "fi": [(-3, "Hanki varusteet – mailat, pallot, kartiot"), (-1, "W"), (-1, "Pakkaa vettä, eväät ja aurinkorasva")],
+    },
 }
+_GROUP = {"child_birthday": "kids", "birthday": "party", "party": "party", "dinner": "dinner", "match": "match", "bbq": "bbq", "outdoor": "outdoor"}
+
+
+def _tasks_for(kind: str, language: str) -> list[tuple]:
+    lang = language if language in _SHARE else "en"
+    group = _GROUP.get(kind, "party")
+    own = [(when, _WEATHER[lang] if title == "W" else title) for when, title in _OWN[group][lang]]
+    share = -10 if group == "match" else -21 if group in ("kids", "party", "dinner") else -14
+    out = [(share, _SHARE[lang]), *own, ("rsvp-2", _REMIND[lang]), ("rsvp+1", _COUNT[lang]), (1, _THANK[lang])]
+    return sorted(out, key=lambda x: x[0] if isinstance(x[0], int) else -2 if x[0] == "rsvp-2" else -1.5)
+
+
 # (minutes from the start, or "end-N" / "end", title) – the day of a child's party.
 _STEPS = {
     "en": [(0, "The guests arrive"), (20, "Games"), (75, "Cake and presents"), ("end-15", "Party bags"), ("end", "Pick-up")],
@@ -81,7 +132,7 @@ def _local(moment: datetime) -> datetime:
 def _starter_tasks(party: Party, language: str, today: date) -> list[PartyTask]:
     day = _local(party.starts_at).date()
     out = []
-    for i, (when, title) in enumerate(_TASKS.get(language, _TASKS["en"])):
+    for i, (when, title) in enumerate(_tasks_for(party.kind, language)):
         if isinstance(when, str):
             if party.rsvp_by is None:
                 continue
@@ -109,7 +160,19 @@ def _starter_steps(party: Party, language: str) -> list[PartyStep]:
 
 # --- Updates by e-mail, for the guests who ask for them ------------------------------------------
 
-THEMES = ("balloons", "jungle", "space", "ocean", "fairytale", "sports", "elegant", "garden")
+# The built-in looks (drawn by the guests' page), by the kind of party they suit; "custom" is one
+# of the family's own.
+THEMES = (
+    "balloons", "jungle", "space", "ocean", "fairytale", "pirate", "dinosaur", "superhero", "unicorn",
+    "disco", "glitter", "eighties", "nineties", "glamour", "techno", "champagne", "neon",
+    "elegant", "bistro", "christmas", "midsummer", "crayfish", "garden",
+    "football", "hockey", "sports",
+    "bbq", "brannboll", "beach", "picnic",
+)
+THEME_PATTERN = rf"^({'|'.join(THEMES)}|custom)$"
+THANKS_PATTERN = rf"^(|{'|'.join(THEMES)}|custom)$"
+PATTERNS = ("none", "confetti", "dots", "stars", "stripes", "hearts", "check")
+BRING = r"^(none|one|family)$"
 
 _MAIL = {
     "en": {
@@ -120,7 +183,7 @@ _MAIL = {
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("coming", "not coming"), "plus": "with {name}",
         "decided": ("{title}: the date is set", "The date for {title} is set – see you then!"),
-        "voted": "you voted for {n} date(s)", "family": "{adults} adult(s), {children} child(ren)",
+        "voted": "you voted for {n} date(s)",
         "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
     },
     "sv": {
@@ -131,7 +194,7 @@ _MAIL = {
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer inte"), "plus": "med {name}",
         "decided": ("{title}: datumet är bestämt", "Datumet för {title} är bestämt – vi ses då!"),
-        "voted": "du har röstat på {n} datum", "family": "{adults} vuxna, {children} barn",
+        "voted": "du har röstat på {n} datum",
         "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
     },
     "nb": {
@@ -142,7 +205,7 @@ _MAIL = {
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
         "decided": ("{title}: datoen er bestemt", "Datoen for {title} er bestemt – vi ses da!"),
-        "voted": "du har stemt på {n} dato(er)", "family": "{adults} voksne, {children} barn",
+        "voted": "du har stemt på {n} dato(er)",
         "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
     },
     "da": {
@@ -153,7 +216,7 @@ _MAIL = {
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("kommer", "kommer ikke"), "plus": "med {name}",
         "decided": ("{title}: datoen er fastlagt", "Datoen for {title} er fastlagt – vi ses!"),
-        "voted": "du har stemt på {n} dato(er)", "family": "{adults} voksne, {children} børn",
+        "voted": "du har stemt på {n} dato(er)",
         "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
     },
     "fi": {
@@ -164,7 +227,7 @@ _MAIL = {
         "message": ("{title}: {subject}", "{text}"),
         "answers": ("tulee", "ei tule"), "plus": "seuranaan {name}",
         "decided": ("{title}: päivä on päätetty", "Päivä on päätetty: {title} – nähdään silloin!"),
-        "voted": "äänestit {n} päivää", "family": "{adults} aikuista, {children} lasta",
+        "voted": "äänestit {n} päivää",
         "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
     },
 }
@@ -207,10 +270,8 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
         answer = texts["answers"][0 if guest.coming else 1]
         if party.date_poll:
             answer = texts["voted"].format(n=len(guest.date_votes or []))
-        elif guest.coming and party.households:
-            answer += f" ({texts['family'].format(adults=guest.adults, children=guest.children)})"
-        if guest.coming and guest.plus_first_name and not party.date_poll:
-            answer += " " + texts["plus"].format(name=f"{guest.plus_first_name} {guest.plus_last_name or ''}".strip())
+        elif guest.coming and guest.companions:
+            answer += " " + texts["plus"].format(name=", ".join(_name(c) for c in guest.companions))
         fields = {"title": party.title, "name": guest.first_name, "answer": answer, **values}
         body = "\n\n".join([
             body_t.format(**fields),
@@ -232,7 +293,8 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
 
 class PartyIn(BaseModel):
     title: str = Field(min_length=1, max_length=160)
-    kind: str = Field(default="party", pattern=r"^(child_birthday|birthday|party|dinner)$")
+    kind: str = Field(default="party", pattern=KIND_PATTERN)
+    person_ids: list[uuid.UUID] = Field(default_factory=list, max_length=10)
     person_id: uuid.UUID | None = None
     starts_at: datetime
     ends_at: datetime
@@ -243,19 +305,20 @@ class PartyIn(BaseModel):
     color: str = Field(default="#E85D75", pattern=r"^#[0-9a-fA-F]{6}$")
     invitation: str = Field(default="", max_length=4000)
     rsvp_by: date | None = None
-    plus_one: bool = False
+    bring: str = Field(default="none", pattern=BRING)
     show_guests: str = Field(default="count", pattern=r"^(none|count|names)$")
     wishlist: bool = False
     budget: float | None = Field(default=None, ge=0, le=10_000_000)
-    page_theme: str = Field(default="balloons", pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+    page_theme: str = Field(default="balloons", pattern=THEME_PATTERN)
+    page_custom_id: uuid.UUID | None = None
     date_poll: bool = False
     date_options: list[datetime] = Field(default_factory=list, max_length=12)
-    households: bool = False
 
 
 class PartyChange(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
-    kind: str | None = Field(default=None, pattern=r"^(child_birthday|birthday|party|dinner)$")
+    kind: str | None = Field(default=None, pattern=KIND_PATTERN)
+    person_ids: list[uuid.UUID] | None = Field(default=None, max_length=10)
     person_id: uuid.UUID | None = None
     starts_at: datetime | None = None
     ends_at: datetime | None = None
@@ -266,18 +329,29 @@ class PartyChange(BaseModel):
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     invitation: str | None = Field(default=None, max_length=4000)
     rsvp_by: date | None = None
-    plus_one: bool | None = None
+    bring: str | None = Field(default=None, pattern=BRING)
     show_guests: str | None = Field(default=None, pattern=r"^(none|count|names)$")
     wishlist: bool | None = None
     budget: float | None = Field(default=None, ge=0, le=10_000_000)
     thanks_text: str | None = Field(default=None, max_length=4000)
     thanks_album_id: uuid.UUID | None = None
     thanks_published: bool | None = None
-    page_theme: str | None = Field(default=None, pattern=r"^(balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
-    thanks_theme: str | None = Field(default=None, pattern=r"^(|balloons|jungle|space|ocean|fairytale|sports|elegant|garden)$")
+    page_theme: str | None = Field(default=None, pattern=THEME_PATTERN)
+    thanks_theme: str | None = Field(default=None, pattern=THANKS_PATTERN)
+    page_custom_id: uuid.UUID | None = None
+    thanks_custom_id: uuid.UUID | None = None
     date_poll: bool | None = None
     date_options: list[datetime] | None = Field(default=None, max_length=12)
-    households: bool | None = None
+
+
+class ThemeIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    bg: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    bg2: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    accent: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    ink: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    pattern: str = Field(default="confetti", pattern=rf"^({'|'.join(PATTERNS)})$")
+    decor: str = Field(default="", max_length=60)
 
 
 class DecideIn(BaseModel):
@@ -319,14 +393,20 @@ class GuestIn(BaseModel):
     coming: bool = True
     allergies: str = Field(default="", max_length=300)
     message: str = Field(default="", max_length=500)
-    plus_first_name: str | None = Field(default=None, max_length=80)
-    plus_last_name: str | None = Field(default=None, max_length=80)
-    plus_allergies: str = Field(default="", max_length=300)
+    companions: list["CompanionIn"] = Field(default_factory=list, max_length=20)
     email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
     updates: bool = False
     date_votes: list[str] | None = Field(default=None, max_length=12)
-    adults: int = Field(default=1, ge=0, le=30)
-    children: int = Field(default=0, ge=0, le=30)
+
+
+class CompanionIn(BaseModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(default="", max_length=80)
+    child: bool = False
+    allergies: str = Field(default="", max_length=300)
+
+
+GuestIn.model_rebuild()
 
 
 def _dt(moment: datetime) -> datetime:
@@ -347,10 +427,11 @@ async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
             await db.delete(old)
         party.event_id = None
         return
-    member = None
-    if party.person_id:
-        person = await db.get(Person, party.person_id)
-        member = str(person.user_id) if person and person.user_id else None
+    members = []
+    for pid in party.person_ids or ([str(party.person_id)] if party.person_id else []):
+        person = await db.get(Person, uuid.UUID(str(pid)))
+        if person and person.user_id and str(person.user_id) not in members:
+            members.append(str(person.user_id))
     event = await db.get(FamilyEvent, party.event_id) if party.event_id else None
     if event is None:
         event = FamilyEvent(family_id=party.family_id, created_by=user.id, title=party.title, start=party.starts_at, end=party.ends_at)
@@ -361,7 +442,71 @@ async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
     event.start, event.end = party.starts_at, party.ends_at
     event.location = ", ".join(x for x in (party.place, party.address) if x) or None
     event.color = party.color
-    event.member_ids = [member] if member else []
+    event.member_ids = members
+
+
+async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
+    """The people and the own themes a party points to are the family's."""
+    for pid in [*(data.get("person_ids") or []), *([data["person_id"]] if data.get("person_id") else [])]:
+        person = await db.get(Person, pid)
+        if person is None or person.family_id != user.family_id:
+            raise HTTPException(status_code=404, detail="Person not found")
+    for key in ("page_custom_id", "thanks_custom_id"):
+        if data.get(key):
+            theme = await db.get(PartyTheme, data[key])
+            if theme is None or theme.family_id != user.family_id:
+                raise HTTPException(status_code=404, detail="Theme not found")
+
+
+def _version(key: str | None) -> str | None:
+    """A stored picture's own code (it changes with the picture): for the browser's cache."""
+    return key.rsplit("-", 1)[-1].split(".")[0] if key else None
+
+
+def _save_picture(family_id: uuid.UUID, prefix: str, data: bytes, old: str | None) -> str:
+    """A picture made web-sized (at most 1600 px, JPEG) and stored; the old one goes."""
+    import io
+
+    from PIL import Image, ImageOps
+
+    try:
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+        img = img.convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="That isn't a picture") from exc
+    img.thumbnail((1600, 1600), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=84)
+    buf.seek(0)
+    storage = get_storage()
+    key = f"parties/{prefix}-{secrets.token_hex(6)}.jpg"
+    storage.save(family_id, key, buf)
+    if old and storage.exists(family_id, old):
+        storage.delete(family_id, old)
+    return key
+
+
+async def _read_picture(file: UploadFile) -> bytes:
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=422, detail="That isn't a picture")
+    data = await file.read()
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="The picture is too big")
+    return data
+
+
+def _picture(family_id: uuid.UUID, key: str | None) -> Response:
+    storage = get_storage()
+    if not key or not storage.exists(family_id, key):
+        raise HTTPException(status_code=404, detail="Not found")
+    return Response(content=storage.open(family_id, key).read_bytes(), media_type="image/jpeg", headers={**NO_STORE, "Cache-Control": "private, max-age=86400"})
+
+
+def _theme_out(t: PartyTheme) -> dict:
+    return {
+        "id": t.id, "name": t.name, "bg": t.bg, "bg2": t.bg2, "accent": t.accent, "ink": t.ink, "pattern": t.pattern, "decor": t.decor,
+        "header": _version(t.header_key), "background": _version(t.background_key),
+    }
 
 
 async def _link(db: AsyncSession, party: Party, request: Request | None) -> str:
@@ -371,15 +516,17 @@ async def _link(db: AsyncSession, party: Party, request: Request | None) -> str:
 def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
-        "plus_first_name": g.plus_first_name, "plus_last_name": g.plus_last_name, "plus_allergies": g.plus_allergies, "updated_at": g.updated_at,
-        "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "adults": g.adults, "children": g.children,
+        "companions": g.companions or [], "updated_at": g.updated_at,
+        "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [],
     }
 
 
+def _name(person: dict) -> str:
+    return f"{person.get('first_name', '')} {person.get('last_name', '')}".strip()
+
+
 def _size(party: Party, g: PartyGuest) -> int:
-    if party.households:
-        return g.adults + g.children
-    return 1 + (1 if g.plus_first_name else 0)
+    return 1 + len(g.companions or [])
 
 
 def _people(party: Party, guests: list[PartyGuest]) -> int:
@@ -415,8 +562,9 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
     for g in guests:
         if g.coming and g.allergies.strip():
             allergies.append({"name": f"{g.first_name} {g.last_name}".strip(), "allergies": g.allergies})
-        if g.coming and g.plus_first_name and g.plus_allergies.strip():
-            allergies.append({"name": f"{g.plus_first_name} {g.plus_last_name or ''}".strip(), "allergies": g.plus_allergies})
+        for c in g.companions or [] if g.coming else []:
+            if (c.get("allergies") or "").strip():
+                allergies.append({"name": _name(c), "allergies": c["allergies"]})
     wishes = []
     if party.person_id:
         wishes = [
@@ -427,15 +575,17 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
     return {
         "id": party.id, "title": party.title, "kind": party.kind, "person_id": party.person_id, "starts_at": party.starts_at, "ends_at": party.ends_at,
         "place": party.place, "address": party.address, "theme": party.theme, "emoji": party.emoji, "color": party.color, "invitation": party.invitation,
-        "rsvp_by": party.rsvp_by, "plus_one": party.plus_one, "show_guests": party.show_guests, "wishlist": party.wishlist,
+        "rsvp_by": party.rsvp_by, "bring": party.bring, "show_guests": party.show_guests, "wishlist": party.wishlist,
+        "person_ids": [str(x) for x in party.person_ids or ([party.person_id] if party.person_id else [])],
+        "page_custom_id": party.page_custom_id, "thanks_custom_id": party.thanks_custom_id, "invite_image": _version(party.invite_image_key),
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
-        "date_poll": party.date_poll, "date_options": party.date_options or [], "households": party.households, "tally": _tally(party, guests),
+        "date_poll": party.date_poll, "date_options": party.date_options or [], "tally": _tally(party, guests),
         "mail": await _mail_ready(db), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
-        "coming": _people(party, guests), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
+        "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming), "allergies": allergies,
         "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who} for t in tasks],
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title} for s in steps],
@@ -463,8 +613,8 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     data["date_options"] = _options([payload.starts_at, *payload.date_options]) if payload.date_poll else None
     if payload.date_poll and len(data["date_options"]) < 2:
         raise HTTPException(status_code=422, detail="A vote needs at least two dates")
-    if payload.person_id and (person := await db.get(Person, payload.person_id)) is not None and person.family_id != user.family_id:
-        raise HTTPException(status_code=404, detail="Person not found")
+    await _check_refs(db, user, data)
+    data["person_ids"] = [str(x) for x in payload.person_ids] or ([str(payload.person_id)] if payload.person_id else None)
     token = secrets.token_urlsafe(18)
     party = Party(family_id=user.family_id, created_by=user.id, created_at=datetime.now(timezone.utc), token_hash=_hash(token), token_encrypted=encrypt_token(token), **data)
     party.title = party.title.strip()
@@ -478,6 +628,87 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     await _sync_event(db, party, user)
     await db.commit()
     return await _detail(db, party, request)
+
+
+@router.get("/themes")
+async def list_themes(user: AdultUser, db: DB) -> list[dict]:
+    """The family's own themes, to use again."""
+    rows = (await db.execute(select(PartyTheme).where(PartyTheme.family_id == user.family_id).order_by(PartyTheme.created_at))).scalars().all()
+    return [_theme_out(t) for t in rows]
+
+
+async def _my_theme(db: AsyncSession, user: User, theme_id: uuid.UUID) -> PartyTheme:
+    theme = await db.get(PartyTheme, theme_id)
+    if theme is None or theme.family_id != user.family_id:
+        raise HTTPException(status_code=404, detail="Theme not found")
+    return theme
+
+
+@router.post("/themes", status_code=status.HTTP_201_CREATED)
+async def create_theme(payload: ThemeIn, user: AdultUser, db: DB) -> dict:
+    count = (await db.execute(select(func.count()).select_from(PartyTheme).where(PartyTheme.family_id == user.family_id))).scalar_one()
+    if count >= 40:
+        raise HTTPException(status_code=409, detail="Too many themes")
+    theme = PartyTheme(family_id=user.family_id, created_by=user.id, created_at=datetime.now(timezone.utc), **{**payload.model_dump(), "name": payload.name.strip()})
+    db.add(theme)
+    await db.commit()
+    return _theme_out(theme)
+
+
+@router.put("/themes/{theme_id}")
+async def change_theme(theme_id: uuid.UUID, payload: ThemeIn, user: AdultUser, db: DB) -> dict:
+    theme = await _my_theme(db, user, theme_id)
+    for key, value in payload.model_dump().items():
+        setattr(theme, key, value.strip() if key == "name" else value)
+    await db.commit()
+    return _theme_out(theme)
+
+
+@router.delete("/themes/{theme_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_theme(theme_id: uuid.UUID, user: AdultUser, db: DB) -> None:
+    theme = await _my_theme(db, user, theme_id)
+    for party in (await db.execute(select(Party).where(Party.family_id == user.family_id))).scalars():
+        if party.page_custom_id == theme.id:
+            party.page_custom_id, party.page_theme = None, "balloons"
+        if party.thanks_custom_id == theme.id:
+            party.thanks_custom_id, party.thanks_theme = None, ""
+    storage = get_storage()
+    for key in (theme.header_key, theme.background_key):
+        if key and storage.exists(theme.family_id, key):
+            storage.delete(theme.family_id, key)
+    await db.delete(theme)
+    await db.commit()
+
+
+@router.post("/themes/{theme_id}/pictures/{slot}")
+async def set_theme_picture(theme_id: uuid.UUID, slot: str, file: UploadFile, user: AdultUser, db: DB) -> dict:
+    theme = await _my_theme(db, user, theme_id)
+    if slot not in ("header", "background"):
+        raise HTTPException(status_code=404, detail="Not found")
+    field = f"{slot}_key"
+    setattr(theme, field, _save_picture(theme.family_id, f"themes/{theme.id}-{slot}", await _read_picture(file), getattr(theme, field)))
+    await db.commit()
+    return _theme_out(theme)
+
+
+@router.delete("/themes/{theme_id}/pictures/{slot}")
+async def remove_theme_picture(theme_id: uuid.UUID, slot: str, user: AdultUser, db: DB) -> dict:
+    theme = await _my_theme(db, user, theme_id)
+    if slot not in ("header", "background"):
+        raise HTTPException(status_code=404, detail="Not found")
+    field = f"{slot}_key"
+    key = getattr(theme, field)
+    if key and get_storage().exists(theme.family_id, key):
+        get_storage().delete(theme.family_id, key)
+    setattr(theme, field, None)
+    await db.commit()
+    return _theme_out(theme)
+
+
+@router.get("/themes/{theme_id}/pictures/{slot}")
+async def theme_picture(theme_id: uuid.UUID, slot: str, user: AdultUser, db: DB) -> Response:
+    theme = await _my_theme(db, user, theme_id)
+    return _picture(theme.family_id, getattr(theme, f"{slot}_key", None) if slot in ("header", "background") else None)
 
 
 @router.get("/{party_id}")
@@ -496,13 +727,16 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         changes["date_options"] = _options(changes["date_options"])
     if changes.get("date_poll") and len(changes.get("date_options") or party.date_options or []) < 2:
         raise HTTPException(status_code=422, detail="A vote needs at least two dates")
+    await _check_refs(db, user, changes)
+    if "person_ids" in changes and changes["person_ids"] is not None:
+        changes["person_ids"] = [str(x) for x in changes["person_ids"]] or None
     if changes.get("thanks_album_id"):
         album = await db.get(Album, changes["thanks_album_id"])
         if album is None or album.family_id != user.family_id:
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "households") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "bring") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -551,12 +785,39 @@ async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, u
 async def delete_party(party_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     party = await _mine(db, user, party_id)
     event_id = party.event_id
+    if party.invite_image_key and get_storage().exists(party.family_id, party.invite_image_key):
+        get_storage().delete(party.family_id, party.invite_image_key)
     for model in (PartyGuest, PartyTask, PartyExpense, PartyStep):
         await db.execute(delete(model).where(model.party_id == party.id))
     await db.delete(party)
     if event_id and (event := await db.get(FamilyEvent, event_id)) is not None:
         await db.delete(event)
     await db.commit()
+
+
+@router.post("/{party_id}/picture")
+async def set_invite_picture(party_id: uuid.UUID, file: UploadFile, request: Request, user: AdultUser, db: DB) -> dict:
+    """A picture on the invitation – the birthday child, the place, anything."""
+    party = await _mine(db, user, party_id)
+    party.invite_image_key = _save_picture(party.family_id, f"{party.id}-invite", await _read_picture(file), party.invite_image_key)
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/picture")
+async def remove_invite_picture(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    if party.invite_image_key and get_storage().exists(party.family_id, party.invite_image_key):
+        get_storage().delete(party.family_id, party.invite_image_key)
+    party.invite_image_key = None
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.get("/{party_id}/picture")
+async def invite_picture(party_id: uuid.UUID, user: AdultUser, db: DB) -> Response:
+    party = await _mine(db, user, party_id)
+    return _picture(party.family_id, party.invite_image_key)
 
 
 @router.post("/{party_id}/link")
@@ -655,12 +916,12 @@ async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Reques
 
 def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data = {k: (v.strip() if isinstance(v, str) else v) for k, v in payload.model_dump().items()}
-    if party.households or not party.plus_one or not data.get("plus_first_name"):
-        data.update(plus_first_name=None, plus_last_name=None, plus_allergies="")
-    if not party.households:
-        data.update(adults=1, children=0)
-    elif data["coming"] and data["adults"] + data["children"] < 1:
-        data["adults"] = 1
+    # Whoever they bring, as far as the hosts allow: no one, one, or the family.
+    allowed = {"none": 0, "one": 1}.get(party.bring, 20)
+    data["companions"] = [
+        {"first_name": c["first_name"].strip(), "last_name": c["last_name"].strip(), "child": bool(c["child"]), "allergies": c["allergies"].strip()}
+        for c in payload.model_dump()["companions"] if c["first_name"].strip()
+    ][:allowed] or None
     votes = data.pop("date_votes", None)
     if party.date_poll:
         # Only the dates on offer; a guest is "coming" while voting if some date suits them.
@@ -713,9 +974,8 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         names = []
         for g in guests:
             if g.coming:
-                names.append(f"{g.first_name} {g.last_name}".strip() + (f" (+{_size(party, g) - 1})" if party.households and _size(party, g) > 1 else ""))
-                if g.plus_first_name:
-                    names.append(f"{g.plus_first_name} {g.plus_last_name or ''}".strip())
+                names.append(f"{g.first_name} {g.last_name}".strip())
+                names.extend(_name(c) for c in g.companions or [])
         seen = {"coming": _people(party, guests), "names": names}
     wishes = None
     if party.wishlist and party.person_id:
@@ -736,14 +996,37 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db),
-        "date_poll": party.date_poll, "date_options": party.date_options or [], "households": party.households,
+        "date_poll": party.date_poll, "date_options": party.date_options or [],
+        "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
+        "invite_image": _version(party.invite_image_key),
         "tally": _tally(party, guests, names=party.show_guests == "names") if party.date_poll and party.show_guests != "none" else None,
         "language": (host.language if host else None) or "en",
         "title": party.title, "kind": party.kind, "emoji": party.emoji, "color": party.color, "family_name": family.name if family else "",
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
-        "invitation": party.invitation, "rsvp_by": party.rsvp_by, "plus_one": party.plus_one, "open": _open_for_replies(party),
+        "invitation": party.invitation, "rsvp_by": party.rsvp_by, "bring": party.bring, "open": _open_for_replies(party),
         "guests": seen, "wishes": wishes, "thanks": thanks, "mine": _guest_out(mine) if mine else None,
     }
+
+
+async def _custom(db: AsyncSession, party: Party, theme_id: uuid.UUID | None) -> dict | None:
+    theme = await db.get(PartyTheme, theme_id) if theme_id else None
+    return _theme_out(theme) if theme is not None and theme.family_id == party.family_id else None
+
+
+@public.get("/{token}/picture")
+async def public_invite_picture(token: str, request: Request, db: DB) -> Response:
+    party = await _open(db, token, request)
+    return _picture(party.family_id, party.invite_image_key)
+
+
+@public.get("/{token}/themes/{theme_id}/{slot}")
+async def public_theme_picture(token: str, theme_id: uuid.UUID, slot: str, request: Request, db: DB) -> Response:
+    """A picture of the party's own theme (the invitation's or the thank-you's)."""
+    party = await _open(db, token, request)
+    theme = await db.get(PartyTheme, theme_id)
+    if theme is None or theme.id not in (party.page_custom_id, party.thanks_custom_id) or slot not in ("header", "background"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return _picture(party.family_id, getattr(theme, f"{slot}_key"))
 
 
 @public.post("/{token}/reply")

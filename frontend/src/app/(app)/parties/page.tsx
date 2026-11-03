@@ -1,30 +1,33 @@
 "use client";
 
-// Parties (3.4.0): plan a child's birthday party, a celebration or a dinner together. One shared
-// invitation page for the guests (RSVP with an optional +1, the wish list if chosen, the thank-you
+// Parties (3.4.0): plan a child's birthday party, a celebration, a dinner, a match night, a barbecue
+// or a day outdoors together. One shared invitation page for the guests (the reply with whoever
+// they bring, a vote on the date if it's open, the wish list if chosen, the thank-you
 // page with the photos afterwards); for the adults the replies with the allergies gathered, a
 // checklist with reminders, the budget and the day's timeline. Adults only – the wish list's
 // reservations are here.
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarHeart, Check, Copy, Gift, Heart, ListChecks, Plus, Share2, Trash2, Users, Wallet, Clock } from "lucide-react";
-import { api } from "@/lib/api";
+import { ArrowLeft, CalendarHeart, Check, Copy, Gift, Heart, ImagePlus, ListChecks, Plus, Share2, Trash2, Users, Wallet, Clock } from "lucide-react";
+import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import ThemePicker from "@/components/parties/ThemePicker";
+import { kindTheme } from "@/lib/partyThemes";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; date_poll: boolean; coming: number; replies: number; tasks_left: number };
-type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; plus_first_name: string | null; plus_last_name: string | null; plus_allergies: string; email: string | null; updates: boolean; date_votes: string[]; adults: number; children: number };
+type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
+type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 type Detail = {
   id: string; title: string; kind: string; person_id: string | null; starts_at: string; ends_at: string; place: string; address: string; theme: string;
-  emoji: string; color: string; invitation: string; rsvp_by: string | null; plus_one: boolean; show_guests: "none" | "count" | "names"; wishlist: boolean;
+  emoji: string; color: string; invitation: string; rsvp_by: string | null; bring: "none" | "one" | "family"; person_ids: string[]; show_guests: "none" | "count" | "names"; wishlist: boolean;
   budget: number | null; spent: number; thanks_text: string; thanks_album_id: string | null; thanks_published: boolean; link: string; qr_svg: string;
-  page_theme: string; thanks_theme: string; mail: boolean; subscribers: number;
-  // A dinner whose date the guests vote on (the options' starts), and one reply per family.
-  date_poll: boolean; date_options: string[]; households: boolean; tally: { option: string; votes: number; people: number; names: string[] }[];
-  guests: Guest[]; coming: number; not_coming: number; allergies: { name: string; allergies: string }[];
+  page_theme: string; thanks_theme: string; page_custom_id: string | null; thanks_custom_id: string | null; invite_image: string | null; mail: boolean; subscribers: number;
+  // A party whose date the guests vote on (the options' starts).
+  date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
+  guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null }[];
   expenses: { id: string; title: string; amount: number; paid_by: string | null }[];
   steps: { id: string; at: string; title: string }[];
@@ -33,8 +36,10 @@ type Detail = {
 type Person = { id: string; name: string };
 type Album = { id: string; name: string };
 
-const KINDS = ["child_birthday", "birthday", "party", "dinner"] as const;
-const EMOJIS: Record<string, string> = { child_birthday: "🎈", birthday: "🎂", party: "🎉", dinner: "🍽️" };
+const KINDS = ["child_birthday", "birthday", "party", "dinner", "match", "bbq", "outdoor"] as const;
+const EMOJIS: Record<string, string> = { child_birthday: "🎈", birthday: "🎂", party: "🎉", dinner: "🍽️", match: "⚽", bbq: "🔥", outdoor: "☀️" };
+// What one reply may bring, to begin with: a child's friends come alone, a dinner's guests as families.
+const KIND_BRING: Record<string, string> = { child_birthday: "none", birthday: "one", party: "one", dinner: "family", match: "one", bbq: "family", outdoor: "family" };
 const TABS = ["invite", "guests", "tasks", "budget", "timeline", "thanks"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_ICONS: Record<Tab, typeof Users> = { invite: CalendarHeart, guests: Users, tasks: ListChecks, budget: Wallet, timeline: Clock, thanks: Heart };
@@ -121,13 +126,61 @@ export default function PartiesPage() {
   );
 }
 
+// Whose party it is – one or more of the family – as chips to tick.
+function WhoseParty({ people, value, onChange }: { people: Person[]; value: string[]; onChange: (v: string[]) => void }) {
+  const { t } = useI18n();
+  if (people.length === 0) return null;
+  return (
+    <div role="group" aria-label={t("parties.whose")}>
+      <span className="label">{t("parties.whose")}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {people.map((p) => {
+          const on = value.includes(p.id);
+          return (
+            <button key={p.id} type="button" aria-pressed={on} onClick={() => onChange(on ? value.filter((x) => x !== p.id) : [...value, p.id])} className={`rounded-full border px-3 py-1 text-sm ${on ? "border-accent bg-accent-soft font-semibold" : "border-edge"}`}>
+              {on && <Check className="-ml-1 mr-1 inline h-3.5 w-3.5" aria-hidden />}
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-xs text-muted">{t("parties.whoseHelp")}</p>
+    </div>
+  );
+}
+
+function WishlistSelect({ people, value, onChange }: { people: Person[]; value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
+  return (
+    <label>
+      <span className="label">{t("parties.wishlistPick")}</span>
+      <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{t("parties.noWishlist")}</option>
+        {people.map((p) => <option key={p.id} value={p.id}>{t("parties.wishlistOf", { name: p.name })}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function BringSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
+  return (
+    <label>
+      <span className="label">{t("parties.bring")}</span>
+      <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+        {(["none", "one", "family"] as const).map((v) => <option key={v} value={v}>{t(`parties.bring.${v}` as TranslationKey)}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
   const { t } = useI18n();
   const people = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
   const start = new Date();
   start.setDate(start.getDate() + 21);
   start.setHours(14, 0, 0, 0);
-  const [form, setForm] = useState({ title: "", kind: "child_birthday" as string, person_id: "", starts: localInput(start.toISOString()), hours: 2, place: "", address: "", rsvp: "", plus_one: false, wishlist: false, show_guests: "count", date_poll: false, options: [] as string[], households: false });
+  const [form, setForm] = useState({ title: "", kind: "child_birthday" as string, person_ids: [] as string[], wishlist_of: "", starts: localInput(start.toISOString()), hours: 2, place: "", address: "", rsvp: "", bring: "none", show_guests: "count", date_poll: false, options: [] as string[] });
   const [error, setError] = useState("");
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -137,12 +190,10 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       const starts = new Date(form.starts);
       const ends = new Date(starts.getTime() + form.hours * 3_600_000);
       const made = await api.post<Detail>("/api/parties", {
-        title: form.title.trim(), kind: form.kind, person_id: form.person_id || null, emoji: EMOJIS[form.kind],
+        title: form.title.trim(), kind: form.kind, person_ids: form.person_ids, person_id: form.wishlist_of || null, wishlist: !!form.wishlist_of, emoji: EMOJIS[form.kind],
         starts_at: starts.toISOString(), ends_at: ends.toISOString(), place: form.place, address: form.address,
-        rsvp_by: form.rsvp || null, plus_one: form.plus_one, wishlist: form.wishlist && !!form.person_id, show_guests: form.show_guests,
-        page_theme: form.kind === "dinner" ? "elegant" : "balloons",
-        date_poll: form.kind === "dinner" && form.date_poll, households: form.households,
-        date_options: form.kind === "dinner" && form.date_poll ? form.options.filter(Boolean).map((o) => new Date(o).toISOString()) : [],
+        rsvp_by: form.rsvp || null, bring: form.bring, show_guests: form.show_guests, page_theme: kindTheme(form.kind),
+        date_poll: form.date_poll, date_options: form.date_poll ? form.options.filter(Boolean).map((o) => new Date(o).toISOString()) : [],
       });
       onDone(made.id);
     } catch (e) {
@@ -158,17 +209,14 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       </label>
       <label>
         <span className="label">{t("parties.kind")}</span>
-        <select className="input" value={form.kind} onChange={(e) => set({ kind: e.target.value, households: e.target.value === "dinner" || form.households })}>
+        <select className="input" value={form.kind} onChange={(e) => set({ kind: e.target.value, bring: KIND_BRING[e.target.value] ?? "one" })}>
           {KINDS.map((k) => <option key={k} value={k}>{`${EMOJIS[k]} ${t(`parties.kind.${k}` as TranslationKey)}`}</option>)}
         </select>
       </label>
-      <label>
-        <span className="label">{t("parties.whose")}</span>
-        <select className="input" value={form.person_id} onChange={(e) => set({ person_id: e.target.value })}>
-          <option value="">{t("parties.nobody")}</option>
-          {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </label>
+      <BringSelect value={form.bring} onChange={(bring) => set({ bring })} />
+      <div className="sm:col-span-2">
+        <WhoseParty people={people} value={form.person_ids} onChange={(person_ids) => set({ person_ids, wishlist_of: form.wishlist_of && !person_ids.includes(form.wishlist_of) ? "" : form.wishlist_of || (form.kind === "child_birthday" && person_ids.length === 1 ? person_ids[0] : "") })} />
+      </div>
       <label>
         <span className="label">{t("parties.when")}</span>
         <input className="input" type="datetime-local" value={form.starts} onChange={(e) => set({ starts: e.target.value })} />
@@ -177,20 +225,18 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
         <span className="label">{t("parties.hours")}</span>
         <input className="input" type="number" min={1} max={24} step={0.5} value={form.hours} onChange={(e) => set({ hours: Number(e.target.value) })} />
       </label>
-      {form.kind === "dinner" && (
-        <div className="space-y-2 rounded-xl border border-edge p-3 sm:col-span-2">
-          <label className="flex items-center gap-2 text-sm font-semibold">
-            <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.date_poll} onChange={(e) => set({ date_poll: e.target.checked, options: form.options.length ? form.options : [localInput(new Date(new Date(form.starts).getTime() + 7 * 86_400_000).toISOString())] })} />
-            {t("parties.datePoll")}
-          </label>
-          {form.date_poll && (
-            <>
-              <p className="text-xs text-muted">{t("parties.datePollHelp")}</p>
-              <DateOptions value={form.options} onChange={(options) => set({ options })} />
-            </>
-          )}
-        </div>
-      )}
+      <div className="space-y-2 rounded-xl border border-edge p-3 sm:col-span-2">
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.date_poll} onChange={(e) => set({ date_poll: e.target.checked, options: form.options.length ? form.options : [localInput(new Date(new Date(form.starts).getTime() + 7 * 86_400_000).toISOString())] })} />
+          {t("parties.datePoll")}
+        </label>
+        {form.date_poll && (
+          <>
+            <p className="text-xs text-muted">{t("parties.datePollHelp")}</p>
+            <DateOptions value={form.options} onChange={(options) => set({ options })} />
+          </>
+        )}
+      </div>
       <label>
         <span className="label">{t("parties.place")}</span>
         <input className="input" value={form.place} maxLength={200} onChange={(e) => set({ place: e.target.value })} />
@@ -209,21 +255,11 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
           {(["none", "count", "names"] as const).map((v) => <option key={v} value={v}>{t(`parties.show.${v}` as TranslationKey)}</option>)}
         </select>
       </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.plus_one} onChange={(e) => set({ plus_one: e.target.checked })} />
-        {t("parties.plusOne")}
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" className="h-4 w-4 accent-primary-700" disabled={!form.person_id} checked={form.wishlist && !!form.person_id} onChange={(e) => set({ wishlist: e.target.checked })} />
-        {t("parties.wishlist")}
-      </label>
-      <label className="flex items-center gap-2 text-sm sm:col-span-2">
-        <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.households} onChange={(e) => set({ households: e.target.checked })} />
-        {t("parties.households")}
-      </label>
+      <WishlistSelect people={people} value={form.wishlist_of} onChange={(wishlist_of) => set({ wishlist_of })} />
+      <p className="self-end text-xs text-muted">{t("parties.inCalendar")}</p>
       {error && <p className="text-sm text-red-700 sm:col-span-2">{error}</p>}
       <div className="flex gap-2 sm:col-span-2">
-        <button className="btn-primary" disabled={!form.title.trim() || !form.starts || (form.kind === "dinner" && form.date_poll && !form.options.some(Boolean))} onClick={create}>{t("parties.create")}</button>
+        <button className="btn-primary" disabled={!form.title.trim() || !form.starts || (form.date_poll && !form.options.some(Boolean))} onClick={create}>{t("parties.create")}</button>
         <button className="btn-ghost" onClick={() => onDone(null)}>{t("common.cancel")}</button>
       </div>
     </section>
@@ -293,6 +329,7 @@ type TabProps = { party: Detail; run: (a: () => Promise<Detail>) => Promise<void
 
 function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void>; newLink: () => void }) {
   const { t, dateLocale } = useI18n();
+  const people = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
   const [draft, setDraft] = useState({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" });
   const [copied, setCopied] = useState(false);
   useEffect(() => setDraft({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" }), [party]);
@@ -314,7 +351,7 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-      {(party.kind === "dinner" || party.date_poll) && <DatePoll party={party} change={change} />}
+      <DatePoll party={party} change={change} />
       <section className="card grid gap-3 p-5 sm:grid-cols-2 lg:col-start-1" aria-label={t("parties.tab.invite")}>
         <label className="sm:col-span-2"><span className="label">{t("parties.name")}</span><input className="input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
         <label><span className="label">{t("parties.when")}</span><input className="input" type="datetime-local" value={draft.starts} onChange={(e) => setDraft({ ...draft, starts: e.target.value })} /></label>
@@ -324,9 +361,12 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
         <label><span className="label">{t("parties.theme")}</span><input className="input" value={draft.theme} onChange={(e) => setDraft({ ...draft, theme: e.target.value })} /></label>
         <label><span className="label">{t("parties.rsvpBy")}</span><input className="input" type="date" value={draft.rsvp} onChange={(e) => setDraft({ ...draft, rsvp: e.target.value })} /></label>
         <label className="sm:col-span-2"><span className="label">{t("parties.invitation")}</span><textarea className="input min-h-28" value={draft.invitation} maxLength={4000} placeholder={t("parties.invitationPh")} onChange={(e) => setDraft({ ...draft, invitation: e.target.value })} /></label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.plus_one} onChange={(e) => change({ plus_one: e.target.checked })} />{t("parties.plusOne")}</label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" disabled={!party.person_id} checked={party.wishlist} onChange={(e) => change({ wishlist: e.target.checked })} />{t("parties.wishlist")}</label>
-        <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.households} onChange={(e) => change({ households: e.target.checked })} />{t("parties.households")}</label>
+        <div className="sm:col-span-2">
+          <WhoseParty people={people} value={party.person_ids} onChange={(person_ids) => change({ person_ids })} />
+        </div>
+        <BringSelect value={party.bring} onChange={(bring) => change({ bring })} />
+        <WishlistSelect people={people} value={party.wishlist && party.person_id ? party.person_id : ""} onChange={(id) => change({ person_id: id || null, wishlist: !!id })} />
+        <InvitePicture party={party} />
         <label>
           <span className="label">{t("parties.showGuests")}</span>
           <select className="input" value={party.show_guests} onChange={(e) => change({ show_guests: e.target.value })}>
@@ -334,7 +374,7 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
           </select>
         </label>
         <div className="sm:col-span-2">
-          <ThemePicker label={t("parties.pageTheme")} value={party.page_theme} onChange={(key) => change({ page_theme: key })} />
+          <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
         </div>
         <div className="flex items-end">
           <button className="btn-primary" onClick={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })}>
@@ -359,7 +399,34 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
   );
 }
 
-// A dinner's vote on the date: start one, see which dates suit how many, and choose.
+// A picture on the invitation – the birthday child, the place, anything.
+function InvitePicture({ party }: { party: Detail }) {
+  const { t } = useI18n();
+  const path = `/api/parties/${party.id}`;
+  const [error, setError] = useState("");
+  const keep = (p: Promise<unknown>) => p.then((next) => setApiData<Detail>(path, () => next as Detail)).catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
+  return (
+    <div className="space-y-1">
+      <span className="label">{t("parties.invitePicture")}</span>
+      {party.invite_image ? (
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${path}/picture?v=${party.invite_image}`} alt="" className="h-14 w-20 rounded object-cover" />
+          <button className="text-muted hover:text-red-700" aria-label={t("parties.removePicture")} onClick={() => keep(api.del(`${path}/picture`))}><Trash2 className="h-4 w-4" aria-hidden /></button>
+        </div>
+      ) : (
+        <label className="flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-edge px-2 py-1.5 text-sm hover:bg-surface">
+          <ImagePlus className="h-4 w-4" aria-hidden />
+          {t("parties.addPicture")}
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) keep(uploadFile<Detail>(`${path}/picture`, f)); e.target.value = ""; }} />
+        </label>
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+// A vote on the date: start one, see which dates suit how many, and choose.
 function DatePoll({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
   const { t, dateLocale } = useI18n();
   const initial = () => (party.date_poll ? party.date_options.map(localInput) : [localInput(party.starts_at), localInput(new Date(new Date(party.starts_at).getTime() + 7 * 86_400_000).toISOString())]);
@@ -420,12 +487,12 @@ function DatePoll({ party, change }: { party: Detail; change: (p: Record<string,
 
 function GuestsTab({ party, run, path }: TabProps) {
   const { t, dateLocale } = useI18n();
-  const [form, setForm] = useState({ first_name: "", last_name: "", coming: true, allergies: "", adults: 1, children: 0 });
+  const [form, setForm] = useState({ first_name: "", last_name: "", coming: true, allergies: "" });
   const people = party.guests;
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
       <section className="card p-5" aria-label={t("parties.tab.guests")}>
-        <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}</p>
+        <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}{party.children > 0 && <span className="font-normal text-muted"> · {t("parties.childrenN", { n: party.children })}</span>}</p>
         {people.length === 0 ? (
           <EmptyState>{t("parties.noReplies")}</EmptyState>
         ) : (
@@ -437,9 +504,12 @@ function GuestsTab({ party, run, path }: TabProps) {
                   <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
                   {g.updates && g.email && <span className="ml-1 text-xs text-muted" title={g.email}>✉ {g.email}</span>}
                   {g.allergies && <span className="text-muted"> · {g.allergies}</span>}
-                  {party.households && g.coming && <span className="block text-xs text-muted">{t("parties.family", { adults: g.adults, children: g.children })}</span>}
                   {party.date_poll && g.date_votes.length > 0 && <span className="block text-xs text-muted first-letter:uppercase">{t("parties.voted", { dates: g.date_votes.map((d) => new Date(d).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })).join(", ") })}</span>}
-                  {g.plus_first_name && <span className="block text-xs text-muted">+1: {`${g.plus_first_name} ${g.plus_last_name ?? ""}`.trim()}{g.plus_allergies ? ` · ${g.plus_allergies}` : ""}</span>}
+                  {g.companions.length > 0 && (
+                    <span className="block text-xs text-muted">
+                      {t("parties.withThem", { names: g.companions.map((c) => `${c.first_name} ${c.last_name}`.trim() + (c.child ? ` (${t("parties.child")})` : "") + (c.allergies ? ` · ${c.allergies}` : "")).join(", ") })}
+                    </span>
+                  )}
                   {g.message && <span className="block text-xs italic text-muted">“{g.message}”</span>}
                 </span>
                 <button className="text-muted hover:text-red-700" aria-label={t("parties.removeGuest", { name: g.first_name })} onClick={() => run(() => api.del(`${path}/guests/${g.id}`).then(() => api.get<Detail>(path)))}>
@@ -464,14 +534,8 @@ function GuestsTab({ party, run, path }: TabProps) {
           <input className="input" placeholder={t("parties.firstName")} aria-label={t("parties.firstName")} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
           <input className="input" placeholder={t("parties.lastName")} aria-label={t("parties.lastName")} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
           <input className="input" placeholder={t("parties.allergiesPh")} aria-label={t("parties.allergiesLabel")} value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} />
-          {party.households && (
-            <div className="grid grid-cols-2 gap-2">
-              <label><span className="label">{t("parties.adults")}</span><input className="input" type="number" min={0} max={30} value={form.adults} onChange={(e) => setForm({ ...form, adults: Number(e.target.value) })} /></label>
-              <label><span className="label">{t("parties.children")}</span><input className="input" type="number" min={0} max={30} value={form.children} onChange={(e) => setForm({ ...form, children: Number(e.target.value) })} /></label>
-            </div>
-          )}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.coming} onChange={(e) => setForm({ ...form, coming: e.target.checked })} />{t("parties.coming")}</label>
-          <button className="btn-primary" disabled={!form.first_name.trim()} onClick={() => run(() => api.post<Detail>(`${path}/guests`, form)).then(() => setForm({ first_name: "", last_name: "", coming: true, allergies: "", adults: 1, children: 0 }))}>{t("parties.add")}</button>
+          <button className="btn-primary" disabled={!form.first_name.trim()} onClick={() => run(() => api.post<Detail>(`${path}/guests`, form)).then(() => setForm({ first_name: "", last_name: "", coming: true, allergies: "" }))}>{t("parties.add")}</button>
         </section>
       </div>
     </div>
@@ -593,7 +657,7 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
     <section className="card space-y-3 p-5" aria-label={t("parties.tab.thanks")}>
       <p className="text-xs text-muted">{t("parties.thanksHelp")}</p>
       <label className="block"><span className="label">{t("parties.thanksText")}</span><textarea className="input min-h-24" value={text} maxLength={4000} placeholder={t("parties.thanksPh")} onChange={(e) => setText(e.target.value)} /></label>
-      <ThemePicker label={t("parties.thanksTheme")} allowSame value={party.thanks_theme} onChange={(key) => change({ thanks_theme: key })} />
+      <ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} />
       <label className="block">
         <span className="label">{t("parties.album")}</span>
         <select className="input" value={party.thanks_album_id ?? ""} onChange={(e) => change({ thanks_album_id: e.target.value || null })}>
