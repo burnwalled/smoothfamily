@@ -6,6 +6,7 @@ import { api, CalendarEvent, FamilyEventInput, Member } from "@/lib/api";
 import { COLOR_NAMES, COLORS } from "@/lib/colors";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { useI18n } from "@/lib/i18n";
+import AddressInput from "@/components/AddressInput";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -207,7 +208,7 @@ export default function FamilyEventForm({
       </div>
       <div>
         <label className="label">{t("calendar.eventLocation")}</label>
-        <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={200} />
+        <AddressInput value={location} onChange={setLocation} maxLength={200} aria-label={t("calendar.eventLocation")} />
       </div>
       <div>
         <label className="label">{t("calendar.eventNotes")}</label>

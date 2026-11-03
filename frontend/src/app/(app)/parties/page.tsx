@@ -16,6 +16,7 @@ import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import ThemePicker from "@/components/parties/ThemePicker";
 import { kindTheme } from "@/lib/partyThemes";
+import AddressInput from "@/components/AddressInput";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; date_poll: boolean; coming: number; replies: number; tasks_left: number };
 type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
@@ -243,7 +244,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       </label>
       <label>
         <span className="label">{t("parties.address")}</span>
-        <input className="input" value={form.address} maxLength={300} onChange={(e) => set({ address: e.target.value })} />
+        <AddressInput value={form.address} onChange={(address) => set({ address })} />
       </label>
       <label>
         <span className="label">{t("parties.rsvpBy")}</span>
@@ -357,7 +358,7 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
         <label><span className="label">{t("parties.when")}</span><input className="input" type="datetime-local" value={draft.starts} onChange={(e) => setDraft({ ...draft, starts: e.target.value })} /></label>
         <label><span className="label">{t("parties.ends")}</span><input className="input" type="datetime-local" value={draft.ends} onChange={(e) => setDraft({ ...draft, ends: e.target.value })} /></label>
         <label><span className="label">{t("parties.place")}</span><input className="input" value={draft.place} onChange={(e) => setDraft({ ...draft, place: e.target.value })} /></label>
-        <label><span className="label">{t("parties.address")}</span><input className="input" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></label>
+        <label><span className="label">{t("parties.address")}</span><AddressInput value={draft.address} onChange={(address) => setDraft({ ...draft, address })} /></label>
         <label><span className="label">{t("parties.theme")}</span><input className="input" value={draft.theme} onChange={(e) => setDraft({ ...draft, theme: e.target.value })} /></label>
         <label><span className="label">{t("parties.rsvpBy")}</span><input className="input" type="date" value={draft.rsvp} onChange={(e) => setDraft({ ...draft, rsvp: e.target.value })} /></label>
         <label className="sm:col-span-2"><span className="label">{t("parties.invitation")}</span><textarea className="input min-h-28" value={draft.invitation} maxLength={4000} placeholder={t("parties.invitationPh")} onChange={(e) => setDraft({ ...draft, invitation: e.target.value })} /></label>

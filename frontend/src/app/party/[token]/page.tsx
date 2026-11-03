@@ -11,6 +11,7 @@ import { CalendarPlus, ExternalLink, Gift, Heart, MapPin, Plus, X } from "lucide
 import { api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
 import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
+import { MapLinks } from "@/components/AddressInput";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
@@ -191,7 +192,10 @@ export default function PartyInvitation() {
           )}
           <p className="font-semibold first-letter:uppercase">{poll ? t("party.datePending") : when}</p>
           {(page.place || page.address) && (
-            <p className="flex items-start gap-1.5 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />{[page.place, page.address].filter(Boolean).join(", ")}</p>
+            <>
+              <p className="flex items-start gap-1.5 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />{[page.place, page.address].filter(Boolean).join(", ")}</p>
+              <MapLinks address={page.address || page.place} className="pl-6" />
+            </>
           )}
           {page.theme && <p className="text-sm text-muted">{t("party.theme", { theme: page.theme })}</p>}
           {page.invitation && <p className="whitespace-pre-line pt-2">{page.invitation}</p>}
