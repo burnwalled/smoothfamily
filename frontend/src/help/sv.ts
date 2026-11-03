@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Avgångar: lägg till ett kort per hållplats under Lägg till widget – SL i Stockholm, eller en annan källa för hela Sverige, Norge, Finland, Danmark eller London (några behöver en nyckel som serveradministratören lägger in under Server → Adress och tjänster).",
           "Kortens källor – orten för vädret, sophämtningens kalender och skolan – ställs in under Familjeinställningar → Vardagen.",
           "Ett kort för en app du inte får använda visas inte."
         ]
