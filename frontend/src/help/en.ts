@@ -350,6 +350,19 @@ const texts: Record<string, TopicText> = {
           "A child's weight isn't kept, and weight is never compared: it's not in the overview.",
           "Download your own data as a file, or remove it all, at the bottom of your page."
         ]
+      },
+      {
+        "h": "From Home Assistant"
+      },
+      {
+        "p": "If the family has connected Home Assistant, each person can have steps, sleep, weight and resting pulse read in by themselves: under From Home Assistant on your page, choose the sensors – the likeliest are suggested first. They're read every 15 minutes and on Fetch now, and kept on the day they're from. What you enter by hand on a day always wins. Adults can choose for a child; a child's weight is never read."
+      },
+      {
+        "tips": [
+          "Steps and sleep from your phone: install the Home Assistant companion app and turn on its sensors – on Android the Health Connect ones (steps, sleep, heart rate, weight…), on iPhone the pedometer (steps).",
+          "A scale or a watch: Withings has its own integration in Home Assistant; Garmin, Fitbit, Oura and others are available as integrations from the community (HACS).",
+          "Workouts are still logged here by hand."
+        ]
       }
     ]
   },

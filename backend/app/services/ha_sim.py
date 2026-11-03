@@ -37,6 +37,11 @@ _HOME: dict[str, tuple[str, str, dict]] = {
     "media_player.bathroom_sonos": ("Bathroom Sonos", "idle", {"volume_level": 0.2}),
     **{f"person.{p}": (p.title(), "home", {}) for p in PEOPLE},
     **{f"sensor.home_{p}_direction_of_travel": (f"{p.title()} direction of travel", "stationary", {}) for p in PEOPLE},
+    # Health (3.4.0): steps and sleep from each person's phone, a scale and a watch.
+    **{f"sensor.{p}_phone_steps": (f"{p.title()}'s phone Steps", str(4200 + i * 1350), {"unit_of_measurement": "steps", "state_class": "total_increasing"}) for i, p in enumerate(PEOPLE)},
+    **{f"sensor.{p}_phone_sleep_duration": (f"{p.title()}'s phone Sleep duration", str(7.5 + i * 0.25), {"unit_of_measurement": "h", "device_class": "duration"}) for i, p in enumerate(PEOPLE)},
+    **{f"sensor.{p}_resting_heart_rate": (f"{p.title()} Resting heart rate", str(58 + i * 4), {"unit_of_measurement": "bpm"}) for i, p in enumerate(PEOPLE)},
+    "sensor.withings_weight": ("Withings Weight", "78.4", {"unit_of_measurement": "kg", "device_class": "weight"}),
 }
 
 # What the speakers can play: a small tree like HA's media browser gives for Sonos.

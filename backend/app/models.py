@@ -135,6 +135,9 @@ class User(Base):
     # Health (3.4.0): who sees what – {"workouts" | "steps" | "sleep" | "weight": "me" | "adults" | "family"};
     # what isn't set is "me". The adults always see a child's.
     health_share: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The Home Assistant sensors their health is read from (3.4.0): {"steps" | "sleep" | "weight" |
+    # "resting_hr": entity_id, "synced_at": iso}; None = nothing connected.
+    health_sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     @property
     def apps(self) -> list[str]:

@@ -350,6 +350,19 @@ const texts: Record<string, TopicText> = {
           "Ett barns vikt sparas inte, och vikt jämförs aldrig: den finns inte i översikten.",
           "Ladda ner din egen data som en fil, eller ta bort allt, längst ner på din sida."
         ]
+      },
+      {
+        "h": "Från Home Assistant"
+      },
+      {
+        "p": "Om familjen har kopplat Home Assistant kan var och en få steg, sömn, vikt och vilopuls inlästa av sig själva: under Från Home Assistant på din sida väljer du sensorerna – de troligaste föreslås först. De läses var 15:e minut och när du trycker Hämta nu, och sparas på dagen de gäller. Det du själv fyller i på en dag vinner alltid. Vuxna kan välja åt ett barn; ett barns vikt läses aldrig."
+      },
+      {
+        "tips": [
+          "Steg och sömn från telefonen: installera Home Assistants följeslagarapp och slå på dess sensorer – på Android de för Health Connect (steg, sömn, puls, vikt …), på iPhone stegräknaren (steg).",
+          "En våg eller en klocka: Withings har en egen integration i Home Assistant; Garmin, Fitbit, Oura med flera finns som integrationer från gemenskapen (HACS).",
+          "Träningspass loggas fortfarande här för hand."
+        ]
       }
     ]
   },

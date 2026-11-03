@@ -65,3 +65,24 @@ test("a family goal and a task done by exercising", async ({ adminPage: page, ad
   await adminApi.delete(`/api/health/workouts/${logged.id}`);
   await kidApi.put("/api/health/sharing", { data: { workouts: "me" } });
 });
+
+// 3.4.0 phase 3: steps and sleep read from the person's own Home Assistant sensors (a simulated home).
+test("steps and sleep from Home Assistant", async ({ adminPage: page, adminApi }) => {
+  const me = await (await adminApi.get("/api/auth/me")).json();
+  await adminApi.post("/api/smarthome/connection/simulated");
+  try {
+    await page.goto("/health");
+    const ha = page.getByRole("region", { name: "From Home Assistant" });
+    await ha.getByLabel("Steps").selectOption("sensor.anna_phone_steps");
+    await expect(ha.getByRole("status")).toContainText("new numbers");
+    await ha.getByLabel("Sleep").selectOption("sensor.anna_phone_sleep_duration");
+    await expect(ha.getByText(/^Fetched /)).toBeVisible();
+    const days = page.getByRole("region", { name: "The days" });
+    // Sleep, in hours in Home Assistant, as hours and minutes here (the steps were entered by hand
+    // earlier today, and what's entered by hand wins).
+    await expect(days.getByText("7:30").first()).toBeVisible();
+  } finally {
+    await adminApi.put(`/api/health/people/${me.id}/sources`, { data: { steps: null, sleep: null } });
+    await adminApi.delete("/api/smarthome/connection");
+  }
+});
