@@ -354,7 +354,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Planlegg et selskap sammen – én invitasjonsside for gjestene, og sjekklisten, budsjettet og tidsplanen for dere.",
     "blocks": [
       {
-        "p": "Under Kalender → Selskap planlegger du en barnebursdag, en fest eller en middag. Gjestene får én felles invitasjonsside – uten konto – der de leser om selskapet, legger det inn i sin egen kalender og svarer med for- og etternavn og eventuelle allergier, og en +1 om dere tillater det. De kan endre svaret senere på samme enhet. Dere velger hva de ser av hverandre: ingenting, hvor mange som kommer, eller navnene."
+        "p": "Under Kalender → Fest planlegger du en barnebursdag, en fest, en middag, en kampkveld, en grillkveld eller en dag utendørs. Gjestene får én felles side – uten konto – først en sett av datoen om dere vil, så invitasjonen der de svarer med navn, allergier og hvem de tar med så langt dere tillater, på dagen portalen for bildene deres, og etterpå takken. De kan endre svaret senere. Dere velger hva de ser av hverandre: ingenting, hvor mange som kommer eller navnene."
       },
       {
         "shot": "parties",
@@ -375,7 +375,7 @@ const texts: Record<string, TopicText> = {
         "h": "Planleggingen"
       },
       {
-        "p": "Et nytt selskap starter med en sjekkliste – del invitasjonen, kaken, dekorasjoner, påminn dem som ikke har svart, tell gjestene, handle og takke – med datoer; hver morgen noe skal gjøres, blir de voksne påminnet. Endre den som dere vil. Budsjett holder styr på hva som er brukt mot budsjettet, Tidsplan på dagens plan (en barnebursdag starter med en)."
+        "p": "En ny fest starter med en sjekkliste for sin type – før, under og etter festen – med datoer; hver morgen noe skal gjøres, blir de voksne påminnet. Endre den som dere vil. Budsjettet holder oversikt over hva som er brukt mot det planlagte, og programmet over dagens tider (en barnebursdag starter med ett) – et punkt kan skjules for gjestene i portalen."
       },
       {
         "shot": "partyportal",
@@ -385,7 +385,7 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Én fest, fire sider i samme tema, hver med sin egen plakat (Plakat): først en sett av datoen om dere vil – gjestene lagrer datoen og legger igjen e-posten, og får en e-post når dere bytter lenken til invitasjonen – så invitasjonen, festportalen og takken. Lim inn en samarbeidsliste i Spotify, så kan gjestene ønske seg sanger. Åpne festportalen og skriv ut QR-koden til bordene: gjestene laster opp bildene sine rett til et album i hvelvet og ser dagens program.",
           "Appen har et bildebibliotek: bakgrunner og toppbilder til mange av temaene, og klistremerker – ballonger, discokule, kreps, russelue, ringer, gresskar med mer – å sette på plakaten i stedet for emoji (Plakat → en dekorasjonsrad eller emblemet → Bibliotek).",
-          "Under Plakat gjør dere invitasjonssiden til deres egen: legg til, flytt og fjern delene (tekster, bilder, et emblem, en dekorasjonsrad, når og hvor som billett, kort, liste eller stor dato, en nedtelling, kalenderknapper, invitasjonen, et bånd). Skriv hver tekst med egen skrift, størrelse, justering og farge – {navn}, {dato} og lignende fylles inn av seg selv. Bytt emojiene mot andre eller mot egne bilder, og velg hvilke kalenderknapper gjestene får: kalenderfil, Google, Outlook eller Apple. Temaets plakat er alltid ett trykk unna.",
+          "Under Plakat gjør dere invitasjonssiden til deres egen: legg til, flytt og fjern delene (tekster, bilder, et emblem, en dekorasjonsrad, når og hvor som billett, kort, liste eller stor dato, en nedtelling, kalenderknapper, invitasjonen, et bånd). Skriv hver tekst med egen skrift, størrelse, justering og farge – {navn}, {dato} og lignende fylles inn av seg selv. Bytt emojiene mot andre eller mot egne bilder, og velg hvilke kalenderknapper gjestene får: kalenderfil (den åpner Apples Kalender på iPhone og Mac, og de fleste andre), Google eller Outlook. Temaets plakat er alltid ett trykk unna.",
           "Ingen bestemt dato ennå: kryss av for La gjestene stemme over datoen, og legg til datoene som passer dere. Gjestene krysser av for dem som passer dem; under Invitasjon ser dere hvor mange hver dato passer for, og velger én – da havner festen i kalenderen, de som stemte på den regnes som at de kommer, og de som har bedt om oppdateringer får en e-post.",
           "Velg hva hver gjest kan ta med: ingen, en +1 eller familien – da legger de til alle i følget, hver med allergier og om det er et barn. En middag, en grillkveld eller en utendørsaktivitet starter med familien.",
           "Velg et tema for invitasjonssiden og et for takkesiden – de som passer festen først (ballonger, pirater og dinosaurer for barnebursdag; disco, glitter, 80-tallet og champagne for fest; bistro, jul og krepsefest for middag; fotball og hockey for kamp; grill, slåball og strand utendørs). Eller lag et eget: farger, mønster, emoji og egne bilder øverst og i bakgrunnen – lagret til senere. Et eget bilde kan også ligge på invitasjonen.",

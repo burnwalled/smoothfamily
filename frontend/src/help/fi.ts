@@ -354,7 +354,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Suunnitelkaa juhlat yhdessä – yksi kutsusivu vieraille ja teille tarkistuslista, budjetti ja aikataulu.",
     "blocks": [
       {
-        "p": "Kohdassa Kalenteri → Juhlat suunnittelet lasten synttärit, juhlat tai illallisen. Vieraat saavat yhteisen kutsusivun – ilman tiliä – jolla he lukevat juhlista, lisäävät ne omaan kalenteriinsa ja vastaavat etu- ja sukunimellä sekä mahdollisilla allergioilla, ja +1:llä, jos sallitte sen. He voivat muuttaa vastaustaan myöhemmin samalla laitteella. Te valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee, tai nimet."
+        "p": "Kalenteri → Juhlat -kohdassa suunnittelet lastenjuhlat, juhlat, illallisen, otteluillan, grilli-illan tai ulkoilupäivän. Vieraat saavat yhteisen sivun – ilman tiliä – ensin halutessanne merkitse päivä -sivun, sitten kutsun, jossa he vastaavat nimellä, allergioilla ja seuralaisilla sallimissanne rajoissa, juhlapäivänä portaalin kuvilleen ja lopuksi kiitoksen. He voivat muuttaa vastaustaan myöhemmin. Valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee tai nimet."
       },
       {
         "shot": "parties",
@@ -375,7 +375,7 @@ const texts: Record<string, TopicText> = {
         "h": "Suunnittelu"
       },
       {
-        "p": "Uudet juhlat alkavat tarkistuslistalla – jaa kutsu, kakku, koristeet, muistuta vastaamattomia, laske vieraat, ostokset ja kiitokset – päivämäärineen; joka aamu, kun jokin pitää tehdä, aikuiset saavat muistutuksen. Muokatkaa sitä vapaasti. Budjetti seuraa käytettyä suhteessa budjettiin, Aikataulu päivän suunnitelmaa (lasten synttärit alkavat valmiilla)."
+        "p": "Uudet juhlat alkavat lajilleen sopivalla tarkistuslistalla – ennen, aikana ja jälkeen – päivämäärineen; aikuisia muistutetaan aamulla, kun jotain on tehtävä. Muokkaa sitä vapaasti. Budjetti seuraa kuluja suunniteltuun nähden ja ohjelma päivän aikoja (lastenjuhlat alkavat valmiilla ohjelmalla) – kohdan voi piilottaa vierailta portaalissa."
       },
       {
         "shot": "partyportal",
@@ -385,7 +385,7 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Yksi juhla, neljä sivua samassa teemassa, kullakin oma juliste (Juliste): ensin halutessanne merkitse päivä -sivu – vieraat tallentavat päivän ja jättävät sähköpostinsa ja saavat viestin, kun vaihdatte linkin kutsuun – sitten kutsu, juhlaportaali ja kiitos. Liitä Spotifyn yhteissoittolista, niin vieraat voivat toivoa kappaleita. Avaa juhlaportaali ja tulosta sen QR-koodi pöytiin: vieraat lataavat kuvansa suoraan Holvin albumiin ja näkevät päivän ohjelman.",
           "Sovelluksessa on kuvakirjasto: taustat ja yläkuvat moniin teemoihin sekä tarroja – ilmapallot, diskopallo, rapu, ylioppilaslakki, sormukset, kurpitsa ja muuta – julisteeseen emojien tilalle (Juliste → koristerivi tai tunnus → Kirjasto).",
-          "Juliste-kohdassa teette kutsusivusta omannäköisen: lisää, siirrä ja poista sen osia (tekstit, kuvat, tunnus, koristerivi, milloin ja missä lippuna, korttina, listana tai isona päivämääränä, lähtölaskenta, kalenteripainikkeet, kutsu, nauha). Kirjoita jokainen teksti omalla kirjasimella, koolla, tasauksella ja värillä – {nimi}, {päivä} ja vastaavat täyttyvät itsestään. Vaihda emojit toisiin tai omiin kuviin ja valitse, mitkä kalenteripainikkeet vieraat saavat: kalenteritiedosto, Google, Outlook tai Apple. Teeman juliste on aina yhden napautuksen päässä.",
+          "Juliste-kohdassa teette kutsusivusta omannäköisen: lisää, siirrä ja poista sen osia (tekstit, kuvat, tunnus, koristerivi, milloin ja missä lippuna, korttina, listana tai isona päivämääränä, lähtölaskenta, kalenteripainikkeet, kutsu, nauha). Kirjoita jokainen teksti omalla kirjasimella, koolla, tasauksella ja värillä – {nimi}, {päivä} ja vastaavat täyttyvät itsestään. Vaihda emojit toisiin tai omiin kuviin ja valitse, mitkä kalenteripainikkeet vieraat saavat: kalenteritiedosto (se avaa Applen Kalenterin iPhonessa ja Macissa sekä useimmat muut), Google tai Outlook. Teeman juliste on aina yhden napautuksen päässä.",
           "Päivää ei ole vielä sovittu: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
           "Valitse, mitä kukin vieras saa tuoda: ei ketään, +1 tai perheensä – silloin he lisäävät koko seurueen, jokaisen allergioineen ja tiedon, onko kyseessä lapsi. Illallinen, grilli-ilta tai ulkoilupäivä alkaa perheillä.",
           "Valitse teema kutsusivulle ja toinen kiitossivulle – juhlaan sopivat ensin (ilmapallot, merirosvot ja dinosaurukset lastenjuhliin; disko, glitter, 80-luku ja samppanja juhliin; bistro, joulu ja rapujuhlat illalliselle; jalkapallo ja jääkiekko otteluun; grilli, polttopallo ja uimaranta ulos). Tai luo oma: värit, kuvio, emojit ja omat kuvat ylhäälle ja taustalle – tallessa myöhempää varten. Oman kuvan voi lisätä myös kutsuun.",
