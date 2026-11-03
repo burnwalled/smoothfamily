@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Departures: add a card per stop under Add widget – SL in Stockholm, or another provider for all of Sweden, Norway, Finland, Denmark or London (some need a key the server admin adds under Server → Address and services).",
           "The cards' sources – the weather place, waste collection calendar and school – are set by the family under Family settings → Everyday.",
           "A card for an app you can't use doesn't show."
         ]

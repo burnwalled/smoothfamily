@@ -1,8 +1,8 @@
 "use client";
 
-// Live departures for one SL stop/station (Trafiklab SL Transport API,
-// proxied and cached by the backend). A user can add several of these,
-// one per stop they care about.
+// Live departures for one stop or station, proxied and cached by the backend: SL (keyless, as
+// before) or since 3.4.0 Trafiklab (all of Sweden), Entur, Digitransit, Rejseplanen or TfL. A user can
+// add several of these, one per stop they care about.
 import { Bus, CarTaxiFront, LucideIcon, Ship, TrainFront, TrainFrontTunnel, TramFront } from "lucide-react";
 import { SlDeparture } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -20,10 +20,15 @@ const MODE_ICONS: Record<string, LucideIcon> = {
 
 const REFRESH_MS = 60_000;
 
-export default function SlDeparturesWidget({ siteId }: { siteId: number }) {
+// The providers' names, for the notes when one isn't answering.
+export const PROVIDER_NAMES: Record<string, string> = { sl: "SL", trafiklab: "Trafiklab", entur: "Entur", digitransit: "Digitransit", rejseplanen: "Rejseplanen", tfl: "TfL" };
+
+export default function SlDeparturesWidget({ provider = "sl", stop }: { provider?: string; stop: string }) {
   const { t, dateLocale } = useI18n();
+  const name = PROVIDER_NAMES[provider] ?? provider;
   // From the cache, every minute; departures that have left are not shown.
-  const query = useApi<SlDeparture[]>(`/api/transit/sl/departures?site_id=${siteId}`, { refetchInterval: REFRESH_MS });
+  const path = provider === "sl" ? `/api/transit/sl/departures?site_id=${stop}` : `/api/transit/${provider}/departures?stop=${encodeURIComponent(stop)}`;
+  const query = useApi<SlDeparture[]>(path, { refetchInterval: REFRESH_MS });
   const departures = query.data ? query.data.filter((d) => new Date(d.expected).getTime() > Date.now() - 60_000) : null;
   const failed = query.isError && !query.data;
 
@@ -37,10 +42,10 @@ export default function SlDeparturesWidget({ siteId }: { siteId: number }) {
   }
 
   // Departures already on screen stay while SL is unreachable; the note says why.
-  if (failed && !departures?.length) return <p className="text-sm text-muted">{t("sl.error")}</p>;
+  if (failed && !departures?.length) return <p className="text-sm text-muted">{t("sl.error", { name })}</p>;
   if (departures === null) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   if (departures.length === 0) return <p className="text-sm text-muted">{t("sl.noDepartures")}</p>;
-  const note = failed ? t("sl.error") : departures.some((d) => d.stale) ? t("sl.stale") : null;
+  const note = failed ? t("sl.error", { name }) : departures.some((d) => d.stale) ? t("sl.stale", { name }) : null;
 
   return (
     <>

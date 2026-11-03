@@ -1,9 +1,10 @@
 "use client";
 
 // Server → Services: outside services for the whole server (GIPHY in chat, recipe search, the smart
-// home for hosted families). Reports of problems stay on the server since 3.1.0 (Server → Reports).
+// home for hosted families, the departure providers' keys). Reports of problems stay on the server since 3.1.0 (Server → Reports).
 import HostedSmartHome from "@/components/settings/HostedSmartHome";
 import RecipeSearchSetting from "@/components/settings/RecipeSearchSetting";
+import TransitKeys from "@/components/settings/TransitKeys";
 import { useState } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
@@ -82,6 +83,7 @@ export default function ServerServices() {
       )}
       <RecipeSearchSetting />
       <HostedSmartHome />
+      <TransitKeys />
     </section>
   );
 }

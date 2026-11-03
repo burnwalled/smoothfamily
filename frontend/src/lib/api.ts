@@ -495,6 +495,9 @@ export type Widget = {
 };
 
 export type SlSite = { id: number; name: string };
+// 3.4.0: departures from several providers (SL keyless as before; the others' keys from the server admin).
+export type TransitProvider = { id: string; name: string; area: string; needs_key: boolean; available: boolean; suggested: boolean };
+export type TransitStop = { id: string; name: string };
 
 export type SlDeparture = {
   line: string;
