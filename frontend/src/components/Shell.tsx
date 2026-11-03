@@ -219,7 +219,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const hub = hubForPath(pathname);
   const isActive = (item: NavItem) => pathname === item.href || (hub !== null && hub.key === item.key);
   // Two homes only shows in the calendar once a schedule is set up (family settings → Children).
-  const tabs = hub ? hubTabs(hub, apps).filter((tab) => !tab.hidden && (tab.href !== "/calendar/custody" || (custody?.length ?? 0) > 0)) : [];
+  const tabs = hub ? hubTabs(hub, apps).filter((tab) => !tab.hidden && (tab.href !== "/calendar/custody" || (custody?.length ?? 0) > 0) && (tab.href !== "/parties" || me.role !== "child")) : [];
   const more = nav.slice(MOBILE_PRIMARY);
   const sheet =
     openGroup === "more"

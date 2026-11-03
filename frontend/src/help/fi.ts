@@ -350,6 +350,55 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Juhlat",
+    "summary": "Suunnitelkaa juhlat yhdessä – yksi kutsusivu vieraille ja teille tarkistuslista, budjetti ja aikataulu.",
+    "blocks": [
+      {
+        "p": "Kalenteri → Juhlat -kohdassa suunnittelet lastenjuhlat, juhlat, illallisen, otteluillan, grilli-illan tai ulkoilupäivän. Vieraat saavat yhteisen sivun – ilman tiliä – ensin halutessanne merkitse päivä -sivun, sitten kutsun, jossa he vastaavat nimellä, allergioilla ja seuralaisilla sallimissanne rajoissa, juhlapäivänä portaalin kuvilleen ja lopuksi kiitoksen. He voivat muuttaa vastaustaan myöhemmin. Valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee tai nimet."
+      },
+      {
+        "shot": "parties",
+        "caption": "Juhlien seitsemän vaihetta – tässä ulkoasu: neljä sivua, soittolista ja portaali."
+      },
+      {
+        "steps": [
+          "Kalenteri → Juhlat → Uudet juhlat: nimi, laji, kenen juhlat, aika ja paikka – sitten juhlat vievät sinut seitsemän vaiheen läpi.",
+          "1 Tiedot ja teema · 2 Ulkoasu: merkitse päivä, kutsu, juhlaportaali ja kiitos, kullakin oma juliste · 3 Vieraat: ketkä tulevat, allergiat, sähköpostiosoitteet – ja oma kutsuttujen lista.",
+          "4 Tehtävät – ennen, aikana ja jälkeen · 5 Budjetti · 6 Ohjelma, jonka kohtia voi piilottaa vierailta · 7 Lähetykset: viestit ajallaan (palvelimen sähköpostilla) tai linkit jaettavaksi itse."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "Vieraiden kutsu: juliste juhlien teemassa, tiedot, kalenteripainikkeet ja vastaus."
+      },
+      {
+        "h": "Suunnittelu"
+      },
+      {
+        "p": "Uudet juhlat alkavat lajilleen sopivalla tarkistuslistalla – ennen, aikana ja jälkeen – päivämäärineen; aikuisia muistutetaan aamulla, kun jotain on tehtävä. Muokkaa sitä vapaasti. Budjetti seuraa kuluja suunniteltuun nähden ja ohjelma päivän aikoja (lastenjuhlat alkavat valmiilla ohjelmalla) – kohdan voi piilottaa vierailta portaalissa."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Juhlaportaali QR-koodista: vieraiden kuvat, päivän ohjelma ja muuta."
+      },
+      {
+        "tips": [
+          "Yksi juhla, neljä sivua samassa teemassa, kullakin oma juliste (Juliste): ensin halutessanne merkitse päivä -sivu – vieraat tallentavat päivän ja jättävät sähköpostinsa ja saavat viestin, kun vaihdatte linkin kutsuun – sitten kutsu, juhlaportaali ja kiitos. Liitä Spotifyn yhteissoittolista, niin vieraat voivat toivoa kappaleita. Avaa juhlaportaali ja tulosta sen QR-koodi pöytiin: vieraat lataavat kuvansa suoraan Holvin albumiin ja näkevät päivän ohjelman.",
+          "Sovelluksessa on kuvakirjasto: taustat ja yläkuvat moniin teemoihin sekä tarroja – ilmapallot, diskopallo, rapu, ylioppilaslakki, sormukset, kurpitsa ja muuta – julisteeseen emojien tilalle (Juliste → koristerivi tai tunnus → Kirjasto).",
+          "Juliste-kohdassa teette kutsusivusta omannäköisen: lisää, siirrä ja poista sen osia (tekstit, kuvat, tunnus, koristerivi, milloin ja missä lippuna, korttina, listana tai isona päivämääränä, lähtölaskenta, kalenteripainikkeet, kutsu, nauha). Kirjoita jokainen teksti omalla kirjasimella, koolla, tasauksella ja värillä – {nimi}, {päivä} ja vastaavat täyttyvät itsestään. Vaihda emojit toisiin tai omiin kuviin ja valitse, mitkä kalenteripainikkeet vieraat saavat: kalenteritiedosto (se avaa Applen Kalenterin iPhonessa ja Macissa sekä useimmat muut), Google tai Outlook. Teeman juliste on aina yhden napautuksen päässä.",
+          "Päivää ei ole vielä sovittu: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
+          "Valitse, mitä kukin vieras saa tuoda: ei ketään, +1 tai perheensä – silloin he lisäävät koko seurueen, jokaisen allergioineen ja tiedon, onko kyseessä lapsi. Illallinen, grilli-ilta tai ulkoilupäivä alkaa perheillä.",
+          "Valitse teema kutsusivulle ja toinen kiitossivulle – juhlaan sopivat ensin (ilmapallot, merirosvot ja dinosaurukset lastenjuhliin; disko, glitter, 80-luku ja samppanja juhliin; bistro, joulu ja rapujuhlat illalliselle; jalkapallo ja jääkiekko otteluun; grilli, polttopallo ja uimaranta ulos). Tai luo oma: värit, kuvio, emojit ja omat kuvat ylhäälle ja taustalle – tallessa myöhempää varten. Oman kuvan voi lisätä myös kutsuun.",
+          "Vieraat, jotka antavat sähköpostinsa ja pyytävät päivityksiä, saavat vahvistuksen, viestin jos aika tai paikka muuttuu, muistutuksen edellisenä päivänä ja kiitoksen – sekä viestit, jotka lähetätte kohdasta Vieraat. Se vaatii palvelimen sähköpostin, jonka ylläpitäjä asettaa kohdassa Palvelin → Osoite ja palvelut.",
+          "Juhlat lisätään kalenteriin itsestään – kaikille, joita ne koskevat (rastita yksi tai useampi perheestä), ja valitsette, kenen toivelista näkyy kutsussa.",
+          "Näytä toivelista: vieraat näkevät päivänsankarin toiveet ja merkitsevät, mitä ostavat; lahjan saaja ei koskaan näe kuka.",
+          "Jälkeenpäin, kohdassa Kiitos: kiitosteksti ja kuvat Holvin albumista samalle sivulle, joka vierailla jo on.",
+          "Vain aikuiset suunnittelevat juhlia – toivelistan varaukset näkyvät suunnittelussa."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Koulu",
     "summary": "Lasten koulupäivä InfoMentorista tai SchoolSoftista Home Assistantin kautta: koulukortti, koulun kalenterit ja viikkokirje.",
@@ -1307,7 +1356,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Palvelimen osoite, hakukone, paikallinen tekoäly ja muut palvelut.",
     "blocks": [
       {
-        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan."
+        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan. Sähköposti ottaa käyttöön sähköpostipalvelut – Gmail sovellussalasanalla, Brevo oman verkkotunnuksen osoitteelle tai muu SMTP-palvelin – ja valitsee, millä perheenne lähettää ja saavatko isännöidyt perheet lähettää sähköpostia (juhlavieraille, jotka pyysivät päivityksiä)."
       },
       {
         "shot": "serverservices",

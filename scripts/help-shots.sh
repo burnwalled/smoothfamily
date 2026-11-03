@@ -4,11 +4,12 @@
 # pages have changed:
 #
 #   sh scripts/help-shots.sh
+#   HELP_ONLY=parties,partyinvite sh scripts/help-shots.sh   (just those)
 set -e
 cd "$(dirname "$0")/.."
 RAW="$(pwd)/.help-shots"
 rm -rf "$RAW"
-HELP_SHOTS="$RAW" sh scripts/e2e.sh tests/help-shots.spec.ts --project=phone
+HELP_ONLY="${HELP_ONLY:-}" HELP_SHOTS="$RAW" sh scripts/e2e.sh tests/help-shots.spec.ts --project=phone
 
 PY=backend/.venv/Scripts/python
 [ -x "$PY" ] || PY=backend/.venv/bin/python

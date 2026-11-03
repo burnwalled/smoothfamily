@@ -21,7 +21,7 @@ from sqlalchemy import select
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
 from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut, TransitKeyIn, TransitKeyOut
-from app.services import file_limit, giphy, public_url, recipe_search, security_policy, transit
+from app.services import file_limit, giphy, mailer, public_url, recipe_search, security_policy, transit
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -792,6 +792,108 @@ async def set_recipe_search(payload: RecipeSearchIn, admin: ServerAdmin, db: DB)
     await recipe_search.set_url(db, payload.url.rstrip("/") if payload.url else None)
     return await get_recipe_search(admin, db)
 
+
+class EmailIn(BaseModel):
+    # Gmail and Brevo have their server already; only "smtp" takes one.
+    host: str = Field(default="", max_length=200)
+    port: int = Field(default=587, ge=1, le=65535)
+    security: str = Field(default="starttls", pattern=r"^(starttls|ssl|none)$")
+    username: str = Field(default="", max_length=200)
+    # Left out (or empty) when changing other settings: the saved password stays.
+    password: str | None = Field(default=None, max_length=300)
+    sender: str = Field(default="", max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    sender_name: str = Field(default="", max_length=120)
+
+
+class EmailUseIn(BaseModel):
+    owner: str = Field(default="", pattern=r"^(|gmail|brevo|smtp)$")
+    hosted: str = Field(default="", pattern=r"^(|gmail|brevo|smtp)$")
+
+
+class EmailTestIn(BaseModel):
+    provider: str = Field(pattern=r"^(gmail|brevo|smtp)$")
+    to: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email_out(value: dict) -> dict:
+    accounts = {}
+    for provider in mailer.PROVIDERS:
+        conf = mailer.account(value, provider)
+        accounts[provider] = {"configured": False} if conf is None else {
+            "configured": True, **{k: conf.get(k) for k in ("host", "port", "security", "username", "sender", "sender_name")}, "has_password": bool(conf.get("password")),
+        }
+    return {"accounts": accounts, "owner": value["owner"], "hosted": value["hosted"]}
+
+
+@router.get("/integrations/email")
+async def get_email(admin: ServerAdmin, db: DB) -> dict:
+    """The server's mail services and who sends with which – never a password."""
+    return _email_out(await mailer.load(db))
+
+
+@router.put("/integrations/email/{provider}")
+async def set_email(provider: str, payload: EmailIn, admin: ServerAdmin, db: DB) -> dict:
+    """Set up Gmail (the address and an app password), Brevo (the SMTP login, its key and a
+    verified sender) or another SMTP server."""
+    if provider not in mailer.PROVIDERS:
+        raise HTTPException(status_code=404, detail="Not found")
+    value = await mailer.load(db)
+    old = value["accounts"].get(provider) or {}
+    conf = payload.model_dump()
+    if provider == "gmail":
+        conf["sender"] = conf["username"]  # Gmail sends as the account itself
+        if "@" not in conf["sender"]:
+            raise HTTPException(status_code=422, detail="The Gmail address is needed")
+    if not conf.get("password"):
+        conf["password"] = old.get("password", "")
+    if provider == "smtp" and not conf["host"].strip():
+        raise HTTPException(status_code=422, detail="The SMTP server is missing")
+    if not conf["sender"] or (provider != "smtp" and not (conf["username"] and conf["password"])):
+        raise HTTPException(status_code=422, detail="The address and password are needed")
+    value["accounts"][provider] = {k: v for k, v in conf.items() if provider == "smtp" or k not in ("host", "port", "security")}
+    # The first service set up is the one the server's own family sends with.
+    if not value["owner"]:
+        value["owner"] = provider
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.delete("/integrations/email/{provider}")
+async def delete_email(provider: str, admin: ServerAdmin, db: DB) -> dict:
+    value = await mailer.load(db)
+    value["accounts"].pop(provider, None)
+    for who in ("owner", "hosted"):
+        if value[who] == provider:
+            value[who] = ""
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.put("/integrations/email-use")
+async def set_email_use(payload: EmailUseIn, admin: ServerAdmin, db: DB) -> dict:
+    """Which service the family running the server sends with, and which – if any – the hosted
+    families may use (none: they can't send mail)."""
+    value = await mailer.load(db)
+    for who in ("owner", "hosted"):
+        chosen = getattr(payload, who)
+        if chosen and chosen not in value["accounts"]:
+            raise HTTPException(status_code=422, detail="That service isn't set up")
+        value[who] = chosen
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.post("/integrations/email/test")
+async def test_email(payload: EmailTestIn, admin: ServerAdmin, db: DB) -> dict:
+    """Send a test mail through one service – the error from the mail server if it doesn't go."""
+    conf = mailer.account(await mailer.load(db), payload.provider)
+    if conf is None:
+        raise HTTPException(status_code=422, detail="That service isn't set up")
+    try:
+        await mailer.send_with(conf, payload.to, "Smooth Family – test", "This is a test from your Smooth Family server. E-mail works.")
+    except mailer.MailError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't send: {exc}") from exc
+    return {"sent": True}
 
 @router.get("/integrations/transit", response_model=list[TransitKeyOut])
 async def get_transit_keys(admin: ServerAdmin, db: DB) -> list[TransitKeyOut]:

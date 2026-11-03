@@ -350,6 +350,55 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Fest",
+    "summary": "Planera en fest tillsammans – en inbjudningssida för gästerna, och checklistan, budgeten och tidsplanen för er.",
+    "blocks": [
+      {
+        "p": "Under Kalender → Fest planerar du ett barnkalas, en fest, en middag, en matchkväll, en grillafton eller en dag utomhus. Gästerna får en gemensam sida – utan konto – först ett spara datumet om ni vill, sedan inbjudan där de svarar med namn, allergier och vilka de tar med så långt ni tillåter, på dagen portalen för deras bilder, och efteråt tacket. De kan ändra sitt svar senare. Ni väljer vad de ser av varandra: inget, hur många som kommer eller namnen."
+      },
+      {
+        "shot": "parties",
+        "caption": "Festens sju steg – här designen: de fyra sidorna, spellistan och portalen."
+      },
+      {
+        "steps": [
+          "Kalender → Fest → Ny fest: namnet, typen, vems fest, tiden och platsen – sedan tar festen dig genom sju steg.",
+          "1 Detaljer och tema · 2 Design: spara datumet, inbjudan, festportalen och tacket, var och en med sin egen affisch · 3 Gäster: vilka som kommer, allergier, e-postadresser – och er egen lista över inbjudna.",
+          "4 Att göra – före, under och efter festen · 5 Budget · 6 Schema, med punkter ni kan dölja för gästerna · 7 Utskick: mejl vid sin tid (med serverns e-post), eller länkarna att dela själva."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "Gästernas inbjudan: affischen i festens tema, detaljerna, kalenderknapparna och svaret."
+      },
+      {
+        "h": "Planeringen"
+      },
+      {
+        "p": "En ny fest börjar med en checklista för sin typ – före, under och efter festen – med datum; varje morgon något ska göras blir de vuxna påminda. Ändra den som ni vill. Budgeten håller koll på vad som spenderats mot det planerade, och schemat på dagens tider (ett barnkalas börjar med ett) – en punkt kan döljas för gästerna i portalen."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Festportalen via QR-koden: gästernas bilder, dagens schema och mer."
+      },
+      {
+        "tips": [
+          "En fest, fyra sidor i samma tema, var och en med sin egen affisch (Affisch): först ett spara datumet om ni vill – gästerna sparar datumet och lämnar sin e-post, och får ett mejl när ni byter länken till inbjudan – sedan inbjudan, festportalen och tacket. Klistra in en samarbetslista i Spotify så kan gästerna önska låtar. Öppna festportalen och skriv ut QR-koden till borden: gästerna laddar upp sina bilder direkt till ett album i Valvet och ser dagens schema.",
+          "Appen har ett bildbibliotek: bakgrunder och toppbilder till många av temana, och klistermärken – ballonger, discokula, kräfta, studentmössa, ringar, pumpa med mera – att sätta på affischen i stället för emoji (Affisch → en dekorrad eller emblemet → Bibliotek).",
+          "Under Affisch gör ni inbjudningssidan till er egen: lägg till, flytta och ta bort dess delar (texter, bilder, ett emblem, en dekorrad, när och var som biljett, kort, lista eller stort datum, en nedräkning, kalenderknappar, inbjudan, ett band). Skriv varje text med eget typsnitt, storlek, justering och färg – {namn}, {datum} och liknande fylls i av sig själva. Byt emojierna mot andra eller mot egna bilder, och välj vilka kalenderknappar gästerna får: kalenderfil (den öppnar Apples Kalender på iPhone och Mac, och de flesta andra), Google eller Outlook. Temats affisch är alltid ett tryck bort.",
+          "Inget bestämt datum än: kryssa i Låt gästerna rösta om datum och lägg till de datum som passar er. Gästerna kryssar i dem som passar dem; under Inbjudan ser ni hur många varje datum passar, och väljer ett – då hamnar festen i kalendern, de som röstade på det räknas som att de kommer, och de som bett om uppdateringar får ett mejl.",
+          "Välj vad varje gäst får ta med: ingen, en +1 eller familjen – då lägger de till alla i sitt sällskap, var och en med allergier och om det är ett barn. En middag, en grillafton eller en utomhusaktivitet börjar med familjen.",
+          "Välj ett tema för inbjudningssidan och ett för tacksidan – de som passar typen av fest först (ballonger, pirater och dinosaurier för kalas; disco, glitter, 80-tal och champagne för fest; bistro, jul och kräftskiva för middag; fotboll och hockey för match; grill, brännboll och badstrand utomhus). Eller skapa ett eget: färger, mönster, emoji och egna bilder överst och i bakgrunden – sparat att använda igen. En egen bild kan också ligga på inbjudan.",
+          "Gäster som anger sin e-post och ber om uppdateringar får en bekräftelse, ett mejl om tid eller plats ändras, en påminnelse dagen innan och tacket – och de meddelanden ni skickar under Gäster. Det kräver serverns e-post, som serveradministratören ställer in under Server → Adress och tjänster.",
+          "Festen läggs in i kalendern av sig själv – för alla den gäller (kryssa i en eller flera i familjen), och ni väljer vems önskelista som visas på inbjudan.",
+          "Visa önskelistan: gästerna ser önskningarna för den festen gäller och bockar för vad de köper; den det gäller ser aldrig vem.",
+          "Efteråt, under Tack: en tacktext och bilderna från ett album i Valvet, på samma sida som gästerna redan har.",
+          "Bara de vuxna planerar fest – önskelistans reservationer finns i planeringen."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "Skolan",
     "summary": "Barnens skoldag från InfoMentor eller SchoolSoft via Home Assistant: skolkortet, skolans kalendrar och veckobrevet.",
@@ -1307,7 +1356,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Serverns adress, sökmotorn, den lokala AI:n och andra tjänster.",
     "blocks": [
       {
-        "p": "Adress och tjänster har adressen servern nås på – den används i alla länkar som skickas – receptsökningen och webbsökningen (SearXNG på servern själv), Home Assistant för hostade familjer via gatewayen, GIF:ar i chatten och att skicka feedback. AI-datorn ställer in var Ollama körs, vilka modeller som används, och väckning och viloläge för datorn."
+        "p": "Adress och tjänster har adressen servern nås på – den används i alla länkar som skickas – receptsökningen och webbsökningen (SearXNG på servern själv), Home Assistant för hostade familjer via gatewayen, GIF:ar i chatten och att skicka feedback. AI-datorn ställer in var Ollama körs, vilka modeller som används, och väckning och viloläge för datorn. E-post ställer in e-posttjänsterna – Gmail med ett app-lösenord, Brevo för en adress på er egen domän eller en annan SMTP-server – vilken er familj skickar med, och om de hostade familjerna också får skicka e-post (till festgäster som bett om uppdateringar)."
       },
       {
         "shot": "serverservices",

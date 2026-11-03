@@ -139,6 +139,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
     from app.routers.week import run_week_review_reminders
     from app.services.health_ha import run_health_sync
     from app.services.school_ha import run_school_sync
+    from app.routers.parties import run_party_mailings, run_party_reminders
 
     settings = get_settings()
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
@@ -181,6 +182,8 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await run_custody(db)
                     await run_health_sync(db)
                     await run_school_sync(db)
+                    await run_party_reminders(db)
+                    await run_party_mailings(db)
                     await prune_notifications(db)
             except Exception:
                 pass

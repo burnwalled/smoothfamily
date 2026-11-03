@@ -34,6 +34,10 @@ async def public_base(db: AsyncSession, request: Request | None = None) -> str:
     base = await configured_url(db)
     if not base and request is not None:
         base = request.headers.get("origin") or ""
+        referer = request.headers.get("referer") or ""
+        if not base and referer:
+            parsed = urlparse(referer)
+            base = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme in ("http", "https") and parsed.netloc else ""
     return base.rstrip("/")
 
 

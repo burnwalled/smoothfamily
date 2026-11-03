@@ -4,7 +4,7 @@ import {
   Baby, BookOpen, Bot, CalendarDays, Car, CircleUserRound, CloudOff, CookingPot, DatabaseBackup, FileText, Gift, HeartHandshake,
   House, KeyRound, Lightbulb, ListChecks, Luggage, LucideIcon, MessageCircle, Monitor, Network, PawPrint, PiggyBank, Pill, Plug,
   Receipt, Refrigerator, RefreshCw, Rocket, Search, Server, Settings, ShieldCheck, ShoppingCart, Star, Sun, Trophy, Users, Vault, Wallet,
-  Bell, Siren, Home, Inbox, MessageSquareWarning, HeartPulse, GraduationCap,
+  Bell, Siren, Home, Inbox, MessageSquareWarning, HeartPulse, GraduationCap, PartyPopper,
 } from "lucide-react";
 import type { Audience, Category } from "./types";
 
@@ -43,6 +43,7 @@ export const TOPICS: Topic[] = [
   { id: "today", category: "everyday", icon: Sun, audience: "everyone", paths: ["/"], related: ["notifications", "kiosk"] },
   { id: "calendar", category: "everyday", icon: CalendarDays, audience: "everyone", apps: ["calendar"], paths: ["/calendar"], related: ["trips", "twohomes", "week"] },
   { id: "trips", category: "everyday", icon: Luggage, audience: "everyone", apps: ["trips"], paths: ["/trips"], related: ["calendar", "tasks"] },
+  { id: "parties", category: "everyday", icon: PartyPopper, audience: "adults", apps: ["calendar"], paths: ["/parties"], related: ["wishes", "calendar"] },
   { id: "school", category: "children", icon: GraduationCap, audience: "everyone", apps: ["calendar"], related: ["calendar", "smarthome"] },
   { id: "health", category: "everyday", icon: HeartPulse, audience: "everyone", apps: ["health"], paths: ["/health"], related: ["safety"] },
   { id: "twohomes", category: "everyday", icon: Home, audience: "adults", apps: ["calendar"], paths: ["/calendar/custody", "/coparent"], related: ["calendar", "receipts"] },

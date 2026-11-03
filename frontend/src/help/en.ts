@@ -350,6 +350,55 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "parties": {
+    "title": "Parties",
+    "summary": "Plan a party together – one invitation page for the guests, and the checklist, budget and timeline for you.",
+    "blocks": [
+      {
+        "p": "Under Calendar → Parties, plan a child's birthday party, a celebration, a dinner, a match night, a barbecue or a day outdoors. The guests get one shared page – no account – first a save-the-date if you like, then the invitation where they reply with their name, allergies and whoever they bring as far as you allow, on the day the portal for their photos, and afterwards the thank-you. They can change their reply later. You choose what they see of each other: nothing, how many are coming, or the names."
+      },
+      {
+        "shot": "parties",
+        "caption": "The party's seven steps – here the design: the four pages, the playlist and the portal."
+      },
+      {
+        "steps": [
+          "Calendar → Parties → New party: the name, kind, whose party, the time and the place – then the party walks you through seven steps.",
+          "1 Details and the theme · 2 Design: the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
+          "4 To do – before, on the day and after · 5 Budget · 6 The day's plan, with points you can hide from the guests · 7 Sending out: mails at their time (with the server's e-mail), or the links to share yourself."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "The guests' invitation: the poster in the party's theme, the details, the calendar buttons and the reply."
+      },
+      {
+        "h": "Planning"
+      },
+      {
+        "p": "A new party starts with a checklist for its kind – before, on the day and after – with dates; each morning one is due, the adults are reminded. Change it as you like. The budget keeps what's spent against what you planned, and the day's plan its times (a child's party starts with one) – a point can be hidden from the guests on the portal."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "The party day's portal from the QR code: photos from the guests, the day's plan and more."
+      },
+      {
+        "tips": [
+          "One party, four pages in the same theme, each with a poster of its own (Poster): a save-the-date first if you like – the guests save the date and leave their e-mail, and get a mail when you switch the link to the invitation – then the invitation, the party day's portal and the thank-you. Paste a collaborative Spotify playlist and the guests can wish for songs. Open the portal and print its QR code for the tables: the guests upload their photos straight to an album in the vault and see the day's plan.",
+          "The app comes with a picture library: backgrounds and top pictures for many of the themes, and stickers – balloons, a disco ball, a crayfish, a student cap, rings, a pumpkin and more – to put on the poster in place of emoji (Poster → a decoration row or the emblem → Library).",
+          "Under Poster, make the invitation's page your own: add, move and remove its parts (texts, pictures, an emblem, a decoration row, when and where as a ticket, a card, a list or a big date, a countdown, calendar buttons, the invitation, a ribbon). Write every text with its typeface, size, alignment and colour – {title}, {date} and the like fill themselves in. Swap the emoji for others or for pictures of your own, and choose which calendar buttons the guests get: a calendar file (it opens Apple's Calendar on an iPhone or a Mac, and most others), Google or Outlook. The theme's poster is always one tap away.",
+          "No set date yet: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
+          "Choose what each guest may bring: no one, a +1, or the family – then they add everyone in their party, each with their allergies and whether they're a child. A dinner, a barbecue or a day outdoors starts with the family.",
+          "Choose a look for the invitation page and another for the thank-you – the ones for the kind of party first (balloons, pirates and dinosaurs for a child's party; disco, glitter, the 80s and champagne for a party; bistro, Christmas and a crayfish party for a dinner; football and hockey for a match; barbecue, rounders and the beach outdoors). Or create your own: colours, a pattern, emoji and your own pictures at the top and in the background – kept to use again. A picture of your own can go on the invitation too.",
+          "Guests who give their e-mail and ask for updates get a confirmation, a mail if the time or place changes, a reminder the day before and the thank-you – and the messages you send them from Guests. It needs the server's e-mail, set up by the server admin under Server → Address and services.",
+          "The party goes in the calendar by itself – for everyone whose party it is (tick one or more of the family), and you choose whose wish list is on the invitation.",
+          "Show the wish list: the guests see the wishes of whose party it is and tick what they'll buy; the one it's for never sees who.",
+          "Afterwards, under Thank-you: a thank-you text and the photos from an album in the vault, on the same page the guests already have.",
+          "Only the adults plan parties – the wish list's reservations are on the planning."
+        ]
+      }
+    ]
+  },
   "school": {
     "title": "School",
     "summary": "The children's school day from InfoMentor or SchoolSoft, through Home Assistant: the school card, the school's calendars and the weekly letter.",
@@ -1307,7 +1356,7 @@ const texts: Record<string, TopicText> = {
     "summary": "The server's address, the search engine, the local AI and other services.",
     "blocks": [
       {
-        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer."
+        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer. E-mail sets up the mail services – Gmail with an app password, Brevo for an address on your own domain, or another SMTP server – which one your family sends with, and whether the hosted families may send mail too (to a party's guests who asked for updates)."
       },
       {
         "shot": "serverservices",

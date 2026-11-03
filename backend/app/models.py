@@ -1972,3 +1972,205 @@ class HealthDay(Base):
     resting_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# --- Parties (3.4.0) ------------------------------------------------------------------------
+
+
+class Party(Base):
+    """A party the family holds – a child's birthday party, a celebration, a dinner: one shared
+    invitation page for the guests (RSVP, an optional wish list, the thank-you page afterwards) and
+    the planning for the adults (the checklist with reminders, the budget, the day's timeline)."""
+
+    __tablename__ = "parties"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    # child_birthday | birthday | party | dinner | match | bbq | outdoor
+    kind: Mapped[str] = mapped_column(String(20), default="party")
+    # Whose party it is – one or more of the family (theirs in the calendar) – and whose wish list
+    # can be on the invitation (person_id).
+    person_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"), nullable=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    place: Mapped[str] = mapped_column(String(200), default="")
+    address: Mapped[str] = mapped_column(String(300), default="")
+    theme: Mapped[str] = mapped_column(String(120), default="")
+    # A picture word for the page (an emoji) and its colour.
+    emoji: Mapped[str] = mapped_column(String(16), default="🎉")
+    color: Mapped[str] = mapped_column(String(20), default="#E85D75")
+    invitation: Mapped[str] = mapped_column(Text, default="")
+    rsvp_by: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # What one reply may bring along: none | one (a +1) | family (as many as they are)
+    bring: Mapped[str] = mapped_column(String(10), default="none", server_default="none")
+    # What the guests see of each other: none | count | names
+    show_guests: Mapped[str] = mapped_column(String(10), default="count")
+    wishlist: Mapped[bool] = mapped_column(Boolean, default=False)
+    budget: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # The invitation link: its hash to open it, the code itself encrypted so the adults can share it again.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_encrypted: Mapped[str] = mapped_column(Text)
+    # Afterwards: a thank-you on the same page, with an album from the vault.
+    thanks_text: Mapped[str] = mapped_column(Text, default="")
+    thanks_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    thanks_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The look of the guests' page and of the thank-you (a theme's key); "" = as the invitation,
+    # "custom" = one of the family's own themes.
+    page_theme: Mapped[str] = mapped_column(String(20), default="balloons", server_default="balloons")
+    thanks_theme: Mapped[str] = mapped_column(String(20), default="", server_default="")
+    page_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
+    thanks_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
+    # A picture on the invitation (the storage key of a web-sized copy).
+    invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The poster as the hosts made it: its blocks (texts, pictures, details, countdown, calendar
+    # buttons …) in order; None = the theme's own. And the pictures it uses: [{id, key}].
+    layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    assets: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The other posters, in the same theme: save the date, the party day's portal, the thank-you.
+    save_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    portal_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    thanks_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # What the link shows first: save | invite (the thank-you once it's published).
+    phase: Mapped[str] = mapped_column(String(10), default="invite", server_default="invite")
+    # A shared playlist the guests can add songs to (Spotify).
+    playlist_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # The party day's portal: its own link (for a QR code on the table) where the guests see the
+    # day's plan and upload their photos to an album in the vault.
+    portal_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    portal_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    portal_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    portal_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    portal_gallery: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # The day before, the guests who asked for updates are reminded (once).
+    guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;
+    # each as long as the party) until the hosts pick one. Not in the calendar while it's open.
+    date_poll: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    date_options: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("family_events.id", ondelete="SET NULL"), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyGuest(Base):
+    """One reply on the invitation page: a guest, coming or not, and whoever they bring if allowed."""
+
+    __tablename__ = "party_guests"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    first_name: Mapped[str] = mapped_column(String(80))
+    last_name: Mapped[str] = mapped_column(String(80), default="")
+    coming: Mapped[bool] = mapped_column(Boolean, default=True)
+    allergies: Mapped[str] = mapped_column(String(300), default="")
+    message: Mapped[str] = mapped_column(String(500), default="")
+    # The ones they bring: [{first_name, last_name, child, allergies}] – a +1, or the family.
+    companions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Updates by e-mail, if the guest gave an address and asked for them; the link in each mail to
+    # stop them has a code of its own (its hash here).
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    updates: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The dates that suit them, while the hosts let the guests vote (the options' ISO starts).
+    date_votes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Signed up for updates from the save-the-date, or put on the list by the hosts – not replied yet.
+    pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The guest's own key, kept encrypted so the mails can carry their own link to reply with.
+    key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The guest's browser keeps a key to change the reply later; only its hash is here.
+    key_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyTask(Base):
+    """A thing to do before (or after) the party, on a day: the adults are reminded that morning."""
+
+    __tablename__ = "party_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
+    who: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class PartyExpense(Base):
+    """What the party cost: the budget's other side."""
+
+    __tablename__ = "party_expenses"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    paid_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyTheme(Base):
+    """A family's own look for a party page, kept to use again: colours, a pattern, the decoration's
+    emoji, and its own pictures (a top picture and a background)."""
+
+    __tablename__ = "party_themes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    bg: Mapped[str] = mapped_column(String(7), default="#fff1f4")
+    bg2: Mapped[str] = mapped_column(String(7), default="#f4f7ff")
+    accent: Mapped[str] = mapped_column(String(7), default="#e85d75")
+    ink: Mapped[str] = mapped_column(String(7), default="#3b2430")
+    # none | confetti | dots | stars | stripes | hearts
+    pattern: Mapped[str] = mapped_column(String(12), default="confetti")
+    decor: Mapped[str] = mapped_column(String(60), default="")
+    # The typefaces (gala | playful | retro | classic | sporty) and the moving effect behind the page.
+    font: Mapped[str] = mapped_column(String(12), default="playful", server_default="playful")
+    effect: Mapped[str] = mapped_column(String(12), default="confetti", server_default="confetti")
+    header_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    background_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyMailing(Base):
+    """A mail to the guests, sent at its time: the save-the-date, the invitation, a reminder, the
+    thank-you, or the hosts' own message – to everyone, those who haven't replied, or those coming."""
+
+    __tablename__ = "party_mailings"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    # save | invite | remind | thanks | custom
+    kind: Mapped[str] = mapped_column(String(10))
+    # all | waiting | coming
+    audience: Mapped[str] = mapped_column(String(10), default="all")
+    subject: Mapped[str] = mapped_column(String(120), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class PartyStep(Base):
+    """The day's timeline: at 14:00 the guests come, 14:30 games, 15:15 the cake …"""
+
+    __tablename__ = "party_steps"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    at: Mapped[str] = mapped_column(String(5))  # HH:MM
+    title: Mapped[str] = mapped_column(String(200))
+    # For the hosts only – not on the guests' portal (the surprise, the speeches' order …).
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
