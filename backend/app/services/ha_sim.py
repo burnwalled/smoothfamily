@@ -112,6 +112,30 @@ def reset(base_url: str | None = None) -> None:
         _homes.pop(base_url[len(PREFIX):], None)
 
 
+def _entry(entity_id: str) -> tuple[str, str, str] | None:
+    """The (entry id, integration, title) a simulated health sensor comes from: each person's phone
+    with the companion app, and a Withings scale."""
+    for person in PEOPLE:
+        if entity_id.startswith(f"sensor.{person}_"):
+            return f"sim-phone-{person}", "mobile_app", f"{person.title()}'s phone"
+    if entity_id.startswith("sensor.withings_"):
+        return "sim-withings-anna", "withings", "Anna"
+    return None
+
+
+async def render_template(base_url: str, template: str) -> str:
+    """Only the one template Smooth Family renders: each sensor with its integration and account."""
+    import json
+
+    rows = []
+    for entity_id, state in _home(base_url).items():
+        entry = _entry(entity_id) if entity_id.startswith("sensor.") else None
+        if entry:
+            rows.append({"e": entity_id, "s": state["state"], "u": state["attributes"].get("unit_of_measurement"), "c": state["attributes"].get("device_class"),
+                         "n": state["attributes"].get("friendly_name"), "id": entry[0], "d": entry[1], "t": entry[2]})
+    return json.dumps(rows)
+
+
 async def get_states(base_url: str) -> list[dict]:
     return copy.deepcopy(list(_home(base_url).values()))
 

@@ -138,6 +138,9 @@ class User(Base):
     # The Home Assistant sensors their health is read from (3.4.0): {"steps" | "sleep" | "weight" |
     # "resting_hr": entity_id, "synced_at": iso}; None = nothing connected.
     health_sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The person lets Smooth Family fetch it (3.4.0): the admin links the accounts, the person (or an
+    # adult, for a child) turns it on.
+    health_import: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     @property
     def apps(self) -> list[str]:

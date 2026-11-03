@@ -6,6 +6,8 @@ test("log a workout and the day's steps, then share them", async ({ adminPage: p
   await adminApi.put("/api/health/sharing", { data: { workouts: "me", steps: "me", sleep: "me", weight: "me" } });
   const note = unique("Morning run");
   await page.goto("/");
+  // The menu is drawn once the page is (openFromMenu looks for the link at once).
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   await openFromMenu(page, "/health");
   await expect(page).toHaveURL(/\/health$/);
 
@@ -66,23 +68,29 @@ test("a family goal and a task done by exercising", async ({ adminPage: page, ad
   await kidApi.put("/api/health/sharing", { data: { workouts: "me" } });
 });
 
-// 3.4.0 phase 3: steps and sleep read from the person's own Home Assistant sensors (a simulated home).
-test("steps and sleep from Home Assistant", async ({ adminPage: page, adminApi }) => {
+// 3.4.0: health from Home Assistant – the admin links the accounts, the person turns it on.
+test("health from Home Assistant: linked by the admin, turned on by the person", async ({ adminPage: page, adminApi }) => {
   const me = await (await adminApi.get("/api/auth/me")).json();
   await adminApi.post("/api/smarthome/connection/simulated");
   try {
+    await page.goto(`/settings/members/${me.id}`);
+    const links = page.getByRole("region", { name: "Health from Home Assistant" });
+    await links.getByRole("checkbox", { name: /Home Assistant app · Anna's phone/ }).check();
+    await expect(links.getByRole("combobox", { name: "Sleep" })).toHaveValue("sensor.anna_phone_sleep_duration");
+    await expect(links.getByText(/hasn't turned fetching on yet/)).toBeVisible();
+
     await page.goto("/health");
-    const ha = page.getByRole("region", { name: "From Home Assistant" });
-    await ha.getByLabel("Steps").selectOption("sensor.anna_phone_steps");
-    await expect(ha.getByRole("status")).toContainText("new numbers");
-    await ha.getByLabel("Sleep").selectOption("sensor.anna_phone_sleep_duration");
-    await expect(ha.getByText(/^Fetched /)).toBeVisible();
-    const days = page.getByRole("region", { name: "The days" });
+    const mine = page.getByRole("region", { name: "Health from Home Assistant" });
+    await expect(mine.getByText(/From Home Assistant app · Anna's phone/)).toBeVisible();
+    await mine.getByRole("checkbox", { name: /Fetch my health from Home Assistant/ }).check();
+    await expect(mine.getByRole("status")).toContainText("new numbers");
+    await expect(mine.getByText(/^Fetched /)).toBeVisible();
     // Sleep, in hours in Home Assistant, as hours and minutes here (the steps were entered by hand
     // earlier today, and what's entered by hand wins).
-    await expect(days.getByText("7:30").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "The days" }).getByText("7:30").first()).toBeVisible();
   } finally {
-    await adminApi.put(`/api/health/people/${me.id}/sources`, { data: { steps: null, sleep: null } });
+    await adminApi.put(`/api/health/people/${me.id}/import`, { data: { on: false } });
+    await adminApi.put(`/api/health/links/${me.id}`, { data: { accounts: [], chosen: { steps: null, sleep: null, weight: null, resting_hr: null } } });
     await adminApi.delete("/api/smarthome/connection");
   }
 });

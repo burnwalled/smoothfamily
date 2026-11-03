@@ -4,13 +4,15 @@
 // they share them with the adults or the family. The adults see and enter a child's; a child's weight
 // isn't kept, and weight is never in the family's overview. The family's goals count what each one
 // shares with the family; a workout can tick off a task done by exercising, and earn a badge. Steps,
-// sleep, weight and resting pulse can also be read from the person's own Home Assistant sensors.
+// sleep, weight and resting pulse can also be fetched from Home Assistant: the family admin links the
+// person's accounts, the person turns it on.
 import { useState } from "react";
 import {
-  Activity, Bike, Download, Dumbbell, Flame, Flower2, Footprints, House, LucideIcon, Moon, MountainSnow, PersonStanding, RefreshCw, Scale, Target, Trash2, Volleyball, Waves,
+  Activity, Bike, Download, Dumbbell, Flame, Flower2, Footprints, LucideIcon, Moon, MountainSnow, PersonStanding, Scale, Target, Trash2, Volleyball, Waves,
 } from "lucide-react";
 import { api, ExerciseGoal } from "@/lib/api";
 import GoalBar, { goalAmount } from "@/components/health/GoalBar";
+import HealthImport from "@/components/health/HealthImport";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
@@ -34,14 +36,6 @@ type Person = {
 type Workout = { id: string; day: string; kind: string; minutes: number; distance_km: number | null; note: string; source: string };
 type Day = { day: string; steps: number | null; sleep_minutes: number | null; weight_kg: number | null; resting_hr: number | null };
 type Detail = Person & { workouts: Workout[]; days: Day[]; share: Record<Category, Share> | null };
-type Sources = {
-  available: boolean;
-  reachable: boolean;
-  chosen: Record<string, string | null>;
-  synced_at: string | null;
-  candidates: Record<string, { entity_id: string; name: string; state: string | null; unit: string | null }[]>;
-  taken: number | null;
-};
 type Goal = ExerciseGoal & { id: string; start_date: string; end_date: string; done: boolean; ended: boolean; people: { user_id: string; name: string; color: string | null; amount: number }[] };
 
 const KINDS: [string, LucideIcon][] = [
@@ -239,7 +233,7 @@ function PersonView({ userId }: { userId: string }) {
         {person.can_enter && sees.has("workouts") && <WorkoutForm userId={userId} />}
         {person.can_enter && <DayForm person={person} />}
       </div>
-      {person.can_enter && <HaSources userId={userId} />}
+      {person.can_enter && <HealthImport userId={userId} />}
 
       {sees.has("workouts") && (
         <section className="card p-5" aria-label={t("health.workouts")}>
@@ -307,76 +301,6 @@ function PersonView({ userId }: { userId: string }) {
 
       {person.me && person.share && <Sharing share={person.share} child={!sees.has("weight")} />}
     </div>
-  );
-}
-
-// The person's own Home Assistant sensors (3.4.0): chosen here, read every 15 minutes and on "Fetch now".
-const HA_METRICS: [string, TranslationKey, LucideIcon][] = [
-  ["steps", "health.steps", Footprints], ["sleep", "health.sleep", Moon], ["weight", "health.weight", Scale], ["resting_hr", "health.restingHr", Activity],
-];
-
-function HaSources({ userId }: { userId: string }) {
-  const { t, dateLocale } = useI18n();
-  const path = `/api/health/people/${userId}/sources`;
-  const sources = useApi<Sources>(path).data;
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  if (!sources?.available) return null;
-
-  async function run(action: () => Promise<Sources>) {
-    setBusy(true);
-    setNote("");
-    try {
-      const done = await action();
-      if (done.taken != null) setNote(t("health.ha.taken", { n: done.taken }));
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : t("common.error"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const metrics = HA_METRICS.filter(([m]) => m in sources.chosen);
-  const any = metrics.some(([m]) => sources.chosen[m]);
-  return (
-    <section className="card space-y-3 p-5" aria-label={t("health.ha.title")}>
-      <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted">
-        <House className="h-4 w-4" strokeWidth={2} aria-hidden />
-        {t("health.ha.title")}
-      </h3>
-      <p className="text-xs text-muted">{t("health.ha.help")}</p>
-      {!sources.reachable && <p className="text-sm text-red-700">{t("health.ha.unreachable")}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {metrics.map(([m, label, Icon]) => {
-          const options = sources.candidates[m] ?? [];
-          const chosen = sources.chosen[m] ?? "";
-          return (
-            <label key={m}>
-              <span className="label flex items-center gap-1"><Icon className="h-3.5 w-3.5" aria-hidden />{t(label)}</span>
-              <select className="input" value={chosen} disabled={busy} onChange={(e) => run(() => api.put<Sources>(`/api/health/people/${userId}/sources`, { [m]: e.target.value || null }))}>
-                <option value="">{t("health.ha.none")}</option>
-                {chosen && !options.some((o) => o.entity_id === chosen) && <option value={chosen}>{chosen}</option>}
-                {options.map((o) => (
-                  <option key={o.entity_id} value={o.entity_id}>{`${o.name} · ${o.state ?? ""}${o.unit ? ` ${o.unit}` : ""}`}</option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
-      </div>
-      {any && (
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <button className="btn-ghost flex items-center gap-1.5 px-2" disabled={busy} onClick={() => run(() => api.post<Sources>(`/api/health/people/${userId}/sync`))}>
-            <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} aria-hidden />
-            {t("health.ha.syncNow")}
-          </button>
-          {sources.synced_at && (
-            <span className="text-xs text-muted">{t("health.ha.synced", { time: new Date(sources.synced_at).toLocaleString(dateLocale, { weekday: "short", hour: "2-digit", minute: "2-digit" }) })}</span>
-          )}
-          {note && <span className="text-xs font-semibold" role="status">{note}</span>}
-        </div>
-      )}
-    </section>
   );
 }
 

@@ -133,21 +133,31 @@ async def test_health_from_home_assistant(client):
 
     ids = await _family(client)
     today = today_local()
-    # Without Home Assistant there is nothing to choose.
-    assert (await client.get(f"/api/health/people/{ids['admin']}/sources")).json()["available"] is False
+    # Without Home Assistant there is nothing to link.
+    assert (await client.get(f"/api/health/links/{ids['admin']}")).json()["available"] is False
     assert (await client.post("/api/smarthome/connection/simulated")).status_code in (200, 201, 204)
     ha_sim.reset()
-    sources = (await client.get(f"/api/health/people/{ids['admin']}/sources")).json()
-    assert sources["available"] and sources["reachable"]
-    assert sources["candidates"]["steps"][0]["entity_id"].endswith("_phone_steps")
-    assert sources["candidates"]["weight"][0]["entity_id"] == "sensor.withings_weight"
-    assert sources["candidates"]["resting_hr"][0]["entity_id"].endswith("_resting_heart_rate")
 
-    # Choosing reads them at once: steps, sleep in hours → minutes, weight in kg.
-    chosen = (await client.put(f"/api/health/people/{ids['admin']}/sources", json={"steps": "sensor.anna_phone_steps", "sleep": "sensor.anna_phone_sleep_duration", "weight": "sensor.withings_weight"})).json()
-    assert chosen["taken"] == 3 and chosen["chosen"]["steps"] == "sensor.anna_phone_steps"
+    # The admin sees each account: every phone, and the Withings user.
+    links = (await client.get(f"/api/health/links/{ids['admin']}")).json()
+    assert links["available"] and links["accounts_known"]
+    accounts = {a["entry"]: a for a in links["accounts"]}
+    assert accounts["sim-phone-anna"]["label"] == "Home Assistant app" and accounts["sim-phone-anna"]["title"] == "Anna's phone"
+    assert accounts["sim-withings-anna"]["metrics"]["weight"][0]["entity_id"] == "sensor.withings_weight"
+    assert set(accounts["sim-phone-anna"]["metrics"]) == {"steps", "sleep", "resting_hr"}
+
+    # Linking Anna's phone and the scale maps the metrics; nothing is read before she turns it on.
+    linked = (await client.put(f"/api/health/links/{ids['admin']}", json={"accounts": ["sim-phone-anna", "sim-withings-anna"]})).json()
+    assert linked["chosen"] == {"steps": "sensor.anna_phone_steps", "sleep": "sensor.anna_phone_sleep_duration", "resting_hr": "sensor.anna_resting_heart_rate", "weight": "sensor.withings_weight"}
+    assert linked["import_on"] is False
+    assert (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"] == []
+    assert (await client.post(f"/api/health/people/{ids['admin']}/sync")).status_code == 409
+
+    # She turns it on: read at once – steps, sleep in hours → minutes, weight in kg, resting pulse.
+    on = (await client.put(f"/api/health/people/{ids['admin']}/import", json={"on": True})).json()
+    assert on["on"] and on["taken"] == 4 and [a["title"] for a in on["accounts"]] == ["Anna's phone", "Anna"]
     day = (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]
-    assert (day["day"], day["steps"], day["sleep_minutes"], day["weight_kg"]) == (today.isoformat(), 4200, 450, 78.4)
+    assert (day["day"], day["steps"], day["sleep_minutes"], day["weight_kg"], day["resting_hr"]) == (today.isoformat(), 4200, 450, 78.4, 58)
 
     # More steps later in the day; a lower reading never takes the day's count down.
     conn_url = next(iter(ha_sim._homes))
@@ -163,19 +173,44 @@ async def test_health_from_home_assistant(client):
     await client.post(f"/api/health/people/{ids['admin']}/sync")
     assert (await client.get(f"/api/health/people/{ids['admin']}")).json()["days"][0]["steps"] == 9999
 
-    # A child's weight is never read; a child can't choose for an adult.
-    kid = (await client.put(f"/api/health/people/{ids['kid1']}/sources", json={"steps": "sensor.leo_phone_steps", "weight": "sensor.withings_weight"})).json()
-    assert "weight" not in kid["chosen"]
-    await _as(client, "kid1")
-    assert (await client.get(f"/api/health/people/{ids['admin']}/sources")).status_code == 403
+    # A sensor of its own for one metric (another phone's steps); none for sleep.
+    own = (await client.put(f"/api/health/links/{ids['admin']}", json={"accounts": ["sim-phone-anna"], "chosen": {"steps": "sensor.erik_phone_steps", "sleep": None}})).json()
+    assert own["chosen"] == {"steps": "sensor.erik_phone_steps", "resting_hr": "sensor.anna_resting_heart_rate"}
 
-    # The worker reads everyone whose turn it is, every 15 minutes.
+    # A child: never weight; an adult turns it on for them; a child can't link or see an adult's.
+    kid = (await client.put(f"/api/health/links/{ids['kid1']}", json={"accounts": ["sim-phone-leo", "sim-withings-anna"]})).json()
+    assert "weight" not in kid["chosen"] and kid["chosen"]["steps"] == "sensor.leo_phone_steps"
+    assert (await client.put(f"/api/health/people/{ids['kid1']}/import", json={"on": True})).json()["on"] is True
+    await _as(client, "kid1")
+    assert (await client.get(f"/api/health/links/{ids['kid1']}")).status_code == 403
+    assert (await client.get(f"/api/health/people/{ids['admin']}/import")).status_code == 403
+    assert (await client.get(f"/api/health/people/{ids['kid1']}/import")).json()["on"] is True
+
+    # The worker reads everyone who has it on, every 15 minutes.
     async with SessionLocal() as db:
         assert await run_health_sync(db) == 0
         assert await run_health_sync(db, datetime.now(timezone.utc) + timedelta(minutes=16)) == 2
         rows = (await db.execute(select(HealthDay).where(HealthDay.user_id == uuid.UUID(ids["kid1"])))).scalars().all()
         assert rows[0].steps and rows[0].weight_kg is None and rows[0].source == "home_assistant"
 
-    # The units and the guesses.
+    # Turned off: no longer read.
+    await client.put(f"/api/health/people/{ids['kid1']}/import", json={"on": False})
+    async with SessionLocal() as db:
+        assert await run_health_sync(db, datetime.now(timezone.utc) + timedelta(minutes=40)) == 1
+
+    # The units and the guesses: part of the night or a goal isn't the thing itself.
     assert convert("sleep", 27000, "s") == 450 and convert("weight", 180, "lb") == 81.6 and convert("steps", -5, "steps") is None
     assert score("steps", {"entity_id": "light.x", "state": "on"}) == 0
+    assert score("sleep", {"entity_id": "sensor.anna_deep_sleep", "state": "80", "attributes": {"unit_of_measurement": "min", "device_class": "duration"}}) == 0
+    assert score("weight", {"entity_id": "sensor.anna_weight_goal", "state": "70", "attributes": {"unit_of_measurement": "kg", "device_class": "weight"}}) == 0
+
+
+async def test_an_account_shows_whose_it_is(client):
+    from app.services import ha_sim
+
+    ids = await _family(client)
+    await client.post("/api/smarthome/connection/simulated")
+    ha_sim.reset()
+    await client.put(f"/api/health/links/{ids['adult1']}", json={"accounts": ["sim-withings-anna"]})
+    accounts = {a["entry"]: a for a in (await client.get(f"/api/health/links/{ids['admin']}")).json()["accounts"]}
+    assert accounts["sim-withings-anna"]["linked_to"] == "Adult1" and accounts["sim-phone-anna"]["linked_to"] is None
