@@ -24,7 +24,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, AdultUser, require_app
-from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyStep, PartyTask, PartyTheme, Person, User, WishItem
+from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyMailing, PartyStep, PartyTask, PartyTheme, Person, User, WishItem
 from app.services import login_throttle
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
@@ -187,6 +187,7 @@ _MAIL = {
         "voted": "you voted for {n} date(s)",
         "subscribed": ("{title}: you'll hear from us", "Thank you, {name}! Save the date – we'll send the invitation when it's ready."),
         "invited": ("{title}: the invitation is here", "The invitation to {title} is here – reply on the party's page."),
+        "save": ("Save the date: {title}", "Save the date – {title}! The invitation follows; the page has the date and a button for your calendar."),
         "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
     },
     "sv": {
@@ -200,6 +201,7 @@ _MAIL = {
         "voted": "du har röstat på {n} datum",
         "subscribed": ("{title}: du hör av oss", "Tack, {name}! Spara datumet – vi skickar inbjudan när den är klar."),
         "invited": ("{title}: inbjudan är här", "Inbjudan till {title} är här – svara på festens sida."),
+        "save": ("Spara datumet: {title}", "Spara datumet – {title}! Inbjudan kommer; på sidan finns datumet och en knapp för din kalender."),
         "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
     },
     "nb": {
@@ -213,6 +215,7 @@ _MAIL = {
         "voted": "du har stemt på {n} dato(er)",
         "subscribed": ("{title}: du hører fra oss", "Takk, {name}! Sett av datoen – vi sender invitasjonen når den er klar."),
         "invited": ("{title}: invitasjonen er her", "Invitasjonen til {title} er her – svar på festens side."),
+        "save": ("Sett av datoen: {title}", "Sett av datoen – {title}! Invitasjonen kommer; på siden finner du datoen og en knapp for kalenderen din."),
         "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
     },
     "da": {
@@ -226,6 +229,7 @@ _MAIL = {
         "voted": "du har stemt på {n} dato(er)",
         "subscribed": ("{title}: du hører fra os", "Tak, {name}! Gem datoen – vi sender invitationen, når den er klar."),
         "invited": ("{title}: invitationen er her", "Invitationen til {title} er her – svar på festens side."),
+        "save": ("Gem datoen: {title}", "Gem datoen – {title}! Invitationen kommer; på siden er datoen og en knap til din kalender."),
         "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
     },
     "fi": {
@@ -239,6 +243,7 @@ _MAIL = {
         "voted": "äänestit {n} päivää",
         "subscribed": ("{title}: kuulet meistä", "Kiitos, {name}! Merkitse päivä – lähetämme kutsun, kun se on valmis."),
         "invited": ("{title}: kutsu on täällä", "Kutsu juhliin {title} on täällä – vastaa juhlien sivulla."),
+        "save": ("Merkitse päivä: {title}", "Merkitse päivä – {title}! Kutsu tulee perässä; sivulla on päivä ja painike kalenteriisi."),
         "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
     },
 }
@@ -278,6 +283,7 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
             continue
         code = secrets.token_urlsafe(18)
         guest.unsubscribe_hash = _hash(code)
+        own = f"{page}?key={decrypt_token(guest.key_encrypted)}" if guest.key_encrypted else page
         subject_t, body_t = texts[kind]
         answer = texts["answers"][0 if guest.coming else 1]
         if party.date_poll:
@@ -288,7 +294,7 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
         body = "\n\n".join([
             body_t.format(**fields),
             _when_where(party, language),
-            texts["page"].format(link=page),
+            texts["page"].format(link=own),
             texts["stop"].format(link=f"{page}?unsubscribe={code}"),
         ])
         try:
@@ -405,6 +411,21 @@ class ExpenseIn(BaseModel):
 class StepIn(BaseModel):
     at: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     title: str = Field(min_length=1, max_length=200)
+    hidden: bool = False
+
+
+class StepChange(BaseModel):
+    at: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    hidden: bool | None = None
+
+
+class MailingIn(BaseModel):
+    kind: str = Field(pattern=r"^(save|invite|remind|thanks|custom)$")
+    audience: str = Field(default="all", pattern=r"^(all|waiting|coming)$")
+    subject: str = Field(default="", max_length=120)
+    text: str = Field(default="", max_length=4000)
+    send_at: datetime
 
 
 class GuestIn(BaseModel):
@@ -417,6 +438,8 @@ class GuestIn(BaseModel):
     email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
     updates: bool = False
     date_votes: list[str] | None = Field(default=None, max_length=12)
+    # Put on the guest list by the hosts (not a reply yet): they get the mails and their own link.
+    invited: bool = False
 
 
 class CompanionIn(BaseModel):
@@ -643,7 +666,8 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming and not g.pending), "signed_up": sum(1 for g in guests if g.pending), "allergies": allergies,
         "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who} for t in tasks],
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
-        "steps": [{"id": s.id, "at": s.at, "title": s.title} for s in steps],
+        "steps": [{"id": s.id, "at": s.at, "title": s.title, "hidden": s.hidden} for s in steps],
+        "mailings": [_mailing_out(m) for m in (await db.execute(select(PartyMailing).where(PartyMailing.party_id == party.id).order_by(PartyMailing.send_at))).scalars()],
         "wishes": wishes,
     }
 
@@ -856,7 +880,7 @@ async def delete_party(party_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     for key in [party.invite_image_key, *(a["key"] for a in party.assets or [])]:
         if key and storage.exists(party.family_id, key):
             storage.delete(party.family_id, key)
-    for model in (PartyGuest, PartyTask, PartyExpense, PartyStep):
+    for model in (PartyGuest, PartyTask, PartyExpense, PartyStep, PartyMailing):
         await db.execute(delete(model).where(model.party_id == party.id))
     await db.delete(party)
     if event_id and (event := await db.get(FamilyEvent, event_id)) is not None:
@@ -1030,9 +1054,75 @@ async def delete_expense(party_id: uuid.UUID, expense_id: uuid.UUID, request: Re
 @router.post("/{party_id}/steps", status_code=status.HTTP_201_CREATED)
 async def add_step(party_id: uuid.UUID, payload: StepIn, request: Request, user: AdultUser, db: DB) -> dict:
     party = await _mine(db, user, party_id)
-    db.add(PartyStep(family_id=party.family_id, party_id=party.id, at=payload.at, title=payload.title.strip()))
+    db.add(PartyStep(family_id=party.family_id, party_id=party.id, at=payload.at, title=payload.title.strip(), hidden=payload.hidden))
     await db.commit()
     return await _detail(db, party, request)
+
+
+@router.put("/{party_id}/steps/{step_id}")
+async def change_step(party_id: uuid.UUID, step_id: uuid.UUID, payload: StepChange, request: Request, user: AdultUser, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    step = await db.get(PartyStep, step_id)
+    if step is None or step.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Not found")
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(step, key, value.strip() if isinstance(value, str) and key == "title" else value)
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+def _mailing_out(m: PartyMailing) -> dict:
+    return {"id": m.id, "kind": m.kind, "audience": m.audience, "subject": m.subject, "text": m.text, "send_at": m.send_at, "sent_at": m.sent_at, "sent_count": m.sent_count}
+
+
+@router.post("/{party_id}/mailings", status_code=status.HTTP_201_CREATED)
+async def add_mailing(party_id: uuid.UUID, payload: MailingIn, request: Request, user: AdultUser, db: DB) -> dict:
+    """A mail to the guests at a time of the hosts' choosing (now, or later)."""
+    party = await _mine(db, user, party_id)
+    if not await _mail_ready(db, party):
+        raise HTTPException(status_code=409, detail="E-mail isn't set up on this server")
+    if payload.kind == "custom" and not (payload.subject.strip() and payload.text.strip()):
+        raise HTTPException(status_code=422, detail="A message needs a subject and a text")
+    count = (await db.execute(select(func.count()).select_from(PartyMailing).where(PartyMailing.party_id == party.id))).scalar_one()
+    if count >= 30:
+        raise HTTPException(status_code=409, detail="Too many mailings")
+    db.add(PartyMailing(family_id=party.family_id, party_id=party.id, kind=payload.kind, audience=payload.audience, subject=payload.subject.strip(), text=payload.text.strip(), send_at=_utc(_dt(payload.send_at)), created_by=user.id, sent_count=0))
+    await db.commit()
+    await run_party_mailings(db, base=await public_base(db, request))
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/mailings/{mailing_id}")
+async def delete_mailing(party_id: uuid.UUID, mailing_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    await db.execute(delete(PartyMailing).where(PartyMailing.id == mailing_id, PartyMailing.party_id == party.id, PartyMailing.sent_at.is_(None)))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+async def run_party_mailings(db: AsyncSession, now: datetime | None = None, base: str | None = None) -> int:
+    """The mailings whose time has come, each once, to the guests it's for."""
+    now = now or datetime.now(timezone.utc)
+    due = (await db.execute(select(PartyMailing).where(PartyMailing.sent_at.is_(None), PartyMailing.send_at <= now))).scalars().all()
+    sent = 0
+    for m in due:
+        party = await db.get(Party, m.party_id)
+        m.sent_at = now
+        await db.commit()
+        if party is None:
+            continue
+        guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.updates == True, PartyGuest.email.is_not(None)))).scalars().all()  # noqa: E712
+        if m.audience == "waiting":
+            guests = [g for g in guests if g.pending]
+        elif m.audience == "coming":
+            guests = [g for g in guests if g.coming]
+        kind = {"invite": "invited", "custom": "message"}.get(m.kind, m.kind)
+        values = {"subject": m.subject, "text": m.text} if m.kind == "custom" else {"text": party.thanks_text or ""} if m.kind == "thanks" else {}
+        m.sent_count = await mail_guests(db, party, kind, guests=guests, base=base if base is not None else await public_base(db), **values)
+        await db.commit()
+        sent += m.sent_count
+    return sent
 
 
 @router.delete("/{party_id}/steps/{step_id}")
@@ -1048,7 +1138,12 @@ async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, use
     """A reply that came by text or at the door: an adult adds it."""
     party = await _mine(db, user, party_id)
     now = datetime.now(timezone.utc)
-    db.add(PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(secrets.token_urlsafe(18)), created_at=now, updated_at=now, **_clean_guest(payload, party)))
+    key = secrets.token_urlsafe(18)
+    data = _clean_guest(payload, party)
+    invited = data.pop("invited", False)
+    if invited:
+        data.update(coming=False, updates=bool(data.get("email")))
+    db.add(PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), key_encrypted=encrypt_token(key), created_at=now, updated_at=now, pending=invited, **data))
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1205,7 +1300,7 @@ async def subscribe(token: str, payload: SubscribeIn, request: Request, db: DB, 
         if count >= 500:
             raise HTTPException(status_code=409, detail="Too many replies")
         key = secrets.token_urlsafe(18)
-        guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), created_at=now, coming=False, pending=True)
+        guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), key_encrypted=encrypt_token(key), created_at=now, coming=False, pending=True)
         db.add(guest)
     guest.first_name, guest.last_name = payload.first_name.strip(), payload.last_name.strip()
     guest.email, guest.updates, guest.updated_at = payload.email.strip().lower(), True, now
@@ -1222,6 +1317,7 @@ async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str
         raise HTTPException(status_code=409, detail="The party is over")
     now = datetime.now(timezone.utc)
     data = _clean_guest(payload, party)
+    data.pop("invited", None)
     guest = None
     if key:
         guest = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.key_hash == _hash(key)))).scalar_one_or_none()
@@ -1230,7 +1326,7 @@ async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str
         if count >= 500:
             raise HTTPException(status_code=409, detail="Too many replies")
         key = secrets.token_urlsafe(18)
-        guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), created_at=now)
+        guest = PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), key_encrypted=encrypt_token(key), created_at=now)
         db.add(guest)
     asked_now = data.get("updates") and not guest.updates
     guest.pending = False
@@ -1421,7 +1517,7 @@ async def portal_page(token: str, request: Request, response: Response, db: DB) 
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme, "invitation": party.invitation,
         "page_theme": party.page_theme, "page_custom": await _custom(db, party, party.page_custom_id), "invite_image": _version(party.invite_image_key),
         "layout": party.portal_layout, "assets": _assets_out(party), "playlist_url": party.playlist_url,
-        "steps": [{"at": s.at, "title": s.title} for s in steps], "gallery": party.portal_gallery, "photos": photos,
+        "steps": [{"at": s.at, "title": s.title} for s in steps if not s.hidden], "gallery": party.portal_gallery, "photos": photos,
     }
 
 

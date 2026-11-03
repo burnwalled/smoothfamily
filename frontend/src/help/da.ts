@@ -358,9 +358,9 @@ const texts: Record<string, TopicText> = {
       },
       {
         "steps": [
-          "Kalender → Fester → Ny fest: navnet, typen, hvis fest, tiden og stedet, svarfristen og om +1 er tilladt.",
-          "Under Invitation skriver du invitationen og trykker Del – telefonens egen delingsmenu åbner med teksten og linket (eller kopiér linket, eller udskriv QR-koden).",
-          "Følg svarene under Gæster – med allergierne samlet ét sted – og tilføj selv et svar, der kom på sms."
+          "Kalender → Fest → Ny fest: navnet, typen, hvis fest, tiden og stedet – så tager festen dig gennem syv trin.",
+          "1 Detaljer og tema · 2 Design: gem datoen, invitationen, festportalen og takken, hver med sin egen plakat · 3 Gæster: hvem der kommer, allergier, e-mailadresser – og jeres egen liste over inviterede.",
+          "4 Opgaver – før, under og efter festen · 5 Budget · 6 Program, med punkter I kan skjule for gæsterne · 7 Udsendelser: mails på deres tidspunkt (med serverens e-mail), eller linkene til at dele selv."
         ]
       },
       {

@@ -389,3 +389,42 @@ async def test_save_the_date_then_the_invitation_and_the_portal(client, monkeypa
     await client.delete(f"/api/parties/{party['id']}/portal")
     assert (await guest.get(f"/api/party-portal/{portal}")).status_code == 404
     await guest.aclose()
+
+
+async def test_the_guest_list_and_mails_at_their_time(client, db_session, monkeypatch):
+    from app.routers.parties import run_party_mailings
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    start = (datetime.now(timezone.utc) + timedelta(days=60)).replace(hour=18, minute=0, second=0, microsecond=0)
+    party = (await client.post("/api/parties", json=_party(start, kind="party", title="Sommarfest"))).json()
+    pid = party["id"]
+    # The hosts put two on the list, with their e-mail; they haven't replied.
+    await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Saga", "email": "saga@example.com", "invited": True})
+    detail = (await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Nils", "email": "nils@example.com", "invited": True})).json()
+    assert detail["signed_up"] == 2 and detail["coming"] == 0 and detail["not_coming"] == 0
+    # A save-the-date now, the invitation later: each guest's mail has their own link.
+    detail = (await client.post(f"/api/parties/{pid}/mailings", json={"kind": "save", "send_at": datetime.now(timezone.utc).isoformat()})).json()
+    assert sorted(s[0] for s in sent) == ["nils@example.com", "saga@example.com"] and all("?key=" in s[2] for s in sent)
+    assert detail["mailings"][0]["sent_count"] == 2
+    saga_key = next(s[2] for s in sent if s[0] == "saga@example.com").split("?key=")[1].split()[0]
+    later = datetime.now(timezone.utc) + timedelta(days=3)
+    detail = (await client.post(f"/api/parties/{pid}/mailings", json={"kind": "invite", "send_at": later.isoformat()})).json()
+    assert detail["mailings"][1]["sent_at"] is None
+    # Saga replies with her own link; the reminder goes only to those who haven't.
+    token = party["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/party/{token}/reply?key={saga_key}", json={"first_name": "Saga", "email": "saga@example.com", "updates": True})
+    detail = (await client.get(f"/api/parties/{pid}")).json()
+    assert detail["coming"] == 1 and detail["signed_up"] == 1 and len(detail["guests"]) == 2
+    sent.clear()
+    await client.post(f"/api/parties/{pid}/mailings", json={"kind": "remind", "audience": "waiting", "send_at": (later + timedelta(days=1)).isoformat()})
+    assert await run_party_mailings(db_session, later + timedelta(days=2), base="") == 3  # the invitation to both, the reminder to Nils
+    assert [s[0] for s in sent if "påminnelse" in s[2].lower() or "reminder" in s[2].lower()] == ["nils@example.com"]
+    # The day's plan: a point hidden from the guests stays off the portal.
+    detail = (await client.post(f"/api/parties/{pid}/steps", json={"at": "21:00", "title": "Överraskningen", "hidden": True})).json()
+    detail = (await client.post(f"/api/parties/{pid}/steps", json={"at": "18:00", "title": "Middag"})).json()
+    portal = (await client.post(f"/api/parties/{pid}/portal")).json()["portal"]["link"].rsplit("/", 1)[1]
+    assert [s["title"] for s in (await client.get(f"/api/party-portal/{portal}")).json()["steps"]] == ["Middag"]

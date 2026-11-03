@@ -8,7 +8,7 @@
 // reservations are here.
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarHeart, Check, Copy, Gift, Heart, ImagePlus, ListChecks, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarHeart, Check, Copy, Eye, EyeOff, Gift, ImagePlus, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
@@ -36,7 +36,8 @@ type Detail = {
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null }[];
   expenses: { id: string; title: string; amount: number; paid_by: string | null }[];
-  steps: { id: string; at: string; title: string }[];
+  steps: { id: string; at: string; title: string; hidden?: boolean }[];
+  mailings: { id: string; kind: "save" | "invite" | "remind" | "thanks" | "custom"; audience: "all" | "waiting" | "coming"; subject: string; text: string; send_at: string; sent_at: string | null; sent_count: number }[];
   wishes: { id: string; title: string; reserved: boolean; reserved_by: string | null }[];
 };
 type Person = { id: string; name: string };
@@ -46,9 +47,11 @@ const KINDS = ["child_birthday", "birthday", "party", "dinner", "match", "bbq", 
 const EMOJIS: Record<string, string> = { child_birthday: "🎈", birthday: "🎂", party: "🎉", dinner: "🍽️", match: "⚽", bbq: "🔥", outdoor: "☀️" };
 // What one reply may bring, to begin with: a child's friends come alone, a dinner's guests as families.
 const KIND_BRING: Record<string, string> = { child_birthday: "none", birthday: "one", party: "one", dinner: "family", match: "one", bbq: "family", outdoor: "family" };
-const TABS = ["invite", "poster", "guests", "tasks", "budget", "timeline", "thanks"] as const;
+// The party as a flow, step by step: what and when and the theme, the pages the guests see, who's
+// coming, what to do, what it costs, the day's plan, and the mails.
+const TABS = ["details", "design", "guests", "tasks", "budget", "schedule", "mailings"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_ICONS: Record<Tab, typeof Users> = { invite: CalendarHeart, poster: Palette, guests: Users, tasks: ListChecks, budget: Wallet, timeline: Clock, thanks: Heart };
+const TAB_ICONS: Record<Tab, typeof Users> = { details: CalendarHeart, design: Palette, guests: Users, tasks: ListChecks, budget: Wallet, schedule: Clock, mailings: Mail };
 
 const localInput = (iso: string) => {
   const d = new Date(iso);
@@ -289,6 +292,7 @@ function withDefaults(d: Detail): Detail {
     playlist_url: d.playlist_url ?? null,
     signed_up: d.signed_up ?? 0,
     portal: d.portal ?? null,
+    mailings: d.mailings ?? [],
     date_poll: d.date_poll ?? false,
     date_options: d.date_options ?? [],
     tally: d.tally ?? [],
@@ -302,7 +306,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
   const path = `/api/parties/${id}`;
   const fetched = useApi<Detail>(path).data;
   const party = fetched && withDefaults(fetched);
-  const [tab, setTab] = useState<Tab>("invite");
+  const [tab, setTab] = useState<Tab>("details");
   const [error, setError] = useState("");
 
   async function run(action: () => Promise<Detail>) {
@@ -335,57 +339,59 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
           {t("parties.delete")}
         </button>
       </div>
-      <nav className="flex flex-wrap gap-1 border-b border-edge" aria-label={t("nav.parties")}>
-        {TABS.map((x) => {
-          const Icon = TAB_ICONS[x];
-          return (
-            <button key={x} aria-current={tab === x ? "page" : undefined} onClick={() => setTab(x)} className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${tab === x ? "border-accent font-semibold" : "border-transparent text-muted hover:text-ink"}`}>
-              <Icon className="h-4 w-4" aria-hidden />
-              {t(`parties.tab.${x}` as TranslationKey)}
-            </button>
-          );
-        })}
+      <nav aria-label={t("parties.flow")}>
+        <ol className="flex flex-wrap gap-1.5">
+          {TABS.map((x, i) => {
+            const Icon = TAB_ICONS[x];
+            const here = tab === x;
+            return (
+              <li key={x}>
+                <button aria-current={here ? "step" : undefined} onClick={() => setTab(x)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${here ? "border-accent bg-accent-soft font-semibold" : "border-edge text-muted hover:text-ink"}`}>
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${here ? "bg-accent text-white" : "bg-base"}`}>{i + 1}</span>
+                  <Icon className="h-4 w-4" aria-hidden />
+                  {t(`parties.tab.${x}` as TranslationKey)}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
       </nav>
       {error && <p className="text-sm text-red-700">{error}</p>}
-      {tab === "invite" && <InviteTab party={party} change={change} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
-      {tab === "poster" && <PosterTab party={party} />}
+      {tab === "details" && <InviteTab party={party} change={change} />}
+      {tab === "design" && (
+        <div className="space-y-4">
+          <PosterTab party={party} />
+          <ThanksTab party={party} change={change} />
+        </div>
+      )}
       {tab === "guests" && <GuestsTab party={party} run={run} path={path} />}
       {tab === "tasks" && <TasksTab party={party} run={run} path={path} />}
       {tab === "budget" && <BudgetTab party={party} run={run} path={path} change={change} />}
-      {tab === "timeline" && <TimelineTab party={party} run={run} path={path} />}
-      {tab === "thanks" && <ThanksTab party={party} change={change} />}
+      {tab === "schedule" && <TimelineTab party={party} run={run} path={path} />}
+      {tab === "mailings" && <MailingsTab party={party} run={run} path={path} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
+      {TABS.indexOf(tab) < TABS.length - 1 && (
+        <div className="flex justify-end">
+          <button className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => { setTab(TABS[TABS.indexOf(tab) + 1]); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            {t("parties.next", { step: t(`parties.tab.${TABS[TABS.indexOf(tab) + 1]}` as TranslationKey) })}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 type TabProps = { party: Detail; run: (a: () => Promise<Detail>) => Promise<void>; path: string };
 
-function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void>; newLink: () => void }) {
-  const { t, dateLocale } = useI18n();
+function InviteTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
+  const { t } = useI18n();
   const people = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
   const [draft, setDraft] = useState({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" });
-  const [copied, setCopied] = useState(false);
   useEffect(() => setDraft({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" }), [party]);
-  const when = new Date(party.starts_at).toLocaleString(dateLocale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
-  const message = party.date_poll ? t("parties.shareVoteText", { title: party.title, link: party.link }) : t("parties.shareText", { title: party.title, when, link: party.link });
-
-  async function share() {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: party.title, text: message });
-        return;
-      }
-    } catch {
-      return;
-    }
-    await navigator.clipboard?.writeText(message);
-    setCopied(true);
-  }
-
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+    <div className="space-y-4">
       <DatePoll party={party} change={change} />
-      <section className="card grid gap-3 p-5 sm:grid-cols-2 lg:col-start-1" aria-label={t("parties.tab.invite")}>
+      <section className="card grid gap-3 p-5 sm:grid-cols-2" aria-label={t("parties.tab.details")}>
         <label className="sm:col-span-2"><span className="label">{t("parties.name")}</span><input className="input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
         <label><span className="label">{t("parties.when")}</span><input className="input" type="datetime-local" value={draft.starts} onChange={(e) => setDraft({ ...draft, starts: e.target.value })} /></label>
         <label><span className="label">{t("parties.ends")}</span><input className="input" type="datetime-local" value={draft.ends} onChange={(e) => setDraft({ ...draft, ends: e.target.value })} /></label>
@@ -414,19 +420,6 @@ function InviteTab({ party, change, newLink }: { party: Detail; change: (p: Reco
             {t("common.save")}
           </button>
         </div>
-      </section>
-      <section className="card space-y-3 p-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:w-80 lg:self-start" aria-label={t("parties.share")}>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.share")}</h2>
-        <p className="text-xs text-muted">{t("parties.shareHelp")}</p>
-        <div className="mx-auto w-44 rounded-lg bg-white p-2" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.qr_svg }} />
-        <input className="input text-xs" readOnly value={party.link} aria-label={t("parties.link")} onFocus={(e) => e.target.select()} />
-        <div className="flex flex-wrap gap-2">
-          <button className="btn-primary flex items-center gap-1.5" onClick={share}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
-          <button className="btn-ghost flex items-center gap-1.5" onClick={() => navigator.clipboard?.writeText(party.link).then(() => setCopied(true))}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
-        </div>
-        {copied && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
-        <a className="block text-xs text-accent hover:underline" href={party.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
-        <button className="text-xs text-muted hover:underline" onClick={() => window.confirm(t("parties.newLinkConfirm")) && newLink()}>{t("parties.newLink")}</button>
       </section>
     </div>
   );
@@ -630,12 +623,14 @@ function DatePoll({ party, change }: { party: Detail; change: (p: Record<string,
 
 function GuestsTab({ party, run, path }: TabProps) {
   const { t, dateLocale } = useI18n();
-  const [form, setForm] = useState({ first_name: "", last_name: "", coming: true, allergies: "" });
+  const blank = { first_name: "", last_name: "", email: "", allergies: "", status: "invited" as "invited" | "coming" | "not" };
+  const [form, setForm] = useState(blank);
   const people = party.guests;
+  const emails = people.filter((g) => g.email).map((g) => g.email).join(", ");
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
       <section className="card p-5" aria-label={t("parties.tab.guests")}>
-        <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}{party.children > 0 && <span className="font-normal text-muted"> · {t("parties.childrenN", { n: party.children })}</span>}</p>
+        <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}{party.children > 0 && <span className="font-normal text-muted"> · {t("parties.childrenN", { n: party.children })}</span>}{party.signed_up > 0 && <span className="font-normal text-muted"> · {t("parties.waitingN", { n: party.signed_up })}</span>}</p>
         {people.length === 0 ? (
           <EmptyState>{t("parties.noReplies")}</EmptyState>
         ) : (
@@ -645,7 +640,7 @@ function GuestsTab({ party, run, path }: TabProps) {
                 <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : g.pending ? "bg-amber-50 text-amber-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : g.pending ? t("parties.signedUp") : t("parties.no")}</span>
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
-                  {g.updates && g.email && <span className="ml-1 text-xs text-muted" title={g.email}>✉ {g.email}</span>}
+                  {g.email && <span className={`ml-1 text-xs ${g.updates ? "text-muted" : "text-muted line-through"}`} title={g.updates ? g.email : t("parties.noMails")}>✉ {g.email}</span>}
                   {g.allergies && <span className="text-muted"> · {g.allergies}</span>}
                   {party.date_poll && g.date_votes.length > 0 && <span className="block text-xs text-muted first-letter:uppercase">{t("parties.voted", { dates: g.date_votes.map((d) => new Date(d).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })).join(", ") })}</span>}
                   {g.companions.length > 0 && (
@@ -670,37 +665,29 @@ function GuestsTab({ party, run, path }: TabProps) {
             <ul className="space-y-1 text-sm">{party.allergies.map((a) => <li key={a.name}><span className="font-semibold">{a.name}:</span> {a.allergies}</li>)}</ul>
           )}
         </section>
-        {party.mail && <Announce party={party} path={path} />}
+        {emails && (
+          <section className="card space-y-2 p-5" aria-label={t("parties.emails")}>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.emails")}</h2>
+            <textarea className="input min-h-16 text-xs" readOnly value={emails} aria-label={t("parties.emails")} onFocus={(e) => e.target.select()} />
+            <button className="btn-ghost flex items-center gap-1.5 border border-edge text-sm" onClick={() => navigator.clipboard?.writeText(emails)}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
+          </section>
+        )}
         <section className="card space-y-2 p-5" aria-label={t("parties.addGuest")}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.addGuest")}</h2>
           <p className="text-xs text-muted">{t("parties.addGuestHelp")}</p>
           <input className="input" placeholder={t("parties.firstName")} aria-label={t("parties.firstName")} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
           <input className="input" placeholder={t("parties.lastName")} aria-label={t("parties.lastName")} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+          <input className="input" type="email" placeholder={t("party.email")} aria-label={t("party.email")} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <input className="input" placeholder={t("parties.allergiesPh")} aria-label={t("parties.allergiesLabel")} value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.coming} onChange={(e) => setForm({ ...form, coming: e.target.checked })} />{t("parties.coming")}</label>
-          <button className="btn-primary" disabled={!form.first_name.trim()} onClick={() => run(() => api.post<Detail>(`${path}/guests`, form)).then(() => setForm({ first_name: "", last_name: "", coming: true, allergies: "" }))}>{t("parties.add")}</button>
+          <select className="input" aria-label={t("parties.guestStatus")} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}>
+            <option value="invited">{t("parties.status.invited")}</option>
+            <option value="coming">{t("parties.status.coming")}</option>
+            <option value="not">{t("parties.status.not")}</option>
+          </select>
+          <button className="btn-primary" disabled={!form.first_name.trim() || (!!form.email && !form.email.includes("@"))} onClick={() => run(() => api.post<Detail>(`${path}/guests`, { first_name: form.first_name, last_name: form.last_name, email: form.email.trim() || null, allergies: form.allergies, coming: form.status === "coming", invited: form.status === "invited", updates: !!form.email.trim() })).then(() => setForm(blank))}>{t("parties.add")}</button>
         </section>
       </div>
     </div>
-  );
-}
-
-// A message by e-mail to the guests who asked for updates.
-function Announce({ party, path }: { party: Detail; path: string }) {
-  const { t } = useI18n();
-  const [form, setForm] = useState({ subject: "", text: "" });
-  const [note, setNote] = useState("");
-  return (
-    <section className="card space-y-2 p-5" aria-label={t("parties.announce")}>
-      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.announce")}</h2>
-      <p className="text-xs text-muted">{t("parties.announceHelp", { n: party.subscribers })}</p>
-      <input className="input" placeholder={t("parties.announceSubject")} aria-label={t("parties.announceSubject")} value={form.subject} maxLength={120} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-      <textarea className="input min-h-20" placeholder={t("parties.announceText")} aria-label={t("parties.announceText")} value={form.text} maxLength={4000} onChange={(e) => setForm({ ...form, text: e.target.value })} />
-      <button className="btn-primary" disabled={!party.subscribers || !form.subject.trim() || !form.text.trim()} onClick={() => api.post<{ sent: number }>(`${path}/announce`, form).then((r) => { setNote(t("parties.announced", { n: r.sent })); setForm({ subject: "", text: "" }); }).catch((e) => setNote(e instanceof Error ? e.message : t("common.error")))}>
-        {t("parties.announceSend")}
-      </button>
-      {note && <p className="text-xs text-accent" role="status">{note}</p>}
-    </section>
   );
 }
 
@@ -711,8 +698,15 @@ function TasksTab({ party, run, path }: TabProps) {
   return (
     <section className="card p-5" aria-label={t("parties.tab.tasks")}>
       <p className="mb-3 text-xs text-muted">{t("parties.tasksHelp")}</p>
+      {(["before", "day", "after", "none"] as const).map((when) => {
+        const day = localInput(party.starts_at).slice(0, 10);
+        const list = party.tasks.filter((x) => (!x.due_date ? "none" : x.due_date < day ? "before" : x.due_date === day ? "day" : "after") === when);
+        if (!list.length) return null;
+        return (
+          <div key={when} className="mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted">{t(`parties.when.${when}` as TranslationKey)}</h3>
       <ul className="divide-y divide-edge">
-        {party.tasks.map((task) => (
+        {list.map((task) => (
           <li key={task.id} className="flex items-center gap-3 py-2 text-sm">
             <input type="checkbox" className="h-4 w-4 accent-primary-700" aria-label={task.title} checked={task.done} onChange={(e) => run(() => api.put<Detail>(`${path}/tasks/${task.id}`, { done: e.target.checked }))} />
             <span className={`flex-1 ${task.done ? "text-muted line-through" : ""}`}>{task.title}</span>
@@ -721,6 +715,9 @@ function TasksTab({ party, run, path }: TabProps) {
           </li>
         ))}
       </ul>
+          </div>
+        );
+      })}
       <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (title.trim()) void run(() => api.post<Detail>(`${path}/tasks`, { title, due_date: due || null })).then(() => { setTitle(""); setDue(""); }); }}>
         <input className="input flex-1" placeholder={t("parties.newTask")} aria-label={t("parties.newTask")} value={title} onChange={(e) => setTitle(e.target.value)} />
         <input className="input !w-auto" type="date" aria-label={t("parties.due")} value={due} onChange={(e) => setDue(e.target.value)} />
@@ -770,25 +767,125 @@ function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record
 
 function TimelineTab({ party, run, path }: TabProps) {
   const { t } = useI18n();
-  const [form, setForm] = useState({ at: "", title: "" });
+  const [form, setForm] = useState({ at: "", title: "", hidden: false });
   return (
-    <section className="card p-5" aria-label={t("parties.tab.timeline")}>
+    <section className="card p-5" aria-label={t("parties.tab.schedule")}>
       <p className="mb-3 text-xs text-muted">{t("parties.timelineHelp")}</p>
       <ol className="space-y-1.5 text-sm">
         {party.steps.map((s) => (
           <li key={s.id} className="flex items-center gap-3">
             <span className="w-12 font-bold tabular-nums">{s.at}</span>
-            <span className="flex-1">{s.title}</span>
+            <span className={`flex-1 ${s.hidden ? "text-muted" : ""}`}>{s.title}{s.hidden && <span className="ml-2 text-xs">({t("parties.hiddenStep")})</span>}</span>
+            <button className="text-muted hover:text-ink" aria-label={s.hidden ? t("parties.showStep", { title: s.title }) : t("parties.hideStep", { title: s.title })} title={s.hidden ? t("parties.showStepShort") : t("parties.hideStepShort")} onClick={() => run(() => api.put<Detail>(`${path}/steps/${s.id}`, { hidden: !s.hidden }))}>{s.hidden ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}</button>
             <button className="text-muted hover:text-red-700" aria-label={t("common.remove")} onClick={() => run(() => api.del(`${path}/steps/${s.id}`).then(() => api.get<Detail>(path)))}><Trash2 className="h-4 w-4" aria-hidden /></button>
           </li>
         ))}
       </ol>
-      <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (form.at && form.title.trim()) void run(() => api.post<Detail>(`${path}/steps`, form)).then(() => setForm({ at: "", title: "" })); }}>
+      <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (form.at && form.title.trim()) void run(() => api.post<Detail>(`${path}/steps`, form)).then(() => setForm({ at: "", title: "", hidden: false })); }}>
         <input className="input !w-28" type="time" aria-label={t("parties.time")} value={form.at} onChange={(e) => setForm({ ...form, at: e.target.value })} />
         <input className="input flex-1" placeholder={t("parties.stepPh")} aria-label={t("parties.step")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} />{t("parties.hideStepShort")}</label>
         <button className="btn-primary" type="submit">{t("parties.add")}</button>
       </form>
     </section>
+  );
+}
+
+function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => void }) {
+  const { t, dateLocale } = useI18n();
+  const soon = new Date(Date.now() + 3_600_000);
+  const [form, setForm] = useState({ kind: party.phase === "save" ? "save" : "invite", audience: "all", subject: "", text: "", when: localInput(soon.toISOString()) });
+  const [copied, setCopied] = useState("");
+  const when = new Date(party.starts_at).toLocaleString(dateLocale, LONG);
+  const invite = party.date_poll ? t("parties.shareVoteText", { title: party.title, link: party.link }) : t("parties.shareText", { title: party.title, when, link: party.link });
+  const links: { key: string; label: string; link: string; text: string }[] = [{ key: "invite", label: party.phase === "save" ? t("parties.stage.save") : t("parties.stage.invite"), link: party.link, text: party.phase === "save" ? t("parties.shareSaveText", { title: party.title, when, link: party.link }) : invite }];
+  if (party.portal?.open) links.push({ key: "portal", label: t("parties.stage.portal"), link: party.portal.link, text: t("parties.sharePortalText", { title: party.title, link: party.portal.link }) });
+  const share = async (text: string, key: string) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: party.title, text });
+        return;
+      }
+    } catch {
+      return;
+    }
+    await navigator.clipboard?.writeText(text);
+    setCopied(key);
+  };
+  const add = (sendAt: Date) => run(() => api.post<Detail>(`${path}/mailings`, { kind: form.kind, audience: form.audience, subject: form.subject, text: form.text, send_at: sendAt.toISOString() })).then(() => setForm({ ...form, subject: "", text: "" }));
+  const reach = (aud: string) => party.guests.filter((g) => g.email && g.updates && (aud === "all" || (aud === "waiting" ? g.pending : g.coming))).length;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="card space-y-3 p-5" aria-label={t("parties.mailings")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.mailings")}</h2>
+        {!party.mail ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{t("parties.noMailService")}</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted">{t("parties.mailingsHelp")}</p>
+            {party.mailings.length > 0 && (
+              <ul className="divide-y divide-edge text-sm">
+                {party.mailings.map((m) => (
+                  <li key={m.id} className="flex items-center gap-2 py-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="font-semibold">{m.kind === "custom" ? m.subject : t(`parties.mail.${m.kind}` as TranslationKey)}</span>
+                      <span className="block text-xs text-muted">
+                        {t(`parties.audience.${m.audience}` as TranslationKey)} · {m.sent_at ? t("parties.mailSent", { n: m.sent_count, when: new Date(m.sent_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }) : t("parties.mailPlanned", { when: new Date(m.send_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}
+                      </span>
+                    </span>
+                    {!m.sent_at && <button className="text-muted hover:text-red-700" aria-label={t("common.remove")} onClick={() => run(() => api.del(`${path}/mailings/${m.id}`).then(() => api.get<Detail>(path)))}><Trash2 className="h-4 w-4" aria-hidden /></button>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="space-y-2 rounded-xl border border-edge p-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label><span className="label">{t("parties.mailKind")}</span>
+                  <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+                    {(["save", "invite", "remind", "thanks", "custom"] as const).map((k) => <option key={k} value={k}>{t(`parties.mail.${k}` as TranslationKey)}</option>)}
+                  </select>
+                </label>
+                <label><span className="label">{t("parties.mailTo")}</span>
+                  <select className="input" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })}>
+                    {(["all", "waiting", "coming"] as const).map((k) => <option key={k} value={k}>{`${t(`parties.audience.${k}` as TranslationKey)} (${reach(k)})`}</option>)}
+                  </select>
+                </label>
+              </div>
+              {form.kind === "custom" && (
+                <>
+                  <input className="input" placeholder={t("parties.announceSubject")} aria-label={t("parties.announceSubject")} value={form.subject} maxLength={120} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+                  <textarea className="input min-h-20" placeholder={t("parties.announceText")} aria-label={t("parties.announceText")} value={form.text} maxLength={4000} onChange={(e) => setForm({ ...form, text: e.target.value })} />
+                </>
+              )}
+              <label className="block"><span className="label">{t("parties.mailWhen")}</span><input className="input" type="datetime-local" value={form.when} onChange={(e) => setForm({ ...form, when: e.target.value })} /></label>
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-primary" disabled={form.kind === "custom" && (!form.subject.trim() || !form.text.trim())} onClick={() => add(new Date(form.when))}>{t("parties.mailPlan")}</button>
+                <button className="btn-ghost border border-edge" disabled={form.kind === "custom" && (!form.subject.trim() || !form.text.trim())} onClick={() => add(new Date())}>{t("parties.mailNow")}</button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+      <section className="card space-y-3 p-5" aria-label={t("parties.share")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.share")}</h2>
+        <p className="text-xs text-muted">{party.mail ? t("parties.shareHelp") : t("parties.shareHelpNoMail")}</p>
+        {links.map((l) => (
+          <div key={l.key} className="space-y-2 rounded-xl border border-edge p-3">
+            <p className="text-sm font-semibold">{l.label}</p>
+            <input className="input text-xs" readOnly value={l.link} aria-label={l.key === "portal" ? t("parties.portalLink") : t("parties.link")} onFocus={(e) => e.target.select()} />
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-primary flex items-center gap-1.5" onClick={() => share(l.text, l.key)}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
+              <button className="btn-ghost flex items-center gap-1.5" onClick={() => navigator.clipboard?.writeText(l.link).then(() => setCopied(l.key))}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
+              <a className="btn-ghost text-sm" href={l.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
+            </div>
+            {copied === l.key && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
+          </div>
+        ))}
+        <div className="mx-auto w-40 rounded-lg bg-white p-2" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.qr_svg }} />
+        <button className="text-xs text-muted hover:underline" onClick={() => window.confirm(t("parties.newLinkConfirm")) && newLink()}>{t("parties.newLink")}</button>
+      </section>
+    </div>
   );
 }
 
@@ -797,7 +894,8 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
   const albums = useApi<Album[]>("/api/albums").data ?? NONE;
   const [text, setText] = useState(party.thanks_text);
   return (
-    <section className="card space-y-3 p-5" aria-label={t("parties.tab.thanks")}>
+    <section className="card space-y-3 p-5" aria-label={t("parties.thanksSection")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.thanksSection")}</h2>
       <p className="text-xs text-muted">{t("parties.thanksHelp")}</p>
       <label className="block"><span className="label">{t("parties.thanksText")}</span><textarea className="input min-h-24" value={text} maxLength={4000} placeholder={t("parties.thanksPh")} onChange={(e) => setText(e.target.value)} /></label>
       <ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} />
