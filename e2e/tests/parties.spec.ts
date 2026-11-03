@@ -173,7 +173,7 @@ test("the hosts edit the invitation's poster", async ({ adminPage: page, adminAp
     // The welcome line: a text of our own, centred, in the gala handwriting.
     await parts.getByRole("button", { name: /^Text Welcome to/ }).click();
     const settings = page.getByRole("region", { name: "The part's settings" });
-    await settings.getByRole("textbox", { name: "The text", exact: true }).fill("Skål för {title}!");
+    await settings.getByRole("textbox", { name: "The text", exact: true }).fill("Skål för {namn}!");
     await settings.getByRole("radio", { name: "Centred" }).click();
     // The decoration row: a champagne bottle instead of the first emoji.
     await parts.getByRole("button", { name: /^Decoration row/ }).click();

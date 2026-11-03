@@ -54,6 +54,8 @@ export type PosterData = {
   inviteImage: string | null; asset: (id: string) => string; ics: string; thanks: boolean;
 };
 export const TOKENS = ["title", "family", "date", "weekday", "time", "place", "address", "theme", "rsvp", "invitation"] as const;
+// The same fields by their names in the five languages: {namn}, {datum} … work as well as {title}.
+const ALIASES: Record<string, string> = {"title": "title", "name": "title", "namn": "title", "navn": "title", "nimi": "title", "family": "family", "familj": "family", "familie": "family", "perhe": "family", "date": "date", "datum": "date", "dato": "date", "päivä": "date", "weekday": "weekday", "veckodag": "weekday", "ukedag": "weekday", "ugedag": "weekday", "viikonpäivä": "weekday", "time": "time", "tid": "time", "aika": "time", "place": "place", "plats": "place", "sted": "place", "paikka": "place", "address": "address", "adress": "address", "adresse": "address", "osoite": "address", "theme": "theme", "tema": "theme", "teema": "theme", "rsvp": "rsvp", "osa": "rsvp", "svarfrist": "rsvp", "vastaus": "rsvp", "invitation": "invitation", "inbjudan": "invitation", "invitasjon": "invitation", "kutsu": "invitation"};
 
 export function fill(text: string, d: PosterData, pending: string): string {
   const time = (x: Date) => x.toLocaleTimeString(d.locale, { hour: "2-digit", minute: "2-digit" });
@@ -64,7 +66,7 @@ export function fill(text: string, d: PosterData, pending: string): string {
     time: d.poll ? "" : `${time(d.start)}–${time(d.end)}`,
     rsvp: d.rsvp ? d.rsvp.toLocaleDateString(d.locale, { day: "numeric", month: "long" }) : "",
   };
-  return text.replace(/\{(\w+)\}/g, (all, k: string) => (k in values ? values[k] : all)).trim();
+  return text.replace(/\{([\p{L}]+)\}/gu, (all, k: string) => { const key = ALIASES[k.toLowerCase()] ?? k; return key in values ? values[key] : all; }).trim();
 }
 
 // The calendar buttons: a file for any calendar, or straight into Google's or Outlook's.
@@ -91,16 +93,18 @@ const DETAILS: Record<ThemeCategory | "custom", "ticket" | "card" | "list" | "bi
 // A theme's poster, in the hosts' language: the hero (texts beside the picture or an emblem), the
 // details, the calendar buttons, the countdown and the invitation.
 export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "inviteImage" | "emoji" | "invitation" | "thanks">, t: T): Block[] {
+  // The fields by their names in the hosts' language, so the editor reads naturally: {namn}, {datum} …
+  const f = (k: (typeof TOKENS)[number]) => `{${t(`poster.token.${k}` as TranslationKey)}}`;
   const side: Side = "left";
   const out: Block[] = [
-    { id: uid(), type: "text", side, text: `${d.thanks ? t("party.thanks") : t("party.invited")} · {date}`, font: "theme-body", size: "s", color: "accent", caps: true },
+    { id: uid(), type: "text", side, text: `${d.thanks ? t("party.thanks") : t("party.invited")} · ${f("date")}`, font: "theme-body", size: "s", color: "accent", caps: true },
     { id: uid(), type: "text", side, text: d.thanks ? t("party.thanksFor") : t("party.welcomeTo"), font: "theme-script", size: "l" },
-    { id: uid(), type: "text", side, text: "{title}", font: "theme-display", size: "xxl", color: "gold" },
+    { id: uid(), type: "text", side, text: f("title"), font: "theme-display", size: "xxl", color: "gold" },
     { id: uid(), type: "divider", side, style: "swash" },
   ];
-  if (d.theme) out.push({ id: uid(), type: "text", side, text: "{theme}", font: "theme-script", size: "l" });
+  if (d.theme) out.push({ id: uid(), type: "text", side, text: f("theme"), font: "theme-script", size: "l" });
   out.push(
-    { id: uid(), type: "text", side, text: t("party.from", { family: "{family}" }), font: "theme-body", size: "s", color: "muted", caps: true },
+    { id: uid(), type: "text", side, text: t("party.from", { family: f("family") }), font: "theme-body", size: "s", color: "muted", caps: true },
     { id: uid(), type: "decor", side, items: theme.decor.map((e) => ({ kind: "emoji", value: e })), size: "m" },
     d.inviteImage
       ? { id: uid(), type: "image", side: "right", source: "invite", style: "poster", tag: d.thanks ? "" : t("party.saveTheDate") }
@@ -109,7 +113,7 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
     { id: uid(), type: "calendar", buttons: ["ics", "google", "outlook", "apple"], map: true },
     { id: uid(), type: "countdown", heading: t("party.countdown"), font: "theme-script", size: "xl", align: "center" },
   );
-  if (d.invitation) out.push({ id: uid(), type: "invitation", text: "{invitation}", ribbon: t("party.welcomeAll"), size: "m" });
+  if (d.invitation) out.push({ id: uid(), type: "invitation", text: f("invitation"), ribbon: t("party.welcomeAll"), size: "m" });
   return out;
 }
 
@@ -124,7 +128,7 @@ export function blankBlock(type: BlockType, theme: PartyTheme, t: T): Block {
     case "details": return { id, type, variant: "card", heading: t("party.about"), fields: ["when", "where"], font: "theme-display", size: "l" };
     case "countdown": return { id, type, heading: t("party.countdown"), font: "theme-script", size: "xl", align: "center" };
     case "calendar": return { id, type, buttons: ["ics", "google"], map: true };
-    case "invitation": return { id, type, text: "{invitation}", size: "m" };
+    case "invitation": return { id, type, text: `{${t("poster.token.invitation")}}`, size: "m" };
     case "ribbon": return { id, type, text: t("party.welcomeAll") };
     case "divider": return { id, type, style: "swash" };
     case "spacer": return { id, type, size: "m" };

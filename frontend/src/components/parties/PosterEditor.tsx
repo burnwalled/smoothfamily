@@ -123,7 +123,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, onS
       <div className="space-y-1">
         <Tag className={`input ${multi ? "min-h-20" : ""}`} value={value ?? ""} maxLength={2000} onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => patch(b.id, { [field]: e.target.value } as Partial<Block>)} aria-label={t("poster.text")} />
         <div className="flex flex-wrap gap-1" aria-label={t("poster.tokens")}>
-          {TOKENS.map((k) => <button key={k} type="button" className="rounded border border-edge px-1.5 text-[11px] text-muted hover:text-ink" onClick={() => patch(b.id, { [field]: `${value ?? ""}{${k}}` } as Partial<Block>)}>{`{${T(`poster.token.${k}`)}}`}</button>)}
+          {TOKENS.map((k) => <button key={k} type="button" className="rounded border border-edge px-1.5 text-[11px] text-muted hover:text-ink" onClick={() => patch(b.id, { [field]: `${value ?? ""}{${T(`poster.token.${k}`)}}` } as Partial<Block>)}>{`{${T(`poster.token.${k}`)}}`}</button>)}
         </div>
       </div>
     );

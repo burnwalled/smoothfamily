@@ -274,7 +274,7 @@ function rows(blocks: Block[]): ({ kind: "full"; b: Block } | { kind: "pair"; le
 }
 
 export default function Poster({ blocks, d, theme, selected, onSelect }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void }) {
-  const titleId = blocks.find((b) => b.type === "text" && b.text.includes("{title}"))?.id;
+  const titleId = blocks.find((b) => b.type === "text" && /\{(title|name|namn|navn|nimi)\}/i.test(b.text))?.id;
   const wrap = (b: Block) => {
     const view = <BlockView b={b} d={d} theme={theme} first={b.id === titleId} />;
     if (!onSelect) return <div key={b.id}>{view}</div>;
