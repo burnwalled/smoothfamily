@@ -7,11 +7,14 @@
 // keys to change your reply and your reservations stay in this browser.
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CalendarPlus, ExternalLink, Gift, Heart, MapPin, Plus, X } from "lucide-react";
+import { CalendarPlus, ExternalLink, Gift, Heart, MapPin, Navigation, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
 import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
-import { MapLinks } from "@/components/AddressInput";
+import { FONTS } from "@/lib/partyFonts";
+import { mapLinks } from "@/lib/maps";
+import PartySky from "@/components/parties/PartySky";
+import "./party.css";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
@@ -53,6 +56,26 @@ function keep(name: string, key: string, value: string | null) {
     else delete all[key];
     localStorage.setItem(name, JSON.stringify(all));
   } catch {}
+}
+
+function Countdown({ to }: { to: number }) {
+  const { t } = useI18n();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const s = Math.max(0, Math.floor((to - now) / 1000));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const parts: [string, string][] = [[String(Math.floor(s / 86400)), t("party.days")], [pad(Math.floor((s % 86400) / 3600)), t("party.hours")], [pad(Math.floor((s % 3600) / 60)), t("party.minutes")], [pad(s % 60), t("party.seconds")]];
+  return (
+    <section className="py-10 text-center" aria-label={t("party.countdown")}>
+      <h2 className="pt-script text-4xl sm:text-5xl">{t("party.countdown")}</h2>
+      <div className="mt-6 flex justify-center gap-2 sm:gap-6" role="timer" aria-live="off">
+        {parts.map(([v, label]) => <div key={label} className="pt-dial"><b>{v}</b><small>{label}</small></div>)}
+      </div>
+    </section>
+  );
 }
 
 export default function PartyInvitation() {
@@ -145,33 +168,58 @@ export default function PartyInvitation() {
   const themeKey = page.thanks ? page.thanks_theme : page.page_theme;
   const own = page.thanks ? page.thanks_custom : page.page_custom;
   const theme = themeKey === "custom" && own ? customTheme(own, (slot, v) => `/api/party/${token}/themes/${own.id}/${slot}?v=${v}`) : partyTheme(themeKey);
-  const button = { backgroundColor: theme.accent, borderColor: theme.accent };
   const poll = page.date_poll;
   const coming = poll || form.coming;
   const most = page.bring === "one" ? 1 : page.bring === "family" ? 20 : 0;
   const setCompanion = (i: number, patch: Partial<Companion>) => setForm({ ...form, companions: form.companions.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   const vote = (option: string, on: boolean) => setForm({ ...form, date_votes: on ? [...form.date_votes, option] : form.date_votes.filter((x) => x !== option) });
 
+  const fonts = FONTS[theme.fonts];
+  const startsIn = start.getTime() - Date.now();
+  const where = [page.place, page.address].filter(Boolean).join(", ");
+  const dayShort = start.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long", year: start.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined });
+  const rsvp = page.rsvp_by ? new Date(`${page.rsvp_by}T12:00:00`) : null;
+  // A long title gets smaller letters, so the words fit on their lines.
+  const longest = Math.max(...page.title.split(/\s+/).map((w) => w.length));
+  const titleSize = longest > 13 || page.title.length > 28 ? "text-4xl sm:text-5xl lg:text-6xl" : longest > 9 || page.title.length > 18 ? "text-5xl sm:text-6xl" : "text-5xl sm:text-7xl";
+
   return (
-    <main className="min-h-screen" style={themeStyle(theme)}>
-      <div className="h-2" style={{ background: theme.band }} />
+    <main className="pt" lang={page.language} style={themeStyle(theme)}>
+      <PartySky effect={theme.effect} colors={theme.sparks} />
+      <div className="relative z-10 h-2" style={{ background: theme.band }} />
       {theme.header && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={theme.header} alt="" className="mx-auto h-40 w-full max-w-3xl object-cover sm:h-56 sm:rounded-b-3xl" />
+        <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
-      <div className="mx-auto max-w-xl space-y-5 p-5">
-        <header className="pt-4 text-center" style={{ color: theme.ink }}>
-          <p className="text-6xl drop-shadow-sm" aria-hidden>{page.emoji}</p>
-          <h1 className="mt-2 text-4xl font-black tracking-tight drop-shadow-sm">{page.title}</h1>
-          <p className="mt-1 text-sm opacity-80">{t("party.from", { family: page.family_name })}</p>
-          <p className="mt-3 flex justify-center gap-3 text-3xl" aria-hidden>{theme.decor.map((d, i) => <span key={i} className="inline-block" style={{ transform: `rotate(${(i - (theme.decor.length - 1) / 2) * 9}deg) translateY(${i % 2 ? 4 : -4}px)` }}>{d}</span>)}</p>
+      <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-6 sm:px-6">
+        <header className="grid items-center gap-10 py-10 sm:py-14 md:grid-cols-[1.05fr_.95fr]">
+          <div className="min-w-0">
+            <p className="pt-eyebrow pt-reveal">{page.thanks ? t("party.thanks") : t("party.invited")}{!poll && !page.thanks && <span className="tracking-[.2em] first-letter:uppercase"> · {dayShort}</span>}</p>
+            <h1 className="pt-reveal pt-d2 mt-4">
+              <span className="pt-script block -rotate-3 text-4xl sm:text-5xl">{page.thanks ? t("party.thanksFor") : t("party.welcomeTo")}</span>
+              <span className={`pt-display pt-gold mt-1 block leading-[.95] ${titleSize} ${fonts.caps ? "uppercase" : ""}`} style={{ filter: "drop-shadow(0 4px 18px rgba(0,0,0,.18))", hyphens: "auto", overflowWrap: "break-word" }}>{page.title}</span>
+            </h1>
+            <svg className="mt-4 h-5 w-[min(320px,70%)]" viewBox="0 0 320 22" fill="none" aria-hidden><path d="M4 14C70 2 170 2 316 12" stroke="var(--pt-accent)" strokeWidth="3" strokeLinecap="round" /><path d="M60 19C120 12 200 11 260 16" stroke="var(--pt-lo)" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            {page.theme && <p className="pt-script pt-reveal pt-d3 mt-5 text-3xl leading-tight">{page.theme}</p>}
+            <p className="pt-reveal pt-d4 mt-5 text-sm uppercase tracking-[.2em] text-muted">{t("party.from", { family: page.family_name })}</p>
+            <p className="mt-4 flex gap-3 text-3xl" aria-hidden>{theme.decor.map((d, i) => <span key={i} className="inline-block" style={{ transform: `rotate(${(i - (theme.decor.length - 1) / 2) * 9}deg) translateY(${i % 2 ? 4 : -4}px)` }}>{d}</span>)}</p>
+          </div>
+          {page.invite_image ? (
+            <figure className="pt-poster pt-reveal pt-d3 m-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/party/${token}/picture?v=${page.invite_image}`} alt="" />
+              {!page.thanks && <span className="pt-tag">{t("party.saveTheDate")}</span>}
+            </figure>
+          ) : (
+            <div className="pt-medal pt-reveal pt-d3" aria-hidden>{page.emoji}</div>
+          )}
         </header>
-        {stopped && <p className="card p-4 text-sm" role="status">{t("party.stopped")}</p>}
+        {stopped && <p className="pt-card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
         {page.thanks && (
-          <section className="card space-y-3 p-5" aria-label={t("party.thanks")}>
-            <h2 className="flex items-center gap-2 text-lg font-bold"><Heart className="h-5 w-5 text-accent" aria-hidden />{t("party.thanks")}</h2>
-            {page.thanks.text && <p className="whitespace-pre-line">{page.thanks.text}</p>}
+          <section className="pt-card space-y-3 p-5 sm:p-8" aria-label={t("party.thanks")}>
+            <h2 className="pt-script flex items-center gap-2 text-4xl"><Heart className="h-6 w-6 text-accent" aria-hidden />{t("party.thanks")}</h2>
+            {page.thanks.text && <p className="whitespace-pre-line text-lg">{page.thanks.text}</p>}
             {page.thanks.photos.length > 0 && (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {page.thanks.photos.map((id) => (
@@ -185,37 +233,65 @@ export default function PartyInvitation() {
           </section>
         )}
 
-        <section className="card space-y-2 p-5" aria-label={t("party.about")}>
-          {page.invite_image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={`/api/party/${token}/picture?v=${page.invite_image}`} alt="" className="-mx-5 -mt-5 mb-3 max-h-80 w-[calc(100%+2.5rem)] max-w-none rounded-t-xl object-cover" />
-          )}
-          <p className="font-semibold first-letter:uppercase">{poll ? t("party.datePending") : when}</p>
-          {(page.place || page.address) && (
-            <>
-              <p className="flex items-start gap-1.5 text-sm"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />{[page.place, page.address].filter(Boolean).join(", ")}</p>
-              <MapLinks address={page.address || page.place} className="pl-6" />
-            </>
-          )}
-          {page.theme && <p className="text-sm text-muted">{t("party.theme", { theme: page.theme })}</p>}
-          {page.invitation && <p className="whitespace-pre-line pt-2">{page.invitation}</p>}
-          {!poll && (
-            <a className="inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-accent hover:underline" href={`/api/party/${token}/calendar.ics`}>
-              <CalendarPlus className="h-4 w-4" aria-hidden />
-              {t("party.addToCalendar")}
-            </a>
-          )}
-          {page.guests && (
-            <p className="pt-1 text-sm text-muted">
-              {t("party.comingN", { n: page.guests.coming })}
-              {page.guests.names && page.guests.names.length > 0 && `: ${page.guests.names.join(", ")}`}
-            </p>
-          )}
+        <section aria-label={t("party.about")}>
+          <div className="pt-card pt-ticket">
+            <div className="pt-ticket-main">
+              <div className="pt-ticket-head">
+                <h2 className={`pt-display pt-gold text-3xl ${fonts.caps ? "uppercase" : ""}`}>{t("party.ticket")}</h2>
+                {page.guests && page.guests.coming > 0 && <span className="text-xs uppercase tracking-[.25em] text-muted">{t("party.comingN", { n: page.guests.coming })}</span>}
+              </div>
+              <div>
+                <div className="pt-k">{t("party.when")}</div>
+                {poll ? <div className="pt-s">{t("party.datePending")}</div> : (
+                  <>
+                    <div className="pt-v">{start.toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}</div>
+                    <div className="pt-s first-letter:uppercase">{`${start.toLocaleDateString(dateLocale, { weekday: "long" })} · ${start.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}–${end.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}`}</div>
+                  </>
+                )}
+              </div>
+              <div>
+                <div className="pt-k">{t("party.where")}</div>
+                <div className="pt-v">{page.place || page.address || "–"}</div>
+                {page.place && page.address && <div className="pt-s">{page.address}</div>}
+                {where && <div className="pt-s"><a className="text-accent underline underline-offset-2" href={mapLinks(page.address || page.place).osm} target="_blank" rel="noreferrer">{t("places.onMap")}</a> · <a className="underline underline-offset-2" href={mapLinks(page.address || page.place).google} target="_blank" rel="noreferrer">Google Maps</a> · <a className="underline underline-offset-2" href={mapLinks(page.address || page.place).apple} target="_blank" rel="noreferrer">{t("places.appleMaps")}</a></div>}
+              </div>
+              {(page.theme || (page.guests?.names?.length ?? 0) > 0) && (
+                <div className="pt-wide">
+                  <div className="pt-k">{page.theme ? t("party.what") : t("party.comingN", { n: page.guests?.coming ?? 0 })}</div>
+                  {page.theme && <div className="pt-v">{page.theme}</div>}
+                  {page.guests?.names && page.guests.names.length > 0 && <div className="pt-s">{page.guests.names.join(", ")}</div>}
+                </div>
+              )}
+            </div>
+            <div className="pt-stub" aria-hidden={!rsvp}>
+              {rsvp ? (
+                <>
+                  <div className="pt-k">{t("party.rsvpShort")}</div>
+                  <div className="pt-stub-num pt-gold">{rsvp.getDate()}/{rsvp.getMonth() + 1}</div>
+                </>
+              ) : (
+                <div className="text-5xl">{page.emoji}</div>
+              )}
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {!poll && <a className="pt-btn" href={`/api/party/${token}/calendar.ics`}><CalendarPlus className="h-4 w-4" aria-hidden />{t("party.addToCalendar")}</a>}
+            {where && <a className="pt-ghost" href={mapLinks(page.address || page.place).osm} target="_blank" rel="noreferrer"><Navigation className="h-4 w-4" aria-hidden />{t("party.findWay")}</a>}
+          </div>
         </section>
 
+        {!poll && !page.thanks && startsIn > 0 && <Countdown to={start.getTime()} />}
+
+        {page.invitation && (
+          <section className="pt-card p-5 sm:p-8" aria-label={t("parties.invitation")}>
+            <p className="whitespace-pre-line text-lg leading-relaxed">{page.invitation}</p>
+            {!page.thanks && <span className="pt-ribbon mt-5">{t("party.welcomeAll")}</span>}
+          </section>
+        )}
+
         {page.open && (
-          <section className="card space-y-3 p-5" aria-label={t("party.reply")}>
-            <h2 className="text-lg font-bold">{page.mine ? t("party.yourReply") : t("party.reply")}</h2>
+          <section className="pt-card space-y-3 p-5 sm:p-8" aria-label={t("party.reply")}>
+            <h2 className={`pt-display text-3xl ${fonts.caps ? "uppercase" : ""}`}>{page.mine ? t("party.yourReply") : t("party.reply")}</h2>
             {page.rsvp_by && <p className="text-sm text-muted">{t("party.rsvpBy", { date: new Date(`${page.rsvp_by}T12:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "long" }) })}</p>}
             {poll ? (
               <fieldset className="space-y-2">
@@ -290,13 +366,13 @@ export default function PartyInvitation() {
             )}
             {error && <p className="text-sm text-red-700">{error}</p>}
             {saved && <p className="text-sm font-semibold text-accent" role="status">{poll ? t("party.savedVoted") : form.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
-            <button className="btn-primary w-full" style={button} disabled={!form.first_name.trim() || form.companions.some((c) => !c.first_name.trim())} onClick={send}>{page.mine ? t("party.update") : poll ? t("party.vote") : t("party.send")}</button>
+            <button className="pt-btn w-full" disabled={!form.first_name.trim() || form.companions.some((c) => !c.first_name.trim())} onClick={send}>{page.mine ? t("party.update") : poll ? t("party.vote") : t("party.send")}</button>
           </section>
         )}
 
         {page.wishes && page.wishes.length > 0 && (
-          <section className="card space-y-2 p-5" aria-label={t("party.wishes")}>
-            <h2 className="flex items-center gap-2 text-lg font-bold"><Gift className="h-5 w-5 text-accent" aria-hidden />{t("party.wishes")}</h2>
+          <section className="pt-card space-y-2 p-5 sm:p-8" aria-label={t("party.wishes")}>
+            <h2 className={`pt-display flex items-center gap-2 text-3xl ${fonts.caps ? "uppercase" : ""}`}><Gift className="h-5 w-5 text-accent" aria-hidden />{t("party.wishes")}</h2>
             <p className="text-xs text-muted">{t("party.wishesHelp")}</p>
             <ul className="divide-y divide-edge text-sm">
               {page.wishes.map((w) => {
@@ -321,6 +397,9 @@ export default function PartyInvitation() {
             </ul>
           </section>
         )}
+        <footer className="py-10 text-center text-sm uppercase tracking-[.2em] text-muted">
+          {t("party.welcomeAll")} <span className="text-accent">♥</span> {page.family_name}
+        </footer>
       </div>
     </main>
   );

@@ -43,7 +43,8 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     await expect(reply.getByRole("button", { name: "I'm bringing a +1" })).toHaveCount(0);
     await reply.getByRole("button", { name: "Send the reply" }).click();
     await expect(g.getByRole("status")).toContainText("see you there");
-    await expect(g.getByText(/2 coming: Saga Berg, Ella Berg/)).toBeVisible();
+    await expect(g.getByText("2 coming").first()).toBeVisible();
+    await expect(g.getByText("Saga Berg, Ella Berg")).toBeVisible();
     await guest.close();
 
     // The hosts see it, with the allergies gathered.
@@ -156,6 +157,7 @@ test("a party kept from an older version still opens", async ({ adminPage: page,
     await page.getByRole("button", { name: "Guests" }).click();
     await expect(page.getByRole("region", { name: "Guests" }).getByText("Saga Berg")).toBeVisible();
   } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
     await adminApi.delete(`/api/parties/${made.id}`);
   }
 });

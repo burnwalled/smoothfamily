@@ -428,6 +428,7 @@ function InvitePicture({ party }: { party: Detail }) {
   return (
     <div className="space-y-1">
       <span className="label">{t("parties.invitePicture")}</span>
+      <span className="block text-xs text-muted">{t("parties.invitePictureHelp")}</span>
       {party.invite_image ? (
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -7,6 +7,7 @@ import { ChevronDown, Pencil, Plus } from "lucide-react";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/query";
 import { CATEGORIES, CustomTheme, PARTY_THEMES, PartyTheme, customTheme, kindCategory, themeStyle } from "@/lib/partyThemes";
+import { FONTS } from "@/lib/partyFonts";
 import ThemeEditor from "@/components/parties/ThemeEditor";
 
 export const THEMES_PATH = "/api/parties/themes";
@@ -21,7 +22,8 @@ export function ThemeSwatch({ theme, label, selected, onClick }: { theme: PartyT
           // eslint-disable-next-line @next/next/no-img-element
           <img src={theme.header} alt="" className="absolute inset-x-0 top-1.5 h-5 w-full object-cover" />
         )}
-        <span className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-0.5 text-base" aria-hidden>{theme.decor.slice(0, 4).join("")}</span>
+        <span className="absolute inset-x-0 top-3 text-center text-lg leading-none" style={{ fontFamily: FONTS[theme.fonts].display, color: theme.accent }} aria-hidden>Aa</span>
+        <span className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-0.5 text-sm" aria-hidden>{theme.decor.slice(0, 4).join("")}</span>
       </span>
       <span className="mt-1 block truncate font-semibold">{label}</span>
     </button>

@@ -1,0 +1,75 @@
+/* A party's page for the guests (3.4.0): a poster in the theme's palette. The theme sets the
+   variables (--pt-*) on .pt; the app's own classes inside it take the theme's colours. */
+.pt { position: relative; min-height: 100vh; overflow-x: clip; }
+.pt .pt-display { font-family: var(--pt-display); font-weight: 400; }
+.pt .pt-script { font-family: var(--pt-script); font-weight: 400; }
+.pt .pt-gold {
+  background: linear-gradient(180deg, var(--pt-hi) 0%, var(--pt-accent) 48%, var(--pt-lo) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.pt .pt-eyebrow { display: flex; align-items: center; gap: 14px; font-size: .78rem; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: var(--pt-accent); }
+.pt .pt-eyebrow::before { content: ""; width: 36px; height: 1px; background: currentColor; }
+.pt .pt-card {
+  background: var(--pt-surface); color: var(--pt-ink); border: 1px solid var(--pt-line); border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .18); backdrop-filter: blur(6px);
+}
+.pt .pt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 11px 22px;
+  font-weight: 600; letter-spacing: .04em; background: linear-gradient(180deg, var(--pt-hi), var(--pt-accent));
+  color: var(--pt-on-accent); box-shadow: 0 10px 28px color-mix(in srgb, var(--pt-accent) 35%, transparent); transition: transform .2s;
+}
+.pt .pt-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.pt .pt-btn:disabled { opacity: .5; cursor: not-allowed; }
+.pt .pt-ghost { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 10px 20px; font-weight: 600; border: 1px solid var(--pt-line); color: var(--pt-ink); background: color-mix(in srgb, var(--pt-surface) 60%, transparent); }
+.pt .pt-btn:focus-visible, .pt .pt-ghost:focus-visible { outline: 2px solid var(--pt-hi); outline-offset: 3px; }
+
+/* The ticket: when, where and why, with its stub. */
+.pt .pt-ticket { display: grid; grid-template-columns: 1fr auto; overflow: hidden; position: relative; }
+.pt .pt-ticket-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 3vw, 32px); padding: clamp(20px, 4vw, 40px); }
+.pt .pt-ticket-head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px dashed var(--pt-line); padding-bottom: 16px; }
+.pt .pt-k { font-size: .7rem; letter-spacing: .28em; text-transform: uppercase; color: var(--pt-accent); }
+.pt .pt-v { margin-top: 6px; font-family: var(--pt-display); font-size: clamp(1.35rem, 2.8vw, 1.9rem); line-height: 1.1; }
+.pt .pt-s { margin-top: 6px; font-size: .92rem; color: var(--pt-muted); }
+.pt .pt-stub { width: clamp(140px, 20vw, 210px); border-left: 2px dashed var(--pt-line); padding: 22px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.pt .pt-stub-num { font-family: var(--pt-display); font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 1; }
+
+/* The countdown. */
+.pt .pt-dial {
+  width: clamp(64px, 19vw, 128px); aspect-ratio: 1; border-radius: 50%; border: 1px solid var(--pt-line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--pt-accent) 18%, transparent), transparent 70%), var(--pt-surface);
+}
+.pt .pt-dial b { font-family: var(--pt-display); font-weight: 400; font-size: clamp(1.6rem, 5vw, 2.8rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.pt .pt-dial small { margin-top: 4px; font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--pt-muted); }
+
+/* The poster: the invitation's own picture, tilted, with its tag. */
+.pt .pt-poster { position: relative; justify-self: center; width: min(420px, 100%); transform: rotate(2deg); transition: transform .6s cubic-bezier(.2, .8, .2, 1); }
+.pt .pt-poster:hover { transform: rotate(0) scale(1.015); }
+.pt .pt-poster img { display: block; width: 100%; border-radius: 8px; border: 1px solid var(--pt-lo); box-shadow: 0 30px 80px rgba(0, 0, 0, .45), 0 0 0 8px var(--pt-surface), 0 0 0 9px var(--pt-lo); }
+.pt .pt-tag { position: absolute; left: -14px; bottom: 26px; background: var(--pt-accent); color: var(--pt-on-accent); font-family: var(--pt-script); font-size: 1.45rem; padding: 2px 18px 6px; transform: rotate(-6deg); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.pt .pt-medal { width: min(300px, 80%); aspect-ratio: 1; border-radius: 50%; justify-self: center; display: grid; place-items: center; font-size: clamp(5rem, 16vw, 8rem); border: 2px solid var(--pt-accent); background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--pt-accent) 22%, transparent), var(--pt-surface) 70%); box-shadow: 0 0 0 10px color-mix(in srgb, var(--pt-surface) 70%, transparent), 0 0 0 11px var(--pt-line), 0 30px 80px rgba(0, 0, 0, .3); }
+.pt .pt-ribbon { display: inline-block; background: var(--pt-accent); color: var(--pt-on-accent); font-family: var(--pt-script); font-size: 1.5rem; padding: 2px 24px 6px; transform: rotate(-3deg); clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%); }
+
+/* The app's own pieces, in the theme's colours. */
+.pt .input { background: var(--pt-field); border-color: var(--pt-line); color: var(--pt-ink); }
+.pt .input::placeholder { color: var(--pt-muted); opacity: .8; }
+.pt .label, .pt .text-muted { color: var(--pt-muted); }
+.pt .border-edge { border-color: var(--pt-line); }
+.pt .divide-edge > :not(:first-child) { border-color: var(--pt-line); }
+.pt .text-accent { color: var(--pt-accent); }
+.pt .bg-accent-soft { background: color-mix(in srgb, var(--pt-accent) 16%, transparent); }
+.pt .bg-base\/60 { background: color-mix(in srgb, var(--pt-ink) 6%, transparent); }
+.pt input[type="checkbox"] { accent-color: var(--pt-accent); }
+
+@keyframes pt-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.pt .pt-reveal { animation: pt-rise .9s cubic-bezier(.2, .8, .2, 1) both; }
+.pt .pt-d2 { animation-delay: .15s; } .pt .pt-d3 { animation-delay: .3s; } .pt .pt-d4 { animation-delay: .45s; }
+
+@media (max-width: 820px) {
+  .pt .pt-ticket { grid-template-columns: 1fr; }
+  .pt .pt-ticket-main { grid-template-columns: 1fr 1fr; }
+  .pt .pt-wide { grid-column: 1 / -1; }
+  .pt .pt-stub { width: auto; border-left: 0; border-top: 2px dashed var(--pt-line); flex-direction: row; gap: 18px; }
+}
+@media (max-width: 460px) { .pt .pt-ticket-main { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .pt .pt-reveal { animation: none; } .pt .pt-poster, .pt .pt-btn { transition: none; } }
