@@ -1608,6 +1608,8 @@ class KioskScreen(Base):
     theme: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # The smart home devices it may control (3.0.4): ExposedDevice ids; None = none.
     devices: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The fox dresses up for the holidays and the family's birthdays (3.4.0).
+    fox_themes: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # The app version the screen last ran (3.1.0).
     app_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
 

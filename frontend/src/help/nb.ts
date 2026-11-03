@@ -983,6 +983,9 @@ const texts: Record<string, TopicText> = {
         "p": "Etter minuttene du velger, kommer skjermspareren: familiens bilder, en klaffeklokke, en rolig klokke med været, en mørk skjerm – eller reven, som viser været ute. Den leser når det er grått, flyr drage når skyene drar forbi, holder paraplyen i regnet, bygger snømann når det snør og sover om natten, og dagens oppgaver vises over vannet. Et trykk vekker skjermen."
       },
       {
+        "p": "Med noen minutters mellomrom gjør reven noe lite som passer været – hopper, plasker i en vannpytt, kaster snøball, ser et stjerneskudd – og av og til hopper en hare forbi eller en fisk hopper i vannet. Den kler seg ut til halloween, jul, nyttår, påske og sankthans, og på en bursdag (personene under Bursdager) får den ballonger, festhatt og et banner med navnet. Høytidene følger familiens land; utkledningen slås av per skjerm under skjermspareren. Med redusert bevegelse på nettbrettet står reven stille."
+      },
+      {
         "steps": [
           "Familieinnstillinger → Kjøkkenskjerm → Koble til en skjerm.",
           "Åpne lenken på nettbrettet (eller skann QR-koden) og legg den til på startskjermen.",

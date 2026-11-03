@@ -10,7 +10,7 @@ export default function SaverPreview({ kind }: { kind: KioskScreensaver }) {
   if (kind === "fox")
     return (
       <span className="relative block aspect-[16/10] overflow-hidden rounded-lg bg-[#86bfe6]">
-        <FoxScene now={new Date()} kind="partly" temp={12} wind={2} />
+        <FoxScene now={new Date()} kind="partly" temp={12} wind={2} lively={false} />
       </span>
     );
   if (kind === "flipclock")

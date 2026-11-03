@@ -113,6 +113,32 @@ def holidays(country: str, year: int) -> list[tuple[date, str, bool]]:
     return sorted([(d, n, False) for d, n in days] + [(d, n, True) for d, n in eve])
 
 
+def fox_theme(day: date, country: str | None) -> str:
+    """What the fox screensaver dresses up for (3.4.0): newyear (31 Dec – 1 Jan), christmas (first
+    Advent – Twelfth Night), easter (Palm Sunday – Easter Monday), midsummer (the Swedish and Finnish
+    Friday between 19 and 25 June to its Sunday; Sankthans 23–24 June in Norway and Denmark; none in
+    the UK), halloween (24–31 October) – or ""."""
+    y = day.year
+    if (day.month, day.day) in ((12, 31), (1, 1)):
+        return "newyear"
+    if (day.month == 1 and day.day <= 6) or day >= _weekday_between(y, 11, 27, 6):
+        return "christmas"
+    sunday = easter(y)
+    if sunday - timedelta(days=7) <= day <= sunday + timedelta(days=1):
+        return "easter"
+    if day.month == 6:
+        if country in ("NO", "DK"):
+            if day.day in (23, 24):
+                return "midsummer"
+        elif not (country or "").startswith("GB"):
+            eve = _weekday_between(y, 6, 19, 4)
+            if eve <= day <= eve + timedelta(days=2):
+                return "midsummer"
+    if day.month == 10 and day.day >= 24:
+        return "halloween"
+    return ""
+
+
 def between(country: str | None, start: date, end: date) -> list[tuple[date, str, bool]]:
     """The red days from `start` up to `end` (exclusive)."""
     if not country:
