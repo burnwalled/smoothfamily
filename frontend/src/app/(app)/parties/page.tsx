@@ -29,7 +29,7 @@ type Detail = {
   id: string; title: string; kind: string; person_id: string | null; starts_at: string; ends_at: string; place: string; address: string; theme: string;
   emoji: string; color: string; invitation: string; rsvp_by: string | null; bring: "none" | "one" | "family"; person_ids: string[]; show_guests: "none" | "count" | "names"; wishlist: boolean;
   budget: number | null; spent: number; thanks_text: string; thanks_album_id: string | null; thanks_published: boolean; link: string; qr_svg: string;
-  page_theme: string; thanks_theme: string; page_custom_id: string | null; thanks_custom_id: string | null; invite_image: string | null; mail: boolean; subscribers: number;
+  page_theme: string; page_custom_id: string | null; invite_image: string | null; mail: boolean; subscribers: number;
   layout: Block[] | null; assets: { id: string; v: string | null }[];
   layouts: Partial<Record<Stage, Block[] | null>>; phase: "save" | "invite"; playlist_url: string | null; signed_up: number;
   stage: Stage; thanks_at: string | null; rsvp_remind_days: number | null; rsvp_reminded_on: string | null; address_set: boolean;
@@ -286,7 +286,6 @@ function withDefaults(d: Detail): Detail {
     bring: d.bring ?? "none",
     person_ids: d.person_ids ?? (d.person_id ? [d.person_id] : []),
     page_custom_id: d.page_custom_id ?? null,
-    thanks_custom_id: d.thanks_custom_id ?? null,
     invite_image: d.invite_image ?? null,
     layout: d.layout ?? null,
     assets: d.assets ?? [],
@@ -535,11 +534,6 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.look")}</h2>
         <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
         <InvitePicture party={party} />
-        {/* The thank-you wears the invitation's theme until someone wants another. */}
-        <details open={!!party.thanks_theme}>
-          <summary className="cursor-pointer text-sm font-semibold">{t("parties.thanksTheme")}{!party.thanks_theme && <span className="font-normal text-muted"> · {t("parties.themeSame")}</span>}</summary>
-          <div className="mt-2"><ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} /></div>
-        </details>
       </section>
       <section className="card space-y-3 p-5" aria-label={t("parties.posters")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.posters")}</h2>

@@ -75,11 +75,11 @@ export default function TemplatePicker({ party, data, customId, onApplied }: Pro
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : t("common.error"));
 
   // An own look becomes one of the family's themes – the same one, when it's been used before.
-  async function themeFor(tpl: Template): Promise<{ page_theme: string; page_custom_id: string | null; thanks_theme: string; thanks_custom_id: string | null }> {
+  async function themeFor(tpl: Template): Promise<{ page_theme: string; page_custom_id: string | null }> {
     if (!tpl.look) {
       const key = tpl.theme ?? party.page_theme;
       const custom = key === "custom" ? party.page_custom_id : null;
-      return { page_theme: key, page_custom_id: custom, thanks_theme: key, thanks_custom_id: custom };
+      return { page_theme: key, page_custom_id: custom };
     }
     const themes = await api.get<CustomTheme[]>(THEMES_PATH);
     const look = tpl.look;
@@ -89,7 +89,7 @@ export default function TemplatePicker({ party, data, customId, onApplied }: Pro
       themes.push(theme);
     }
     setApiData<CustomTheme[]>(THEMES_PATH, () => themes);
-    return { page_theme: "custom", page_custom_id: theme.id, thanks_theme: "custom", thanks_custom_id: theme.id };
+    return { page_theme: "custom", page_custom_id: theme.id };
   }
 
   async function use(tpl: Template) {

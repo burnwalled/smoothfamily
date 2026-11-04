@@ -140,7 +140,7 @@ async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monke
     out = (await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "username": "u", "password": "secret-pass", "sender": "fest@example.com"})).json()
     assert out["accounts"]["smtp"]["configured"] and out["accounts"]["smtp"]["has_password"] and out["owner"] == "smtp" and "secret-pass" not in str(out)
     page = (await client.get(f"/api/party/{token}")).json()
-    assert page["mail"] is True and page["page_theme"] == "jungle" and page["thanks_theme"] == "jungle"
+    assert page["mail"] is True and page["page_theme"] == "jungle"
 
     # A guest with an address who asks for updates gets a confirmation; one who doesn't, nothing.
     mine = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "email": "Saga@Example.com", "updates": True})).json()
@@ -148,10 +148,12 @@ async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monke
     assert [s[0] for s in sent] == ["saga@example.com"] and "Majas kalas" in sent[0][1] and "?unsubscribe=" in sent[0][2]
     # A new time tells her; publishing the thank-you; a message from the hosts.
     await client.put(f"/api/parties/{party['id']}", json={"starts_at": (start + timedelta(hours=1)).isoformat(), "ends_at": (start + timedelta(hours=3)).isoformat()})
-    await client.put(f"/api/parties/{party['id']}", json={"thanks_text": "Tack!", "thanks_published": True, "thanks_theme": "garden"})
+    await client.put(f"/api/parties/{party['id']}", json={"thanks_text": "Tack!", "thanks_published": True})
     assert (await client.post(f"/api/parties/{party['id']}/announce", json={"subject": "Parkering", "text": "Parkera på gatan."})).json() == {"sent": 1}
     assert len(sent) == 4 and "Parkera på gatan." in sent[-1][2]
-    assert (await client.get(f"/api/party/{token}")).json()["thanks_theme"] == "garden"
+    # The thank-you wears the party's one theme.
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["stage"] == "thanks" and page["page_theme"] == "jungle" and "thanks_theme" not in page
 
     # The day before: a reminder, once.
     sent.clear()
@@ -245,7 +247,7 @@ async def test_own_themes_pictures_and_more_kinds(client):
     assert party["invite_image"]
     token = party["link"].rsplit("/", 1)[1]
     page = (await client.get(f"/api/party/{token}")).json()
-    assert page["page_theme"] == "custom" and page["page_custom"]["decor"] == "💜🦄⭐" and page["thanks_custom"]["id"] == theme["id"]
+    assert page["page_theme"] == "custom" and page["page_custom"]["decor"] == "💜🦄⭐"
     pic = await client.get(f"/api/party/{token}/themes/{theme['id']}/header")
     assert pic.status_code == 200 and pic.headers["content-type"] == "image/jpeg"
     assert Image.open(io.BytesIO(pic.content)).size == (1600, 800)  # web-sized
@@ -581,7 +583,7 @@ async def test_a_familys_templates(client):
     # Used on a party: its posters, the party's own to change from then on.
     start = datetime.now(timezone.utc) + timedelta(days=30)
     party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
-    out = (await client.put(f"/api/parties/{party['id']}", json={"page_theme": "glamour", "thanks_theme": "glamour", "layouts": {"save": [], "invite": blocks, "portal": [], "thanks": []}})).json()
+    out = (await client.put(f"/api/parties/{party['id']}", json={"page_theme": "glamour", "layouts": {"save": [], "invite": blocks, "portal": [], "thanks": []}})).json()
     assert out["page_theme"] == "glamour" and out["layouts"]["invite"] == blocks and out["layouts"]["save"] is None
 
     assert (await client.delete(f"{path}/{themed['id']}")).status_code == 204

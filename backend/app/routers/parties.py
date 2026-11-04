@@ -176,7 +176,6 @@ THEMES = (
     "bbq", "brannboll", "beach", "picnic",
 )
 THEME_PATTERN = rf"^({'|'.join(THEMES)}|custom)$"
-THANKS_PATTERN = rf"^(|{'|'.join(THEMES)}|custom)$"
 PATTERNS = ("none", "confetti", "dots", "stars", "stripes", "hearts", "check")
 BRING = r"^(none|one|family)$"
 
@@ -376,9 +375,7 @@ class PartyChange(BaseModel):
     thanks_album_id: uuid.UUID | None = None
     thanks_published: bool | None = None
     page_theme: str | None = Field(default=None, pattern=THEME_PATTERN)
-    thanks_theme: str | None = Field(default=None, pattern=THANKS_PATTERN)
     page_custom_id: uuid.UUID | None = None
-    thanks_custom_id: uuid.UUID | None = None
     # The poster's blocks; [] or None = the theme's own. layouts: the same for each poster by its stage.
     layout: list[dict] | None = Field(default=None, max_length=60)
     layouts: dict[str, list[dict] | None] | None = None
@@ -536,11 +533,10 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
         person = await db.get(Person, pid)
         if person is None or person.family_id != user.family_id:
             raise HTTPException(status_code=404, detail="Person not found")
-    for key in ("page_custom_id", "thanks_custom_id"):
-        if data.get(key):
-            theme = await db.get(PartyTheme, data[key])
-            if theme is None or theme.family_id != user.family_id:
-                raise HTTPException(status_code=404, detail="Theme not found")
+    if data.get("page_custom_id"):
+        theme = await db.get(PartyTheme, data["page_custom_id"])
+        if theme is None or theme.family_id != user.family_id:
+            raise HTTPException(status_code=404, detail="Theme not found")
 
 
 LAYOUT_BYTES = 60_000
@@ -696,13 +692,13 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "place": party.place, "address": party.address, "theme": party.theme, "emoji": party.emoji, "color": party.color, "invitation": party.invitation,
         "rsvp_by": party.rsvp_by, "bring": party.bring, "show_guests": party.show_guests, "wishlist": party.wishlist,
         "person_ids": [str(x) for x in party.person_ids or ([party.person_id] if party.person_id else [])],
-        "page_custom_id": party.page_custom_id, "thanks_custom_id": party.thanks_custom_id, "invite_image": _version(party.invite_image_key),
+        "page_custom_id": party.page_custom_id, "invite_image": _version(party.invite_image_key),
         "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
         "portal": await _portal_out(db, party, request), "stage": _stage(party), "thanks_at": party.thanks_at,
         "rsvp_remind_days": party.rsvp_remind_days, "rsvp_reminded_on": party.rsvp_reminded_on, "address_set": bool(await configured_url(db)),
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
-        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
+        "page_theme": party.page_theme,
         "date_poll": party.date_poll, "date_options": party.date_options or [], "tally": _tally(party, guests),
         "mail": await _mail_ready(db, party), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
@@ -831,8 +827,6 @@ async def delete_theme(theme_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     for party in (await db.execute(select(Party).where(Party.family_id == user.family_id))).scalars():
         if party.page_custom_id == theme.id:
             party.page_custom_id, party.page_theme = None, "balloons"
-        if party.thanks_custom_id == theme.id:
-            party.thanks_custom_id, party.thanks_theme = None, ""
     storage = get_storage()
     for key in (theme.header_key, theme.background_key):
         if key and storage.exists(theme.family_id, key):
@@ -907,7 +901,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "thanks_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -1369,10 +1363,10 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
     if host is None:
         host = (await db.execute(select(User).where(User.family_id == party.family_id, User.role == "admin").order_by(User.created_at))).scalars().first()
     return {
-        "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db, party),
+        "page_theme": party.page_theme, "mail": await _mail_ready(db, party),
         "date_poll": party.date_poll, "date_options": party.date_options or [],
         "stage": _stage(party), "portal_token": decrypt_token(party.portal_token_encrypted) if _stage(party) == "portal" else None,
-        "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
+        "page_custom": await _custom(db, party, party.page_custom_id),
         "invite_image": _version(party.invite_image_key),
         "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
         "tally": _tally(party, guests, names=party.show_guests == "names") if party.date_poll and party.show_guests != "none" else None,
@@ -1406,7 +1400,7 @@ async def public_theme_picture(token: str, theme_id: uuid.UUID, slot: str, reque
     """A picture of the party's own theme (the invitation's or the thank-you's)."""
     party = await _open(db, token, request)
     theme = await db.get(PartyTheme, theme_id)
-    if theme is None or theme.id not in (party.page_custom_id, party.thanks_custom_id) or slot not in ("header", "background"):
+    if theme is None or theme.id != party.page_custom_id or slot not in ("header", "background"):
         raise HTTPException(status_code=404, detail="Not found")
     return _picture(party.family_id, getattr(theme, f"{slot}_key"))
 

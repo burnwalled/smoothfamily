@@ -2019,12 +2019,9 @@ class Party(Base):
     thanks_text: Mapped[str] = mapped_column(Text, default="")
     thanks_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
     thanks_published: Mapped[bool] = mapped_column(Boolean, default=False)
-    # The look of the guests' page and of the thank-you (a theme's key); "" = as the invitation,
-    # "custom" = one of the family's own themes.
+    # The look of all the party's pages (a theme's key); "custom" = one of the family's own themes.
     page_theme: Mapped[str] = mapped_column(String(20), default="balloons", server_default="balloons")
-    thanks_theme: Mapped[str] = mapped_column(String(20), default="", server_default="")
     page_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
-    thanks_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
     # A picture on the invitation (the storage key of a web-sized copy).
     invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # The poster as the hosts made it: its blocks (texts, pictures, details, countdown, calendar
