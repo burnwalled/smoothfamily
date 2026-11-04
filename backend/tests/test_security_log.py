@@ -54,6 +54,14 @@ async def test_failed_sign_ins_and_the_brake_are_noted_and_the_admin_told(client
     told = await _told(db_session, "admin")
     assert len(told) == 1 and told[0][0] == "Inloggningsbromsen" and "(eva)" in told[0][1]
 
+    # With the preference off, the admin isn't told – the log still has it.
+    me = (await client.get("/api/auth/me")).json()
+    await client.patch("/api/auth/me", json={"notification_prefs": {**me["notification_prefs"], "security": False}})
+    security_log.reset()
+    assert (await client.post("/api/auth/login", json={"username": "eva", "password": "pass1234"})).status_code == 429
+    assert len(await _told(db_session, "admin")) == 1
+    assert (await _events(client))["day"]["throttled"] == 3
+
 
 async def test_a_members_new_device_and_changed_password_are_told(client, db_session):
     ids = await _family(client)

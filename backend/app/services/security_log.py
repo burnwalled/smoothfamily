@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AppSetting, SecurityEvent, User
 from app.services.notify import notify
+from app.services.push import user_pref_enabled
 
 KEEP_DAYS = 30
 # What the summary counts, in the order it says them.
@@ -22,6 +23,11 @@ SUMMARY_HOUR = 7
 # The admins are told of a brake at most this often per address.
 TOLD_EVERY = 3600
 _told: dict[str, float] = {}
+
+
+def reset() -> None:
+    """Forget which addresses the admins were told of (the tests)."""
+    _told.clear()
 
 _SUMMARY = {
     "en": ("Security, the last day", {"login_failed": "{n} failed sign-ins", "throttled": "{n} addresses stopped by the brake", "link_invalid": "{n} tries with links that don't exist", "new_device": "{n} new devices"}),
@@ -77,25 +83,27 @@ async def throttled(db: AsyncSession, ip: str, username: str = "", now: float | 
         return
     _told[ip] = now
     for admin in await _server_admins(db):
+        if not user_pref_enabled(admin, "security"):
+            continue
         title, body = _THROTTLED[_lang(admin)]
-        await notify(db, admin, {"title": title, "body": body.format(ip=ip or "?", who=f" ({username})" if username else ""), "route": "/server?tab=security", "kind": "security"}, pref="security")
+        await notify(db, admin, {"title": title, "body": body.format(ip=ip or "?", who=f" ({username})" if username else ""), "route": "/server?tab=security", "kind": "security"})
 
 
 async def new_device(db: AsyncSession, user: User, what: str, ip: str, first: bool) -> None:
     """A device the member hasn't used before. Their first one ever is just noted."""
     await record(db, "new_device", ip=ip, user=user, detail=what)
-    if first:
+    if first or not user_pref_enabled(user, "security"):
         return
     title, body = _NEW_DEVICE[_lang(user)]
-    await notify(db, user, {"title": title, "body": body.format(what=what), "route": "/profile", "kind": "security"}, pref="security")
+    await notify(db, user, {"title": title, "body": body.format(what=what), "route": "/profile", "kind": "security"})
 
 
 async def password_changed(db: AsyncSession, user: User, ip: str, by_admin: str | None = None) -> None:
     await record(db, "password_reset" if by_admin else "password_changed", ip=ip, user=user, detail=by_admin or "")
-    if by_admin:
+    if by_admin or not user_pref_enabled(user, "security"):
         return
     title, body = _PASSWORD[_lang(user)]
-    await notify(db, user, {"title": title, "body": body, "route": "/profile", "kind": "security"}, pref="security")
+    await notify(db, user, {"title": title, "body": body, "route": "/profile", "kind": "security"})
 
 
 async def run_security_summary(db: AsyncSession, now: datetime | None = None) -> int:
@@ -120,9 +128,11 @@ async def run_security_summary(db: AsyncSession, now: datetime | None = None) ->
     counts["throttled"] = len({ip for kind, ip in rows if kind == "throttled"})
     sent = 0
     for admin in await _server_admins(db):
+        if not user_pref_enabled(admin, "security"):
+            continue
         title, texts = _SUMMARY[_lang(admin)]
         body = ", ".join(texts[k].format(n=counts[k]) for k in SUMMARY_KINDS if counts.get(k))
-        await notify(db, admin, {"title": title, "body": body, "route": "/server?tab=security", "kind": "security"}, pref="security")
+        await notify(db, admin, {"title": title, "body": body, "route": "/server?tab=security", "kind": "security"})
         sent += 1
     return sent
 
