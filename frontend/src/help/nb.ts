@@ -980,6 +980,10 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Under Hjemmet → Abonnementer samler dere alt husholdningen betaler jevnlig, med hva det koster per måned og år. Et abonnement kan peke på en pålogging i hvelvet, en som finnes eller en ny du lager rett her, og den som får se påloggingen, kan kopiere passordet herfra; hvelvets regler gjelder som vanlig. Etter en bankimport foreslås gjentatte betalinger her, og bare du ser forslagene fra din fil: legg dem til eller si at de ikke er abonnementer, og de du har avvist, kommer ikke tilbake. En senere fil sier fra om en ny pris, eller en betaling for noe du har avsluttet. Det er en oversikt, så ingenting legges til i Økonomis summer. Under Påminnelser velger hver voksen selv: siste dag å si opp (14 og 2 dager før), samt kvartals- og årsbetalinger (7 dager før). Månedsbetalinger gir ingen påminnelse."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Hva det koster, og påloggingen fra hvelvet."
       }
     ]
   },

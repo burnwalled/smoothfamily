@@ -980,6 +980,10 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Under Hemmet → Abonnemang samlar ni allt hushållet betalar regelbundet, med vad det kostar per månad och år. Ett abonnemang kan peka på en inloggning i valvet, en som finns eller en ny du skapar direkt här, och den som får se inloggningen kan kopiera lösenordet härifrån; valvets regler gäller som vanligt. Efter en bankimport föreslås återkommande betalningar här, och bara du ser förslagen från din fil: lägg till dem eller säg att de inte är abonnemang, och de du avfärdat kommer inte tillbaka. En senare fil säger till om ett nytt pris, eller en betalning för något du avslutat. Det är en översikt, så inget läggs till i Ekonomis summor. Under Påminnelser väljer varje vuxen själv: sista dag att säga upp (14 och 2 dagar före), samt kvartals- och årsbetalningar (7 dagar före). Månadsbetalningar ger ingen påminnelse."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Vad det kostar, och inloggningen från valvet."
       }
     ]
   },

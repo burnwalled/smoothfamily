@@ -980,6 +980,10 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Kohdassa Koti → Tilaukset kokoatte kaiken, mitä kotitalous maksaa säännöllisesti, ja mitä se maksaa kuukaudessa ja vuodessa. Tilaus voi viitata holvin kirjautumiseen, olemassa olevaan tai tässä luomaasi uuteen, ja sen näkemään oikeutettu voi kopioida salasanan tästä; holvin säännöt pätevät tavalliseen tapaan. Pankkituonnin jälkeen toistuvia maksuja ehdotetaan tässä, ja vain sinä näet tiedostosi ehdotukset: lisää ne tai kerro, etteivät ne ole tilauksia, eivätkä hylätyt palaa. Myöhempi tiedosto kertoo uudesta hinnasta tai maksusta lopetetulle tilaukselle. Tämä on yleiskatsaus, joten mitään ei lisätä Talouden summiin. Kohdassa Muistutukset jokainen aikuinen valitsee itse: viimeinen irtisanomispäivä (14 ja 2 päivää ennen) sekä neljännesvuosi- ja vuosimaksut (7 päivää ennen). Kuukausimaksuista ei muistuteta."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Mitä ne maksavat, ja kirjautuminen holvista."
       }
     ]
   },
