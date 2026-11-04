@@ -584,6 +584,13 @@ test("bringing in guests, the seating and the last check", async ({ adminPage: p
     const list = page.getByRole("region", { name: "Guests", exact: true });
     await expect(list.getByText("Saga Berg")).toBeVisible();
     await expect(list.getByText("Nils Ek")).toBeVisible();
+    // A real Excel file: a header row and one guest.
+    const xlsx = "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";
+    await box.getByLabel("Choose a file").setInputFiles({ name: "gaster.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(xlsx, "base64") });
+    await expect(box.getByText("1 guests found")).toBeVisible();
+    await box.getByRole("button", { name: "Add 1 guests" }).click();
+    await expect(list.getByText("Elsa Lund")).toBeVisible();
+    await expect(list.getByText("elsa@example.com")).toBeVisible();
     await box.getByLabel("Choose a file").setInputFiles({ name: "old.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("x") });
     await expect(box.getByRole("alert")).toContainText("old Excel format");
 
@@ -600,9 +607,9 @@ test("bringing in guests, the seating and the last check", async ({ adminPage: p
     await page.getByRole("button", { name: /^\d\s?The party$/ }).click();
     await expect(page.getByRole("heading", { name: "Have fun!" })).toBeVisible();
     const check = page.getByRole("region", { name: "A last check" });
-    await expect(check.getByText("2 guests haven't replied")).toBeVisible();
-    await expect(check.getByText("Everyone has a table")).toBeVisible();
-    await check.getByRole("listitem").filter({ hasText: "2 guests haven't replied" }).getByRole("button").click();
+    await expect(check.getByText("3 guests haven't replied")).toBeVisible();
+    await expect(check.getByText("1 guests without a table")).toBeVisible();
+    await check.getByRole("listitem").filter({ hasText: "3 guests haven't replied" }).getByRole("button").click();
     await expect(page.getByRole("region", { name: "The party day's portal" })).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
