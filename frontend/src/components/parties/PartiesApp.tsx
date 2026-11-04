@@ -19,14 +19,15 @@ import { CustomTheme, customTheme, kindTheme, partyTheme, themeStyle } from "@/l
 import PosterEditor from "@/components/parties/PosterEditor";
 import TemplatePicker from "@/components/parties/TemplatePicker";
 import GuestImport from "@/components/parties/GuestImport";
-import { CheckinCard, GuestOptions, Helpers, MailTemplates, PlanTab, Vendors } from "@/components/parties/PartyTools";
+import PartyChat from "@/components/parties/PartyChat";
+import { CheckinCard, GuestOptions, Helpers, MailTemplates, PlanTab, ShareMessage, Vendors } from "@/components/parties/PartyTools";
 import Poster from "@/components/parties/Poster";
 import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
 import { STAGES, defaultPoster, fontFamily, newId, type Block, type PosterData, type Stage } from "@/lib/poster";
 import AddressInput from "@/components/AddressInput";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; date_poll: boolean; coming: number; replies: number; tasks_left: number };
-type Guest = { table_id?: string | null; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null; id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
+type Guest = { group_id?: string | null; table_id?: string | null; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null; id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 export type Detail = {
   id: string; title: string; kind: string; person_id: string | null; starts_at: string; ends_at: string; place: string; address: string; theme: string;
@@ -41,15 +42,18 @@ export type Detail = {
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null; helper_id?: string | null; action?: string | null }[];
+  guest_chat: boolean; planner_chat: boolean; planners: string[];
+  capacity: { coming: number; waiting: number; most: number; open: boolean };
   pages: Stage[]; tables: { id: string; name: string; seats: number }[]; family_name: string;
   checkin_at: string | null; menu: { id: string; name: string }[]; menu_tally: { id: string | null; name: string; people: number }[]; speech_signup: boolean;
   practical: { parking?: string; lodging?: string; travel?: string };
-  adults: { id: string; name: string }[]; you: { helper: boolean; helper_id: string | null }; people: Person[];
+  adults: { id: string; name: string }[]; you: { helper: boolean; helper_id: string | null; user_id?: string | null }; people: Person[];
   helpers: { id: string; name: string; role: string; email: string | null; days_after: number; ends_at: string; last_seen: string | null }[];
   plan_kept: boolean; plan_hidden: string[]; plan: { id: string; kind: string; at: string; minutes: number | null; title: string; who: string; note: string; done: boolean }[];
   speeches: { id: string; name: string; note: string }[];
   vendors: { id: string; category: string; name: string; url: string; contact: string; price: number | null; status: string; note: string; in_budget: boolean }[];
   mail_templates: { kind: string; default_subject: string; default_text: string; subject: string; text: string }[];
+  share_texts: { save: string; invite: string };
   expenses: { id: string; title: string; amount: number; paid_by: string | null }[];
   steps: { id: string; at: string; title: string; hidden?: boolean }[];
   mailings: { id: string; kind: "save" | "invite" | "remind" | "thanks" | "custom"; audience: "all" | "waiting" | "coming"; subject: string; text: string; send_at: string; sent_at: string | null; sent_count: number }[];
@@ -173,6 +177,27 @@ function WhoseParty({ people, value, onChange }: { people: Person[]; value: stri
   );
 }
 
+// Who plans the party: not the same as who's being celebrated. Those left out neither see it here nor hear
+// of it. Nobody takes themselves out.
+function Planners({ adults, value, me, onChange }: { adults: { id: string; name: string }[]; value: string[]; me?: string | null; onChange: (v: string[]) => void }) {
+  const { t } = useI18n();
+  if (adults.length < 2) return null;
+  return (
+    <fieldset className="sm:col-span-2" aria-label={t("parties.planners")}>
+      <legend className="label">{t("parties.planners")}</legend>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {adults.map((a) => (
+          <label key={a.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4 accent-primary-700" disabled={a.id === me || (value.includes(a.id) && value.length === 1)} checked={value.includes(a.id)} onChange={(e) => onChange(e.target.checked ? [...value, a.id] : value.filter((x) => x !== a.id))} />
+            {a.name}
+          </label>
+        ))}
+      </div>
+      <span className="mt-1 block text-xs text-muted">{t("parties.plannersHelp")}</span>
+    </fieldset>
+  );
+}
+
 function WishlistSelect({ people, value, onChange }: { people: Person[]; value: string; onChange: (v: string) => void }) {
   const { t } = useI18n();
   return (
@@ -204,6 +229,9 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
   const start = new Date();
   start.setDate(start.getDate() + 21);
   start.setHours(14, 0, 0, 0);
+  const me = useMe();
+  const adults = useApi<{ id: string; name: string }[]>("/api/parties/adults").data ?? NONE;
+  const [planners, setPlanners] = useState<string[] | null>(null);
   const [form, setForm] = useState({ title: "", kind: "child_birthday" as string, person_ids: [] as string[], wishlist_of: "", starts: localInput(start.toISOString()), hours: 2, place: "", address: "", rsvp: "", bring: "none", show_guests: "count", date_poll: false, options: [] as string[] });
   const [error, setError] = useState("");
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -214,7 +242,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       const starts = new Date(form.starts);
       const ends = new Date(starts.getTime() + form.hours * 3_600_000);
       const made = await api.post<Detail>("/api/parties", {
-        title: form.title.trim(), kind: form.kind, person_ids: form.person_ids, person_id: form.wishlist_of || null, wishlist: !!form.wishlist_of, emoji: EMOJIS[form.kind],
+        planners: planners ?? undefined, title: form.title.trim(), kind: form.kind, person_ids: form.person_ids, person_id: form.wishlist_of || null, wishlist: !!form.wishlist_of, emoji: EMOJIS[form.kind],
         starts_at: starts.toISOString(), ends_at: ends.toISOString(), place: form.place, address: form.address,
         rsvp_by: form.rsvp || null, bring: form.bring, show_guests: form.show_guests, page_theme: kindTheme(form.kind),
         date_poll: form.date_poll, date_options: form.date_poll ? form.options.filter(Boolean).map((o) => new Date(o).toISOString()) : [],
@@ -239,6 +267,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       </label>
       <BringSelect value={form.bring} onChange={(bring) => set({ bring })} />
       <div className="sm:col-span-2">
+        <Planners adults={adults} value={planners ?? adults.map((a) => a.id)} me={me.id} onChange={setPlanners} />
         <WhoseParty people={people} value={form.person_ids} onChange={(person_ids) => set({ person_ids, wishlist_of: form.wishlist_of && !person_ids.includes(form.wishlist_of) ? "" : form.wishlist_of || (form.kind === "child_birthday" && person_ids.length === 1 ? person_ids[0] : "") })} />
       </div>
       <label>
@@ -309,6 +338,10 @@ function withDefaults(d: Detail): Detail {
     mailings: d.mailings ?? [],
     pages: d.pages ?? STAGES.filter((st) => st !== "checkin"),
     tables: d.tables ?? [],
+    planners: d.planners ?? (d.adults ?? []).map((a) => a.id),
+    guest_chat: d.guest_chat ?? false,
+    planner_chat: d.planner_chat ?? false,
+    capacity: d.capacity ?? { coming: d.coming ?? 0, waiting: 0, most: d.coming ?? 0, open: false },
     family_name: d.family_name ?? "",
     checkin_at: d.checkin_at ?? null,
     menu: d.menu ?? [],
@@ -325,6 +358,7 @@ function withDefaults(d: Detail): Detail {
     speeches: d.speeches ?? [],
     vendors: d.vendors ?? [],
     mail_templates: d.mail_templates ?? [],
+    share_texts: d.share_texts ?? { save: "", invite: "" },
     stage: d.stage ?? d.phase ?? "invite",
     thanks_at: d.thanks_at ?? null,
     rsvp_remind_days: d.rsvp_remind_days ?? null,
@@ -373,7 +407,7 @@ export function PartyView({ id, onBack }: { id: string; onBack?: () => void }) {
 
   if (!party) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   // The plan is there once someone's invited to help; those it's kept from see it greyed out.
-  const steps = TABS.filter((x) => x !== "plan" || party.helpers.length > 0 || party.you.helper);
+  const steps = TABS.filter((x) => x !== "plan" || party.helpers.length > 0 || party.you.helper || party.planner_chat);
   const open = steps.filter((x) => x !== "plan" || !party.plan_kept);
   const when = party.date_poll ? t("parties.pollOpen") : new Date(party.starts_at).toLocaleString(dateLocale, LONG);
 
@@ -475,6 +509,7 @@ function InviteTab({ party, change }: { party: Detail; change: Change }) {
         <div className="sm:col-span-2">
           <WhoseParty people={people} value={party.person_ids} onChange={(person_ids) => change({ person_ids })} />
         </div>
+        <Planners adults={party.adults} value={party.planners} me={party.you.user_id} onChange={(planners) => change({ planners })} />
         <fieldset className="sm:col-span-2">
           <legend className="label">{t("parties.pagesLabel")}</legend>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
@@ -741,7 +776,7 @@ function Seating({ party, run, change, path }: { party: Detail; run: TabProps["r
   const free = people.filter((g) => !g.table_id || !party.tables.some((x) => x.id === g.table_id));
   const seat = (g: Guest, table_id: string | null) => run(() => api.put<Detail>(`${path}/guests/${g.id}/table`, { table_id }));
   const row = (g: Guest) => (
-    <li key={g.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
+    <li key={g.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm [overflow-wrap:anywhere]">
       <span className="min-w-0 flex-1">
         <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
         {g.companions.length > 0 && <span className="text-muted"> +{g.companions.length}</span>}
@@ -818,6 +853,7 @@ function FinalTab({ party, run, path, go }: TabProps & { go: (tab: Tab) => void 
   const checks: { key: string; ok: boolean; label: string; to: Tab }[] = [
     { key: "tasks", ok: open.length === 0, label: open.length ? t("parties.check.tasks", { n: open.length }) : t("parties.check.tasksDone"), to: "tasks" },
     { key: "guests", ok: invited, label: invited ? t("parties.check.guests", { n: party.coming }) : t("parties.check.noGuests"), to: "guests" },
+    { key: "capacity", ok: true, label: t("parties.capacity", { coming: party.capacity.coming, waiting: party.capacity.waiting, most: party.capacity.most }), to: "guests" },
     { key: "waiting", ok: waiting === 0, label: waiting ? t("parties.check.waiting", { n: waiting }) : t("parties.check.noWaiting"), to: "mailings" },
     { key: "allergies", ok: true, label: party.allergies.length ? t("parties.check.allergies", { n: party.allergies.length }) : t("parties.check.noAllergies"), to: "guests" },
     { key: "plan", ok: party.steps.length > 0, label: party.steps.length ? t("parties.check.plan", { n: party.steps.length }) : t("parties.check.noPlan"), to: "schedule" },
@@ -985,21 +1021,58 @@ function GuestLink({ path, name }: { path: string; name: string }) {
   );
 }
 
+const low = (s?: string) => (s ?? "").trim().toLowerCase();
+const samePerson = (c: { first_name: string; last_name: string }, o: { first_name: string; last_name: string }) =>
+  !!low(c.first_name) && low(c.first_name) === low(o.first_name) && (!low(c.last_name) || !low(o.last_name) || low(c.last_name) === low(o.last_name));
+
+// Who a guest belongs together with: each keeps their own reply and link, and they count as one company.
+function GuestGroup({ guest, guests, link }: { guest: Guest; guests: Guest[]; link: (withId: string | null) => void }) {
+  const { t } = useI18n();
+  const name = (g: Guest) => `${g.first_name} ${g.last_name}`.trim();
+  const others = guests.filter((g) => g.id !== guest.id);
+  const with_them = guest.group_id ? others.filter((g) => g.group_id === guest.group_id) : [];
+  const free = others.filter((g) => !guest.group_id || g.group_id !== guest.group_id);
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+      {with_them.length > 0 && <><span>🔗 {t("parties.togetherWith", { names: with_them.map(name).join(", ") })}</span><button className="underline underline-offset-2 hover:text-ink" aria-label={t("parties.unlinkOf", { name: guest.first_name })} onClick={() => link(null)}>{t("parties.unlink")}</button></>}
+      {free.length > 0 && (
+        <select className="input !w-auto py-0 text-xs" aria-label={t("parties.linkOf", { name: guest.first_name })} value="" onChange={(e) => e.target.value && link(e.target.value)}>
+          <option value="">{t("parties.linkWith")}</option>
+          {free.map((g) => <option key={g.id} value={g.id}>{name(g)}</option>)}
+        </select>
+      )}
+    </span>
+  );
+}
+
 function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) {
   const { t, dateLocale } = useI18n();
   const blank = { first_name: "", last_name: "", email: "", allergies: "", status: "invited" as "invited" | "coming" | "not" };
   const [form, setForm] = useState(blank);
   const people = party.guests;
   const emails = people.filter((g) => g.email).map((g) => g.email).join(", ");
+  // Someone's +1 who's also on the list by themselves: counted twice until they're put together.
+  const doubles = people.flatMap((g) => people.filter((o) => o.id !== g.id && (!g.group_id || g.group_id !== o.group_id) && g.companions.some((c) => samePerson(c, o))).map((o) => [g, o] as const));
   return (
     <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
       <section className="card p-5" aria-label={t("parties.tab.guests")}>
         <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}{party.children > 0 && <span className="font-normal text-muted"> · {t("parties.childrenN", { n: party.children })}</span>}{party.signed_up > 0 && <span className="font-normal text-muted"> · {t("parties.waitingN", { n: party.signed_up })}</span>}</p>
+        <p className="mb-3 text-sm" data-testid="capacity">{t("parties.capacity", { coming: party.capacity.coming, waiting: party.capacity.waiting, most: party.capacity.most })}{party.capacity.open && <span className="text-muted"> {t("parties.capacityOpen")}</span>}</p>
+        {doubles.length > 0 && (
+          <ul className="mb-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" aria-label={t("parties.doubles")}>
+            {doubles.map(([g, o]) => (
+              <li key={`${g.id}:${o.id}`} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1">{t("parties.doubleGuest", { guest: g.first_name, other: `${o.first_name} ${o.last_name}`.trim() })}</span>
+                <button className="btn-ghost border border-amber-300 text-xs" onClick={() => run(() => api.put<Detail>(`${path}/guests/${g.id}/group`, { with_id: o.id }))}>{t("parties.linkThem")}</button>
+              </li>
+            ))}
+          </ul>
+        )}
         {people.length === 0 ? (
           <EmptyState>{t("parties.noReplies")}</EmptyState>
         ) : (
-          <ul className="divide-y divide-edge text-sm">
+          <ul className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
             {people.map((g) => (
               <li key={g.id} className="flex items-start gap-3 py-2">
                 <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : g.pending ? "bg-amber-50 text-amber-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : g.pending ? t("parties.awaitingReply") : t("parties.no")}</span>
@@ -1017,6 +1090,7 @@ function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) 
                     </span>
                   )}
                   {g.message && <span className="block text-xs italic text-muted">“{g.message}”</span>}
+                  <GuestGroup guest={g} guests={people} link={(with_id) => run(() => api.put<Detail>(`${path}/guests/${g.id}/group`, { with_id }))} />
                 </span>
                 <GuestLink path={`${path}/guests/${g.id}/link`} name={g.first_name} />
                 <button className="text-muted hover:text-red-700" aria-label={t("parties.removeGuest", { name: g.first_name })} onClick={() => run(() => api.del(`${path}/guests/${g.id}`).then(() => api.get<Detail>(path)))}>
@@ -1067,6 +1141,12 @@ function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) 
       </div>
     </div>
     <Seating party={party} run={run} change={change} path={path} />
+    {party.guest_chat && (
+      <section className="card space-y-2 p-5" aria-label={t("partyChat.heading")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("partyChat.heading")}</h2>
+        <PartyChat path={`${path}/chat/guests`} remove label={t("partyChat.heading")} buttonClass="btn-primary" />
+      </section>
+    )}
     </div>
   );
 }
@@ -1094,7 +1174,7 @@ function TasksTab({ party, run, path }: TabProps) {
             {task.action === "print_qr" && <a className="btn-ghost flex items-center gap-1 border border-edge text-xs" href={`/party-qr/${party.id}`} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" aria-hidden />{t("parties.printIt")}</a>}
             <select className="input !w-auto py-0.5 text-xs" aria-label={t("parties.taskWho", { task: task.title })} value={task.helper_id ? `h:${task.helper_id}` : task.who ? `u:${task.who}` : ""} onChange={(e) => assign(task.id, e.target.value)}>
               <option value="">{t("parties.taskAnyone")}</option>
-              {party.adults.map((a) => <option key={a.id} value={`u:${a.id}`}>{a.name}</option>)}
+              {party.adults.filter((a) => party.planners.includes(a.id)).map((a) => <option key={a.id} value={`u:${a.id}`}>{a.name}</option>)}
               {party.helpers.map((h) => <option key={h.id} value={`h:${h.id}`}>{h.name}</option>)}
             </select>
             <input className="input !w-auto py-0.5 text-xs" type="date" aria-label={t("parties.due")} value={task.due_date ?? ""} onChange={(e) => run(() => api.put<Detail>(`${path}/tasks/${task.id}`, { due_date: e.target.value || null }))} />
@@ -1185,22 +1265,6 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
   const { t, dateLocale } = useI18n();
   const soon = new Date(Date.now() + 3_600_000);
   const [form, setForm] = useState({ kind: "custom", audience: "all", subject: "", text: "", when: localInput(soon.toISOString()) });
-  const [copied, setCopied] = useState("");
-  const when = new Date(party.starts_at).toLocaleString(dateLocale, LONG);
-  const invite = party.date_poll ? t("parties.shareVoteText", { title: party.title, link: party.link }) : t("parties.shareText", { title: party.title, when, link: party.link });
-  const links: { key: string; label: string; link: string; text: string }[] = [{ key: "invite", label: party.phase === "save" ? t("parties.stage.save") : t("parties.stage.invite"), link: party.link, text: party.phase === "save" ? t("parties.shareSaveText", { title: party.title, when, link: party.link }) : invite }];
-  const share = async (text: string, key: string) => {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: party.title, text });
-        return;
-      }
-    } catch {
-      return;
-    }
-    await navigator.clipboard?.writeText(text);
-    setCopied(key);
-  };
   const add = (sendAt: Date) => run(() => api.post<Detail>(`${path}/mailings`, { kind: form.kind, audience: form.audience, subject: form.subject, text: form.text, send_at: sendAt.toISOString() })).then(() => setForm({ ...form, subject: "", text: "" }));
   const reach = (aud: string) => party.guests.filter((g) => g.email && g.updates && (aud === "all" || (aud === "waiting" ? g.pending : g.coming))).length;
 
@@ -1221,7 +1285,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
           })}
         </ol>
       </section>
-      <section className="card space-y-3 p-5" aria-label={t("parties.mailings")}>
+      <section className="card min-w-0 space-y-3 p-5" aria-label={t("parties.mailings")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.mailings")}</h2>
         {party.mail && !party.address_set && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{t("parties.noAddress")}</p>}
         {party.mail && (
@@ -1277,21 +1341,10 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
           </>
         )}
       </section>
-      <section className="card space-y-3 p-5" aria-label={t("parties.share")}>
+      <section className="card min-w-0 space-y-3 p-5" aria-label={t("parties.share")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.share")}</h2>
         <p className="text-xs text-muted">{party.mail ? t("parties.shareHelp") : t("parties.shareHelpNoMail")}</p>
-        {links.map((l) => (
-          <div key={l.key} className="space-y-2 rounded-xl border border-edge p-3">
-            <p className="text-sm font-semibold">{l.label}</p>
-            <input className="input text-xs" readOnly value={l.link} aria-label={t("parties.link")} onFocus={(e) => e.target.select()} />
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary flex items-center gap-1.5" onClick={() => share(l.text, l.key)}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
-              <button className="btn-ghost flex items-center gap-1.5" onClick={() => navigator.clipboard?.writeText(l.link).then(() => setCopied(l.key))}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
-              <a className="btn-ghost text-sm" href={l.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
-            </div>
-            {copied === l.key && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
-          </div>
-        ))}
+        <ShareMessage party={party} change={change} />
         <figure className="m-0 space-y-1 text-center">
           <div className="mx-auto w-40 rounded-lg bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" aria-label={t("parties.qrInvite")} dangerouslySetInnerHTML={{ __html: party.qr_svg }} />
           <figcaption className="text-xs text-muted">{t("parties.qrInvite")}</figcaption>

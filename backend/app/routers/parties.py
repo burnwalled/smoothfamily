@@ -27,8 +27,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.deps import DB, AdultUser, get_current_user
-from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyHelper, PartyMailing, PartyPlanItem, PartyStep, PartyTask, PartyTemplate, PartyTheme, PartyVendor, Person, User, WishItem
-from app.services import login_throttle
+from app.models import Album, ChatMessage, Conversation, ConversationMember, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyHelper, PartyMailing, PartyPlanItem, PartyStep, PartyTask, PartyTemplate, PartyTheme, PartyVendor, Person, User, WishItem
+from app.services import login_throttle, party_mail
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
 from app.services.public_url import configured_url, public_base
@@ -353,12 +353,35 @@ _ROLES = {
     "fi": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "auttaja"},
 }
 # The mails the hosts can word themselves, in the order of the party.
+# (A save-the-date is shared by hand: there are no addresses yet. Those planned earlier still go.)
+SHARE_KINDS = ("share_save", "share_invite")
 MAIL_KINDS = ("save", "subscribed", "invited", "confirm", "change", "decided", "remind_rsvp", "reminder", "checkin", "remind", "thanks")
 
 
 def _fill(template: str, fields: dict) -> str:
     """The {fields} of a text the hosts may have written: what isn't a field stays as it is."""
     return re.sub(r"\{(\w+)\}", lambda m: str(fields[m.group(1)]) if m.group(1) in fields else m.group(0), template)
+
+
+_OPEN = {"en": "Open your page", "sv": "Öppna din sida", "nb": "Åpne siden din", "da": "Åbn din side", "fi": "Avaa sivusi"}
+
+
+async def _mail_look(db: AsyncSession, party: Party, base: str) -> tuple[dict, str | None]:
+    """The party's colours for its mails, and its top picture where a mail program can fetch it."""
+    custom = await db.get(PartyTheme, party.page_custom_id) if party.page_theme == "custom" and party.page_custom_id else None
+    colors = party_mail.palette(party.page_theme, custom)
+    if not base:
+        return colors, None
+    if custom is not None:
+        version = _version(custom.header_key)
+        return colors, f"{base}/api/party/{decrypt_token(party.token_encrypted)}/themes/{custom.id}/header?v={version}" if custom.header_key else None
+    return colors, f"{base}{colors['header']}" if colors.get("header") else None
+
+
+def _small_print(stop: str) -> tuple[str, str]:
+    """Why they get it, and how to stop, as the two parts of the text: the second becomes the link."""
+    head, _, tail = stop.replace("{link}", "").rpartition(". ")
+    return f"{head}.", tail.strip().rstrip(":")
 
 
 async def _host_language(db: AsyncSession, party: Party) -> str:
@@ -389,6 +412,7 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
     language = await _host_language(db, party)
     texts = _MAIL.get(language, _MAIL["en"])
     page = f"{base}/party/{decrypt_token(party.token_encrypted)}"
+    colors, header = await _mail_look(db, party, base)
     sent = 0
     for guest in guests:
         if not guest.email or not guest.updates:
@@ -405,6 +429,7 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
         elif guest.coming and guest.companions:
             answer += " " + texts["plus"].format(name=", ".join(_name(c) for c in guest.companions))
         by = texts["by"].format(date=f"{party.rsvp_by.day}/{party.rsvp_by.month}") if party.rsvp_by else ""
+        stop_url = f"{page}?unsubscribe={code}"
         when = _when_where(party, language)
         fields = {"title": party.title, "name": guest.first_name, "answer": answer, "by": by, "when": when, "link": own, **values}
         # The guest's own link always goes along, whatever the hosts have written.
@@ -412,10 +437,15 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
             _fill(body_t, fields),
             "" if "{when}" in body_t else when,
             "" if "{link}" in body_t else texts["page"].format(link=own),
-            texts["stop"].format(link=f"{page}?unsubscribe={code}"),
+            texts["stop"].format(link=stop_url),
         ] if x)
+        foot, stop = _small_print(texts["stop"])
+        html = party_mail.render(
+            colors=colors, title=party.title, emoji=party.emoji, text=_fill(body_t, fields), when="" if "{when}" in body_t else when, button=_OPEN.get(language, _OPEN["en"]), link=own,
+            foot=foot, stop=stop, stop_link=stop_url, header=header,
+        )
         try:
-            await mailer.send_with(conf, guest.email, _fill(subject_t, fields), body)
+            await mailer.send_with(conf, guest.email, _fill(subject_t, fields), body, html)
             sent += 1
         except mailer.MailError:
             continue
@@ -448,6 +478,7 @@ class PartyIn(BaseModel):
     page_custom_id: uuid.UUID | None = None
     date_poll: bool = False
     date_options: list[datetime] = Field(default_factory=list, max_length=12)
+    planners: list[uuid.UUID] | None = Field(default=None, max_length=50)
 
 
 class PartyChange(BaseModel):
@@ -488,6 +519,9 @@ class PartyChange(BaseModel):
     speech_signup: bool | None = None
     practical: "PracticalIn | None" = None
     mail_texts: dict[str, "MailTextIn"] | None = None
+    guest_chat: bool | None = None
+    planner_chat: bool | None = None
+    planners: list[uuid.UUID] | None = Field(default=None, max_length=50)
     thanks_at: datetime | None = None
     rsvp_remind_days: int | None = Field(default=None, ge=0, le=60)
     date_poll: bool | None = None
@@ -529,6 +563,17 @@ class MailTextIn(BaseModel):
 
 
 PartyChange.model_rebuild()
+
+
+class ChatIn(BaseModel):
+    body: str = Field(min_length=1, max_length=500)
+    name: str = Field(default="", max_length=60)
+
+
+class MailPreviewIn(BaseModel):
+    subject: str = Field(default="", max_length=160)
+    text: str = Field(default="", max_length=4000)
+    name: str = Field(default="", max_length=80)
 
 
 class CheckinIn(BaseModel):
@@ -599,6 +644,10 @@ class ImportedGuest(BaseModel):
 
 class GuestImportIn(BaseModel):
     guests: list[ImportedGuest] = Field(min_length=1, max_length=500)
+
+
+class GroupIn(BaseModel):
+    with_id: uuid.UUID | None = None
 
 
 class SeatIn(BaseModel):
@@ -688,6 +737,8 @@ class GuestIn(BaseModel):
     wants_speech: bool = False
     speech_note: str = Field(default="", max_length=200)
     menu_choice: str | None = Field(default=None, max_length=20)
+    # Answering for those they're together with who haven't answered themselves.
+    for_group: bool = False
 
 
 class CompanionIn(BaseModel):
@@ -705,9 +756,29 @@ def _dt(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=_tz())
 
 
+def _plans(party: Party, user: User) -> bool:
+    """Whether this adult is among those planning the party (all of them, until someone chooses)."""
+    return not party.planners or str(user.id) in party.planners
+
+
+async def _planners(db: AsyncSession, party: Party) -> list[User]:
+    adults = (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])).order_by(User.created_at))).scalars().all()
+    return [a for a in adults if _plans(party, a)]
+
+
+async def _clean_planners(db: AsyncSession, family_id: uuid.UUID, user: object, ids: list[uuid.UUID]) -> list[str]:
+    """The family's adults, at least one – and nobody can lock themselves out of a party they're planning."""
+    adults = set((await db.execute(select(User.id).where(User.family_id == family_id, User.role.in_(["admin", "adult"])))).scalars().all())
+    if not ids or set(ids) - adults:
+        raise HTTPException(status_code=422, detail="Choose the adults who plan the party")
+    if isinstance(user, User) and user.id not in ids:
+        raise HTTPException(status_code=422, detail="You can't take yourself away from the planners")
+    return sorted({str(x) for x in ids})
+
+
 async def _mine(db: AsyncSession, user: User | HelperActor, party_id: uuid.UUID) -> Party:
     party = await db.get(Party, party_id)
-    if party is None or party.family_id != user.family_id or (isinstance(user, HelperActor) and user.party_id != party.id):
+    if party is None or party.family_id != user.family_id or (isinstance(user, HelperActor) and user.party_id != party.id) or (isinstance(user, User) and not _plans(party, user)):
         raise HTTPException(status_code=404, detail="Party not found")
     return party
 
@@ -750,7 +821,7 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
 
 
 LAYOUT_BYTES = 60_000
-BLOCK_TYPES = {"text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin"}
+BLOCK_TYPES = {"text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin", "chat"}
 STAGES = {"save": "save_layout", "invite": "layout", "checkin": "checkin_layout", "portal": "portal_layout", "thanks": "thanks_layout"}
 
 
@@ -841,7 +912,7 @@ async def _link(db: AsyncSession, party: Party, request: Request | None) -> str:
 def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
-        "companions": g.companions or [], "updated_at": g.updated_at, "table_id": g.table_id,
+        "companions": g.companions or [], "updated_at": g.updated_at, "table_id": g.table_id, "group_id": g.group_id,
         "wants_speech": g.wants_speech, "speech_note": g.speech_note, "menu_choice": g.menu_choice, "checkin": g.checkin,
         "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "pending": bool(g.pending),
     }
@@ -857,6 +928,34 @@ def _size(party: Party, g: PartyGuest) -> int:
 
 def _people(party: Party, guests: list[PartyGuest]) -> int:
     return sum(_size(party, g) for g in guests if g.coming)
+
+
+def _same_person(companion: dict, guest: PartyGuest) -> bool:
+    """A +1 who's also on the list by themselves: the first names agree, and the last if both have one."""
+    first, last = (companion.get("first_name") or "").strip().lower(), (companion.get("last_name") or "").strip().lower()
+    theirs = (guest.last_name or "").strip().lower()
+    return bool(first) and first == (guest.first_name or "").strip().lower() and (not last or not theirs or last == theirs)
+
+
+def _capacity(party: Party, guests: list[PartyGuest]) -> dict:
+    """How many it can come to: those who've said yes, and at most if everyone not yet answered does –
+    a guest who may bring a +1 and has none counts for two, unless they're together with someone."""
+    possible = [g for g in guests if g.coming or g.pending]
+    most = sum(2 if party.bring == "one" and not g.group_id and not g.companions else _size(party, g) for g in possible)
+    return {"coming": _people(party, guests), "waiting": sum(1 for g in guests if g.pending), "most": most, "open": party.bring == "family"}
+
+
+async def _group(db: AsyncSession, party: Party, group_id: str | None) -> list[PartyGuest]:
+    if not group_id:
+        return []
+    return (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.group_id == group_id))).scalars().all()
+
+
+def _no_doubles(members: list[PartyGuest]) -> None:
+    """Whoever's on the list by themselves isn't also someone's +1: they'd be counted twice."""
+    for g in members:
+        if g.companions:
+            g.companions = [c for c in g.companions if not any(_same_person(c, o) for o in members if o.id != g.id)] or None
 
 
 def _iso(moment: datetime) -> str:
@@ -945,19 +1044,23 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "mail": await _mail_ready(db, party), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
         "guests": [{**_guest_out(g), **({"wants_speech": False, "speech_note": ""} if kept else {})} for g in guests],
+        "capacity": _capacity(party, guests),
         "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming and not g.pending), "signed_up": sum(1 for g in guests if g.pending), "allergies": allergies,
         "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who, "helper_id": t.helper_id, "action": t.action} for t in tasks],
         "pages": _pages(party), "tables": party.tables or [], "family_name": family.name if family else "",
         "checkin_at": party.checkin_at, "menu": party.menu or [], "menu_tally": _menu_tally(party, guests), "speech_signup": party.speech_signup, "practical": party.practical or {},
         "adults": [{"id": a.id, "name": a.display_name} for a in adults],
-        "you": {"helper": isinstance(actor, HelperActor), "helper_id": actor.helper_id if isinstance(actor, HelperActor) else None},
+        "you": {"helper": isinstance(actor, HelperActor), "helper_id": actor.helper_id if isinstance(actor, HelperActor) else None, "user_id": actor.id if isinstance(actor, User) else None},
         "people": [{"id": x.id, "name": x.name} for x in tagged],
         "helpers": [{"id": h.id, "name": h.name, "role": h.role, "email": h.email, "days_after": h.days_after, "ends_at": _helper_ends(h, party), "last_seen": h.last_seen} for h in party_helpers],
+        "planners": [str(a.id) for a in adults if _plans(party, a)],
+        "guest_chat": party.guest_chat, "planner_chat": party.planner_chat and not kept,
         "plan_kept": kept, "plan_hidden": [] if kept else party.plan_hidden or [],
         "plan": [{"id": i.id, "kind": i.kind, "at": i.at, "minutes": i.minutes, "title": i.title, "who": i.who, "note": i.note, "done": i.done} for i in plan],
         "speeches": [] if kept else [{"id": g.id, "name": f"{g.first_name} {g.last_name}".strip(), "note": g.speech_note} for g in guests if g.coming and g.wants_speech],
         "vendors": [{"id": v.id, "category": v.category, "name": v.name, "url": v.url, "contact": v.contact, "price": float(v.price) if v.price is not None else None, "status": v.status, "note": v.note, "in_budget": v.expense_id is not None} for v in vendors],
         "mail_templates": _mail_templates(party, await _host_language(db, party)),
+        "share_texts": {k.removeprefix("share_"): ((party.mail_texts or {}).get(k) or {}).get("text", "") for k in SHARE_KINDS},
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title, "hidden": s.hidden} for s in steps],
         "mailings": [_mailing_out(m) for m in (await db.execute(select(PartyMailing).where(PartyMailing.party_id == party.id).order_by(PartyMailing.send_at))).scalars()],
@@ -969,7 +1072,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
 async def list_parties(user: AdultUser, db: DB) -> list[dict]:
     parties = (await db.execute(select(Party).where(Party.family_id == user.family_id).order_by(Party.starts_at.desc()))).scalars().all()
     out = []
-    for p in parties:
+    for p in [x for x in parties if _plans(x, user)]:
         guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == p.id))).scalars().all()
         left = (await db.execute(select(func.count()).select_from(PartyTask).where(PartyTask.party_id == p.id, PartyTask.done == False))).scalar_one()  # noqa: E712
         out.append({"id": p.id, "title": p.title, "kind": p.kind, "emoji": p.emoji, "color": p.color, "starts_at": p.starts_at, "place": p.place, "date_poll": p.date_poll, "coming": _people(p, guests), "replies": len(guests), "tasks_left": left})
@@ -986,6 +1089,7 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     if payload.date_poll and len(data["date_options"]) < 2:
         raise HTTPException(status_code=422, detail="A vote needs at least two dates")
     await _check_refs(db, user, data)
+    data["planners"] = await _clean_planners(db, user.family_id, user, payload.planners) if payload.planners else None
     data["person_ids"] = [str(x) for x in payload.person_ids] or ([str(payload.person_id)] if payload.person_id else None)
     token = secrets.token_urlsafe(18)
     party = Party(family_id=user.family_id, created_by=user.id, created_at=datetime.now(timezone.utc), token_hash=_hash(token), token_encrypted=encrypt_token(token), **data)
@@ -1000,6 +1104,13 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     await _sync_event(db, party, user)
     await db.commit()
     return await _detail(db, party, request)
+
+
+@router.get("/adults")
+async def family_adults(user: AdultUser, db: DB) -> list[dict]:
+    """Those who can plan a party, to choose among when making one."""
+    rows = (await db.execute(select(User).where(User.family_id == user.family_id, User.role.in_(["admin", "adult"])).order_by(User.created_at))).scalars().all()
+    return [{"id": a.id, "name": a.display_name} for a in rows]
 
 
 @router.get("/themes")
@@ -1130,10 +1241,10 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     party = await _mine(db, user, party_id)
     changes = payload.model_dump(exclude_unset=True)
     if changes.get("mail_texts") is not None:
-        if set(changes["mail_texts"]) - set(MAIL_KINDS):
+        if set(changes["mail_texts"]) - set(MAIL_KINDS) - set(SHARE_KINDS):
             raise HTTPException(status_code=422, detail="No such mail")
         # Empty is the app's own wording again.
-        changes["mail_texts"] = {k: {"subject": v["subject"].strip(), "text": v["text"].strip()} for k, v in {**(party.mail_texts or {}), **changes["mail_texts"]}.items() if v["subject"].strip() or v["text"].strip()} or None
+        changes["mail_texts"] = {k: {"subject": v.get("subject", "").strip(), "text": v.get("text", "").strip()} for k, v in {**(party.mail_texts or {}), **changes["mail_texts"]}.items() if v.get("subject", "").strip() or v.get("text", "").strip()} or None
     if changes.get("practical") is not None:
         changes["practical"] = {k: v.strip() for k, v in changes["practical"].items() if v.strip()} or None
     if "menu" in changes:
@@ -1166,9 +1277,14 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         album = await db.get(Album, changes["thanks_album_id"])
         if album is None or album.family_id != user.family_id:
             raise HTTPException(status_code=404, detail="Album not found")
+    if "planners" in changes:
+        if changes["planners"] is None:
+            changes.pop("planners")
+        else:
+            changes["planners"] = await _clean_planners(db, party.family_id, user, changes["planners"])
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages", "speech_signup") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages", "speech_signup", "guest_chat", "planner_chat") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -1187,6 +1303,12 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         raise HTTPException(status_code=422, detail="The portal's link ends after it opens")
     if "rsvp_remind_days" in changes or "rsvp_by" in changes:
         party.rsvp_reminded_on = None
+    if "planners" in changes:
+        # Tasks and the keeping-from only concern those planning.
+        await db.execute(update(PartyTask).where(PartyTask.party_id == party.id, PartyTask.who.is_not(None), PartyTask.who.not_in([uuid.UUID(x) for x in party.planners])).values(who=None))
+        party.plan_hidden = [x for x in party.plan_hidden or [] if x in party.planners] or None
+    if "guest_chat" in changes or "planner_chat" in changes or "title" in changes or "planners" in changes:
+        await _sync_chats(db, party)
     await _sync_event(db, party, user)
     await db.commit()
     base = await public_base(db, request)
@@ -1237,7 +1359,9 @@ async def delete_party(party_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     for key in [party.invite_image_key, *(a["key"] for a in party.assets or [])]:
         if key and storage.exists(party.family_id, key):
             storage.delete(party.family_id, key)
-    for model in (PartyGuest, PartyTask, PartyExpense, PartyStep, PartyMailing):
+    party.guest_chat = party.planner_chat = False
+    await _sync_chats(db, party)
+    for model in (PartyGuest, PartyTask, PartyExpense, PartyStep, PartyMailing, PartyHelper, PartyPlanItem, PartyVendor):
         await db.execute(delete(model).where(model.party_id == party.id))
     await db.delete(party)
     if event_id and (event := await db.get(FamilyEvent, event_id)) is not None:
@@ -1604,6 +1728,148 @@ async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, use
 # --- The helpers and their plan ----------------------------------------------------------------
 
 
+# --- The chats ------------------------------------------------------------------------------------
+
+_CHAT_NAMES = {
+    "en": {"guests": "{title} – guests", "planners": "{title} – planning"}, "sv": {"guests": "{title} – gäster", "planners": "{title} – planering"},
+    "nb": {"guests": "{title} – gjester", "planners": "{title} – planlegging"}, "da": {"guests": "{title} – gæster", "planners": "{title} – planlægning"},
+    "fi": {"guests": "{title} – vieraat", "planners": "{title} – suunnittelu"},
+}
+CHAT_MESSAGES = 5000
+CHAT_PER_MINUTE = 12
+
+
+async def _party_chat(db: AsyncSession, party: Party, kind: str) -> Conversation | None:
+    return (await db.execute(select(Conversation).where(Conversation.party_id == party.id, Conversation.party_kind == kind))).scalars().first()
+
+
+async def _sync_chats(db: AsyncSession, party: Party) -> None:
+    """The party's chats in the chat app: there while they're chosen, with the family's adults in them.
+    The planners' leaves out those the plan is kept from."""
+    language = await _host_language(db, party)
+    adults = [a.id for a in await _planners(db, party)]
+    for kind, on in (("guests", party.guest_chat), ("planners", party.planner_chat)):
+        conv = await _party_chat(db, party, kind)
+        if not on:
+            if conv is not None:
+                await db.execute(delete(ChatMessage).where(ChatMessage.conversation_id == conv.id))
+                await db.execute(delete(ConversationMember).where(ConversationMember.conversation_id == conv.id))
+                await db.delete(conv)
+            continue
+        name = _CHAT_NAMES.get(language, _CHAT_NAMES["en"])[kind].format(title=party.title)[:80]
+        if conv is None:
+            conv = Conversation(family_id=party.family_id, name=name, created_by=party.created_by, party_id=party.id, party_kind=kind)
+            db.add(conv)
+            await db.flush()
+        conv.name = name
+        wanted = {a for a in adults if kind == "guests" or str(a) not in (party.plan_hidden or [])}
+        members = (await db.execute(select(ConversationMember).where(ConversationMember.conversation_id == conv.id))).scalars().all()
+        for m in members:
+            if m.user_id not in wanted:
+                await db.delete(m)
+        for user_id in wanted - {m.user_id for m in members}:
+            db.add(ConversationMember(conversation_id=conv.id, user_id=user_id))
+
+
+async def _chat_page(db: AsyncSession, party: Party, conv: Conversation, mine: tuple[uuid.UUID | None, str | None]) -> dict:
+    rows = (await db.execute(select(ChatMessage).where(ChatMessage.conversation_id == conv.id).order_by(ChatMessage.created_at.desc()).limit(100))).scalars().all()
+    people = {u.id: u.display_name for u in (await db.execute(select(User).where(User.family_id == party.family_id))).scalars().all()}
+    return {"messages": [
+        {"id": m.id, "name": m.sender_name or people.get(m.sender_id, ""), "body": m.body, "at": m.created_at, "host": m.sender_id is not None,
+         "mine": (m.sender_id == mine[0]) if mine[0] else (m.sender_id is None and m.sender_name == mine[1] and mine[1] is not None)}
+        for m in reversed(rows)
+    ]}
+
+
+async def _chat_post(db: AsyncSession, party: Party, conv: Conversation, body: str, sender_id: uuid.UUID | None, sender_name: str | None) -> None:
+    """A message in a party's chat, and word to those in the chat app. Not without limits: guests write here."""
+    from app.services.push import send_to_user, user_pref_enabled
+
+    text = body.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Write something")
+    now = datetime.now(timezone.utc)
+    if (await db.execute(select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conv.id))).scalar_one() >= CHAT_MESSAGES:
+        raise HTTPException(status_code=409, detail="The chat is full")
+    recent = select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conv.id, ChatMessage.created_at > now - timedelta(minutes=1))
+    who = ChatMessage.sender_id == sender_id if sender_id else ChatMessage.sender_name == sender_name
+    if (await db.execute(recent.where(who))).scalar_one() >= CHAT_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Slow down a little")
+    db.add(ChatMessage(family_id=party.family_id, conversation_id=conv.id, sender_id=sender_id, sender_name=sender_name, body=text, created_at=now))
+    await db.commit()
+    author = sender_name
+    if sender_id:
+        sender = await db.get(User, sender_id)
+        author = sender.display_name if sender else ""
+    for member in (await db.execute(select(ConversationMember).where(ConversationMember.conversation_id == conv.id))).scalars().all():
+        if member.user_id == sender_id:
+            continue
+        recipient = await db.get(User, member.user_id)
+        if recipient and user_pref_enabled(recipient, "chat"):
+            await send_to_user(db, recipient.id, {"title": f"{author} · {party.title}", "body": text[:180], "route": "/chat", "kind": "chat", "peer": str(conv.id)})
+
+
+async def _planner_chat(db: AsyncSession, party: Party, kind: str, user: object) -> Conversation:
+    if kind not in ("guests", "planners"):
+        raise HTTPException(status_code=404, detail="No such chat")
+    if kind == "planners":
+        _plan_open(party, user)
+    conv = await _party_chat(db, party, kind)
+    if conv is None:
+        raise HTTPException(status_code=404, detail="This party has no such chat")
+    return conv
+
+
+async def _actor_name(db: AsyncSession, user: object) -> tuple[uuid.UUID | None, str | None]:
+    if isinstance(user, HelperActor):
+        helper = await db.get(PartyHelper, user.helper_id)
+        return None, helper.name if helper else ""
+    return user.id, None
+
+
+@router.get("/{party_id}/chat/{kind}")
+async def read_chat(party_id: uuid.UUID, kind: str, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    await _sync_chats(db, party)
+    await db.commit()
+    return await _chat_page(db, party, await _planner_chat(db, party, kind, user), await _actor_name(db, user))
+
+
+@router.post("/{party_id}/chat/{kind}", status_code=status.HTTP_201_CREATED)
+async def write_chat(party_id: uuid.UUID, kind: str, payload: ChatIn, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    sender_id, name = await _actor_name(db, user)
+    await _chat_post(db, party, await _planner_chat(db, party, kind, user), payload.body, sender_id, name)
+    return {"done": True}
+
+
+@router.delete("/{party_id}/chat/{kind}/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_chat_message(party_id: uuid.UUID, kind: str, message_id: uuid.UUID, user: PartyActor, db: DB) -> None:
+    """The hosts and helpers keep the chat a nice place."""
+    party = await _mine(db, user, party_id)
+    conv = await _planner_chat(db, party, kind, user)
+    await db.execute(delete(ChatMessage).where(ChatMessage.id == message_id, ChatMessage.conversation_id == conv.id))
+    await db.commit()
+
+
+@router.post("/{party_id}/mail-preview")
+async def mail_preview(party_id: uuid.UUID, payload: MailPreviewIn, request: Request, user: PartyActor, db: DB) -> dict:
+    """A mail as a guest would get it, in the party's theme, with a made-up guest."""
+    party = await _mine(db, user, party_id)
+    language = await _host_language(db, party)
+    texts = _MAIL.get(language, _MAIL["en"])
+    base = await public_base(db, request)
+    colors, header = await _mail_look(db, party, base)
+    link = f"{base}/party/{decrypt_token(party.token_encrypted)}"
+    when = _when_where(party, language)
+    fields = {"title": party.title, "name": payload.name or "Anna", "when": when, "link": link, "answer": texts["answers"][0], "by": "", "text": party.thanks_text or "", "subject": ""}
+    foot, stop = _small_print(texts["stop"])
+    return {
+        "subject": _fill(payload.subject, fields),
+        "html": party_mail.render(colors=colors, title=party.title, emoji=party.emoji, text=_fill(payload.text, fields), when="" if "{when}" in payload.text else when, button=_OPEN.get(language, _OPEN["en"]), link=link, foot=foot, stop=stop, stop_link=link, header=header),
+    }
+
+
 @router.post("/{party_id}/helpers", status_code=status.HTTP_201_CREATED)
 async def invite_helper(party_id: uuid.UUID, payload: HelperIn, request: Request, user: PartyActor, db: DB) -> dict:
     """Someone from outside to help run this party, by a personal link until a while after it."""
@@ -1616,6 +1882,9 @@ async def invite_helper(party_id: uuid.UUID, payload: HelperIn, request: Request
         days_after=payload.days_after, token_hash=_hash(token), token_encrypted=encrypt_token(token), created_at=datetime.now(timezone.utc),
     )
     db.add(helper)
+    # They plan together: the chat comes with them.
+    party.planner_chat = True
+    await _sync_chats(db, party)
     await db.commit()
     mailed = await _mail_helper(db, party, helper, "helper", await _helper_link(db, helper, request)) if await configured_url(db) else False
     return {"mailed": mailed, "party": await _detail(db, party, request)}
@@ -1652,6 +1921,8 @@ async def hide_plan(party_id: uuid.UUID, payload: PlanHiddenIn, request: Request
         raise HTTPException(status_code=403, detail="Only the helpers choose this")
     adults = {a for a in (await db.execute(select(User.id).where(User.family_id == party.family_id))).scalars().all()}
     party.plan_hidden = [str(x) for x in payload.user_ids if x in adults] or None
+    # Those it's kept from aren't in the chat about it either.
+    await _sync_chats(db, party)
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1800,6 +2071,9 @@ async def seat_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: SeatIn, 
     if payload.table_id is not None and payload.table_id not in [t["id"] for t in party.tables or []]:
         raise HTTPException(status_code=404, detail="Table not found")
     guest.table_id = payload.table_id
+    # Those together sit together.
+    for g in await _group(db, party, guest.group_id):
+        g.table_id = payload.table_id
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1824,13 +2098,46 @@ async def guest_link(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request,
 @router.delete("/{party_id}/guests/{guest_id}")
 async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
+    gone = await db.get(PartyGuest, guest_id)
+    group_id = gone.group_id if gone is not None and gone.party_id == party.id else None
     await db.execute(delete(PartyGuest).where(PartyGuest.id == guest_id, PartyGuest.party_id == party.id))
+    left = await _group(db, party, group_id)
+    if len(left) == 1:
+        left[0].group_id = None
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.put("/{party_id}/guests/{guest_id}/group")
+async def group_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: GroupIn, request: Request, user: PartyActor, db: DB) -> dict:
+    """Two guests who belong together, each keeping their own reply and link – or one on their own again."""
+    party = await _mine(db, user, party_id)
+    guest = await db.get(PartyGuest, guest_id)
+    if guest is None or guest.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Guest not found")
+    if payload.with_id is None:
+        left = [g for g in await _group(db, party, guest.group_id) if g.id != guest.id]
+        guest.group_id = None
+        if len(left) == 1:
+            left[0].group_id = None
+    else:
+        other = await db.get(PartyGuest, payload.with_id)
+        if other is None or other.party_id != party.id or other.id == guest.id:
+            raise HTTPException(status_code=404, detail="Guest not found")
+        group_id = guest.group_id or other.group_id or secrets.token_hex(8)
+        members = {g.id: g for g in [guest, other, *await _group(db, party, guest.group_id), *await _group(db, party, other.group_id)]}.values()
+        table = next((g.table_id for g in members if g.table_id), None)
+        for g in members:
+            g.group_id = group_id
+            g.table_id = g.table_id or table
+        _no_doubles(list(members))
     await db.commit()
     return await _detail(db, party, request)
 
 
 def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data = {k: (v.strip() if isinstance(v, str) else v) for k, v in payload.model_dump().items()}
+    data.pop("for_group", None)
     # Whoever they bring, as far as the hosts allow: no one, one, or the family.
     allowed = {"none": 0, "one": 1}.get(party.bring, 20)
     dishes = {m["id"] for m in party.menu or []}
@@ -1951,7 +2258,8 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
         "invitation": party.invitation, "rsvp_by": party.rsvp_by, "bring": party.bring, "open": _open_for_replies(party),
         "guests": seen, "wishes": wishes, "thanks": thanks, "mine": _guest_out(mine) if mine else None,
-        "menu": party.menu or [], "speech_signup": party.speech_signup, "practical": party.practical or {},
+        "together": [{"name": g.first_name, "pending": g.pending} for g in guests if mine and mine.group_id and g.group_id == mine.group_id and g.id != mine.id],
+        "menu": party.menu or [], "speech_signup": party.speech_signup, "practical": party.practical or {}, "guest_chat": party.guest_chat,
     }
 
 
@@ -2037,6 +2345,19 @@ async def reply(token: str, payload: GuestIn, request: Request, db: DB, key: str
     for k, v in data.items():
         setattr(guest, k, v)
     guest.updated_at = now
+    await db.flush()
+    members = await _group(db, party, guest.group_id)
+    if members:
+        # Their +1 is the one they're together with: no other, and nobody counted twice.
+        if party.bring == "one":
+            guest.companions = None
+        _no_doubles(members)
+        if payload.for_group:
+            for other in members:
+                if other.id != guest.id and other.pending:
+                    other.coming, other.pending, other.updated_at = guest.coming, False, now
+                    if party.date_poll:
+                        other.date_votes = guest.date_votes
     await db.commit()
     await _tell_hosts(db, party, guest)
     if asked_now:
@@ -2068,10 +2389,33 @@ async def _tell_hosts(db: AsyncSession, party: Party, guest: PartyGuest) -> None
         "nb": ("{name} har svart: {answer}", ("kommer", "kommer ikke")), "da": ("{name} har svaret: {answer}", ("kommer", "kommer ikke")),
         "fi": ("{name} vastasi: {answer}", ("tulee", "ei tule")),
     }
-    adults = (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])))).scalars().all()
-    for adult in adults:
+    for adult in await _planners(db, party):
         title, answers = text.get(adult.language or "en", text["en"])
         await notify(db, adult, {"title": f"{party.emoji} {party.title}", "body": title.format(name=f"{guest.first_name} {guest.last_name}".strip(), answer=answers[0 if guest.coming else 1]), "route": f"/parties?id={party.id}", "kind": "party_reply"}, pref="calendar_family")
+
+
+async def _guest_in_chat(db: AsyncSession, party: Party, key: str) -> tuple[PartyGuest, Conversation]:
+    guest = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.key_hash == _hash(key)))).scalar_one_or_none()
+    conv = await _party_chat(db, party, "guests") if party.guest_chat else None
+    if guest is None or conv is None:
+        raise HTTPException(status_code=404, detail="Your own link is needed")
+    return guest, conv
+
+
+@public.get("/{token}/chat")
+async def guest_reads_chat(token: str, request: Request, response: Response, db: DB, key: str) -> dict:
+    party = await _open(db, token, request)
+    guest, conv = await _guest_in_chat(db, party, key)
+    response.headers.update(NO_STORE)
+    return await _chat_page(db, party, conv, (None, f"{guest.first_name} {guest.last_name}".strip()))
+
+
+@public.post("/{token}/chat", status_code=status.HTTP_201_CREATED)
+async def guest_writes_chat(token: str, payload: ChatIn, request: Request, db: DB, key: str) -> dict:
+    party = await _open(db, token, request)
+    guest, conv = await _guest_in_chat(db, party, key)
+    await _chat_post(db, party, conv, payload.body, None, f"{guest.first_name} {guest.last_name}".strip())
+    return {"done": True}
 
 
 @public.post("/{token}/checkin")
@@ -2097,7 +2441,7 @@ async def check_in(token: str, payload: CheckinIn, request: Request, db: DB, key
         language = await _host_language(db, party)
         line = {"sv": "{name} kan inte komma", "nb": "{name} kan ikke komme", "da": "{name} kan ikke komme", "fi": "{name} ei pääse"}.get(language, "{name} can't come").format(name=name)
         body = f"{line}: {guest.message}" if payload.message.strip() else line
-        for adult in (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])))).scalars().all():
+        for adult in await _planners(db, party):
             await notify(db, adult, {"title": f"{party.emoji} {party.title}", "body": body, "route": f"/parties?id={party.id}", "kind": "party_task"}, pref="calendar_family")
         await db.commit()
     return {"mine": _guest_out(guest)}
@@ -2195,9 +2539,10 @@ async def _mail_helper(db: AsyncSession, party: Party, helper: PartyHelper, kind
         return False
     language = await _host_language(db, party)
     subject, body = _MAIL.get(language, _MAIL["en"])[kind]
+    colors, header = await _mail_look(db, party, base_link.split("/party-help/")[0])
     fields = {"title": party.title, "name": helper.name, "link": base_link, "role": _ROLES.get(language, _ROLES["en"])[helper.role], "until": _helper_ends(helper, party).astimezone(_tz()).strftime("%Y-%m-%d"), **values}
     try:
-        await mailer.send_with(conf, helper.email, _fill(subject, fields), _fill(body, fields))
+        await mailer.send_with(conf, helper.email, _fill(subject, fields), _fill(body, fields), party_mail.render(colors=colors, title=party.title, emoji=party.emoji, text=_fill(body, fields), header=header))
     except mailer.MailError:
         return False
     return True
@@ -2226,7 +2571,7 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
         task.reminded_on = today
         if party is None or _local(party.ends_at).date() + timedelta(days=7) < today:
             continue
-        adults = (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])))).scalars().all()
+        adults = await _planners(db, party)
         if task.helper_id:
             await _mail_helper_task(db, party, task)
             continue
@@ -2295,6 +2640,29 @@ async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
     return party
 
 
+@portal.get("/{token}/chat")
+async def portal_reads_chat(token: str, request: Request, response: Response, db: DB, me: str | None = None) -> dict:
+    """During the party, for those at it: the QR code is their way in, and they write under a name."""
+    party = await _portal(db, token, request)
+    conv = await _party_chat(db, party, "guests") if party.guest_chat else None
+    if conv is None:
+        raise HTTPException(status_code=404, detail="This party has no chat")
+    response.headers.update(NO_STORE)
+    return await _chat_page(db, party, conv, (None, me))
+
+
+@portal.post("/{token}/chat", status_code=status.HTTP_201_CREATED)
+async def portal_writes_chat(token: str, payload: ChatIn, request: Request, db: DB) -> dict:
+    party = await _portal(db, token, request)
+    conv = await _party_chat(db, party, "guests") if party.guest_chat else None
+    if conv is None:
+        raise HTTPException(status_code=404, detail="This party has no chat")
+    if not payload.name.strip():
+        raise HTTPException(status_code=422, detail="Your name, please")
+    await _chat_post(db, party, conv, payload.body, None, payload.name.strip())
+    return {"done": True}
+
+
 @portal.get("/{token}")
 async def portal_page(token: str, request: Request, response: Response, db: DB) -> dict:
     """The day's page: what, when and where, the plan, the poster, and the photos so far. Before it
@@ -2312,7 +2680,7 @@ async def portal_page(token: str, request: Request, response: Response, db: DB) 
     if party.portal_gallery and party.portal_album_id:
         photos = [str(m.id) for m in (await db.execute(select(MediaItem).where(MediaItem.album_id == party.portal_album_id, MediaItem.kind == "image").order_by(MediaItem.created_at.desc()))).scalars()][:300]
     return {
-        "title": party.title, "kind": party.kind, "emoji": party.emoji, "family_name": family.name if family else "", "language": await _host_language(db, party), "practical": party.practical or {},
+        "title": party.title, "kind": party.kind, "emoji": party.emoji, "family_name": family.name if family else "", "language": await _host_language(db, party), "practical": party.practical or {}, "guest_chat": party.guest_chat,
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme, "invitation": party.invitation,
         "page_theme": party.page_theme, "page_custom": await _custom(db, party, party.page_custom_id), "invite_image": _version(party.invite_image_key),
         "layout": party.portal_layout, "assets": _assets_out(party), "playlist_url": party.playlist_url,

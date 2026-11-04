@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx --test src/lib/dateKey.test.ts src/lib/week.test.ts src/locales/locales.test.ts src/lib/zxing.test.ts src/lib/calendarLayout.test.ts src/lib/backupKey.test.ts src/help/help.test.ts src/lib/cache.test.ts src/lib/version.test.ts src/components/kiosk/foxMoments.test.ts src/lib/posterTemplate.test.ts src/lib/posterDevice.test.ts src/lib/guestImport.test.ts"
+    "test": "tsx --test src/lib/dateKey.test.ts src/lib/week.test.ts src/locales/locales.test.ts src/lib/zxing.test.ts src/lib/calendarLayout.test.ts src/lib/backupKey.test.ts src/help/help.test.ts src/lib/cache.test.ts src/lib/version.test.ts src/components/kiosk/foxMoments.test.ts src/lib/posterTemplate.test.ts src/lib/posterDevice.test.ts src/lib/guestImport.test.ts src/lib/partyMailThemes.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

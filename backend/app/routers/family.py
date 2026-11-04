@@ -4,11 +4,11 @@ from datetime import date
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.services import quota, security_policy
 from app.deps import DB, AdminUser, CurrentUser
-from app.models import Family, Person, User, WebAuthnCredential
+from app.models import ChatMessage, ConversationMember, DashboardWidget, Family, Party, Person, PushSubscription, User, UserAchievement, WebAuthnCredential
 from app.schemas import AppAccessIn, MemberCreate, MemberOut, MemberPasswordReset, MemberPatch
 from app.security import hash_password
 
@@ -70,6 +70,15 @@ async def delete_member(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
         raise HTTPException(status_code=404, detail="Member not found")
     if member.id == admin.id:
         raise HTTPException(status_code=400, detail="You cannot remove yourself")
+    # What was only theirs goes with them.
+    for model in (PushSubscription, UserAchievement, DashboardWidget):
+        await db.execute(delete(model).where(model.user_id == member.id))
+    # Out of the chats, with what they wrote kept under their name; a party keeps someone to plan it.
+    await db.execute(delete(ConversationMember).where(ConversationMember.user_id == member.id))
+    await db.execute(update(ChatMessage).where(ChatMessage.sender_id == member.id).values(sender_id=None, sender_name=member.display_name))
+    for party in (await db.execute(select(Party).where(Party.family_id == member.family_id, Party.planners.is_not(None)))).scalars().all():
+        if str(member.id) in party.planners:
+            party.planners = [x for x in party.planners if x != str(member.id)] or None
     await db.delete(member)
     await db.commit()
 

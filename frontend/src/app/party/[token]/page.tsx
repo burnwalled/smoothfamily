@@ -16,10 +16,11 @@ import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThe
 import { FONTS } from "@/lib/partyFonts";
 import PartySky from "@/components/parties/PartySky";
 import Poster from "@/components/parties/Poster";
-import { Block, PosterData, Stage, defaultPoster } from "@/lib/poster";
+import PartyChat from "@/components/parties/PartyChat";
+import { Block, PosterData, Stage, defaultPoster, withChat } from "@/lib/poster";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string ; menu_choice?: string | null };
-type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null };
+type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null; for_group?: boolean };
 type Page = {
   // What the link shows now, and where the portal is once its time has come.
   stage: Stage;
@@ -46,6 +47,9 @@ type Page = {
   wishes: { id: string; title: string; url: string | null; note: string | null; reserved: boolean; reserved_by_you: boolean }[] | null;
   thanks: { text: string; photos: string[] } | null;
   mine: Reply | null;
+  // Those the hosts have put together with this guest, each with their own reply.
+  together: { name: string; pending: boolean }[];
+  guest_chat: boolean;
   menu: { id: string; name: string }[]; speech_signup: boolean; practical: { parking?: string; lodging?: string; travel?: string };
 };
 
@@ -252,7 +256,9 @@ export default function PartyInvitation() {
   const theme = themeKey === "custom" && own ? customTheme(own, (slot, v) => `/api/party/${token}/themes/${own.id}/${slot}?v=${v}`) : partyTheme(themeKey);
   const poll = page.date_poll;
   const coming = poll || form.coming;
-  const most = page.bring === "one" ? 1 : page.bring === "family" ? 20 : 0;
+  const together = page.together ?? [];
+  const most = together.length > 0 && page.bring === "one" ? 0 : page.bring === "one" ? 1 : page.bring === "family" ? 20 : 0;
+  const waitingWith = together.filter((x) => x.pending);
   const setCompanion = (i: number, patch: Partial<Companion>) => setForm({ ...form, companions: form.companions.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
   const vote = (option: string, on: boolean) => setForm({ ...form, date_votes: on ? [...form.date_votes, option] : form.date_votes.filter((x) => x !== option) });
 
@@ -273,7 +279,8 @@ export default function PartyInvitation() {
   const blocks: Block[] = stage === "save" && page.mail && !drawn.some((b) => b.type === "subscribe") ? [...drawn, { id: "subscribe", type: "subscribe", heading: t("party.subscribeHeading"), font: "theme-display", size: "l" }] : drawn;
   const replied = !!page.mine && !page.mine.pending;
   const reply = page.mine;
-  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null, checkin: <CheckIn token={token} mine={page.mine} guestKey={key()} onDone={load} /> };
+  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null, checkin: <CheckIn token={token} mine={page.mine} guestKey={key()} onDone={load} />,
+    chat: !page.guest_chat ? null : page.mine && key() ? <PartyChat path={`/api/party/${token}/chat`} query={`?key=${encodeURIComponent(key()!)}`} label={t("partyChat.heading")} /> : <p className="text-sm text-muted">{t("partyChat.needsReply")}</p> };
 
   return (
     <main className="pt" lang={page.language} style={themeStyle(theme)}>
@@ -284,7 +291,7 @@ export default function PartyInvitation() {
         <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
       <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-6 sm:px-6">
-        <Poster blocks={blocks} d={poster} theme={theme} slots={slots} />
+        <Poster blocks={page.guest_chat && stage !== "save" ? withChat(blocks, t("partyChat.heading")) : blocks} d={poster} theme={theme} slots={slots} />
         {stopped && <p className="pt-card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
         {page.thanks && (
@@ -310,6 +317,7 @@ export default function PartyInvitation() {
             <p className="text-lg font-semibold">{poll ? t("party.replyVoted", { n: reply.date_votes.length }) : reply.coming ? t("party.replyComing", { name: reply.first_name }) : t("party.replyNot", { name: reply.first_name })}</p>
             {reply.coming && reply.companions.length > 0 && <p className="text-sm text-muted">{t("parties.withThem", { names: reply.companions.map((c) => `${c.first_name} ${c.last_name}`.trim()).join(", ") })}</p>}
             {reply.coming && reply.allergies && <p className="text-sm text-muted">{reply.allergies}</p>}
+            {together.length > 0 && <p className="text-sm text-muted">{t("party.togetherWith", { names: together.map((x) => x.name).join(", ") })}</p>}
             {saved && <p className="text-sm font-semibold text-accent" role="status">{poll ? t("party.savedVoted") : reply.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
             <button className="pt-ghost" onClick={() => { setSaved(false); setChanging(true); }}>{t("party.update")}</button>
           </section>
@@ -354,6 +362,12 @@ export default function PartyInvitation() {
             </div>
             {coming && (
               <label className="block"><span className="label">{t("parties.allergiesLabel")}</span><input className="input" value={form.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setForm({ ...form, allergies: e.target.value })} /></label>
+            )}
+            {together.length > 0 && (
+              <div className="space-y-2 rounded-xl border border-edge p-3 text-sm">
+                <p>{t("party.togetherWith", { names: together.map((x) => x.name).join(", ") })}</p>
+                {waitingWith.length > 0 && <label className="flex items-center gap-2 font-semibold"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={!!form.for_group} onChange={(e) => setForm({ ...form, for_group: e.target.checked })} />{t("party.answerFor", { names: waitingWith.map((x) => x.name).join(", ") })}</label>}
+              </div>
             )}
             {coming && page.menu.length > 0 && (
               <label className="block"><span className="label">{t("party.menuChoice")}</span>

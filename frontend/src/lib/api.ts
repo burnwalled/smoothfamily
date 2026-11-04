@@ -805,7 +805,7 @@ export type ChatConversation = {
 
 export type ChatMessage = {
   id: string;
-  sender_id: string;
+  sender_id: string | null;
   sender_name: string;
   sender_color: string;
   recipient_id: string | null;

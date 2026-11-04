@@ -511,8 +511,8 @@ export default function ChatPage() {
                 const showDay = !prev || dayKey(prev.created_at) !== dayKey(msg.created_at);
                 const mine = me?.id === msg.sender_id;
                 // Messages in a row from the same person, close in time, are one group.
-                const joinsPrev = !showDay && !!prev && prev.sender_id === msg.sender_id && Date.parse(msg.created_at) - Date.parse(prev.created_at) < GROUP_MS;
-                const joinsNext = !!next && next.sender_id === msg.sender_id && dayKey(next.created_at) === dayKey(msg.created_at) && Date.parse(next.created_at) - Date.parse(msg.created_at) < GROUP_MS;
+                const joinsPrev = !showDay && !!prev && prev.sender_id === msg.sender_id && prev.sender_name === msg.sender_name && Date.parse(msg.created_at) - Date.parse(prev.created_at) < GROUP_MS;
+                const joinsNext = !!next && next.sender_id === msg.sender_id && next.sender_name === msg.sender_name && dayKey(next.created_at) === dayKey(msg.created_at) && Date.parse(next.created_at) - Date.parse(msg.created_at) < GROUP_MS;
                 const emojiOnly = !msg.media_id && !msg.gif_id && isEmojiOnly(msg.body);
                 const corner = mine ? (joinsNext ? "rounded-br-md" : "rounded-br-sm") : joinsNext ? "rounded-bl-md" : "rounded-bl-sm";
                 const time = new Date(msg.created_at).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" });

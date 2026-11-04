@@ -41,12 +41,13 @@ export type Block = Base & (
   // Practical information from the hosts, and the guest's thumb up or down before the party.
   | ({ type: "practical"; heading?: string } & TextStyle)
   | ({ type: "checkin"; heading?: string } & TextStyle)
+  | ({ type: "chat"; heading?: string } & TextStyle)
 );
 // The posters of one party, in its theme: before, the invitation, the day itself, after.
 export type Stage = "save" | "invite" | "checkin" | "portal" | "thanks";
 export const STAGES: Stage[] = ["save", "invite", "checkin", "portal", "thanks"];
 export type BlockType = Block["type"];
-export const BLOCK_TYPES: BlockType[] = ["text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin"];
+export const BLOCK_TYPES: BlockType[] = ["text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin", "chat"];
 // Apple's calendar has no link of its own: the file opens it on an iPhone or a Mac ("apple" in an
 // older poster shows as the file).
 export const CALENDAR_BUTTONS: CalendarButton[] = ["ics", "google", "outlook"];
@@ -188,6 +189,11 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
 }
 
 // A new block of a kind, as it starts in the editor.
+// The guests' chat on a page that hasn't placed it itself.
+export function withChat(blocks: Block[], heading: string): Block[] {
+  return blocks.some((b) => b.type === "chat") ? blocks : [...blocks, { id: "chat", type: "chat", heading, font: "theme-display", size: "l" }];
+}
+
 export function blankBlock(type: BlockType, theme: PartyTheme, t: T): Block {
   const id = uid();
   switch (type) {
@@ -209,5 +215,6 @@ export function blankBlock(type: BlockType, theme: PartyTheme, t: T): Block {
     case "gallery": return { id, type, heading: t("party.galleryHeading"), font: "theme-display", size: "l" };
     case "practical": return { id, type, heading: t("party.practicalHeading"), font: "theme-display", size: "l" };
     case "checkin": return { id, type, heading: t("party.checkinHeading"), font: "theme-display", size: "l" };
+    case "chat": return { id, type, heading: t("partyChat.heading"), font: "theme-display", size: "l" };
   }
 }

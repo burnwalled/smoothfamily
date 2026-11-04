@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Path, Query, Response, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 
 from app.deps import CurrentUser, DB, require_app
 from app.models import Album, Conversation, ConversationMember, ChatMessage, MediaItem, User
@@ -96,7 +96,7 @@ async def _conv_out(conv: Conversation, user: User, db: DB) -> ChatConversationO
             .select_from(ChatMessage)
             .where(
                 ChatMessage.conversation_id == conv.id,
-                ChatMessage.sender_id != user.id,
+                or_(ChatMessage.sender_id.is_(None), ChatMessage.sender_id != user.id),
                 ChatMessage.created_at > (read_at or _epoch()),
             )
         )
@@ -111,7 +111,7 @@ async def _conv_out(conv: Conversation, user: User, db: DB) -> ChatConversationO
         )
     ).scalars().all()
 
-    is_dm = len(members) == 2
+    is_dm = len(members) == 2 and conv.party_id is None
     if is_dm and member_users:
         other = member_users[0]
         peer_name = other.display_name
@@ -134,7 +134,8 @@ async def _conv_out(conv: Conversation, user: User, db: DB) -> ChatConversationO
         conversation_id=conv.id,
         conversation_name=conv.name,
         member_ids=[m.user_id for m in members],
-        is_creator=(conv.created_by == user.id),
+        # A party's chat is the party's to manage.
+        is_creator=(conv.created_by == user.id and conv.party_id is None),
     )
 
 
@@ -228,6 +229,8 @@ async def create_conversation(payload: ConversationCreate, user: CurrentUser, db
 @router.patch("/conversations/{conv_id}", response_model=ChatConversationOut)
 async def update_conversation(conv_id: uuid.UUID, payload: ConversationMembersUpdate, user: CurrentUser, db: DB) -> ChatConversationOut:
     conv = await _get_conversation(conv_id, user, db)
+    if conv.party_id is not None:
+        raise HTTPException(status_code=403, detail="The party decides who's in this chat")
     if conv.created_by != user.id and user.role not in ("admin",):
         raise HTTPException(status_code=403, detail="Only creator or admin can manage this conversation")
 
@@ -326,7 +329,7 @@ async def list_messages(
         ChatMessageOut(
             id=row.id,
             sender_id=row.sender_id,
-            sender_name=members.get(row.sender_id).display_name if members.get(row.sender_id) else "Unknown",
+            sender_name=row.sender_name or (members.get(row.sender_id).display_name if members.get(row.sender_id) else "Unknown"),
             sender_color=members.get(row.sender_id).color if members.get(row.sender_id) else "#4F7A5B",
             recipient_id=None,
             body=row.body,

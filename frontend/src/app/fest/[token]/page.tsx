@@ -11,10 +11,11 @@ import { isLocale, useI18n } from "@/lib/i18n";
 import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
 import PartySky from "@/components/parties/PartySky";
 import Poster, { Countdown } from "@/components/parties/Poster";
-import { Block, PosterData, defaultPoster } from "@/lib/poster";
+import PartyChat from "@/components/parties/PartyChat";
+import { Block, PosterData, defaultPoster, withChat } from "@/lib/poster";
 
 type Portal = {
-  locked?: boolean; opens_at?: string | null; practical?: { parking?: string; lodging?: string; travel?: string };
+  guest_chat?: boolean; locked?: boolean; opens_at?: string | null; practical?: { parking?: string; lodging?: string; travel?: string };
   title: string; kind: string; emoji: string; family_name: string; language: string; starts_at: string; ends_at: string; place: string; address: string;
   theme: string; invitation: string; page_theme: string; page_custom: CustomTheme | null; invite_image: string | null;
   layout: Block[] | null; assets: { id: string; v: string | null }[]; playlist_url: string | null;
@@ -141,7 +142,7 @@ export default function PartyPortal() {
         <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
       <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-10 sm:px-6">
-        <Poster blocks={blocks} d={d} theme={theme} slots={{ upload: <Upload token={token} onUploaded={load} />, gallery, subscribe: null, checkin: null }} />
+        <Poster blocks={page.guest_chat ? withChat(blocks, t("partyChat.heading")) : blocks} d={d} theme={theme} slots={{ upload: <Upload token={token} onUploaded={load} />, gallery, subscribe: null, checkin: null, chat: page.guest_chat ? <PartyChat path={`/api/party-portal/${token}/chat`} askName label={t("partyChat.heading")} /> : null }} />
       </div>
     </main>
   );

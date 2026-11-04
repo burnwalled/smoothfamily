@@ -935,3 +935,244 @@ async def test_a_task_for_someone(client):
     out = (await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": None, "helper_id": made["helpers"][0]["id"]})).json()
     row = next(t for t in out["tasks"] if t["id"] == task)
     assert row["who"] is None and row["helper_id"] == made["helpers"][0]["id"]
+
+
+async def test_guests_who_belong_together(client):
+    await _family(client)
+    pid, token, _ = await _token_party(client)
+    await client.put(f"/api/parties/{pid}", json={"bring": "one", "tables": [{"id": "a", "name": "Bord 1", "seats": 8}]})
+    # Saga brings Nils as her +1; Nils also replies by himself; Maja hasn't answered.
+    saga_key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "coming": True, "companions": [{"first_name": "Nils"}]})).json()["key"]
+    nils_key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "last_name": "Ek", "coming": True})).json()["key"]
+    detail = (await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Maja", "invited": True})).json()
+    by = {g["first_name"]: g for g in detail["guests"]}
+    assert detail["coming"] == 3  # Nils twice
+    assert detail["capacity"] == {"coming": 3, "waiting": 1, "most": 2 + 2 + 2, "open": False}
+
+    path = f"/api/parties/{pid}/guests"
+    assert (await client.put(f"{path}/{by['Saga']['id']}/table", json={"table_id": "a"})).status_code == 200
+    linked = (await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Nils"]["id"]})).json()
+    by = {g["first_name"]: g for g in linked["guests"]}
+    assert by["Saga"]["group_id"] and by["Saga"]["group_id"] == by["Nils"]["group_id"]
+    assert by["Saga"]["companions"] == [] and linked["coming"] == 2  # counted once now
+    assert linked["capacity"] == {"coming": 2, "waiting": 1, "most": 1 + 1 + 2, "open": False}
+    assert by["Nils"]["table_id"] == "a"  # they sit together
+    assert (await client.put(f"{path}/{by['Saga']['id']}/table", json={"table_id": None})).json()["guests"][1]["table_id"] is None
+    assert (await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Saga"]["id"]})).status_code == 404
+
+    # Each keeps their own link, and sees who they're with; no other +1 comes in.
+    page = (await client.get(f"/api/party/{token}?key={saga_key}")).json()
+    assert page["together"] == [{"name": "Nils", "pending": False}] and page["mine"]["first_name"] == "Saga"
+    assert (await client.get(f"/api/party/{token}")).json()["together"] == []
+    await client.post(f"/api/party/{token}/reply?key={saga_key}", json={"first_name": "Saga", "last_name": "Berg", "coming": True, "companions": [{"first_name": "Ella"}]})
+    assert (await client.get(f"/api/party/{token}?key={saga_key}")).json()["mine"]["companions"] == []
+    assert (await client.get(f"/api/party/{token}?key={nils_key}")).json()["mine"]["first_name"] == "Nils"
+
+    # One answers for the other who hasn't: only then, and not over their own answer.
+    with_maja = (await client.put(f"{path}/{by['Maja']['id']}/group", json={"with_id": by["Nils"]["id"]})).json()
+    assert len({g["group_id"] for g in with_maja["guests"]}) == 1
+    await client.post(f"/api/party/{token}/reply?key={nils_key}", json={"first_name": "Nils", "last_name": "Ek", "coming": False, "for_group": True})
+    after = {g["first_name"]: g for g in (await client.get(f"/api/parties/{pid}")).json()["guests"]}
+    assert after["Maja"]["coming"] is False and after["Maja"]["pending"] is False
+    assert after["Saga"]["coming"] is True  # she'd answered herself
+
+    # Apart again, and the last one left isn't together with anyone.
+    await client.put(f"{path}/{by['Maja']['id']}/group", json={"with_id": None})
+    await client.put(f"{path}/{by['Nils']['id']}/group", json={"with_id": None})
+    assert all(g["group_id"] is None for g in (await client.get(f"/api/parties/{pid}")).json()["guests"])
+    await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Nils"]["id"]})
+    out = (await client.delete(f"{path}/{by['Saga']['id']}")).json()
+    assert all(g["group_id"] is None for g in out["guests"])
+
+
+async def test_the_mails_are_html_in_the_partys_theme(client, db_session, monkeypatch):
+    from app.models import AppSetting
+    from app.services import mailer, party_mail
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append({"to": to, "subject": subject, "text": text, "html": html}))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    db_session.add(AppSetting(key="external_url", value="https://fest.example"))
+    await db_session.commit()
+    pid, token, _ = await _token_party(client, page_theme="glamour", title="Galan <b>2027</b>")
+    await client.put(f"/api/parties/{pid}", json={"mail_texts": {"confirm": {"text": "Tack {name}! <script>alert(1)</script>\nVi ses."}}})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga<img>", "email": "saga@example.com", "updates": True, "coming": True})
+    mail = sent[0]
+    gold = party_mail.THEMES["glamour"]["accent"]
+    assert gold in mail["html"] and party_mail.THEMES["glamour"]["bg"] in mail["html"]
+    # Nothing from the hosts or the guests is markup, and the plain text is still there.
+    assert "<script>" not in mail["html"] and "&lt;script&gt;" in mail["html"] and "Saga<img>" not in mail["html"] and "<b>2027" not in mail["html"]
+    assert "<script>alert(1)</script>" in mail["text"]
+    # The guest's own link as the button, the stop link, and the theme's picture from the server.
+    key = mail["text"].split("?key=")[1].split()[0]
+    assert f"{token}?key={key}" in mail["html"] and "?unsubscribe=" in mail["html"] and "https://fest.example/party-assets/" in mail["html"]
+
+    # An own theme: its colours.
+    theme = (await client.post("/api/parties/themes", json={"name": "Lila", "bg": "#220033", "bg2": "#330044", "accent": "#ff00aa", "ink": "#ffffff"})).json()
+    await client.put(f"/api/parties/{pid}", json={"page_theme": "custom", "page_custom_id": theme["id"]})
+    sent.clear()
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "email": "nils@example.com", "updates": True, "coming": True})
+    assert "#ff00aa" in sent[0]["html"] and gold not in sent[0]["html"]
+
+    # The preview is what's sent, with a made-up guest.
+    preview = (await client.post(f"/api/parties/{pid}/mail-preview", json={"subject": "Hej {name}", "text": "<b>Kom</b> {name}", "name": "Anna"})).json()
+    assert preview["subject"] == "Hej Anna" and "&lt;b&gt;Kom&lt;/b&gt; Anna" in preview["html"] and "#ff00aa" in preview["html"]
+
+
+async def test_the_shared_message_is_the_hosts_own(client):
+    await _family(client)
+    pid, _, _ = await _token_party(client)
+    assert (await client.get(f"/api/parties/{pid}")).json()["share_texts"] == {"save": "", "invite": ""}
+    out = (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"share_save": {"text": "Boka {when}! {link}"}}})).json()
+    assert out["share_texts"]["save"] == "Boka {when}! {link}"
+    assert not [m for m in out["mail_templates"] if m["kind"].startswith("share")]
+    assert (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"share_save": {"text": ""}}})).json()["share_texts"]["save"] == ""
+
+
+async def test_the_guests_chat_is_in_the_chat_app_too(client):
+    await _family(client)
+    pid, token, _ = await _token_party(client, title="Fyrtio")
+    key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "coming": True})).json()["key"]
+    # Not chosen: nothing there.
+    assert (await client.get(f"/api/party/{token}/chat?key={key}")).status_code == 404
+    assert (await client.put(f"/api/parties/{pid}", json={"guest_chat": True})).json()["guest_chat"] is True
+    assert (await client.get(f"/api/party/{token}")).json()["guest_chat"] is True
+
+    # A guest needs their own key; the link alone isn't enough.
+    assert (await client.get(f"/api/party/{token}/chat?key=fel")).status_code == 404
+    assert (await client.post(f"/api/party/{token}/chat?key={key}", json={"body": "Så taggad!"})).status_code == 201
+    assert (await client.post(f"/api/party/{token}/chat?key={key}", json={"body": "   "})).status_code == 422
+    seen = (await client.get(f"/api/party/{token}/chat?key={key}")).json()["messages"]
+    assert [(m["name"], m["body"], m["mine"], m["host"]) for m in seen] == [("Saga Berg", "Så taggad!", True, False)]
+
+    # In the family's chat app, unread, under the party's name, and the hosts answer from there.
+    conv = next(c for c in (await client.get("/api/chat/conversations")).json() if c["conversation_name"] and c["conversation_name"].startswith("Fyrtio"))
+    assert conv["unread_count"] == 1 and conv["peer_type"] == "group" and conv["is_creator"] is False and conv["last_message_snippet"] == "Så taggad!"
+    page = (await client.get(f"/api/chat/messages?peer={conv['peer_key']}")).json()["items"]
+    assert page[0]["sender_id"] is None and page[0]["sender_name"] == "Saga Berg"
+    await client.post("/api/chat/messages", json={"peer": conv["peer_key"], "body": "Välkommen!"})
+    seen = (await client.get(f"/api/party/{token}/chat?key={key}")).json()["messages"]
+    assert seen[1]["body"] == "Välkommen!" and seen[1]["host"] is True and seen[1]["mine"] is False
+    # Who's in it is the party's to say.
+    assert (await client.patch(f"/api/chat/conversations/{conv['peer_key']}", json={"member_ids": []})).status_code == 403
+
+    # In the portal during the party, under a name.
+    now = datetime.now(timezone.utc)
+    code = (await client.put(f"/api/parties/{pid}", json={"portal_at": (now - timedelta(minutes=1)).isoformat()})).json()["portal"]["link"].rsplit("/", 1)[1]
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "Hej"})).status_code == 422
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "Skål!", "name": "Nils"})).status_code == 201
+    assert [m["name"] for m in (await client.get(f"/api/party-portal/{code}/chat?me=Nils")).json()["messages"]][-1] == "Nils"
+    # The portal closed: no way in by the code.
+    await client.delete(f"/api/parties/{pid}/portal")
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "x", "name": "y"})).status_code == 404
+
+    # The hosts can take a message away; not too many at once; off removes it.
+    messages = (await client.get(f"/api/parties/{pid}/chat/guests")).json()["messages"]
+    assert (await client.delete(f"/api/parties/{pid}/chat/guests/{messages[0]['id']}")).status_code == 204
+    assert len((await client.get(f"/api/parties/{pid}/chat/guests")).json()["messages"]) == len(messages) - 1
+    statuses = [(await client.post(f"/api/party/{token}/chat?key={key}", json={"body": f"{i}"})).status_code for i in range(14)]
+    assert statuses[-1] == 429
+    await client.put(f"/api/parties/{pid}", json={"guest_chat": False})
+    assert (await client.get(f"/api/party/{token}/chat?key={key}")).status_code == 404
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+
+
+async def test_the_planners_chat_with_a_toastmaster(client):
+    await _family(client)
+    me = (await client.get("/api/auth/me")).json()
+    pid, token, _ = await _token_party(client, title="Fyrtio")
+    made = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars"})).json()
+    assert made["party"]["planner_chat"] is True  # it comes with the first helper
+    code = (await client.post(f"/api/parties/{pid}/helpers/{made['party']['helpers'][0]['id']}/link")).json()["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/parties/{pid}/chat/planners", json={"body": "Hej Lars"})
+
+    # The toastmaster, by their link: reads and writes; the family has it in the chat app.
+    await client.post(f"/api/party-help/{code}/enter")
+    helper = {"X-Party-Helper": "1"}
+    assert (await client.post(f"/api/parties/{pid}/chat/planners", json={"body": "Hej! Vilka ska tala?"}, headers=helper)).status_code == 201
+    seen = (await client.get(f"/api/parties/{pid}/chat/planners", headers=helper)).json()["messages"]
+    assert [(m["name"], m["mine"]) for m in seen] == [("Anna", False), ("Lars", True)]
+    chats = [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert len(chats) == 1 and chats[0]["conversation_name"] == "Fyrtio – planering"
+
+    # Kept from the host: they're out of the chat too, and can't read it.
+    await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": [me["id"]]}, headers=helper)
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert (await client.get(f"/api/parties/{pid}/chat/planners")).status_code == 403
+    assert (await client.get(f"/api/chat/messages?peer={chats[0]['peer_key']}")).status_code == 404
+    assert (await client.get(f"/api/parties/{pid}")).json()["planner_chat"] is False
+    # Shown again: back in. And removing the party takes the chats with it.
+    await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": []}, headers=helper)
+    assert [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert (await client.delete(f"/api/parties/{pid}")).status_code == 204
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+
+
+async def test_who_plans_is_not_who_is_celebrated(client):
+    ids = await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    # All the adults until someone chooses.
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    assert set(party["planners"]) == {ids["admin"], ids["adult1"]}
+    adults = (await client.get("/api/parties/adults")).json()
+    assert {a["id"] for a in adults} == {ids["admin"], ids["adult1"]}
+
+    # Only me: the other adult doesn't see it, can't open it and hears nothing of it.
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"]], "guest_chat": True, "planner_chat": True})).json()["planners"] == [ids["admin"]]
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "coming": True})
+    await _as(client, "adult1")
+    assert (await client.get("/api/parties")).json() == []
+    assert (await client.get(f"/api/parties/{pid}")).status_code == 404
+    assert (await client.put(f"/api/parties/{pid}", json={"title": "x"})).status_code == 404
+    assert (await client.delete(f"/api/parties/{pid}")).status_code == 404
+    assert (await client.get(f"/api/parties/{pid}/chat/guests")).status_code == 404
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if c["conversation_name"] and "gäster" in c["conversation_name"]]
+    assert not (await client.get("/api/notifications")).json() or "Saga" not in str((await client.get("/api/notifications")).json())
+
+    # Children never plan; nobody takes themselves out, and only the family's adults can be chosen.
+    await _as(client, "admin", "secret123")
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["adult1"]]})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"], ids["maja"]]})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": []})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"title": "Ny titel"})).json()["planners"] == [ids["admin"]]  # left alone
+
+    # A task and the keeping-from only for those planning; back in, the chats follow.
+    task = (await client.get(f"/api/parties/{pid}")).json()["tasks"][0]["id"]
+    both = (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"], ids["adult1"]]})).json()
+    await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": ids["adult1"]})
+    out = (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"]]})).json()
+    assert next(x for x in out["tasks"] if x["id"] == task)["who"] is None and len(both["planners"]) == 2
+
+    # Made with its planners from the start.
+    made = (await client.post("/api/parties", json=_party(start, kind="party", planners=[ids["admin"]]))).json()
+    assert made["planners"] == [ids["admin"]]
+    assert (await client.post("/api/parties", json=_party(start, kind="party", planners=[ids["adult1"]]))).status_code == 422
+    await _as(client, "adult1")
+    assert [p["id"] for p in (await client.get("/api/parties")).json()] == []
+
+    # A helper's link still works, for whoever's planning.
+    await _as(client, "admin", "secret123")
+    code = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars"})).json()["party"]["helpers"][0]["id"]
+    link = (await client.post(f"/api/parties/{pid}/helpers/{code}/link")).json()["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/party-help/{link}/enter")
+    assert (await client.get(f"/api/parties/{pid}", headers={"X-Party-Helper": "1"})).json()["you"]["helper"] is True
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["adult1"]]}, headers={"X-Party-Helper": "1"})).json()["planners"] == [ids["adult1"]]
+
+
+async def test_removing_a_member_who_chats_and_plans(client):
+    ids = await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    await client.put(f"/api/parties/{party['id']}", json={"planner_chat": True})
+    await _as(client, "adult1")
+    conv = next(c for c in (await client.get("/api/chat/conversations")).json() if "planering" in (c["conversation_name"] or ""))
+    await client.post("/api/chat/messages", json={"peer": conv["peer_key"], "body": "Jag fixar tårtan"})
+    await _as(client, "admin", "secret123")
+    assert (await client.put(f"/api/parties/{party['id']}", json={"planners": [ids["admin"], ids["adult1"]]})).status_code == 200
+    assert (await client.delete(f"/api/family/members/{ids['adult1']}")).status_code == 204
+    # What they wrote stays, under their name, and the party still has its planner.
+    items = (await client.get(f"/api/chat/messages?peer={conv['peer_key']}")).json()["items"]
+    assert items[0]["body"] == "Jag fixar tårtan" and items[0]["sender_name"] == "Adult1" and items[0]["sender_id"] is None
+    assert (await client.get(f"/api/parties/{party['id']}")).json()["planners"] == [ids["admin"]]
