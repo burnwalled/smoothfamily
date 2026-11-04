@@ -29,6 +29,10 @@ from app.database import Base
 from app.models import Family, ServerLog, User
 from app.services.vault import plain_key, sealed_key
 
+# A move file (sealed) and what it may unpack to: a family's data, not a way to fill the memory.
+MOVE_FILE_MAX = 512 * 1024 * 1024
+MOVE_UNPACKED_MAX = 4 * 1024 * 1024 * 1024
+
 # Never part of a family: server-wide settings and the server's own records.
 SERVER_TABLES = {"app_settings", "invitations", "server_log"}
 MAGIC = b"SFMOVE1"
@@ -156,11 +160,37 @@ async def export_family(db: AsyncSession, family_id: uuid.UUID, passphrase: str)
     return encrypt(buf.getvalue(), passphrase)
 
 
+def _rows_of_family(table, values: list[dict], family_id: uuid.UUID, imported_ids: dict[str, set[str]]) -> None:
+    if table.name == "families":
+        if len(values) != 1 or str(values[0].get("id")) != str(family_id):
+            raise FamilyArchiveError("The file's rows don't belong to the family it says")
+        return
+    if "family_id" in table.c:
+        if any(str(v.get("family_id")) != str(family_id) for v in values):
+            raise FamilyArchiveError("The file's rows don't belong to the family it says")
+        return
+    # Through a parent: the parent must be in the file (and so, already checked).
+    for column in table.columns:
+        for fk in column.foreign_keys:
+            parent = fk.column.table.name
+            if parent in imported_ids or parent == "families":
+                wanted = {str(family_id)} if parent == "families" else imported_ids[parent]
+                if any(v.get(column.name) is not None and str(v[column.name]) not in wanted for v in values):
+                    raise FamilyArchiveError("The file's rows don't belong to the family it says")
+                return
+    raise FamilyArchiveError(f"The file has rows the server can't place ({table.name})")
+
+
 async def import_family(db: AsyncSession, blob: bytes, passphrase: str) -> uuid.UUID:
     """Recreates a family from a move file. The family keeps its ids, so it can't already be
     on this server, and its usernames must be free."""
+    if len(blob) > MOVE_FILE_MAX:
+        raise FamilyArchiveError("The file is too large")
     try:
         zf = zipfile.ZipFile(io.BytesIO(decrypt(blob, passphrase)))
+        unpacked = sum(info.file_size for info in zf.infolist())
+        if unpacked > MOVE_UNPACKED_MAX:
+            raise FamilyArchiveError("The file is too large")
         data = json.loads(zf.read("family.json"))
     except FamilyArchiveError:
         raise
@@ -177,11 +207,16 @@ async def import_family(db: AsyncSession, blob: bytes, passphrase: str) -> uuid.
         raise FamilyArchiveError(f"These usernames are taken on this server: {', '.join(sorted(taken))}")
 
     known = {t.name: t for t in family_tables()}
+    # Every row must be this family's: a file could otherwise put a user, or anything, into another
+    # family on this server. Rows without family_id hang off a row imported before them.
+    imported_ids: dict[str, set[str]] = {}
     for table in family_tables():
         rows = data["tables"].get(table.name, [])
         if not rows:
             continue
         values = [{k: _load(table.c[k], v) for k, v in row.items() if k in table.c} for row in rows]
+        _rows_of_family(table, values, family_id, imported_ids)
+        imported_ids[table.name] = {str(v["id"]) for v in values if v.get("id") is not None}
         if table.name == "families":
             for row, raw in zip(values, rows):
                 key = raw.get("vault_key_encrypted")

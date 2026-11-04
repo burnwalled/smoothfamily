@@ -1294,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Vienti, perheen oma avain ja perheen siirtäminen.",
     "blocks": [
       {
-        "p": "Kohdassa Perheen asetukset → Turvallisuus ja tiedot ylläpitäjä voi viedä perheen tiedot ja toisten ylläpitämällä palvelimella valita perheelle oman varmuuskopioavaimen: perheen varmuuskopiot sinetöidään silloin niin, että vain te voitte avata ne – ei edes palvelimen ylläpitäjä."
+        "p": "Kohdassa Perheen asetukset → Turvallisuus ja tiedot ylläpitäjä voi viedä perheen tiedot ja toisten ylläpitämällä palvelimella valita perheelle oman varmuuskopioavaimen: perheen varmuuskopiot sinetöidään silloin niin, että vain te voitte avata ne – ei edes palvelimen ylläpitäjä. Vienti sisältää sen, mitä itse saat nähdä sovelluksessa: toisen aikuisen yksityiset asiakirjat, lääkkeet, jakamaton terveys ja keskustelut, joissa et ole mukana, jäävät pois."
       },
       {
         "shot": "familydata",

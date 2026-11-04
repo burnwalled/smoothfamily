@@ -292,12 +292,13 @@ async def _open(db, token: str, request: Request) -> tuple[KioskScreen, Family]:
     if login_throttle.ip_retry_after(ip):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     screen = (await db.execute(select(KioskScreen).where(KioskScreen.token_hash == _hash(token)))).scalar_one_or_none()
-    if screen is None or screen.revoked_at is not None:
+    family = await db.get(Family, screen.family_id) if screen else None
+    if screen is None or screen.revoked_at is not None or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This screen isn't connected any more")
     screen.last_seen_at = datetime.now(timezone.utc)
     await db.commit()
-    return screen, await db.get(Family, screen.family_id)
+    return screen, family
 
 
 async def _shared_buttons(db, family_id: uuid.UUID) -> list[SmarthomeFlow]:

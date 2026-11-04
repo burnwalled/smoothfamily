@@ -145,7 +145,7 @@ async def backup_status(user: CurrentUser, db: DB) -> BackupStatusOut:
 async def export_family(admin: AdminUser, db: DB, background: BackgroundTasks) -> FileResponse:
     """All of this family's data (no secrets) and media files as a zip."""
     family = await db.get(Family, admin.family_id)
-    path = await build_export(db, admin.family_id, family.name)
+    path = await build_export(db, admin.family_id, family.name, admin.id)
     background.add_task(os.remove, path)
     name = f"smooth-family-{datetime.now(timezone.utc).strftime('%Y%m%d')}.zip"
     return FileResponse(path, filename=name, media_type="application/zip", background=background)

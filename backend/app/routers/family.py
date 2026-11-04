@@ -106,11 +106,19 @@ async def _let_go(db, member: User, remover: User) -> None:
             party.plan_hidden = [x for x in party.plan_hidden if x != gone] or None
 
 
+def _not_the_servers_admin(member: User, admin: User) -> None:
+    """A family admin manages the family's members – not the server's admin, who happens to be one of
+    them: that account reaches every family and the backups."""
+    if member.is_server_admin and member.id != admin.id:
+        raise HTTPException(status_code=403, detail="The server's admin can only be changed by themself")
+
+
 @router.delete("/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_member(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.id == admin.id:
         raise HTTPException(status_code=400, detail="You cannot remove yourself")
     if member.is_server_admin:
@@ -125,6 +133,7 @@ async def patch_member(member_id: uuid.UUID, payload: MemberPatch, admin: AdminU
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.id == admin.id and payload.role is not None and payload.role != "admin":
         raise HTTPException(status_code=400, detail="You cannot remove your own admin role")
 
@@ -153,6 +162,7 @@ async def _child_or_self(db, admin, member_id: uuid.UUID) -> User:
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.role != "child" and member.id != admin.id:
         raise HTTPException(status_code=403, detail="Adults choose their own picture")
     return member
@@ -209,8 +219,10 @@ async def reset_member_password(
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     await security_policy.check_password(db, payload.password, member.role)
     member.password_hash = hash_password(payload.password)
+    member.session_version = (member.session_version or 1) + 1
     await db.commit()
 
 
@@ -220,9 +232,11 @@ async def reset_member_mfa(member_id: uuid.UUID, admin: AdminUser, db: DB) -> No
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     member.totp_secret_encrypted = None
     member.totp_pending_encrypted = None
     member.totp_last_step = None
+    member.session_version = (member.session_version or 1) + 1
     await db.execute(delete(WebAuthnCredential).where(WebAuthnCredential.user_id == member.id))
     await db.commit()
 
@@ -233,6 +247,7 @@ async def set_member_apps(member_id: uuid.UUID, payload: AppAccessIn, admin: Adm
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     member.app_access = None if payload.apps is None else sorted(set(payload.apps))
     await db.commit()
     await db.refresh(member)

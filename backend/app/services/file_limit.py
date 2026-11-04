@@ -34,6 +34,12 @@ async def set_max_file_mb(db: AsyncSession, mb: int | None) -> None:
     await db.commit()
 
 
+async def max_bytes(db: AsyncSession) -> int:
+    """The limit in bytes – with no limit set, still a ceiling a server can hold in memory."""
+    limit = await max_file_mb(db)
+    return (limit if limit is not None else 2048) * 1024 * 1024
+
+
 async def too_large(db: AsyncSession, size: int) -> int | None:
     """The limit in MB when a file of this size is over it, else None."""
     limit = await max_file_mb(db)

@@ -213,10 +213,12 @@ export type Member = {
 export type Feed = {
   id: string;
   name: string;
+  // Empty for those who don't manage the feed: the address opens the whole calendar.
   url: string;
   color: string;
   visible_to: string[];
   details_for: string[];
+  can_edit?: boolean;
   // A member's own calendar (their Google/iCloud …); null = the family's.
   member_id: string | null;
 };
@@ -596,7 +598,7 @@ export type ListItem = {
   pending?: boolean;
 };
 
-export type ImportResult = { imported: number; skipped: string[] };
+export type ImportResult = { imported: number; skipped: string[]; suggested?: number };
 
 export type Album = {
   id: string;

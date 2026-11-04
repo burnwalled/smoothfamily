@@ -1294,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Export, the family's own backup key and moving the family.",
     "blocks": [
       {
-        "p": "Under Family settings → Security and data the admin can export the family's data and, on a hosted server, choose a backup key of the family's own: the family's backups are then sealed so that only you can open them – not even the server's admin."
+        "p": "Under Family settings → Security and data the admin can export the family's data and, on a hosted server, choose a backup key of the family's own: the family's backups are then sealed so that only you can open them – not even the server's admin. The export holds what you yourself may see in the app: another adult's private documents, medicines, health they don't share and chats you aren't in stay out."
       },
       {
         "shot": "familydata",

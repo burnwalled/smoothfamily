@@ -12,6 +12,10 @@ import recurring_ical_events
 import redis.asyncio as aioredis
 
 from app.config import get_settings
+from app.services import safe_fetch
+
+# A calendar file bigger than this isn't one.
+MAX_FEED_BYTES = 2 * 1024 * 1024
 
 _redis: aioredis.Redis | None = None
 
@@ -49,12 +53,12 @@ async def fetch_ical_raw(url: str, family_id=None) -> bytes:
         async with SessionLocal() as db:
             data = await ha_calendar.fetch(db, family_id, ha_calendar.entity_of(url))
     else:
-        async with httpx.AsyncClient(
-            timeout=settings.ical_fetch_timeout_seconds, follow_redirects=True
-        ) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.content
+        # Public addresses only, and never more than a calendar can reasonably be: a feed is added by
+        # a member of the family, so the server must not be sent to its own network by one.
+        try:
+            data = await safe_fetch.safe_get(url, MAX_FEED_BYTES, timeout=settings.ical_fetch_timeout_seconds)
+        except safe_fetch.UnsafeAddress as exc:
+            raise httpx.HTTPError(str(exc)) from exc
 
     try:
         await _get_redis().set(cache_key, data, ex=settings.ical_cache_ttl_seconds)

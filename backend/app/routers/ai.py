@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from app.services import quota
 from app.services import recipe_search
 from app.deps import CurrentUser, DB, FamilyManager, ServerAdmin
+from app.services.uploads import read_upload
 from app.models import AiJob, Family, ListItem, ListModel, MediaItem, PantryItem
 from app.routers import property as homes
 from app.routers import vehicles
@@ -279,9 +280,7 @@ async def upload_job(kind: Literal["receipt", "recipe"], file: UploadFile, user:
     await _require_ai(db, user)
     if file.content_type not in IMAGE_TYPES:
         raise HTTPException(status_code=415, detail="A photo (JPEG, PNG, WebP or HEIC)")
-    data = await file.read()
-    if len(data) > MAX_IMAGE:
-        raise HTTPException(status_code=413, detail="The photo is larger than 10 MB")
+    data = await read_upload(file, MAX_IMAGE, detail="The photo is larger than 10 MB")
     await quota.check(db, user.family_id, len(data))
     job = AiJob(id=uuid.uuid4(), family_id=user.family_id, user_id=user.id, kind=kind, input={})
     job.file_key = f"ai/{job.id}.img"

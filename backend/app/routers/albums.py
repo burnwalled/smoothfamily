@@ -12,6 +12,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.services import quota
+from app.services.images import open_image
+from app.services.uploads import limit_body, read_upload
+
+# Pictures bigger than this are kept but get no web copy or thumbnail.
+IMAGE_PROCESS_MAX = 60 * 1024 * 1024
 from app.config import get_settings
 from app.deps import AdminUser, CurrentUser, DB, require_app
 from app.models import Album, ChatMessage, ConversationMember, MediaItem
@@ -69,20 +74,22 @@ def _process_image(data: bytes, storage, family_id: uuid.UUID, base_key: str) ->
     """Create web + thumb variants. Returns (width, height) of original."""
     from PIL import Image
 
-    img = Image.open(io.BytesIO(data))
-    img = img.convert("RGB") if img.mode != "RGB" else img
+    # The size is checked before a pixel is decoded, and the picture is decoded once (no copies).
+    img = open_image(data)
     w, h = img.size
+    img.draft("RGB", WEB_SIZE)
+    img = img.convert("RGB") if img.mode != "RGB" else img
 
     # Web version (max 1600px)
-    web = img.copy()
+    web = img
     web.thumbnail(WEB_SIZE, Image.LANCZOS)
     buf = io.BytesIO()
     web.save(buf, "JPEG", quality=82)
     buf.seek(0)
     storage.save(family_id, base_key + "_web.jpg", buf)
 
-    # Thumbnail (max 320px)
-    thumb = img.copy()
+    # Thumbnail (max 320px), from the web version
+    thumb = web.copy()
     thumb.thumbnail(THUMB_SIZE, Image.LANCZOS)
     buf = io.BytesIO()
     thumb.save(buf, "JPEG", quality=75)
@@ -204,10 +211,20 @@ async def delete_album(album_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
 
 # ── Media upload ──────────────────────────────────────────────────────────────
 
-@router.post("/{album_id}/media", status_code=201)
+@router.post("/{album_id}/media", status_code=201, dependencies=[limit_body(get_settings().media_max_size_bytes)])
 async def upload_media(album_id: uuid.UUID, file: UploadFile, user: CurrentUser, db: DB) -> MediaOut:
     album = await _user_album(album_id, user, db)
     return await store_upload(file, album, user, db, ALLOWED_TYPES)
+
+
+async def _upload_length(file: UploadFile) -> int:
+    if file.size is not None:
+        return file.size
+    await file.seek(0)
+    total = 0
+    while chunk := await file.read(1024 * 1024):
+        total += len(chunk)
+    return total
 
 
 async def store_upload(file: UploadFile, album: Album, user, db, allowed_types: set[str]) -> MediaOut:
@@ -218,8 +235,9 @@ async def store_upload(file: UploadFile, album: Album, user, db, allowed_types: 
         raise HTTPException(status_code=422, detail=f"File type not allowed: {content_type}")
 
     settings = get_settings()
-    data = await file.read()
-    if len(data) > settings.media_max_size_bytes:
+    # The file isn't read into memory: its size is known from the upload, and it's streamed to disk.
+    size = await _upload_length(file)
+    if size > settings.media_max_size_bytes:
         raise HTTPException(status_code=422, detail="File exceeds maximum allowed size")
 
     kind = "image" if content_type in ALLOWED_IMAGE_TYPES else "video"
@@ -228,14 +246,18 @@ async def store_upload(file: UploadFile, album: Album, user, db, allowed_types: 
     base_key = f"albums/{album_id}/{item_id}"
     original_key = base_key + ext
 
-    await quota.check(db, user.family_id, len(data))
+    await quota.check(db, user.family_id, size)
     storage = get_storage()
-    storage.save(user.family_id, original_key, io.BytesIO(data))
+    await file.seek(0)
+    storage.save(user.family_id, original_key, file.file)
 
     width, height = None, None
-    if kind == "image":
+    taken_at = None
+    if kind == "image" and size <= IMAGE_PROCESS_MAX:
+        image = await read_upload(file, IMAGE_PROCESS_MAX)
+        taken_at = exif_taken(image)
         try:
-            width, height = _process_image(data, storage, user.family_id, base_key)
+            width, height = _process_image(image, storage, user.family_id, base_key)
         except Exception:
             # If image processing fails, continue without thumbnails
             pass
@@ -249,10 +271,10 @@ async def store_upload(file: UploadFile, album: Album, user, db, allowed_types: 
         original_name=file.filename or "unnamed",
         storage_key=original_key,
         content_type=content_type,
-        size_bytes=len(data),
+        size_bytes=size,
         width=width,
         height=height,
-        taken_at=(exif_taken(data) if kind == "image" else None) or datetime.now(timezone.utc),
+        taken_at=taken_at or datetime.now(timezone.utc),
     )
     db.add(item)
     await db.commit()

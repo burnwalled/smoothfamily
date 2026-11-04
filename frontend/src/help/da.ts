@@ -1294,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Eksport, familiens egen nøgle og at flytte familien.",
     "blocks": [
       {
-        "p": "Under Familieindstillinger → Sikkerhed og data kan administratoren eksportere familiens data og, på en server, som andre driver, vælge en egen nøgle til familien: familiens sikkerhedskopier forsegles så, så kun I kan åbne dem – ikke engang serverens administrator."
+        "p": "Under Familieindstillinger → Sikkerhed og data kan administratoren eksportere familiens data og, på en server, som andre driver, vælge en egen nøgle til familien: familiens sikkerhedskopier forsegles så, så kun I kan åbne dem – ikke engang serverens administrator. Eksporten indeholder det, du selv må se i appen: en anden voksens private dokumenter, medicin, sundhed, der ikke deles, og chats, du ikke er med i, holdes udenfor."
       },
       {
         "shot": "familydata",

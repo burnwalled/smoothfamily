@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import file_limit, quota
 from app.deps import DB, CurrentUser, require_app
+from app.services.uploads import read_upload
 from app.models import Document, DocumentFile, Family, User
 from app.services.notify import notify
 from app.services.storage import get_storage
@@ -231,7 +232,7 @@ async def add_file(doc_id: uuid.UUID, file: UploadFile, user: CurrentUser, db: D
     doc = await _get(db, user, doc_id, edit=True)
     if file.content_type not in FILE_TYPES:
         raise HTTPException(status_code=415, detail="PDF, a picture (JPEG, PNG, WebP, HEIC) or an office file (Word, Excel, PowerPoint, OpenDocument)")
-    data = await file.read()
+    data = await read_upload(file, await file_limit.max_bytes(db))
     limit = await file_limit.too_large(db, len(data))
     if limit:
         raise HTTPException(status_code=413, detail=f"The file is larger than {limit} MB")

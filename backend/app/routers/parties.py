@@ -16,6 +16,8 @@ import hashlib
 import re
 import secrets
 import uuid
+from time import monotonic
+from collections import defaultdict, deque
 from datetime import date, datetime, time, timedelta, timezone
 from dataclasses import dataclass
 from typing import Annotated, Literal
@@ -29,6 +31,12 @@ from app.config import get_settings
 from app.deps import DB, AdultUser, get_current_user
 from app.models import Album, ChatMessage, Conversation, ConversationMember, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyHelper, PartyMailing, PartyPlanItem, PartyStep, PartyTask, PartyTemplate, PartyTheme, PartyVendor, Person, User, WishItem
 from app.services import login_throttle, party_mail
+from app.services.images import open_image
+from app.services.uploads import limit_body, read_upload
+
+PICTURE_MAX = 20 * 1024 * 1024
+# An invitation's link keeps working this long after the party (the thank-you page), then ends.
+INVITATION_LINGERS = timedelta(days=120)
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
 from app.services.public_url import configured_url, public_base
@@ -887,7 +895,7 @@ def _save_picture(family_id: uuid.UUID, prefix: str, data: bytes, old: str | Non
     from PIL import Image, ImageOps
 
     try:
-        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+        img = ImageOps.exif_transpose(open_image(data))
         if img.mode in ("RGBA", "LA", "P", "PA"):
             img = img.convert("RGBA")
             flat = Image.new("RGBA", img.size, behind)
@@ -911,10 +919,7 @@ def _save_picture(family_id: uuid.UUID, prefix: str, data: bytes, old: str | Non
 async def _read_picture(file: UploadFile) -> bytes:
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=422, detail="That isn't a picture")
-    data = await file.read()
-    if len(data) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="The picture is too big")
-    return data
+    return await read_upload(file, PICTURE_MAX, detail="The picture is too big")
 
 
 def _picture(family_id: uuid.UUID, key: str | None) -> Response:
@@ -2204,7 +2209,7 @@ async def helper_enter(token: str, request: Request, response: Response, db: DB)
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     helper = (await db.execute(select(PartyHelper).where(PartyHelper.token_hash == _hash(token)))).scalar_one_or_none()
     party = await db.get(Party, helper.party_id) if helper else None
-    if helper is None or party is None:
+    if helper is None or party is None or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid")
     ends = _helper_ends(helper, party)
@@ -2226,10 +2231,17 @@ async def _open(db: AsyncSession, token: str, request: Request) -> Party:
     if login_throttle.ip_retry_after(ip):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     party = (await db.execute(select(Party).where(Party.token_hash == _hash(token)))).scalar_one_or_none()
-    if party is None:
+    if party is None or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid")
+    if datetime.now(timezone.utc) > _utc(party.ends_at) + INVITATION_LINGERS:
+        raise HTTPException(status_code=410, detail="This link has ended")
     return party
+
+
+async def _family_active(db: AsyncSession, party: Party) -> bool:
+    family = await db.get(Family, party.family_id)
+    return family is not None and family.status == "active"
 
 
 def _utc(moment: datetime) -> datetime:
@@ -2656,6 +2668,21 @@ async def run_party_thanks(db: AsyncSession, now: datetime | None = None) -> int
 
 portal = APIRouter(prefix="/api/party-portal", tags=["party-portal"])
 PORTAL_PHOTOS = 1000
+# A guest's photo: the link is all that's needed, so what it may be is kept small, and few at a time.
+PORTAL_UPLOAD_MAX = 25 * 1024 * 1024
+PORTAL_UPLOADS_PER_HOUR = 60
+_portal_uploads: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _portal_upload_allowed(ip: str, now: float | None = None) -> bool:
+    now = now or monotonic()
+    recent = _portal_uploads[ip]
+    while recent and recent[0] <= now - 3600:
+        recent.popleft()
+    if len(recent) >= PORTAL_UPLOADS_PER_HOUR:
+        return False
+    recent.append(now)
+    return True
 
 
 async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
@@ -2663,7 +2690,7 @@ async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
     if login_throttle.ip_retry_after(ip):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     party = (await db.execute(select(Party).where(Party.portal_token_hash == _hash(token)))).scalar_one_or_none()
-    if party is None or not _portal_live(party):
+    if party is None or not _portal_live(party) or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid")
     return party
@@ -2717,12 +2744,16 @@ async def portal_page(token: str, request: Request, response: Response, db: DB) 
     }
 
 
-@portal.post("/{token}/photos", status_code=status.HTTP_201_CREATED)
+@portal.post("/{token}/photos", status_code=status.HTTP_201_CREATED, dependencies=[limit_body(PORTAL_UPLOAD_MAX)])
 async def portal_upload(token: str, request: Request, file: UploadFile, db: DB, name: str = Query(default="", max_length=60)) -> dict:
     """A guest's photo (or short film) from the party, into the family's album for it."""
     from app.routers.albums import ALLOWED_TYPES, store_upload
 
     party = await _portal(db, token, request)
+    if not _portal_upload_allowed(login_throttle.client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many photos at once – try again in a while")
+    if file.size is not None and file.size > PORTAL_UPLOAD_MAX:
+        raise HTTPException(status_code=413, detail="The photo is larger than 25 MB")
     album = await db.get(Album, party.portal_album_id) if party.portal_album_id else None
     host = await db.get(User, party.created_by) if party.created_by else None
     if album is None or host is None:

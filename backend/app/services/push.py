@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import AppSetting, PushSubscription, User
+from app.services.crypto import decrypt_token, encrypt_token
 
 VAPID_PUBLIC_KEY = "push.vapid.public"
 VAPID_PRIVATE_KEY = "push.vapid.private"
@@ -36,7 +37,14 @@ async def ensure_vapid_keys(db: AsyncSession) -> tuple[str, str]:
     public = await db.get(AppSetting, VAPID_PUBLIC_KEY)
     private = await db.get(AppSetting, VAPID_PRIVATE_KEY)
     if public and private:
-        return public.value, private.value
+        try:
+            return public.value, decrypt_token(private.value)
+        except Exception:
+            # Kept in plain before 3.4.0: sealed from now on.
+            plain = private.value
+            private.value = encrypt_token(plain)
+            await db.commit()
+            return public.value, plain
 
     vapid = Vapid01()
     vapid.generate_keys()
@@ -49,7 +57,7 @@ async def ensure_vapid_keys(db: AsyncSession) -> tuple[str, str]:
     private_key = _to_b64url(vapid.private_key.private_numbers().private_value.to_bytes(32, "big"))
 
     db.add(AppSetting(key=VAPID_PUBLIC_KEY, value=public_key))
-    db.add(AppSetting(key=VAPID_PRIVATE_KEY, value=private_key))
+    db.add(AppSetting(key=VAPID_PRIVATE_KEY, value=encrypt_token(private_key)))
     await db.commit()
     return public_key, private_key
 

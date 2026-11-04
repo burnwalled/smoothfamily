@@ -28,7 +28,7 @@ from app.deps import DB, CurrentUser, ServerAdmin
 from app.models import Family, User, WebAuthnCredential
 from app.routers.auth import _me
 from app.schemas import MeOut
-from app.security import create_token, read_mfa_token, set_session_cookie
+from app.security import create_token, read_mfa_token, set_session_cookie, verify_password
 from app.services import login_throttle, mfa, public_url
 
 router = APIRouter(prefix="/api/auth", tags=["mfa"])
@@ -40,6 +40,11 @@ TotpPolicy = Literal["off", "optional", "required"]
 
 class TotpCode(BaseModel):
     code: str = Field(min_length=6, max_length=10)
+
+
+class TotpDisable(TotpCode):
+    # A stolen session alone can't turn the authenticator off.
+    password: str | None = Field(default=None, max_length=200)
 
 
 class MfaCode(TotpCode):
@@ -96,7 +101,7 @@ class PasskeyLoginIn(BaseModel):
 
 async def _finish_login(user: User, response: Response, db: DB) -> MeOut:
     login_throttle.record_success(user.username)
-    set_session_cookie(response, create_token(user.id))
+    set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, await db.get(Family, user.family_id))
 
 
@@ -258,13 +263,20 @@ async def totp_enable(payload: TotpCode, user: CurrentUser, db: DB) -> None:
 
 
 @router.post("/totp/disable", status_code=status.HTTP_204_NO_CONTENT)
-async def totp_disable(payload: TotpCode, user: CurrentUser, db: DB) -> None:
+async def totp_disable(payload: TotpDisable, request: Request, user: CurrentUser, db: DB) -> None:
     family = await db.get(Family, user.family_id)
     if mfa.totp_required(user, family):
         raise HTTPException(status_code=403, detail="Your family requires an authenticator")
     if user.totp_secret_encrypted is None:
         return
+    ip = login_throttle.client_ip(request)
+    if login_throttle.retry_after(user.username, ip):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    if not payload.password or not verify_password(payload.password, user.password_hash):
+        login_throttle.record_failure(user.username, ip)
+        raise HTTPException(status_code=400, detail="Wrong password")
     if not _accept_code(user, mfa.decrypt_secret(user.totp_secret_encrypted), payload.code):
+        login_throttle.record_failure(user.username, ip)
         raise HTTPException(status_code=400, detail="Wrong code")
     user.totp_secret_encrypted = None
     user.totp_last_step = None

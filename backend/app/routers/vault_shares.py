@@ -212,7 +212,8 @@ async def _open(db, token: str, request: Request) -> tuple[VaultShare, tuple]:
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     share = (await db.execute(select(VaultShare).where(VaultShare.token_hash == _hash(token)))).scalar_one_or_none()
     found = await _target(db, share.family_id, share.kind, share.target_id) if share else None
-    if share is None or found is None or not _active(share):
+    family = await db.get(Family, share.family_id) if share else None
+    if share is None or found is None or not _active(share) or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid any more")
     return share, found

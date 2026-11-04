@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from app.deps import DB, CurrentUser
+from app.deps import DB, AdultUser, CurrentUser
 from app.models import HomeProfile, Room, Task, User
 from app.schemas import (
     ChoreImportRequest,
@@ -31,7 +31,7 @@ async def get_profile(user: CurrentUser, db: DB) -> HomeProfile | None:
 
 
 @router.put("/profile", response_model=HomeProfileOut)
-async def upsert_profile(payload: HomeProfileIn, user: CurrentUser, db: DB) -> HomeProfile:
+async def upsert_profile(payload: HomeProfileIn, user: AdultUser, db: DB) -> HomeProfile:
     profile = (
         await db.execute(select(HomeProfile).where(HomeProfile.family_id == user.family_id))
     ).scalar_one_or_none()
@@ -55,7 +55,7 @@ async def list_rooms(user: CurrentUser, db: DB) -> list[Room]:
 
 
 @router.post("/rooms", response_model=RoomOut, status_code=status.HTTP_201_CREATED)
-async def create_room(payload: RoomCreate, user: CurrentUser, db: DB) -> Room:
+async def create_room(payload: RoomCreate, user: AdultUser, db: DB) -> Room:
     room = Room(family_id=user.family_id, name=payload.name, category=payload.category)
     db.add(room)
     await db.commit()
@@ -64,7 +64,7 @@ async def create_room(payload: RoomCreate, user: CurrentUser, db: DB) -> Room:
 
 
 @router.delete("/rooms/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_room(room_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
+async def delete_room(room_id: uuid.UUID, user: AdultUser, db: DB) -> None:
     room = await db.get(Room, room_id)
     if room is None or room.family_id != user.family_id:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -88,7 +88,10 @@ async def get_chores_prompt(user: CurrentUser, db: DB) -> PromptOut:
 
 @router.post("/chores/import", response_model=ImportResult)
 async def import_chores(user: CurrentUser, db: DB, raw: str = Body(..., media_type="text/plain")) -> ImportResult:
-    """Accepts the raw AI answer (text/plain), extracts JSON and creates tasks."""
+    """Accepts the raw AI answer (text/plain), extracts JSON and creates tasks – or, from a child,
+    suggestions for an adult to approve (a task is worth points)."""
+    if "tasks" not in user.apps:
+        raise HTTPException(status_code=403, detail="Tasks aren't among your apps")
     try:
         data = extract_json(raw)
         if isinstance(data, list):
@@ -105,6 +108,14 @@ async def import_chores(user: CurrentUser, db: DB, raw: str = Body(..., media_ty
         (await db.execute(select(User).where(User.family_id == user.family_id))).scalars().all()
     )
     by_name = {m.display_name.lower(): m.id for m in members}
+
+    if user.role == "child":
+        from app.routers.tasks import suggest_task
+        from app.schemas import TaskSuggestionIn
+
+        for item in request.chores:
+            await suggest_task(TaskSuggestionIn(title=item.title[:200], description=item.description), user, db)
+        return ImportResult(imported=0, suggested=len(request.chores))
 
     imported = 0
     skipped: list[str] = []
