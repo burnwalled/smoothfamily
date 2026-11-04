@@ -114,6 +114,10 @@ class NotificationPrefs(BaseModel):
     calendar_family: bool = False
     # The weekly "memory" (photos from this week in earlier years).
     memories: bool = True
+    # Subscriptions: the last day to cancel, and quarterly and yearly payments on their way.
+    subs_cancel: bool = True
+    subs_quarter: bool = True
+    subs_year: bool = True
 
 
 class MeOut(MemberOut):

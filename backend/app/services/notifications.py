@@ -15,6 +15,7 @@ from app.services.backups import run_scheduled_backup
 from app.services.families import remove_stale_demos
 from app.services.medicine import run_medicine_reminders
 from app.services.pet_care import run_pet_care_reminders
+from app.services.subscription_reminders import run_subscription_reminders
 from app.services.flows import run_time_flows
 from app.services.ha_publish import run_ha_sync
 from app.services.memories import backfill_taken, run_memory_push
@@ -164,6 +165,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await remove_stale_demos(db)
                     await run_medicine_reminders(db)
                     await run_pet_care_reminders(db)
+                    await run_subscription_reminders(db)
                     await run_morning_summaries(db)
                     await run_ride_reminders(db)
                     await run_packing_reminders(db)
