@@ -17,10 +17,11 @@ import re
 import secrets
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, AdultUser, require_app
@@ -51,6 +52,7 @@ def _hash(token: str) -> str:
 _REMIND = {"en": "Remind those who haven't replied", "sv": "Påminn dem som inte svarat", "nb": "Påminn dem som ikke har svart", "da": "Påmind dem, der ikke har svaret", "fi": "Muistuta niitä, jotka eivät ole vastanneet"}
 _COUNT = {"en": "Count the guests and check the allergies", "sv": "Räkna gästerna och kolla allergierna", "nb": "Tell gjestene og sjekk allergiene", "da": "Tæl gæsterne, og tjek allergierne", "fi": "Laske vieraat ja tarkista allergiat"}
 _SHARE = {"en": "Share the invitation", "sv": "Dela inbjudan", "nb": "Del invitasjonen", "da": "Del invitationen", "fi": "Jaa kutsu"}
+_PRINT_QR = {"en": "Print the QR code for the party day's portal", "sv": "Skriv ut QR-koden till festportalen", "nb": "Skriv ut QR-koden til festportalen", "da": "Udskriv QR-koden til festportalen", "fi": "Tulosta juhlaportaalin QR-koodi"}
 _THANK = {"en": "Publish the thank-you page with the photos", "sv": "Publicera tacksidan med bilderna", "nb": "Publiser takkesiden med bildene", "da": "Udgiv taksiden med billederne", "fi": "Julkaise kiitossivu kuvineen"}
 _WEATHER = {"en": "Check the weather – and a plan B", "sv": "Kolla vädret – och en plan B", "nb": "Sjekk været – og en plan B", "da": "Tjek vejret – og en plan B", "fi": "Tarkista sää – ja varasuunnitelma"}
 _OWN = {
@@ -146,7 +148,13 @@ def _starter_tasks(party: Party, language: str, today: date) -> list[PartyTask]:
         else:
             due = day + timedelta(days=when)
         out.append(PartyTask(family_id=party.family_id, party_id=party.id, title=title, due_date=max(due, today), position=i))
+    out.append(_qr_task(party, language, today, len(out)))
     return out
+
+
+def _qr_task(party: Party, language: str, today: date, position: int) -> PartyTask:
+    due = max(_local(party.starts_at).date() - timedelta(days=1), today)
+    return PartyTask(family_id=party.family_id, party_id=party.id, title=_PRINT_QR.get(language, _PRINT_QR["en"]), due_date=due, position=position, action="print_qr")
 
 
 def _starter_steps(party: Party, language: str) -> list[PartyStep]:
@@ -383,6 +391,9 @@ class PartyChange(BaseModel):
     playlist_url: str | None = Field(default=None, max_length=300, pattern=r"^$|^https://open\.spotify\.com/[\w/?=&.-]+$")
     portal_gallery: bool | None = None
     portal_at: datetime | None = None
+    portal_until: datetime | None = None
+    pages: list[Literal["save", "invite", "portal", "thanks"]] | None = Field(default=None, max_length=4)
+    tables: list["TableIn"] | None = Field(default=None, max_length=100)
     thanks_at: datetime | None = None
     rsvp_remind_days: int | None = Field(default=None, ge=0, le=60)
     date_poll: bool | None = None
@@ -399,6 +410,30 @@ class ThemeIn(BaseModel):
     decor: str = Field(default="", max_length=60)
     font: str = Field(default="playful", pattern=r"^(gala|playful|retro|classic|sporty)$")
     effect: str = Field(default="confetti", pattern=r"^(none|confetti|bokeh|stars|bubbles|snow|leaves|embers)$")
+
+
+class TableIn(BaseModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9-]{1,20}$")
+    name: str = Field(min_length=1, max_length=40)
+    seats: int = Field(default=8, ge=1, le=500)
+
+
+PartyChange.model_rebuild()
+
+
+class ImportedGuest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(default="", max_length=80)
+    email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    allergies: str = Field(default="", max_length=300)
+
+
+class GuestImportIn(BaseModel):
+    guests: list[ImportedGuest] = Field(min_length=1, max_length=500)
+
+
+class SeatIn(BaseModel):
+    table_id: str | None = Field(default=None, max_length=20)
 
 
 class LookIn(BaseModel):
@@ -631,7 +666,7 @@ async def _link(db: AsyncSession, party: Party, request: Request | None) -> str:
 def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
-        "companions": g.companions or [], "updated_at": g.updated_at,
+        "companions": g.companions or [], "updated_at": g.updated_at, "table_id": g.table_id,
         "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "pending": bool(g.pending),
     }
 
@@ -704,7 +739,8 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "link": link, "qr_svg": qr_svg(link),
         "guests": [_guest_out(g) for g in guests],
         "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming and not g.pending), "signed_up": sum(1 for g in guests if g.pending), "allergies": allergies,
-        "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who} for t in tasks],
+        "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who, "action": t.action} for t in tasks],
+        "pages": _pages(party), "tables": party.tables or [],
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title, "hidden": s.hidden} for s in steps],
         "mailings": [_mailing_out(m) for m in (await db.execute(select(PartyMailing).where(PartyMailing.party_id == party.id).order_by(PartyMailing.send_at))).scalars()],
@@ -876,7 +912,7 @@ async def get_party(party_id: uuid.UUID, request: Request, user: AdultUser, db: 
 async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Request, user: AdultUser, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     changes = payload.model_dump(exclude_unset=True)
-    for key in ("starts_at", "ends_at", "portal_at", "thanks_at"):
+    for key in ("starts_at", "ends_at", "portal_at", "portal_until", "thanks_at"):
         if changes.get(key) is not None:
             changes[key] = _dt(changes[key])
     if "layout" in changes:
@@ -888,6 +924,11 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     if "playlist_url" in changes:
         changes["playlist_url"] = changes["playlist_url"] or None
     was_save = party.phase == "save"
+    if changes.get("pages") is not None:
+        changes["pages"] = [p for p in STAGES if p in changes["pages"] or p == "invite"]
+        # A page taken away isn't a switch to the invitation: nobody is mailed for it.
+        if "save" not in changes["pages"]:
+            was_save = False
     if changes.get("date_options") is not None:
         changes["date_options"] = _options(changes["date_options"])
     if changes.get("date_poll") and len(changes.get("date_options") or party.date_options or []) < 2:
@@ -901,14 +942,23 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
         raise HTTPException(status_code=422, detail="The party ends after it starts")
-    # A time for the portal needs the portal: its link and its album are made now.
+    if changes.get("pages") is not None:
+        await _keep_to_pages(db, party, user)
+    if "tables" in changes:
+        await _seat_at_known_tables(db, party)
+    # A time for the portal needs the portal: its link and its album are made now. Its link ends a
+    # little after the party unless the hosts say otherwise.
     if party.portal_at is not None:
         await _ensure_portal(db, party, user)
+        if party.portal_until is None and "portal_until" not in changes:
+            party.portal_until = _utc(party.ends_at) + PORTAL_AFTER
+    if party.portal_until is not None and party.portal_at is not None and _utc(party.portal_until) <= _utc(party.portal_at):
+        raise HTTPException(status_code=422, detail="The portal's link ends after it opens")
     if "rsvp_remind_days" in changes or "rsvp_by" in changes:
         party.rsvp_reminded_on = None
     await _sync_event(db, party, user)
@@ -1033,17 +1083,63 @@ async def invite_picture(party_id: uuid.UUID, user: AdultUser, db: DB) -> Respon
     return _picture(party.family_id, party.invite_image_key)
 
 
+PORTAL_AFTER = timedelta(hours=3)
+
+
+def _pages(party: Party) -> list[str]:
+    """The pages the party has: the invitation always, and those chosen (all, until someone chooses)."""
+    return list(party.pages) if party.pages else list(STAGES)
+
+
+def _past_portal(party: Party, now: datetime) -> bool:
+    return party.portal_until is not None and now >= _utc(party.portal_until)
+
+
 def _portal_live(party: Party, now: datetime | None = None) -> bool:
-    """Opened by the hosts, or its time has come."""
-    return party.portal_open or (party.portal_at is not None and (now or datetime.now(timezone.utc)) >= _utc(party.portal_at))
+    """Opened by the hosts or its time has come, and its link hasn't ended."""
+    now = now or datetime.now(timezone.utc)
+    if "portal" not in _pages(party) or _past_portal(party, now):
+        return False
+    return party.portal_open or (party.portal_at is not None and now >= _utc(party.portal_at))
+
+
+async def _keep_to_pages(db: AsyncSession, party: Party, user: User) -> None:
+    """What belongs to a page taken away goes with it; the QR code's task comes with the portal."""
+    pages = _pages(party)
+    if "save" not in pages and party.phase == "save":
+        party.phase = "invite"
+    gone = [kind for kind, page in (("save", "save"), ("thanks", "thanks")) if page not in pages]
+    if gone:
+        await db.execute(delete(PartyMailing).where(PartyMailing.party_id == party.id, PartyMailing.sent_at.is_(None), PartyMailing.kind.in_(gone)))
+    if "thanks" not in pages:
+        party.thanks_at = None
+    task = (await db.execute(select(PartyTask).where(PartyTask.party_id == party.id, PartyTask.action == "print_qr"))).scalars().first()
+    if "portal" in pages:
+        if task is None:
+            count = (await db.execute(select(func.count()).select_from(PartyTask).where(PartyTask.party_id == party.id))).scalar_one()
+            db.add(_qr_task(party, user.language or "en", datetime.now(_tz()).date(), count))
+    else:
+        party.portal_open, party.portal_at, party.portal_until = False, None, None
+        if task is not None and not task.done:
+            await db.delete(task)
+
+
+async def _seat_at_known_tables(db: AsyncSession, party: Party) -> None:
+    """A table taken away: those at it are without a place again."""
+    known = [t["id"] for t in party.tables or []]
+    if len(set(known)) != len(known):
+        raise HTTPException(status_code=422, detail="Two tables with the same id")
+    await db.execute(update(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.table_id.is_not(None), PartyGuest.table_id.not_in(known)).values(table_id=None))
 
 
 def _stage(party: Party, now: datetime | None = None) -> str:
     """What the guests' one link shows now: the save-the-date, the invitation, the party day's
     portal from its set time, and the thank-you once it's out."""
-    if party.thanks_published:
+    now = now or datetime.now(timezone.utc)
+    pages = _pages(party)
+    if party.thanks_published and "thanks" in pages:
         return "thanks"
-    if party.portal_at is not None and party.portal_token_encrypted and (now or datetime.now(timezone.utc)) >= _utc(party.portal_at):
+    if "portal" in pages and party.portal_at is not None and party.portal_token_encrypted and now >= _utc(party.portal_at) and not _past_portal(party, now):
         return "portal"
     return party.phase
 
@@ -1066,15 +1162,30 @@ async def _portal_out(db: AsyncSession, party: Party, request: Request | None) -
     photos = 0
     if party.portal_album_id:
         photos = (await db.execute(select(func.count()).select_from(MediaItem).where(MediaItem.album_id == party.portal_album_id))).scalar_one()
-    return {"open": _portal_live(party), "at": party.portal_at, "link": link, "qr_svg": qr_svg(link), "album_id": party.portal_album_id, "photos": photos, "gallery": party.portal_gallery}
+    return {"open": _portal_live(party), "at": party.portal_at, "until": party.portal_until, "link": link, "qr_svg": qr_svg(link), "album_id": party.portal_album_id, "photos": photos, "gallery": party.portal_gallery}
 
 
 @router.post("/{party_id}/portal")
 async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
     """Turn on the party day's portal: its link and QR code, and the album the guests' photos go to."""
     party = await _mine(db, user, party_id)
+    if "portal" not in _pages(party):
+        raise HTTPException(status_code=409, detail="This party has no portal")
     await _ensure_portal(db, party, user)
     party.portal_open = True
+    # Opened by hand it still ends: a little after the party, or a while from now if that's passed.
+    now = datetime.now(timezone.utc)
+    if party.portal_until is None or _past_portal(party, now):
+        party.portal_until = max(_utc(party.ends_at), now) + PORTAL_AFTER
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/portal/prepare")
+async def prepare_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    """The portal's link and QR code made ready to print, without opening it."""
+    party = await _mine(db, user, party_id)
+    await _ensure_portal(db, party, user)
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1085,6 +1196,7 @@ async def close_portal(party_id: uuid.UUID, request: Request, user: AdultUser, d
     party = await _mine(db, user, party_id)
     party.portal_open = False
     party.portal_at = None
+    party.portal_until = None
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1253,6 +1365,44 @@ async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, use
     if invited:
         data.update(coming=False, updates=bool(data.get("email")))
     db.add(PartyGuest(family_id=party.family_id, party_id=party.id, key_hash=_hash(key), key_encrypted=encrypt_token(key), created_at=now, updated_at=now, pending=invited, **data))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/guests/import")
+async def import_guests(party_id: uuid.UUID, payload: GuestImportIn, request: Request, user: AdultUser, db: DB) -> dict:
+    """A guest list brought in: everyone invited, with their own link. Who's already there stays as they are."""
+    party = await _mine(db, user, party_id)
+    now = datetime.now(timezone.utc)
+    existing = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id))).scalars().all()
+    seen = {(g.email or "").lower() for g in existing if g.email} | {_name({"first_name": g.first_name, "last_name": g.last_name}).lower() for g in existing if not g.email}
+    added = 0
+    for row in payload.guests:
+        email = (row.email or "").strip().lower() or None
+        who = email or _name({"first_name": row.first_name.strip(), "last_name": row.last_name.strip()}).lower()
+        if who in seen:
+            continue
+        seen.add(who)
+        key = secrets.token_urlsafe(18)
+        db.add(PartyGuest(
+            family_id=party.family_id, party_id=party.id, key_hash=_hash(key), key_encrypted=encrypt_token(key), created_at=now, updated_at=now, pending=True, coming=False,
+            first_name=row.first_name.strip(), last_name=row.last_name.strip(), email=email, updates=bool(email), allergies=row.allergies.strip(),
+        ))
+        added += 1
+    await db.commit()
+    return {"added": added, "skipped": len(payload.guests) - added, "party": await _detail(db, party, request)}
+
+
+@router.put("/{party_id}/guests/{guest_id}/table")
+async def seat_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: SeatIn, request: Request, user: AdultUser, db: DB) -> dict:
+    """A guest and their company at a table, or without one."""
+    party = await _mine(db, user, party_id)
+    guest = await db.get(PartyGuest, guest_id)
+    if guest is None or guest.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Guest not found")
+    if payload.table_id is not None and payload.table_id not in [t["id"] for t in party.tables or []]:
+        raise HTTPException(status_code=404, detail="Table not found")
+    guest.table_id = payload.table_id
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1634,7 +1784,7 @@ async def run_party_thanks(db: AsyncSession, now: datetime | None = None) -> int
         return 0
     sent = 0
     for party in (await db.execute(select(Party).where(Party.thanks_at.is_not(None), Party.thanks_at <= now, Party.thanks_published == False))).scalars().all():  # noqa: E712
-        if not (party.thanks_text.strip() or party.thanks_album_id):
+        if not (party.thanks_text.strip() or party.thanks_album_id) or "thanks" not in _pages(party):
             continue
         party.thanks_published = True
         await db.commit()

@@ -69,15 +69,20 @@ export type PosterData = {
   rsvp: Date | null; poll: boolean; guests: { coming: number; names?: string[] } | null; locale: string;
   inviteImage: string | null; asset: (id: string) => string; ics: string; thanks: boolean;
   playlist: string | null; steps: { at: string; title: string }[];
+  // The guest's first name, when they came by their personal link.
+  guest?: string;
 };
-export const TOKENS = ["title", "family", "date", "weekday", "time", "place", "address", "theme", "rsvp", "invitation"] as const;
+export const TOKENS = ["title", "guest", "family", "date", "weekday", "time", "place", "address", "theme", "rsvp", "invitation"] as const;
 // The same fields by their names in the five languages: {namn}, {datum} … work as well as {title}.
-const ALIASES: Record<string, string> = {"title": "title", "name": "title", "namn": "title", "navn": "title", "nimi": "title", "family": "family", "familj": "family", "familie": "family", "perhe": "family", "date": "date", "datum": "date", "dato": "date", "päivä": "date", "weekday": "weekday", "veckodag": "weekday", "ukedag": "weekday", "ugedag": "weekday", "viikonpäivä": "weekday", "time": "time", "tid": "time", "aika": "time", "place": "place", "plats": "place", "sted": "place", "paikka": "place", "address": "address", "adress": "address", "adresse": "address", "osoite": "address", "theme": "theme", "tema": "theme", "teema": "theme", "rsvp": "rsvp", "osa": "rsvp", "svarfrist": "rsvp", "vastaus": "rsvp", "invitation": "invitation", "inbjudan": "invitation", "invitasjon": "invitation", "kutsu": "invitation"};
+const ALIASES: Record<string, string> = {"guest": "guest", "gäst": "guest", "gjest": "guest", "gæst": "guest", "vieras": "guest", "title": "title", "name": "title", "namn": "title", "navn": "title", "nimi": "title", "family": "family", "familj": "family", "familie": "family", "perhe": "family", "date": "date", "datum": "date", "dato": "date", "päivä": "date", "weekday": "weekday", "veckodag": "weekday", "ukedag": "weekday", "ugedag": "weekday", "viikonpäivä": "weekday", "time": "time", "tid": "time", "aika": "time", "place": "place", "plats": "place", "sted": "place", "paikka": "place", "address": "address", "adress": "address", "adresse": "address", "osoite": "address", "theme": "theme", "tema": "theme", "teema": "theme", "rsvp": "rsvp", "osa": "rsvp", "svarfrist": "rsvp", "vastaus": "rsvp", "invitation": "invitation", "inbjudan": "invitation", "invitasjon": "invitation", "kutsu": "invitation"};
+
+// A text with the guest's name means nothing to someone without one: it isn't shown to them.
+export const needsGuest = (text: string, d: PosterData) => !d.guest && /\{(guest|gäst|gjest|gæst|vieras)\}/i.test(text);
 
 export function fill(text: string, d: PosterData, pending: string): string {
   const time = (x: Date) => x.toLocaleTimeString(d.locale, { hour: "2-digit", minute: "2-digit" });
   const values: Record<string, string> = {
-    title: d.title, family: d.family, place: d.place, address: d.address, theme: d.theme, invitation: d.invitation,
+    title: d.title, guest: d.guest ?? "", family: d.family, place: d.place, address: d.address, theme: d.theme, invitation: d.invitation,
     date: d.poll ? pending : d.start.toLocaleDateString(d.locale, { day: "numeric", month: "long" }),
     weekday: d.poll ? "" : d.start.toLocaleDateString(d.locale, { weekday: "long" }),
     time: d.poll ? "" : `${time(d.start)}–${time(d.end)}`,
@@ -126,6 +131,8 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
   };
   const out: Block[] = [
     { id: pid(), type: "text", side, text: lines[stage][0], font: "theme-body", size: "s", color: "accent", caps: true },
+    // A personal link's greeting; without a name it isn't shown.
+    ...(stage === "invite" || stage === "thanks" ? [{ id: pid(), type: "text", side, text: t("party.hello", { name: f("guest") }), font: "theme-script", size: "l" } as Block] : []),
     { id: pid(), type: "text", side, text: lines[stage][1], font: "theme-script", size: "l" },
     { id: pid(), type: "text", side, text: f("title"), font: "theme-display", size: "xxl", color: "gold" },
     { id: pid(), type: "divider", side, style: "swash" },

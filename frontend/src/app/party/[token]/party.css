@@ -67,6 +67,7 @@
 
 /* The poster sizes itself by its own width (the guests' page, or the editor's preview). */
 .pt .pt-c { container: poster / inline-size; }
+.pt-print, .pt-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .pt .pt-pair { display: grid; gap: 2rem; align-items: center; }
 .pt .pt-fs-s { font-size: .875rem; }
 .pt .pt-fs-m { font-size: 1.125rem; }

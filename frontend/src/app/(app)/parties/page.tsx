@@ -8,22 +8,24 @@
 // reservations are here.
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarHeart, Check, Copy, Eye, EyeOff, Gift, ImagePlus, Link2, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarHeart, Check, Circle, PartyPopper, Copy, Eye, EyeOff, Gift, ImagePlus, Link2, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import ThemePicker from "@/components/parties/ThemePicker";
-import { CustomTheme, customTheme, kindTheme, partyTheme } from "@/lib/partyThemes";
+import { CustomTheme, customTheme, kindTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
 import PosterEditor from "@/components/parties/PosterEditor";
 import TemplatePicker from "@/components/parties/TemplatePicker";
+import GuestImport from "@/components/parties/GuestImport";
+import Poster from "@/components/parties/Poster";
 import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
-import { STAGES, type Block, type PosterData, type Stage } from "@/lib/poster";
+import { STAGES, defaultPoster, fontFamily, newId, type Block, type PosterData, type Stage } from "@/lib/poster";
 import AddressInput from "@/components/AddressInput";
 
 type Summary = { id: string; title: string; kind: string; emoji: string; color: string; starts_at: string; place: string; date_poll: boolean; coming: number; replies: number; tasks_left: number };
-type Guest = { id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
+type Guest = { table_id?: string | null; id: string; first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
 type Detail = {
   id: string; title: string; kind: string; person_id: string | null; starts_at: string; ends_at: string; place: string; address: string; theme: string;
@@ -33,11 +35,12 @@ type Detail = {
   layout: Block[] | null; assets: { id: string; v: string | null }[];
   layouts: Partial<Record<Stage, Block[] | null>>; phase: "save" | "invite"; playlist_url: string | null; signed_up: number;
   stage: Stage; thanks_at: string | null; rsvp_remind_days: number | null; rsvp_reminded_on: string | null; address_set: boolean;
-  portal: { open: boolean; at: string | null; link: string; qr_svg: string; album_id: string | null; photos: number; gallery: boolean } | null;
+  portal: { open: boolean; at: string | null; until: string | null; link: string; qr_svg: string; album_id: string | null; photos: number; gallery: boolean } | null;
   // A party whose date the guests vote on (the options' starts).
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
-  tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null }[];
+  tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null; action?: string | null }[];
+  pages: Stage[]; tables: { id: string; name: string; seats: number }[];
   expenses: { id: string; title: string; amount: number; paid_by: string | null }[];
   steps: { id: string; at: string; title: string; hidden?: boolean }[];
   mailings: { id: string; kind: "save" | "invite" | "remind" | "thanks" | "custom"; audience: "all" | "waiting" | "coming"; subject: string; text: string; send_at: string; sent_at: string | null; sent_count: number }[];
@@ -52,9 +55,9 @@ const EMOJIS: Record<string, string> = { child_birthday: "🎈", birthday: "🎂
 const KIND_BRING: Record<string, string> = { child_birthday: "none", birthday: "one", party: "one", dinner: "family", match: "one", bbq: "family", outdoor: "family" };
 // The party as a flow, step by step: what and when and the theme, the pages the guests see, who's
 // coming, what to do, what it costs, the day's plan, and the mails.
-const TABS = ["details", "design", "guests", "tasks", "budget", "schedule", "mailings"] as const;
+const TABS = ["details", "design", "guests", "tasks", "budget", "schedule", "mailings", "party"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_ICONS: Record<Tab, typeof Users> = { details: CalendarHeart, design: Palette, guests: Users, tasks: ListChecks, budget: Wallet, schedule: Clock, mailings: Mail };
+const TAB_ICONS: Record<Tab, typeof Users> = { details: CalendarHeart, design: Palette, guests: Users, tasks: ListChecks, budget: Wallet, schedule: Clock, mailings: Mail, party: PartyPopper };
 
 const localInput = (iso: string) => {
   const d = new Date(iso);
@@ -295,6 +298,8 @@ function withDefaults(d: Detail): Detail {
     signed_up: d.signed_up ?? 0,
     portal: d.portal ?? null,
     mailings: d.mailings ?? [],
+    pages: d.pages ?? STAGES,
+    tables: d.tables ?? [],
     stage: d.stage ?? d.phase ?? "invite",
     thanks_at: d.thanks_at ?? null,
     rsvp_remind_days: d.rsvp_remind_days ?? null,
@@ -361,16 +366,16 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
         </button>
       </div>
       <nav aria-label={t("parties.flow")}>
-        <ol className="flex flex-wrap gap-1.5">
+        <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {TABS.map((x, i) => {
             const Icon = TAB_ICONS[x];
             const here = tab === x;
             return (
               <li key={x}>
-                <button aria-current={here ? "step" : undefined} onClick={() => setTab(x)} className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${here ? "border-accent bg-accent-soft font-semibold" : "border-edge text-muted hover:text-ink"}`}>
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${here ? "bg-accent text-white" : "bg-base"}`}>{i + 1}</span>
-                  <Icon className="h-4 w-4" aria-hidden />
-                  {t(`parties.tab.${x}` as TranslationKey)}
+                <button aria-current={here ? "step" : undefined} onClick={() => setTab(x)} className={`flex h-full w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-sm ${here ? "border-accent bg-accent-soft font-semibold" : "border-edge text-muted hover:text-ink"}`}>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${here ? "bg-accent text-white" : "bg-base"}`}>{i + 1}</span>
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 truncate">{t(`parties.tab.${x}` as TranslationKey)}</span>
                 </button>
               </li>
             );
@@ -383,14 +388,15 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       {tab === "design" && (
         <div className="space-y-4">
           <PosterTab party={party} change={change} />
-          <ThanksTab party={party} change={change} />
+          {party.pages.includes("thanks") && <ThanksTab party={party} change={change} />}
         </div>
       )}
-      {tab === "guests" && <GuestsTab party={party} run={run} path={path} />}
+      {tab === "guests" && <GuestsTab party={party} run={run} change={change} path={path} />}
       {tab === "tasks" && <TasksTab party={party} run={run} path={path} />}
       {tab === "budget" && <BudgetTab party={party} run={run} path={path} change={change} />}
       {tab === "schedule" && <TimelineTab party={party} run={run} path={path} />}
       {tab === "mailings" && <MailingsTab party={party} run={run} change={change} path={path} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
+      {tab === "party" && <FinalTab party={party} run={run} path={path} go={(to) => { setTab(to); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
       {TABS.indexOf(tab) < TABS.length - 1 && (
         <div className="flex justify-end">
           <button className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => { setTab(TABS[TABS.indexOf(tab) + 1]); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -427,6 +433,18 @@ function InviteTab({ party, change }: { party: Detail; change: Change }) {
         <div className="sm:col-span-2">
           <WhoseParty people={people} value={party.person_ids} onChange={(person_ids) => change({ person_ids })} />
         </div>
+        <fieldset className="sm:col-span-2">
+          <legend className="label">{t("parties.pagesLabel")}</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {STAGES.map((st) => (
+              <label key={st} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="h-4 w-4 accent-primary-700" disabled={st === "invite"} checked={party.pages.includes(st)} onChange={(e) => change({ pages: e.target.checked ? [...party.pages, st] : party.pages.filter((x) => x !== st) })} />
+                {t(`parties.stage.${st}` as TranslationKey)}
+              </label>
+            ))}
+          </div>
+          <span className="mt-1 block text-xs text-muted">{t("parties.pagesHelp")}</span>
+        </fieldset>
         <BringSelect value={party.bring} onChange={(bring) => change({ bring })} />
         <WishlistSelect people={people} value={party.wishlist && party.person_id ? party.person_id : ""} onChange={(id) => change({ person_id: id || null, wishlist: !!id })} />
         <label>
@@ -495,6 +513,8 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
   const me = useMe();
   const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
   const [editing, setEditing] = useState<Stage | null>(null);
+  const [previewing, setPreviewing] = useState<Stage | null>(null);
+  const pages = STAGES.filter((st) => party.pages.includes(st));
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [playlist, setPlaylist] = useState(party.playlist_url ?? "");
   const [error, setError] = useState("");
@@ -516,15 +536,7 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
     theme: party.theme, invitation: party.invitation, rsvp: party.rsvp_by ? new Date(`${party.rsvp_by}T12:00:00`) : null, poll: party.date_poll,
     guests: party.show_guests === "none" ? null : { coming: party.coming, names: party.show_guests === "names" ? party.guests.filter((g) => g.coming).map((g) => `${g.first_name} ${g.last_name}`.trim()) : undefined },
     locale: dateLocale, inviteImage: party.invite_image ? `${path}/picture?v=${party.invite_image}` : null, asset: () => "", ics: `/api/parties/${party.id}`, thanks: false,
-    playlist: party.playlist_url, steps: party.steps.map((st) => ({ at: st.at, title: st.title })),
-  };
-  const printQr = () => {
-    const w = window.open("", "_blank", "width=600,height=800");
-    if (!w || !party.portal) return;
-    w.document.title = party.title;
-    w.document.body.innerHTML = `<div style="font-family:system-ui,sans-serif;text-align:center;padding:40px"><h1 style="font-size:40px;margin:0">${party.title.replace(/[<>&]/g, "")}</h1><p style="font-size:22px">${t("parties.portalPrint")}</p><div style="width:420px;margin:20px auto">${party.portal.qr_svg}</div><p style="font-size:14px;color:#555">${party.portal.link}</p></div>`;
-    w.focus();
-    w.print();
+    playlist: party.playlist_url, steps: party.steps.map((st) => ({ at: st.at, title: st.title })), guest: t("poster.sampleGuest"),
   };
 
   return (
@@ -539,24 +551,25 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.posters")}</h2>
         <p className="text-xs text-muted">{t("parties.postersHelp")}</p>
         <ul className="divide-y divide-edge">
-          {STAGES.map((st) => (
-            <li key={st} className="flex items-center gap-3 py-2">
+          {pages.map((st) => (
+            <li key={st} className="flex flex-wrap items-center gap-2 py-2">
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{t(`parties.stage.${st}` as TranslationKey)}</span>
                 <span className="block text-xs text-muted">{party.layouts[st]?.length ? t("parties.stageOwn") : t("parties.stageTheme")}</span>
               </span>
+              <button className="btn-ghost flex items-center gap-1 border border-edge text-sm" aria-label={t("parties.previewGuestOf", { page: t(`parties.stage.${st}` as TranslationKey) })} onClick={() => setPreviewing(st)}><Eye className="h-4 w-4" aria-hidden />{t("parties.previewGuest")}</button>
               <button className="btn-ghost border border-edge text-sm" onClick={() => setEditing(st)}>{t("parties.editPoster")}</button>
             </li>
           ))}
         </ul>
-        <label className="block">
+        {party.pages.includes("save") && <label className="block">
           <span className="label">{t("parties.phase")}</span>
           <select className="input" value={party.phase} onChange={(e) => change({ phase: e.target.value })}>
             <option value="save">{t("parties.phase.save")}</option>
             <option value="invite">{t("parties.phase.invite")}</option>
           </select>
           <span className="mt-1 block text-xs text-muted">{party.phase === "save" ? t(party.mail ? "parties.phaseSaveHelp" : "parties.phaseSaveNoMail") : t("parties.phaseInviteHelp", { n: party.signed_up })}</span>
-        </label>
+        </label>}
         <form className="space-y-1" onSubmit={(e) => { e.preventDefault(); run(api.put(path, { playlist_url: playlist.trim() })); }}>
           <span className="label">{t("parties.playlist")}</span>
           <div className="flex flex-wrap items-center gap-2">
@@ -567,37 +580,14 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
         </form>
         {error && <p className="text-sm text-red-700">{error}</p>}
       </section>
-      <section className="card space-y-3 p-5" aria-label={t("parties.portal")}>
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.portal")}</h2>
-        <p className="text-xs text-muted">{t("parties.portalHelp")}</p>
-        <WhenField label={t("parties.portalAt")} help={t("parties.portalAtHelp")} value={party.portal?.at ?? null} suggest={party.starts_at} onSave={(at) => change({ portal_at: at }, { quiet: !!at })} />
-        {party.portal ? (
-          <>
-            {!party.portal.open && <p className="text-sm font-semibold">{party.portal.at ? t("parties.portalOpensAt", { when: new Date(party.portal.at).toLocaleString(dateLocale, LONG) }) : t("parties.portalClosed")}</p>}
-            <div className="mx-auto w-44 rounded-lg bg-white p-2" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.portal.qr_svg }} />
-            <input className="input text-xs" readOnly value={party.portal.link} aria-label={t("parties.portalLink")} onFocus={(e) => e.target.select()} />
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary flex items-center gap-1.5" onClick={printQr}><Printer className="h-4 w-4" aria-hidden />{t("parties.portalPrintButton")}</button>
-              <a className="btn-ghost border border-edge" href={party.portal.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
-            </div>
-            <p className="text-sm">{t("parties.portalPhotos", { n: party.portal.photos })}{party.portal.album_id && <> · <a className="text-accent hover:underline" href="/vault">{t("parties.portalAlbum")}</a></>}</p>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.portal.gallery} onChange={(e) => change({ portal_gallery: e.target.checked })} />{t("parties.portalGallery")}</label>
-            <div className="flex flex-wrap items-center gap-3">
-              {!party.portal.open && <button className="btn-ghost border border-edge" onClick={() => run(api.post(`${path}/portal`))}>{t("parties.portalOpen")}</button>}
-              {(party.portal.open || party.portal.at) && <button className="text-xs text-red-700 hover:underline" onClick={() => run(api.del(`${path}/portal`))}>{t("parties.portalClose")}</button>}
-            </div>
-          </>
-        ) : (
-          <button className="btn-primary" onClick={() => run(api.post(`${path}/portal`))}>{t("parties.portalOpen")}</button>
-        )}
-      </section>
+      {previewing && <GuestPreview party={party} stage={previewing} pages={pages} theme={theme} data={data} onClose={() => setPreviewing(null)} onStage={setPreviewing} />}
       {editing && (
         <div className="fixed inset-0 z-50 overflow-auto bg-base p-3 sm:p-5" role="dialog" aria-modal="true" aria-label={t("parties.editPoster")}>
           <div className="mx-auto max-w-[1600px] space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-lg font-bold">{party.title}</h2>
               <div role="tablist" aria-label={t("parties.posters")} className="inline-flex overflow-hidden rounded-lg border border-edge">
-                {STAGES.map((st) => (
+                {pages.map((st) => (
                   <button key={st} role="tab" aria-selected={editing === st} className={`px-3 py-1.5 text-sm ${editing === st ? "bg-accent-soft font-semibold" : "hover:bg-surface"}`} onClick={() => setEditing(st)}>{t(`parties.stage.${st}` as TranslationKey)}</button>
                 ))}
               </div>
@@ -610,6 +600,218 @@ function PosterTab({ party, change }: { party: Detail; change: Change }) {
             <PosterEditor key={`${editing}:${party.page_theme}:${party.page_custom_id ?? ""}`} stage={editing} device={device} partyId={party.id} theme={theme} data={data} layout={party.layouts[editing] ?? null} assets={party.assets} onSaved={keep} />
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// A page as a guest will see it, with this party's details and a sample name, on either screen.
+function GuestPreview({ party, stage, pages, theme, data, onClose, onStage }: { party: Detail; stage: Stage; pages: Stage[]; theme: ReturnType<typeof partyTheme>; data: PosterData; onClose: () => void; onStage: (s: Stage) => void }) {
+  const { t } = useI18n();
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const d = { ...data, thanks: stage === "thanks", asset: (id: string) => `/api/parties/${party.id}/assets/${id}?v=${party.assets.find((a) => a.id === id)?.v ?? ""}` };
+  const own = party.layouts[stage];
+  const blocks = own?.length ? own : defaultPoster(theme, d, (k, v) => t(k, v), stage);
+  return (
+    <div className="fixed inset-0 z-50 overflow-auto bg-base p-3 sm:p-5" role="dialog" aria-modal="true" aria-label={t("parties.previewGuest")}>
+      <div className="mx-auto max-w-5xl space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-bold">{party.title}</h2>
+          <div role="tablist" aria-label={t("parties.posters")} className="inline-flex overflow-hidden rounded-lg border border-edge">
+            {pages.map((st) => <button key={st} role="tab" aria-selected={stage === st} className={`px-3 py-1.5 text-sm ${stage === st ? "bg-accent-soft font-semibold" : "hover:bg-surface"}`} onClick={() => onStage(st)}>{t(`parties.stage.${st}` as TranslationKey)}</button>)}
+          </div>
+          <div role="radiogroup" aria-label={t("parties.device")} className="inline-flex overflow-hidden rounded-lg border border-edge">
+            {(["desktop", "phone"] as const).map((x) => <button key={x} role="radio" aria-checked={device === x} className={`flex items-center gap-1 px-3 py-1.5 text-sm ${device === x ? "bg-accent-soft font-semibold" : ""}`} onClick={() => setDevice(x)}>{x === "phone" ? <Smartphone className="h-4 w-4" aria-hidden /> : <Monitor className="h-4 w-4" aria-hidden />}{t(`parties.device.${x}` as TranslationKey)}</button>)}
+          </div>
+          <button className="ml-auto flex items-center gap-1 rounded-lg border border-edge px-3 py-1.5 text-sm hover:bg-surface" onClick={onClose}><X className="h-4 w-4" aria-hidden />{t("common.close")}</button>
+        </div>
+        <p className="text-xs text-muted">{t("parties.previewGuestHelp", { name: data.guest ?? "" })}</p>
+        <div className={`pt overflow-hidden rounded-2xl border border-edge ${device === "phone" ? "mx-auto w-[390px] max-w-full" : "w-full"}`} style={{ ...themeStyle(theme), minHeight: 0 }}>
+          <div className="h-2" style={{ background: theme.band }} />
+          {theme.header && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={theme.header} alt="" className="h-40 w-full object-cover" />
+          )}
+          <div className="px-4 py-6 sm:px-8">
+            <Poster blocks={blocks} d={d} theme={theme} device={device} />
+            {stage === "invite" && <p className="pt-card mt-6 p-4 text-center text-sm text-muted">{t("poster.replyBelow")}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The portal: when it opens and when its link ends, its QR code and the guests' photos.
+function PortalCard({ party, run, change, path }: { party: Detail; run: TabProps["run"]; change: Change; path: string }) {
+  const { t, dateLocale } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const share = async (link: string) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: party.title, text: t("parties.sharePortalText", { title: party.title, link }) });
+        return;
+      }
+    } catch {
+      return;
+    }
+    await navigator.clipboard?.writeText(t("parties.sharePortalText", { title: party.title, link }));
+    setCopied(true);
+  };
+  return (
+    <section className="card space-y-3 p-5 lg:col-span-2" aria-label={t("parties.portal")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.portal")}</h2>
+      <p className="text-xs text-muted">{t("parties.portalHelp")}</p>
+      <WhenField label={t("parties.portalAt")} help={t("parties.portalAtHelp")} value={party.portal?.at ?? null} suggest={party.starts_at} onSave={(at) => change({ portal_at: at }, { quiet: !!at })} />
+      {party.portal ? (
+        <>
+          <WhenField label={t("parties.portalUntil")} help={t("parties.portalUntilHelp")} value={party.portal.until} suggest={new Date(new Date(party.ends_at).getTime() + 3 * 3_600_000).toISOString()} onSave={(at) => change({ portal_until: at }, { quiet: !!at })} />
+          {!party.portal.until && <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">{t("parties.portalNoEnd")}</p>}
+          {!party.portal.open && <p className="text-sm font-semibold">{party.portal.at ? t("parties.portalOpensAt", { when: new Date(party.portal.at).toLocaleString(dateLocale, LONG) }) : t("parties.portalClosed")}</p>}
+          <div className="mx-auto w-44 rounded-lg bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.portal.qr_svg }} />
+          <input className="input text-xs" readOnly value={party.portal.link} aria-label={t("parties.portalLink")} onFocus={(e) => e.target.select()} />
+          <div className="flex flex-wrap gap-2">
+            <a className="btn-ghost flex items-center gap-1.5 border border-edge" href={`/party-qr/${party.id}`} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" aria-hidden />{t("parties.portalPrintButton")}</a>
+            <button className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => { void share(party.portal!.link); }}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
+            <button className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => navigator.clipboard?.writeText(party.portal!.link).then(() => setCopied(true))}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
+            {party.portal.open && <a className="btn-ghost border border-edge" href={party.portal.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>}
+          </div>
+          {copied && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
+          <p className="text-sm">{t("parties.portalPhotos", { n: party.portal.photos })}{party.portal.album_id && <> · <a className="text-accent hover:underline" href="/vault">{t("parties.portalAlbum")}</a></>}</p>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.portal.gallery} onChange={(e) => change({ portal_gallery: e.target.checked })} />{t("parties.portalGallery")}</label>
+          <div className="flex flex-wrap items-center gap-3">
+            {!party.portal.open && <button className="btn-ghost border border-edge" onClick={() => run(() => api.post<Detail>(`${path}/portal`))}>{t("parties.portalOpen")}</button>}
+            {(party.portal.open || party.portal.at) && <button className="text-xs text-red-700 hover:underline" onClick={() => run(() => api.del(`${path}/portal`).then(() => api.get<Detail>(path)))}>{t("parties.portalClose")}</button>}
+          </div>
+        </>
+      ) : (
+        <button className="btn-primary" onClick={() => run(() => api.post<Detail>(`${path}/portal`))}>{t("parties.portalOpen")}</button>
+      )}
+    </section>
+  );
+}
+
+// The seating: tables with their places, each guest's company at one – they sit together.
+function Seating({ party, run, change, path }: { party: Detail; run: TabProps["run"]; change: Change; path: string }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ name: "", seats: "8" });
+  const people = party.guests.filter((g) => g.coming || g.pending);
+  const size = (g: Guest) => 1 + g.companions.length;
+  const free = people.filter((g) => !g.table_id || !party.tables.some((x) => x.id === g.table_id));
+  const seat = (g: Guest, table_id: string | null) => run(() => api.put<Detail>(`${path}/guests/${g.id}/table`, { table_id }));
+  const row = (g: Guest) => (
+    <li key={g.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
+      <span className="min-w-0 flex-1">
+        <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
+        {g.companions.length > 0 && <span className="text-muted"> +{g.companions.length}</span>}
+        {g.pending && <span className="ml-1 text-xs text-muted">({t("parties.seatWaiting")})</span>}
+      </span>
+      <select className="input !w-auto py-1 text-xs" aria-label={t("parties.seatOf", { name: g.first_name })} value={g.table_id ?? ""} onChange={(e) => seat(g, e.target.value || null)}>
+        <option value="">{t("parties.noTable")}</option>
+        {party.tables.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+      </select>
+    </li>
+  );
+  return (
+    <section className="card space-y-3 p-5" aria-label={t("parties.seating")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.seating")}</h2>
+      <p className="text-xs text-muted">{t("parties.seatingHelp")}</p>
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
+        e.preventDefault();
+        const seats = Number(form.seats);
+        if (!form.name.trim() || !(seats >= 1)) return;
+        void change({ tables: [...party.tables, { id: newId(), name: form.name.trim(), seats }] }, { quiet: true }).then(() => setForm({ name: "", seats: form.seats }));
+      }}>
+        <label className="min-w-40 flex-1"><span className="label">{t("parties.tableName")}</span><input className="input" value={form.name} maxLength={40} placeholder={t("parties.tableHint", { n: party.tables.length + 1 })} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="w-24"><span className="label">{t("parties.tableSeats")}</span><input className="input" type="number" min={1} max={500} value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} /></label>
+        <button className="btn-ghost flex items-center gap-1 border border-edge" type="submit" disabled={!form.name.trim()}><Plus className="h-4 w-4" aria-hidden />{t("parties.addTable")}</button>
+      </form>
+      {party.tables.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {party.tables.map((table) => {
+            const here = people.filter((g) => g.table_id === table.id);
+            const taken = here.reduce((n, g) => n + size(g), 0);
+            return (
+              <div key={table.id} className="rounded-xl border border-edge p-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="min-w-0 flex-1 truncate font-semibold">{table.name}</h3>
+                  <span className={`text-xs font-semibold ${taken > table.seats ? "text-red-700" : "text-muted"}`}>{t("parties.seatsTaken", { n: taken, seats: table.seats })}</span>
+                  <button className="text-muted hover:text-red-700" aria-label={t("parties.removeTable", { name: table.name })} onClick={() => change({ tables: party.tables.filter((x) => x.id !== table.id) }, { quiet: true })}><Trash2 className="h-4 w-4" aria-hidden /></button>
+                </div>
+                {taken > table.seats && <p className="text-xs text-red-700" role="alert">{t("parties.tableFull", { n: taken - table.seats })}</p>}
+                {here.length > 0 && <ul className="divide-y divide-edge">{here.map(row)}</ul>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {party.tables.length > 0 && free.length > 0 && (
+        <div className="rounded-xl border border-dashed border-edge p-3">
+          <h3 className="font-semibold">{t("parties.unseated", { n: free.reduce((n, g) => n + size(g), 0) })}</h3>
+          <ul className="divide-y divide-edge">{free.map(row)}</ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Step 8, the party itself: what's left, a last look at everything, and have fun.
+function FinalTab({ party, run, path, go }: TabProps & { go: (tab: Tab) => void }) {
+  const { t } = useI18n();
+  const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
+  const custom = own?.find((x) => x.id === party.page_custom_id);
+  const theme = party.page_theme === "custom" && custom ? customTheme(custom, hostPicture(custom.id)) : partyTheme(party.page_theme);
+  const open = party.tasks.filter((x) => !x.done);
+  const waiting = party.guests.filter((g) => g.pending).length;
+  const unseated = party.guests.filter((g) => (g.coming || g.pending) && !party.tables.some((x) => x.id === g.table_id)).length;
+  const has = (st: Stage) => party.pages.includes(st);
+  const invited = party.guests.length > 0 || party.mailings.some((m) => m.kind === "invite" && m.sent_at);
+  const checks: { key: string; ok: boolean; label: string; to: Tab }[] = [
+    { key: "tasks", ok: open.length === 0, label: open.length ? t("parties.check.tasks", { n: open.length }) : t("parties.check.tasksDone"), to: "tasks" },
+    { key: "guests", ok: invited, label: invited ? t("parties.check.guests", { n: party.coming }) : t("parties.check.noGuests"), to: "guests" },
+    { key: "waiting", ok: waiting === 0, label: waiting ? t("parties.check.waiting", { n: waiting }) : t("parties.check.noWaiting"), to: "mailings" },
+    { key: "allergies", ok: true, label: party.allergies.length ? t("parties.check.allergies", { n: party.allergies.length }) : t("parties.check.noAllergies"), to: "guests" },
+    { key: "plan", ok: party.steps.length > 0, label: party.steps.length ? t("parties.check.plan", { n: party.steps.length }) : t("parties.check.noPlan"), to: "schedule" },
+    ...(party.tables.length ? [{ key: "seating", ok: unseated === 0, label: unseated ? t("parties.check.unseated", { n: unseated }) : t("parties.check.seated"), to: "guests" as Tab }] : []),
+    ...(has("portal") ? [{ key: "portal", ok: !!party.portal?.at, label: party.portal?.at ? t("parties.check.portal") : t("parties.check.noPortal"), to: "mailings" as Tab }] : []),
+    ...(has("thanks") ? [{ key: "thanks", ok: !!party.thanks_at || party.thanks_published, label: party.thanks_at || party.thanks_published ? t("parties.check.thanks") : t("parties.check.noThanks"), to: "design" as Tab }] : []),
+  ];
+  const left = checks.filter((c) => !c.ok).length;
+  return (
+    <div className="space-y-4">
+      <section className="pt overflow-hidden rounded-2xl border border-edge text-center" style={{ ...themeStyle(theme), minHeight: 0 }} aria-label={t("parties.tab.party")}>
+        <div className="h-2" style={{ background: theme.band }} />
+        <div className="space-y-2 px-4 py-10">
+          <p className="text-5xl" aria-hidden>{party.emoji}</p>
+          <h2 className="pt-gold text-5xl leading-none sm:text-6xl" style={{ fontFamily: fontFamily("theme-script", theme, "script") }}>{t("parties.haveFun")}</h2>
+          <p className="text-lg">{left ? t("parties.almostReady", { n: left }) : t("parties.allReady")}</p>
+        </div>
+      </section>
+      <section className="card space-y-2 p-5" aria-label={t("parties.lastCheck")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.lastCheck")}</h2>
+        <ul className="divide-y divide-edge">
+          {checks.map((c) => (
+            <li key={c.key} className="flex items-center gap-3 py-2 text-sm">
+              {c.ok ? <Check className="h-5 w-5 shrink-0 text-accent" aria-label={t("parties.checkOk")} /> : <Circle className="h-5 w-5 shrink-0 text-muted" aria-label={t("parties.checkOpen")} />}
+              <span className="min-w-0 flex-1">{c.label}</span>
+              <button className="text-xs text-accent hover:underline" onClick={() => go(c.to)}>{t(`parties.tab.${c.to}` as TranslationKey)}</button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {open.length > 0 && (
+        <section className="card space-y-2 p-5" aria-label={t("parties.lastTasks")}>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.lastTasks")}</h2>
+          <ul className="divide-y divide-edge">
+            {open.map((task) => (
+              <li key={task.id} className="flex items-center gap-3 py-2 text-sm">
+                <input type="checkbox" className="h-4 w-4 accent-primary-700" aria-label={task.title} checked={false} onChange={() => run(() => api.put<Detail>(`${path}/tasks/${task.id}`, { done: true }))} />
+                <span className="min-w-0 flex-1">{task.title}</span>
+                {task.action === "print_qr" && <a className="flex items-center gap-1 text-xs text-accent hover:underline" href={`/party-qr/${party.id}`} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" aria-hidden />{t("parties.printIt")}</a>}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );
@@ -732,13 +934,14 @@ function GuestLink({ path, name }: { path: string; name: string }) {
   );
 }
 
-function GuestsTab({ party, run, path }: TabProps) {
+function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) {
   const { t, dateLocale } = useI18n();
   const blank = { first_name: "", last_name: "", email: "", allergies: "", status: "invited" as "invited" | "coming" | "not" };
   const [form, setForm] = useState(blank);
   const people = party.guests;
   const emails = people.filter((g) => g.email).map((g) => g.email).join(", ");
   return (
+    <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
       <section className="card p-5" aria-label={t("parties.tab.guests")}>
         <p className="mb-3 text-sm font-semibold">{t("parties.replies", { coming: party.coming, not: party.not_coming })}{party.children > 0 && <span className="font-normal text-muted"> · {t("parties.childrenN", { n: party.children })}</span>}{party.signed_up > 0 && <span className="font-normal text-muted"> · {t("parties.waitingN", { n: party.signed_up })}</span>}</p>
@@ -748,7 +951,7 @@ function GuestsTab({ party, run, path }: TabProps) {
           <ul className="divide-y divide-edge text-sm">
             {people.map((g) => (
               <li key={g.id} className="flex items-start gap-3 py-2">
-                <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : g.pending ? "bg-amber-50 text-amber-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : g.pending ? t("parties.signedUp") : t("parties.no")}</span>
+                <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : g.pending ? "bg-amber-50 text-amber-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : g.pending ? t("parties.awaitingReply") : t("parties.no")}</span>
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
                   {g.email && <span className={`ml-1 text-xs ${g.updates ? "text-muted" : "text-muted line-through"}`} title={g.updates ? g.email : t("parties.noMails")}>✉ {g.email}</span>}
@@ -798,7 +1001,10 @@ function GuestsTab({ party, run, path }: TabProps) {
           </select>
           <button className="btn-primary" disabled={!form.first_name.trim() || (!!form.email && !form.email.includes("@"))} onClick={() => run(() => api.post<Detail>(`${path}/guests`, { first_name: form.first_name, last_name: form.last_name, email: form.email.trim() || null, allergies: form.allergies, coming: form.status === "coming", invited: form.status === "invited", updates: !!form.email.trim() })).then(() => setForm(blank))}>{t("parties.add")}</button>
         </section>
+        <GuestImport path={path} onDone={(detail) => run(async () => detail as Detail)} />
       </div>
+    </div>
+    <Seating party={party} run={run} change={change} path={path} />
     </div>
   );
 }
@@ -822,6 +1028,7 @@ function TasksTab({ party, run, path }: TabProps) {
           <li key={task.id} className="flex items-center gap-3 py-2 text-sm">
             <input type="checkbox" className="h-4 w-4 accent-primary-700" aria-label={task.title} checked={task.done} onChange={(e) => run(() => api.put<Detail>(`${path}/tasks/${task.id}`, { done: e.target.checked }))} />
             <span className={`flex-1 ${task.done ? "text-muted line-through" : ""}`}>{task.title}</span>
+            {task.action === "print_qr" && <a className="btn-ghost flex items-center gap-1 border border-edge text-xs" href={`/party-qr/${party.id}`} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" aria-hidden />{t("parties.printIt")}</a>}
             <input className="input !w-auto py-0.5 text-xs" type="date" aria-label={t("parties.due")} value={task.due_date ?? ""} onChange={(e) => run(() => api.put<Detail>(`${path}/tasks/${task.id}`, { due_date: e.target.value || null }))} />
             <button className="text-muted hover:text-red-700" aria-label={t("common.remove")} onClick={() => run(() => api.del(`${path}/tasks/${task.id}`).then(() => api.get<Detail>(path)))}><Trash2 className="h-4 w-4" aria-hidden /></button>
           </li>
@@ -911,7 +1118,6 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
   const when = new Date(party.starts_at).toLocaleString(dateLocale, LONG);
   const invite = party.date_poll ? t("parties.shareVoteText", { title: party.title, link: party.link }) : t("parties.shareText", { title: party.title, when, link: party.link });
   const links: { key: string; label: string; link: string; text: string }[] = [{ key: "invite", label: party.phase === "save" ? t("parties.stage.save") : t("parties.stage.invite"), link: party.link, text: party.phase === "save" ? t("parties.shareSaveText", { title: party.title, when, link: party.link }) : invite }];
-  if (party.portal?.open) links.push({ key: "portal", label: t("parties.stage.portal"), link: party.portal.link, text: t("parties.sharePortalText", { title: party.title, link: party.portal.link }) });
   const share = async (text: string, key: string) => {
     try {
       if (navigator.share) {
@@ -933,7 +1139,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.journey")}</h2>
         <p className="text-xs text-muted">{t("parties.journeyHelp")}</p>
         <ol className="grid gap-2 sm:grid-cols-4">
-          {STAGES.map((st) => {
+          {STAGES.filter((st) => party.pages.includes(st)).map((st) => {
             const at = st === "portal" ? party.portal?.at : st === "thanks" ? party.thanks_at : null;
             return (
               <li key={st} aria-current={party.stage === st ? "step" : undefined} className={`rounded-xl border p-3 text-sm ${party.stage === st ? "border-accent bg-accent-soft" : "border-edge"}`}>
@@ -981,7 +1187,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
               <div className="grid gap-2 sm:grid-cols-2">
                 <label><span className="label">{t("parties.mailKind")}</span>
                   <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                    {(["save", "invite", "remind", "thanks", "custom"] as const).map((k) => <option key={k} value={k}>{t(`parties.mail.${k}` as TranslationKey)}</option>)}
+                    {(["save", "invite", "remind", "thanks", "custom"] as const).filter((k) => (k !== "save" && k !== "thanks") || party.pages.includes(k)).map((k) => <option key={k} value={k}>{t(`parties.mail.${k}` as TranslationKey)}</option>)}
                   </select>
                 </label>
                 <label><span className="label">{t("parties.mailTo")}</span>
@@ -1011,7 +1217,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
         {links.map((l) => (
           <div key={l.key} className="space-y-2 rounded-xl border border-edge p-3">
             <p className="text-sm font-semibold">{l.label}</p>
-            <input className="input text-xs" readOnly value={l.link} aria-label={l.key === "portal" ? t("parties.portalLink") : t("parties.link")} onFocus={(e) => e.target.select()} />
+            <input className="input text-xs" readOnly value={l.link} aria-label={t("parties.link")} onFocus={(e) => e.target.select()} />
             <div className="flex flex-wrap gap-2">
               <button className="btn-primary flex items-center gap-1.5" onClick={() => share(l.text, l.key)}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
               <button className="btn-ghost flex items-center gap-1.5" onClick={() => navigator.clipboard?.writeText(l.link).then(() => setCopied(l.key))}><Copy className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
@@ -1020,9 +1226,13 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
             {copied === l.key && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
           </div>
         ))}
-        <div className="mx-auto w-40 rounded-lg bg-white p-2" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.qr_svg }} />
+        <figure className="m-0 space-y-1 text-center">
+          <div className="mx-auto w-40 rounded-lg bg-white p-2 [&>svg]:h-auto [&>svg]:w-full" aria-label={t("parties.qrInvite")} dangerouslySetInnerHTML={{ __html: party.qr_svg }} />
+          <figcaption className="text-xs text-muted">{t("parties.qrInvite")}</figcaption>
+        </figure>
         <button className="text-xs text-muted hover:underline" onClick={() => window.confirm(t("parties.newLinkConfirm")) && newLink()}>{t("parties.newLink")}</button>
       </section>
+      {party.pages.includes("portal") && <PortalCard party={party} run={run} change={change} path={path} />}
     </div>
   );
 }

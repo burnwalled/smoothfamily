@@ -201,6 +201,7 @@ export function galaTemplate(t: (key: string, values?: Record<string, string | n
     const line = stage === "save" ? t("party.saveTheDate") : t("party.invited");
     const out: Block[] = [
       { id: id(), type: "text", side: "left", text: `${line} · ${f("weekday")} ${f("date")}`, font: "theme-body", size: "s", color: "accent", caps: true },
+      ...(stage === "invite" ? [{ id: id(), type: "text", side: "left", text: t("party.hello", { name: f("guest") }), font: "theme-script", size: "l" } as Block] : []),
       { id: id(), type: "text", side: "left", text: stage === "save" ? t("party.comingUp") : t("party.welcomeTo"), font: "theme-script", size: "l", tilt: -4 },
       { id: id(), type: "text", side: "left", text: f("title"), font: "theme-display", size: "xxl", color: "gold" },
       { id: id(), type: "divider", side: "left", style: "swash" },
@@ -272,10 +273,10 @@ The style fields, all optional: "font": theme-display, theme-script, theme-body,
 
 An item is { "kind": "emoji", "value": "🎉" } or { "kind": "library", "value": sticker }. Stickers: ${stickers.join(", ")}.
 
-Use these fields in texts rather than real details, they fill in by themselves: {title} {family} {date} {weekday} {time} {place} {address} {theme} {rsvp} {invitation}.
+Use these fields in texts rather than real details, they fill in by themselves: {title} {guest} {family} {date} {weekday} {time} {place} {address} {theme} {rsvp} {invitation}.
 
 RULES
-No HTML, no CSS, no links and no addresses to pictures: only what's listed above works. Don't make up names, dates or places. Put {title} in a big text at the top of each page.
+No HTML, no CSS, no links and no addresses to pictures: only what's listed above works. Don't make up names, dates or places. {guest} is the guest's first name on a personal link; a text with it shows only to those guests, so it suits a greeting such as "Hi {guest}!". Put {title} in a big text at the top of each page.
 
 AN EXAMPLE OF THE FORM (make your own)
 ${JSON.stringify(example, null, 1)}`;

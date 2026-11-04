@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens syv trin – her Design, der begynder med skabelonerne."
+        "caption": "Festens otte trin – her Design, der begynder med skabelonerne."
       },
       {
         "steps": [
@@ -384,6 +384,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Vælg festens sider under Detaljer: invitationen med svar er altid med, gem datoen, festportalen og takken vælger I selv. Det, der ikke er valgt, vises ikke under Design eller Udsendelser, og gæsternes link springer det over.",
+          "Importér gæsteliste under Gæster: Excel (.xlsx), CSV, en tekstfil eller indsatte navne. Alle bliver inviteret med deres eget link. Der findes også bordplanen: tilføj bordene, og vælg bord til hver gæst; selskabet sidder sammen, og pladserne tælles.",
+          "Skriv {gæst} i en tekst på plakaten, så ser en gæst med personligt link sit eget fornavn. En tekst med feltet vises ikke for dem uden navn, så det passer til en hilsen: invitationen og takken begynder med en.",
+          "Portalen ligger under Udsendelser: hvornår den åbner, og hvornår QR-koden og linket holder op med at virke – 3 timer efter festen, hvis I ikke ændrer det, så ingen kommer ind morgenen efter. At udskrive QR-koden er en opgave under At gøre, på en side i festens tema. Slå baggrundsgrafik til i browserens udskriftsvindue for at få farverne med.",
+          "Hver side har Forhåndsvis som gæst under Design, til computer og mobil. Trin 8, Festen, giver en sidste tjekliste over, hvad der mangler – så er det bare at have det sjovt!",
           "Under Gæster kopierer linkknappen ved hver gæst det personlige link til gæsten og selskabet, som kan sendes med sms eller som I vil. Den, der har linket, kan svare som gæsten, så send det kun til dem.",
           "Hver plakat kan se forskellig ud på computer og mobil: vælg Mobil i plakateditoren, så gælder den rækkefølge, det der vises, den justering og størrelse, du ændrer, kun på mobil. Tekster og billeder deles, så en rettelse ses på begge. Indtil du ændrer noget, følger mobilen computeren. Brede tablets regnes som computer, smalle som mobil.",
           "Skabeloner (Design → Skabeloner) sætter alle plakater og udseendet på én gang: den indbyggede Gala eller jeres egne – gem enhver fest som skabelon. Eller lav en med egen AI: skriv jeres ønsker, kopiér prompten til en valgfri AI, og indsæt svaret. I ser skabelonen, før den bruges, kun det, plakaterne kender, kommer ind (ingen kode, ingen billeder udefra), og alt kan ændres bagefter. En skabelon kan også gemmes som fil og åbnes af en anden familie.",
