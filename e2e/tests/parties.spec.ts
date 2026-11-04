@@ -19,10 +19,10 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     await page.getByRole("button", { name: /^\d\s?To do$/ }).click();
     await expect(page.getByRole("checkbox", { name: "Share the invitation" })).toBeVisible();
 
-    // The invitation page's look: the jungle.
+    // The party's look: the jungle.
     await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
-    await page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ }).click();
-    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("radiogroup", { name: "The party's look" }).getByRole("radio", { name: /Jungle/ }).click();
+    await expect(page.getByRole("radiogroup", { name: "The party's look" }).getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
 
     // A guest, without an account.
     const guest = await browser.newContext();
@@ -122,9 +122,9 @@ test("a party in an own theme", async ({ adminPage: page, adminApi, browser }) =
   try {
     // The party's own category first: Disco is there.
     // The look lives under Design, not among the party's details.
-    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" })).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: "The party's look" })).toHaveCount(0);
     await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
-    const picker = page.getByRole("radiogroup", { name: "The invitation page's look" });
+    const picker = page.getByRole("radiogroup", { name: "The party's look" });
     await expect(picker.getByRole("radio", { name: /Disco/ })).toBeVisible();
     await picker.getByRole("button", { name: "Create your own theme" }).click();
     const editor = page.getByRole("region", { name: "Your own theme" });
@@ -153,7 +153,7 @@ test("a party kept from an older version still opens", async ({ adminPage: page,
     await page.route(`**/api/parties/${made.id}`, async (route) => {
       const fresh = await (await route.fetch()).json();
       const old = { ...fresh, plus_one: true, guests: [{ id: "x", first_name: "Saga", last_name: "Berg", coming: true, allergies: "", message: "", plus_first_name: "Ella", plus_last_name: "Berg", plus_allergies: "", email: null, updates: false }] };
-      for (const k of ["bring", "person_ids", "page_custom_id", "thanks_custom_id", "invite_image", "date_poll", "date_options", "tally", "children"]) delete old[k];
+      for (const k of ["bring", "person_ids", "page_custom_id", "invite_image", "date_poll", "date_options", "tally", "children"]) delete old[k];
       await route.fulfill({ json: old });
     });
     await page.goto(`/parties?id=${made.id}`);

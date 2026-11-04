@@ -39,9 +39,9 @@ export function ThemeSwatch({ theme, label, selected, onClick }: { theme: PartyT
   );
 }
 
-type Props = { value: string; customId: string | null; onChange: (key: string, customId: string | null) => void; label: string; kind: string; allowSame?: boolean };
+type Props = { value: string; customId: string | null; onChange: (key: string, customId: string | null) => void; label: string; kind: string };
 
-export default function ThemePicker({ value, customId, onChange, label, kind, allowSame = false }: Props) {
+export default function ThemePicker({ value, customId, onChange, label, kind }: Props) {
   const { t } = useI18n();
   const own = useApi<CustomTheme[]>(THEMES_PATH).data ?? [];
   const first = kindCategory(kind);
@@ -64,11 +64,6 @@ export default function ThemePicker({ value, customId, onChange, label, kind, al
   return (
     <div role="radiogroup" aria-label={label}>
       <span className="label">{label}</span>
-      {allowSame && (
-        <button type="button" role="radio" aria-checked={value === ""} onClick={() => onChange("", null)} className={`mb-1 rounded-xl border-2 px-3 py-1.5 text-xs font-semibold ${value === "" ? "border-accent" : "border-edge"}`}>
-          {t("parties.themeSame")}
-        </button>
-      )}
       {group(order[0])}
       <div>
         <p className="mb-1 mt-3 text-xs font-semibold text-muted">{t("parties.cat.custom")}</p>

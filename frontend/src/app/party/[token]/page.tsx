@@ -26,10 +26,8 @@ type Page = {
   portal_token: string | null;
   language: string;
   page_theme: string;
-  thanks_theme: string;
   // The family's own themes, when "custom", and a picture on the invitation (its version).
   page_custom: CustomTheme | null;
-  thanks_custom: CustomTheme | null;
   invite_image: string | null;
   // The hosts' own poster (its blocks; none = the theme's) and its pictures.
   layout: Block[] | null;
@@ -205,9 +203,8 @@ export default function PartyInvitation() {
   const start = new Date(page.starts_at);
   const end = new Date(page.ends_at);
   const mineWish = stored("sf.party-wish-keys");
-  // The thank-you's look once it's out, else the invitation's.
-  const themeKey = page.thanks ? page.thanks_theme : page.page_theme;
-  const own = page.thanks ? page.thanks_custom : page.page_custom;
+  const themeKey = page.page_theme;
+  const own = page.page_custom;
   const theme = themeKey === "custom" && own ? customTheme(own, (slot, v) => `/api/party/${token}/themes/${own.id}/${slot}?v=${v}`) : partyTheme(themeKey);
   const poll = page.date_poll;
   const coming = poll || form.coming;
