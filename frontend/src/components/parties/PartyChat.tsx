@@ -55,7 +55,7 @@ export default function PartyChat({ path, query = "", askName = false, remove = 
             <li key={m.id} className={`flex items-end gap-2 ${m.mine ? "justify-end" : ""}`}>
               <div className={`max-w-[85%] rounded-2xl border border-edge px-3 py-1.5 ${m.mine ? "bg-accent-soft" : ""}`}>
                 <p className="text-[11px] font-semibold text-muted">{m.name}{m.host ? ` · ${t("partyChat.host")}` : ""} · {new Date(m.at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                <p className="whitespace-pre-line break-words text-sm">{m.body}</p>
+                <p className="whitespace-pre-line text-sm [overflow-wrap:anywhere]">{m.body}</p>
               </div>
               {remove && <button type="button" className="text-muted hover:text-red-700" aria-label={t("partyChat.remove", { name: m.name })} onClick={() => { void api.del(`${path}/${m.id}`).then(load); }}><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>}
             </li>

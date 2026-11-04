@@ -903,3 +903,49 @@ test("the party's chats", async ({ adminPage: page, adminApi, browser }) => {
     await adminApi.delete(`/api/parties/${party.id}`);
   }
 });
+
+// Nothing on any step or page is wider than a phone, however long its link: what's outside can't be reached.
+test("every step fits a phone", async ({ adminPage: page, adminApi, browser }) => {
+  test.setTimeout(90_000);
+  page.setDefaultTimeout(8000);
+  const at = Date.now() + 30 * 86_400_000;
+  const title = "En mycket lång fest med ett namn som aldrig verkar ta slut riktigt någonstans";
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", bring: "one", place: "Folkets hus", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const longWord = "https://example.com/" + "x".repeat(120);
+  await adminApi.put(`/api/parties/${party.id}`, { data: { guest_chat: true, planner_chat: true, phase: "save", speech_signup: true, menu: [{ id: "a", name: "Vegetariskt" }], practical: { parking: longWord }, tables: [{ id: "t", name: "Långbordet", seats: 8 }] } });
+  await adminApi.post(`/api/parties/${party.id}/helpers`, { data: { name: "Lars" } });
+  await adminApi.post(`/api/parties/${party.id}/vendors`, { data: { name: "Catering " + "x".repeat(100), url: "https://example.com/a" } });
+  await adminApi.post(`/api/parties/${party.id}/plan`, { data: { title: "Tal " + "y".repeat(120), who: "Mamma" } });
+  await adminApi.post(`/api/parties/${party.id}/chat/planners`, { data: { body: longWord } });
+  await adminApi.post(`/api/parties/${party.id}/chat/guests`, { data: { body: longWord } });
+  const added = await (await adminApi.post(`/api/parties/${party.id}/guests`, { data: { first_name: "Saga", last_name: "Berg", email: `${"lang".repeat(12)}@example.com`, invited: true } })).json();
+  const { link } = await (await adminApi.post(`/api/parties/${party.id}/guests/${added.guests[0].id}/link`)).json();
+  const fits = async (p: import("@playwright/test").Page, where: string) => expect.soft(await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), where).toBeLessThanOrEqual(0);
+  try {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto(`/parties?id=${party.id}`);
+    for (const step of ["Details", "Design", "Guests", "To do", "Budget", "The day's plan", "The plan", "Sending out", "The party"]) {
+      await page.getByRole("button", { name: new RegExp(`^[0-9] ?${step}$`) }).click();
+      await page.waitForTimeout(300);
+      await fits(page, step);
+    }
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
+    await page.getByRole("region", { name: "The mails" }).getByRole("button", { name: "Open The invitation" }).click();
+    await page.waitForTimeout(600);
+    await fits(page, "an open mail");
+
+    const guest = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const g = await guest.newPage();
+    await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await g.getByText("Hi Saga!").or(g.getByRole("heading").first()).first().waitFor();
+    await g.waitForTimeout(500);
+    await fits(g, "the save-the-date");
+    await adminApi.put(`/api/parties/${party.id}`, { data: { phase: "invite" } });
+    await g.reload();
+    await g.getByRole("region", { name: "Will you come?" }).waitFor();
+    await fits(g, "the invitation");
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});

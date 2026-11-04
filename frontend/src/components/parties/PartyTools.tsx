@@ -96,7 +96,7 @@ export function Helpers({ party, run, path }: TabProps) {
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("helper.title")}</h2>
       <p className="text-xs text-muted">{t("helper.help")}</p>
       {party.helpers.length > 0 && (
-        <ul className="divide-y divide-edge text-sm">
+        <ul className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
           {party.helpers.map((h) => (
             <li key={h.id} className="flex flex-wrap items-center gap-2 py-2">
               <span className="min-w-0 flex-1">
@@ -160,7 +160,7 @@ export function PlanTab({ party, run, path }: TabProps) {
       {party.speeches.length > 0 && (
         <section className="card space-y-2 p-5" aria-label={t("plan.speeches")}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("plan.speeches")}</h2>
-          <ul className="divide-y divide-edge text-sm">
+          <ul className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
             {party.speeches.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-2 py-2">
                 <span className="min-w-0 flex-1"><span className="font-semibold">{s.name}</span>{s.note && <span className="text-muted"> · {s.note}</span>}</span>
@@ -183,7 +183,7 @@ export function PlanTab({ party, run, path }: TabProps) {
         </div>
         <p className="text-xs text-muted">{t("plan.help")}</p>
         {party.plan.length > 0 && (
-          <ol className="divide-y divide-edge text-sm">
+          <ol className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
             {party.plan.map((i) => (
               <li key={i.id} className="flex items-start gap-3 py-2">
                 <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" aria-label={i.title} checked={i.done} onChange={(e) => run(() => api.put<Detail>(`${path}/plan/${i.id}`, { done: e.target.checked }))} />
@@ -290,14 +290,14 @@ export function ShareMessage({ party, change }: { party: Detail; change: Change 
   };
   const body = encodeURIComponent(message);
   return (
-    <div className="space-y-2 rounded-xl border border-edge p-3">
+    <div className="min-w-0 space-y-2 rounded-xl border border-edge p-3">
       <p className="text-sm font-semibold">{t(save ? "parties.stage.save" : "parties.stage.invite")}</p>
       {save && <p className="text-xs text-muted">{t("parties.shareSaveHelp")}</p>}
       <label className="block"><span className="label">{t("parties.shareMessage")}</span><textarea className="input min-h-28" value={draft} maxLength={1000} onChange={(e) => setDraft(e.target.value)} /></label>
       <div className="flex flex-wrap gap-1" aria-label={t("poster.tokens")}>
         {["title", "when", "emoji", "link"].map((k) => <button key={k} type="button" className="rounded border border-edge px-1.5 text-[11px] text-muted hover:text-ink" onClick={() => setDraft(`${draft}{${k}}`)}>{`{${k}}`}</button>)}
       </div>
-      <div className="rounded-lg bg-base p-3 text-sm" aria-label={t("mailText.preview")}><p className="whitespace-pre-line break-words">{message}</p></div>
+      <div className="rounded-lg bg-base p-3 text-sm" aria-label={t("mailText.preview")}><p className="whitespace-pre-line [overflow-wrap:anywhere]">{message}</p></div>
       {!draft.includes("{link}") && <p className="text-xs text-red-700" role="alert">{t("parties.shareNoLink")}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-primary flex items-center gap-1.5" onClick={() => { void share(); }}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
@@ -439,7 +439,7 @@ export function Vendors({ party, run, path }: TabProps) {
       {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
       {search && !search.enabled && <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">{t("vendor.searchOff")}</p>}
       {search?.enabled && (search.hits.length ? (
-        <ul className="divide-y divide-edge rounded-lg border border-edge px-3 text-sm" aria-label={t("vendor.hits")}>
+        <ul className="divide-y divide-edge rounded-lg border border-edge px-3 text-sm [overflow-wrap:anywhere]" aria-label={t("vendor.hits")}>
           {search.hits.map((h) => (
             <li key={h.url} className="flex items-start gap-2 py-2">
               <span className="min-w-0 flex-1"><a className="font-semibold hover:underline" href={h.url} target="_blank" rel="noreferrer">{h.title}</a><span className="block text-xs text-muted">{h.site}{h.snippet && ` · ${h.snippet.slice(0, 120)}`}</span></span>
@@ -449,10 +449,10 @@ export function Vendors({ party, run, path }: TabProps) {
         </ul>
       ) : <p className="text-sm text-muted">{t("vendor.noHits")}</p>)}
       {party.vendors.length > 0 && (
-        <ul className="divide-y divide-edge text-sm">
+        <ul className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
           {party.vendors.map((v) => (
             <li key={v.id} className="flex flex-wrap items-center gap-2 py-2">
-              <span className="min-w-40 flex-1">
+              <span className="min-w-0 basis-40 flex-1">
                 <span className="font-semibold">{v.name}</span> <span className="text-xs text-muted">{category(v.category)}</span>
                 {v.url && <a className="ml-1 inline-flex align-middle text-muted hover:text-ink" href={v.url} target="_blank" rel="noreferrer" aria-label={t("vendor.open", { name: v.name })}><ExternalLink className="h-3.5 w-3.5" aria-hidden /></a>}
                 {v.contact && <span className="block text-xs text-muted">{v.contact}</span>}

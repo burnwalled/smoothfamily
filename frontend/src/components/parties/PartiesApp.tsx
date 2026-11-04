@@ -749,7 +749,7 @@ function Seating({ party, run, change, path }: { party: Detail; run: TabProps["r
   const free = people.filter((g) => !g.table_id || !party.tables.some((x) => x.id === g.table_id));
   const seat = (g: Guest, table_id: string | null) => run(() => api.put<Detail>(`${path}/guests/${g.id}/table`, { table_id }));
   const row = (g: Guest) => (
-    <li key={g.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
+    <li key={g.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm [overflow-wrap:anywhere]">
       <span className="min-w-0 flex-1">
         <span className="font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
         {g.companions.length > 0 && <span className="text-muted"> +{g.companions.length}</span>}
@@ -1045,7 +1045,7 @@ function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) 
         {people.length === 0 ? (
           <EmptyState>{t("parties.noReplies")}</EmptyState>
         ) : (
-          <ul className="divide-y divide-edge text-sm">
+          <ul className="divide-y divide-edge text-sm [overflow-wrap:anywhere]">
             {people.map((g) => (
               <li key={g.id} className="flex items-start gap-3 py-2">
                 <span className={`mt-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${g.coming ? "bg-green-50 text-green-800" : g.pending ? "bg-amber-50 text-amber-800" : "bg-base text-muted"}`}>{g.coming ? t("parties.yes") : g.pending ? t("parties.awaitingReply") : t("parties.no")}</span>
@@ -1258,7 +1258,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
           })}
         </ol>
       </section>
-      <section className="card space-y-3 p-5" aria-label={t("parties.mailings")}>
+      <section className="card min-w-0 space-y-3 p-5" aria-label={t("parties.mailings")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.mailings")}</h2>
         {party.mail && !party.address_set && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{t("parties.noAddress")}</p>}
         {party.mail && (
@@ -1314,7 +1314,7 @@ function MailingsTab({ party, run, change, path, newLink }: TabProps & { change:
           </>
         )}
       </section>
-      <section className="card space-y-3 p-5" aria-label={t("parties.share")}>
+      <section className="card min-w-0 space-y-3 p-5" aria-label={t("parties.share")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.share")}</h2>
         <p className="text-xs text-muted">{party.mail ? t("parties.shareHelp") : t("parties.shareHelpNoMail")}</p>
         <ShareMessage party={party} change={change} />
