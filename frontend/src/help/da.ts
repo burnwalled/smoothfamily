@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens syv trin – her designet: de fire sider, playlisten og portalen."
+        "caption": "Festens syv trin – her Design, der begynder med skabelonerne."
       },
       {
         "steps": [
@@ -384,6 +384,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Hver plakat kan se forskellig ud på computer og mobil: vælg Mobil i plakateditoren, så gælder den rækkefølge, det der vises, den justering og størrelse, du ændrer, kun på mobil. Tekster og billeder deles, så en rettelse ses på begge. Indtil du ændrer noget, følger mobilen computeren. Brede tablets regnes som computer, smalle som mobil.",
+          "Skabeloner (Design → Skabeloner) sætter alle plakater og udseendet på én gang: den indbyggede Gala eller jeres egne – gem enhver fest som skabelon. Eller lav en med egen AI: skriv jeres ønsker, kopiér prompten til en valgfri AI, og indsæt svaret. I ser skabelonen, før den bruges, kun det, plakaterne kender, kommer ind (ingen kode, ingen billeder udefra), og alt kan ændres bagefter. En skabelon kan også gemmes som fil og åbnes af en anden familie.",
           "Ét link hele vejen: på gem datoen registrerer gæsterne sig med navn og e-mail. Invitationsmailen giver hver af dem et personligt link at svare med. Åbner de det igen, ser de deres svar og kan ændre det. Den, der ikke har svaret, får en påmindelse af sig selv før sidste svardag (Udsendelser). Fra det tidspunkt, I sætter under Design, åbner samme link festportalen, og på det tidspunkt, I sætter under Tak, går takken ud til dem, der kom.",
           "Én fest, fire sider i samme tema, hver med sin egen plakat (Plakat): først en gem datoen, hvis I vil – gæsterne gemmer datoen og skriver deres e-mail og får en mail, når I skifter linket til invitationen – så invitationen, festportalen og takken. Indsæt en fælles playliste fra Spotify, så kan gæsterne ønske sange. Åbn festportalen, og udskriv QR-koden til bordene: gæsterne uploader deres billeder direkte til et album i boksen og ser dagens program.",
           "Appen har et billedbibliotek: baggrunde og topbilleder til mange af temaerne og klistermærker – balloner, discokugle, krebs, studenterhue, ringe, græskar med mere – til plakaten i stedet for emoji (Plakat → en pynterække eller emblemet → Bibliotek).",

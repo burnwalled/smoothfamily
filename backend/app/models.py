@@ -2151,6 +2151,23 @@ class PartyTheme(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class PartyTemplate(Base):
+    """A family's own template: a party's posters and its look, to use again. Plain data; its pictures
+    stay with their party."""
+
+    __tablename__ = "party_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    # One of the app's themes, or a look of its own (colours, pattern, typefaces, effect).
+    theme: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    look: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    layouts: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class PartyMailing(Base):
     """A mail to the guests, sent at its time: the save-the-date, the invitation, a reminder, the
     thank-you, or the hosts' own message – to everyone, those who haven't replied, or those coming."""

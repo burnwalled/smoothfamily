@@ -266,3 +266,124 @@ test("a guest's personal link: their reply, then the portal", async ({ adminApi,
     await adminApi.delete(`/api/parties/${party.id}`);
   }
 });
+
+// Templates: the built-in gala on a party, and one from an AI's answer – read, seen, then used, on the
+// guests' page; what isn't a poster's part stays out.
+test("templates: the gala, one's own, and one from an AI", async ({ adminPage: page, adminApi, browser }) => {
+  const title = unique("Galan");
+  const when = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: when, ends_at: new Date(Date.now() + 30 * 86_400_000 + 7_200_000).toISOString() } })).json();
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  const kept = unique("Vår mall");
+  page.on("dialog", (d) => d.accept());
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    const box = page.getByRole("region", { name: "Templates" });
+
+    // The gala, seen before it's used.
+    await box.getByRole("listitem").filter({ hasText: "Gala" }).getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByRole("dialog", { name: "Preview" }).getByText("Until the cork pops")).toBeVisible();
+    await page.getByRole("button", { name: "Use on this party" }).click();
+    await expect(box.getByRole("status").filter({ hasText: "Gala is on the party" })).toBeVisible();
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${token}`);
+    await expect(g.getByText("Valid for one evening")).toBeVisible();
+    await expect(g.getByText("Row", { exact: true })).toBeVisible();
+
+    // Saved as the family's own.
+    await box.getByRole("button", { name: "Save this party as a template" }).click();
+    await box.getByLabel("The template's name").fill(kept);
+    await box.getByRole("button", { name: "Save the template" }).click();
+    await expect(box.getByRole("listitem").filter({ hasText: kept })).toBeVisible();
+
+    // The prompt, and an AI's answer with chat around it and something that doesn't belong.
+    await box.getByRole("button", { name: /own AI/ }).click();
+    await box.getByLabel("What do you wish for?").fill("Neon");
+    await box.getByRole("button", { name: "Copy the prompt" }).click();
+    const answer = 'Here you go:\n```json\n' + JSON.stringify({
+      name: "Neonnatt", look: { bg: "#120024", bg2: "#2a0845", accent: "#ff3cac", ink: "#ffffff", pattern: "dots", font: "retro", effect: "bokeh", decor: "🪩" },
+      layouts: { invite: [{ type: "text", text: "Neon för {title}", size: "xxl", color: "gold" }, { type: "marquee", text: "x" }, { type: "image", source: "url", asset: "https://example.com/x.png" }] },
+    }) + "\n```";
+    await box.getByLabel("The AI's answer").fill("not a template");
+    await box.getByRole("button", { name: "Read the answer" }).click();
+    await expect(box.getByText("There's no JSON in it")).toBeVisible();
+    await box.getByLabel("The AI's answer").fill(answer);
+    await box.getByRole("button", { name: "Read the answer" }).click();
+    await expect(box.getByRole("status").filter({ hasText: "Neonnatt can be used" })).toContainText("marquee");
+    await box.getByRole("status").filter({ hasText: "Neonnatt" }).getByRole("button", { name: "Preview" }).click();
+    await page.getByRole("dialog", { name: "Preview" }).getByRole("button", { name: "Use on this party" }).click();
+    await expect(box.getByRole("status").filter({ hasText: "Neonnatt is on the party" })).toBeVisible();
+    await g.reload();
+    await expect(g.getByRole("heading", { level: 1, name: `Neon för ${title}` })).toBeVisible();
+    await expect(g.locator('img[src*="example.com"]')).toHaveCount(0);
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+    const all = await (await adminApi.get("/api/parties/templates")).json();
+    for (const x of all) if (x.name === kept) await adminApi.delete(`/api/parties/templates/${x.id}`);
+    const themes = await (await adminApi.get("/api/parties/themes")).json();
+    for (const x of themes) if (x.name === "Neonnatt") await adminApi.delete(`/api/parties/themes/${x.id}`);
+  }
+});
+
+// A poster's own arrangement on phones: the order, what's hidden and the alignment there, the
+// computer's untouched, and the guest gets the one that suits their screen. On every page of the party.
+test("a poster arranged differently on phones", async ({ adminPage: page, adminApi, browser }) => {
+  const title = unique("Mobilfesten");
+  const at = Date.now() + 30 * 86_400_000;
+  const blocks = [
+    { id: "one", type: "text", text: "Rubrik {title}", size: "xxl" },
+    { id: "two", type: "text", text: "Bara på datorn" },
+    { id: "three", type: "text", text: "Sist på datorn" },
+  ];
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  await adminApi.put(`/api/parties/${party.id}`, { data: { phase: "save", layouts: { save: blocks } } });
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  const top = async (p: import("@playwright/test").Page, text: string) => (await p.getByText(text, { exact: false }).first().boundingBox())!.y;
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    await page.getByRole("region", { name: "The posters" }).getByRole("listitem").filter({ hasText: "Save the date" }).getByRole("button").click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("radio", { name: "Phone" }).click();
+    const parts = dialog.getByRole("region", { name: "The poster's parts" });
+    await expect(parts.getByText("the order, what's shown")).toBeVisible();
+
+    // The last text first, the second hidden, the first centred – on phones only.
+    const row = (text: RegExp) => parts.getByRole("listitem").filter({ hasText: text });
+    await row(/Sist på datorn/).getByRole("button", { name: "Move up" }).click();
+    await row(/Sist på datorn/).getByRole("button", { name: "Move up" }).click();
+    await row(/Bara på datorn/).getByRole("button", { name: "Hide on phones" }).click();
+    await parts.getByRole("button", { name: /Rubrik/ }).click();
+    await dialog.getByRole("region", { name: "The part's settings" }).getByRole("radio", { name: "Centred" }).click();
+    // The editor shows it as the phone will.
+    await expect(dialog.getByText("Bara på datorn", { exact: true })).toHaveCount(1); // only in the list
+    await parts.getByRole("button", { name: "Save the poster" }).click();
+    await expect(parts.getByRole("status")).toContainText("Saved");
+
+    const wide = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+    const w = await wide.newPage();
+    await w.goto(`/party/${token}`);
+    await expect(w.getByText("Bara på datorn")).toBeVisible();
+    expect(await top(w, "Rubrik")).toBeLessThan(await top(w, "Sist på datorn"));
+    await expect(w.getByRole("heading", { level: 1 })).not.toHaveClass(/text-center/);
+
+    const narrow = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const n = await narrow.newPage();
+    await n.goto(`/party/${token}`);
+    await expect(n.getByText("Rubrik")).toBeVisible();
+    await expect(n.getByText("Bara på datorn")).toHaveCount(0);
+    expect(await top(n, "Sist på datorn")).toBeLessThan(await top(n, "Rubrik"));
+    await expect(n.getByRole("heading", { level: 1 })).toHaveClass(/text-center/);
+
+    // The same page turned wide: it follows the screen.
+    await n.setViewportSize({ width: 1100, height: 800 });
+    await expect(n.getByText("Bara på datorn")).toBeVisible();
+    await wide.close();
+    await narrow.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});

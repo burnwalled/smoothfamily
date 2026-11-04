@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens sju steg – här designen: de fyra sidorna, spellistan och portalen."
+        "caption": "Festens sju steg – här Design, som börjar med mallarna."
       },
       {
         "steps": [
@@ -384,6 +384,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Varje affisch kan se olika ut på dator och mobil: välj Mobil i affischeditorn, så gäller den ordning, det som visas, den justering och storlek du ändrar bara på mobil. Texter och bilder delas, så en rättelse syns på båda. Tills du ändrar något följer mobilen datorn. Breda surfplattor räknas som dator, smala som mobil.",
+          "Mallar (Design → Mallar) sätter alla affischer och utseendet på en gång: den inbyggda Gala eller era egna – spara vilken fest som helst som mall. Eller skapa en med egen AI: skriv vad ni önskar, kopiera prompten till valfri AI och klistra tillbaka svaret. Ni ser mallen innan den används, bara det affischerna känner till kommer in (ingen kod, inga bilder utifrån), och allt går att ändra efteråt. En mall kan också sparas som fil och öppnas av en annan familj.",
           "En länk hela vägen: på spara datumet registrerar sig gästerna med namn och e-post. Inbjudningsmejlet ger var och en en personlig länk att svara med. Öppnar de den igen ser de sitt svar och kan ändra det. Den som inte svarat får en påminnelse av sig själv före sista svarsdag (Utskick). Från tiden ni sätter under Design öppnar samma länk festportalen, och vid tiden ni sätter under Tack går tacket ut till dem som kom.",
           "En fest, fyra sidor i samma tema, var och en med sin egen affisch (Affisch): först ett spara datumet om ni vill – gästerna sparar datumet och lämnar sin e-post, och får ett mejl när ni byter länken till inbjudan – sedan inbjudan, festportalen och tacket. Klistra in en samarbetslista i Spotify så kan gästerna önska låtar. Öppna festportalen och skriv ut QR-koden till borden: gästerna laddar upp sina bilder direkt till ett album i Valvet och ser dagens schema.",
           "Appen har ett bildbibliotek: bakgrunder och toppbilder till många av temana, och klistermärken – ballonger, discokula, kräfta, studentmössa, ringar, pumpa med mera – att sätta på affischen i stället för emoji (Affisch → en dekorrad eller emblemet → Bibliotek).",

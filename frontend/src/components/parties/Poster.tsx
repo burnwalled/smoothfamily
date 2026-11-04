@@ -2,12 +2,13 @@
 
 // A party's poster (3.4.0), drawn from its blocks – on the guests' page and in the hosts' editor.
 // Blocks side by side (left, right) share a row on a wide screen; texts are only ever text.
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CalendarPlus, Music, Navigation } from "lucide-react";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { mapLinks } from "@/lib/maps";
 import type { PartyTheme } from "@/lib/partyThemes";
-import { Block, CalendarButton, DecorItem, DetailField, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { Block, CalendarButton, DecorItem, DetailField, Device, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { PHONE_BELOW, forDevice } from "@/lib/posterDevice";
 import { libraryUrl } from "@/lib/partyLibrary";
 import "@/app/party/[token]/party.css";
 
@@ -30,7 +31,7 @@ function styled(s: TextStyle, theme: PartyTheme, text: string, role: "display" |
     caps ? (role === "body" || s.font?.endsWith("body") ? "uppercase tracking-[.25em]" : "uppercase") : "",
     s.size === "xxl" || s.size === "xl" ? "leading-[.98]" : "leading-snug",
   ].join(" ");
-  const style = { fontFamily: fontFamily(s.font, theme, role), color: s.color === "accent" ? "var(--pt-accent)" : undefined, hyphens: "auto" as const, overflowWrap: "break-word" as const };
+  const style = { fontFamily: fontFamily(s.font, theme, role), color: s.color === "accent" ? "var(--pt-accent)" : undefined, hyphens: "auto" as const, overflowWrap: "break-word" as const, ...(s.tilt ? { transform: `rotate(${s.tilt}deg)`, transformOrigin: "left center" } : {}) };
   return { cls, style };
 }
 
@@ -79,7 +80,8 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
       case "guests": return d.guests && d.guests.coming > 0 ? { v: t("party.comingN", { n: d.guests.coming }), s: d.guests.names?.join(", ") } : null;
     }
   };
-  const fields = b.fields.map((f) => [f, value(f)] as const).filter(([, v]) => v);
+  // The hosts' own small line under a field takes the place of the party's.
+  const fields = b.fields.map((f) => { const v = value(f); return [f, v && b.subs?.[f] ? { ...v, s: fill(b.subs[f]!, d, t("party.dateOpen")) } : v] as const; }).filter(([, v]) => v);
   const heading = b.heading ? fill(b.heading, d, t("party.dateOpen")) : "";
   const h = styled(b, theme, heading, "display");
   const mapLine = (map?: boolean) => map && links && (
@@ -87,12 +89,14 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
   );
 
   if (b.variant === "ticket") {
-    const stub = fields.find(([f]) => f === "rsvp");
-    const main = fields.filter(([f]) => f !== "rsvp");
+    // The stub: the hosts' own lines (a row, a seat), or the last day to reply.
+    const own = b.stub?.filter((x) => x.label || x.value) ?? [];
+    const stub = own.length ? null : fields.find(([f]) => f === "rsvp");
+    const main = fields.filter(([f]) => own.length || f !== "rsvp");
     return (
       <div className="pt-card pt-ticket">
         <div className="pt-ticket-main">
-          {heading && <div className="pt-ticket-head"><h2 className={h.cls} style={h.style}>{heading}</h2></div>}
+          {(heading || b.note) && <div className="pt-ticket-head">{heading && <h2 className={h.cls} style={h.style}>{heading}</h2>}{b.note && <span className="pt-k !text-[color:var(--pt-muted)]">{fill(b.note, d, t("party.dateOpen"))}</span>}</div>}
           {main.map(([f, v], i) => (
             <div key={f} className={i === 2 ? "pt-wide" : ""}>
               <div className="pt-k">{label(f)}</div>
@@ -103,7 +107,9 @@ function Details({ b, d, theme }: { b: Extract<Block, { type: "details" }>; d: P
           ))}
         </div>
         <div className="pt-stub">
-          {stub ? (<><div className="pt-k">{label("rsvp")}</div><div className="pt-stub-num pt-gold" style={{ fontFamily: fontFamily("theme-display", theme, "display") }}>{d.rsvp!.getDate()}/{d.rsvp!.getMonth() + 1}</div></>) : <div className="text-5xl">{d.emoji}</div>}
+          {own.length ? own.map((x, i) => (
+            <div key={i}><div className="pt-k">{x.label}</div><div className="pt-stub-num pt-gold" style={{ fontFamily: fontFamily("theme-display", theme, "display") }}>{x.value}</div></div>
+          )) : stub ? (<><div className="pt-k">{label("rsvp")}</div><div className="pt-stub-num pt-gold" style={{ fontFamily: fontFamily("theme-display", theme, "display") }}>{d.rsvp!.getDate()}/{d.rsvp!.getMonth() + 1}</div></>) : <div className="text-5xl">{d.emoji}</div>}
         </div>
       </div>
     );
@@ -239,7 +245,8 @@ function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; the
     }
     case "image": {
       const src = b.source === "invite" ? d.inviteImage : !b.asset ? null : b.source === "library" ? libraryUrl(b.asset) : d.asset(b.asset);
-      if (!src) return null;
+      // No picture yet: its stand-in until there is one.
+      if (!src) return b.fallback ? <div className="flex justify-center"><div className="pt-medal" aria-hidden><Item item={b.fallback} d={d} size="h-1/2 w-1/2" /></div></div> : null;
       const tag = b.tag ? fill(b.tag, d, pending) : "";
       const style = b.style ?? "poster";
       return (
@@ -320,8 +327,22 @@ function rows(blocks: Block[]): ({ kind: "full"; b: Block } | { kind: "pair"; le
   return out;
 }
 
-export default function Poster({ blocks, d, theme, selected, onSelect, slots = {} }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void; slots?: Slots }) {
-  const titleId = blocks.find((b) => b.type === "text" && /\{(title|name|namn|navn|nimi)\}/i.test(b.text))?.id;
+// device: as the editor shows it; the guests get what suits the width they have.
+export default function Poster({ blocks, d, theme, selected, onSelect, slots = {}, device }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void; slots?: Slots; device?: Device }) {
+  const root = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<Device>("desktop");
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (device || !el) return;
+    const read = () => setMeasured(el.clientWidth < PHONE_BELOW ? "phone" : "desktop");
+    read();
+    const watch = new ResizeObserver(read);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [device]);
+  const shown = forDevice(blocks, device ?? measured);
+  // The page's heading: the text with the party's name, or the hosts' biggest words in its place.
+  const titleId = (blocks.find((b) => b.type === "text" && /\{(title|name|namn|navn|nimi)\}/i.test(b.text)) ?? blocks.find((b) => b.type === "text" && b.size === "xxl"))?.id;
   const wrap = (b: Block) => {
     const view = <BlockView b={b} d={d} theme={theme} first={b.id === titleId} slots={slots} />;
     if (!onSelect) return <div key={b.id}>{view}</div>;
@@ -333,8 +354,8 @@ export default function Poster({ blocks, d, theme, selected, onSelect, slots = {
     );
   };
   return (
-    <div className="pt-c space-y-6">
-      {rows(blocks).map((r, i) =>
+    <div ref={root} className="pt-c space-y-6">
+      {(shown.flat ? shown.blocks.map((b) => ({ kind: "full" as const, b })) : rows(shown.blocks)).map((r, i) =>
         r.kind === "full" ? wrap(r.b) : (
           <div key={i} className="pt-pair py-4">
             <div className="min-w-0 space-y-4">{r.left.map(wrap)}</div>

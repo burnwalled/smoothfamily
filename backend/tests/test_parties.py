@@ -552,3 +552,41 @@ async def test_mail_through_exchange_online(client, monkeypatch):
     # Microsoft's refusal comes back in its own words.
     with pytest.raises(mailer.MailError, match="403: Access is denied"):
         await mailer.send_with(conf, "stop@example.com", "Hej", "x")
+
+
+async def test_a_familys_templates(client):
+    await _family(client)
+    path = "/api/parties/templates"
+    blocks = [{"id": "a", "type": "text", "text": "{title}"}]
+    look = {"bg": "#000000", "bg2": "#111111", "accent": "#d9a94a", "ink": "#ffffff", "font": "gala", "effect": "bokeh"}
+    assert (await client.get(path)).json() == []
+
+    made = (await client.post(path, json={"name": " Natten ", "look": look, "layouts": {"invite": blocks, "save": None}})).json()
+    assert made["name"] == "Natten" and made["theme"] is None and made["look"]["accent"] == "#d9a94a" and made["layouts"]["invite"] == blocks
+    themed = (await client.post(path, json={"name": "Guld", "theme": "glamour", "layouts": {"invite": blocks}})).json()
+    assert themed["theme"] == "glamour"
+    assert [x["name"] for x in (await client.get(path)).json()] == ["Natten", "Guld"]
+
+    # Only the app's themes, the four posters, plain colours and known parts come in.
+    for bad in (
+        {"name": "x", "theme": "../nope", "layouts": {"invite": blocks}},
+        {"name": "x", "layouts": {"other": blocks}},
+        {"name": "x", "layouts": {"invite": [{"id": "a", "type": "html", "html": "<script>"}]}},
+        {"name": "x", "look": {**look, "bg": "url(x)"}, "layouts": {"invite": blocks}},
+        {"name": "", "layouts": {"invite": blocks}},
+    ):
+        assert (await client.post(path, json=bad)).status_code == 422, bad
+
+    # Used on a party: its posters, the party's own to change from then on.
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    out = (await client.put(f"/api/parties/{party['id']}", json={"page_theme": "glamour", "thanks_theme": "glamour", "layouts": {"save": [], "invite": blocks, "portal": [], "thanks": []}})).json()
+    assert out["page_theme"] == "glamour" and out["layouts"]["invite"] == blocks and out["layouts"]["save"] is None
+
+    assert (await client.delete(f"{path}/{themed['id']}")).status_code == 204
+    assert (await client.delete(f"{path}/{themed['id']}")).status_code == 404
+    assert [x["name"] for x in (await client.get(path)).json()] == ["Natten"]
+    # They stay with the family, and with the adults.
+    await client.post("/api/family/members", json={"username": "maja", "display_name": "Maja", "password": "pass1234", "role": "child"})
+    await _as(client, "maja")
+    assert (await client.get(path)).status_code == 403

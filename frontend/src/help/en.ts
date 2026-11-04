@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "The party's seven steps – here the design: the four pages, the playlist and the portal."
+        "caption": "The party's seven steps – here Design, starting with the templates."
       },
       {
         "steps": [
@@ -384,6 +384,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Each poster can differ between computers and phones: choose Phone in the poster editor, and the order, what's shown, the alignment and the size you change apply only to phones. Texts and pictures are shared, so a correction shows on both. Until you change anything, the phone follows the computer. Wide tablets count as computers, narrow ones as phones.",
+          "Templates (Design → Templates) put all the posters and the look on at once: the built-in Gala, or your own – save any party as a template. Or make one with your own AI: write your wishes, copy the prompt into any AI, and paste its answer back. You see it before it's used, only what the posters know comes in (no code, no outside pictures), and it can all be changed afterwards. A template can also be saved as a file and opened by another family.",
           "One link all the way: on the save-the-date the guests register with a name and an e-mail. The invitation mail gives each of them a personal link to reply with. Opening it again shows their reply, which they can change. Waiting guests get a reminder by themselves before the last day to reply (Mailings). From the time you set under Design the same link opens the party portal, and at the time you set under Thanks the thank-you goes out to those who came.",
           "One party, four pages in the same theme, each with a poster of its own (Poster): a save-the-date first if you like – the guests save the date and leave their e-mail, and get a mail when you switch the link to the invitation – then the invitation, the party day's portal and the thank-you. Paste a collaborative Spotify playlist and the guests can wish for songs. Open the portal and print its QR code for the tables: the guests upload their photos straight to an album in the vault and see the day's plan.",
           "The app comes with a picture library: backgrounds and top pictures for many of the themes, and stickers – balloons, a disco ball, a crayfish, a student cap, rings, a pumpkin and more – to put on the poster in place of emoji (Poster → a decoration row or the emblem → Library).",
