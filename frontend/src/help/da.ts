@@ -384,6 +384,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Mails er HTML i festens tema, med gæstens egen knap, og almindelig tekst til programmer, der vil have det. Gem datoen mailes ikke, da du ikke har adresserne endnu: under Udsendelser får du en færdig besked med linket, der kan deles med sms, WhatsApp, e-mail eller en app. De, der tilmelder sig, efterlader deres adresse og får invitationen med mail.",
+          "Under Gæster kan I forbinde gæster, for eksempel et par, der begge har registreret sig. Begge beholder deres eget svar og link, men ingen tælles dobbelt, de kan ikke tage endnu en +1 med, de kommer ved samme bord, og den ene kan svare for den anden. Appen siger til, når nogens +1 allerede står på listen, og viser, hvor mange der højst kan komme.",
           "Tag en toastmaster med: under Detaljer giver Eksterne hjælpere nogen et personligt link, uden konto, der ophører 1 dag, 3 dage eller 1 uge efter festen. De kan gøre alt for festen undtagen at fjerne den og ser intet andet af familiens. Et nyt trin, Planlægning, har taler, servering, lege og noter efter klokken, og de vælger, hvem det holdes hemmeligt for: for dem er det nedtonet.",
           "Check-in er en valgfri side: fra sin tid viser gæsternes link nedtælling, at de er tilmeldt, jeres information og tommel op eller ned. Tommel ned, med en valgfri besked, ændrer deres svar, og I får det at vide med det samme. En QR-kode, der scannes før portalen åbner, fører til en venteside.",
           "Under Udsendelser viser Mails, hvad hver mail siger. Ret teksten, se hvordan den ser ud, og planlæg hvornår den går.",

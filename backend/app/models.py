@@ -2108,6 +2108,8 @@ class PartyGuest(Base):
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
     table_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Guests who belong together, each with their own reply and link: a couple who both registered.
+    group_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
     wants_speech: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     speech_note: Mapped[str] = mapped_column(String(200), default="", server_default="")
     menu_choice: Mapped[str | None] = mapped_column(String(20), nullable=True)

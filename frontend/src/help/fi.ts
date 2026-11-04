@@ -384,6 +384,8 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Viestit ovat HTML:ää juhlien teemassa, vieraan omalla painikkeella, ja tavallisena tekstinä ohjelmille, jotka sitä haluavat. Merkitse päivä -viestiä ei lähetetä sähköpostilla, koska osoitteita ei vielä ole: kohdassa Lähetykset saat valmiin viestin linkkeineen jaettavaksi tekstiviestillä, WhatsAppilla, sähköpostilla tai sovelluksella. Ilmoittautuneet jättävät osoitteensa ja saavat kutsun sähköpostilla.",
+          "Kohdassa Vieraat voitte yhdistää vieraita, kuten pariskunnan, joka on ilmoittautunut erikseen. Kummallakin säilyy oma vastaus ja linkki, mutta ketään ei lasketa kahdesti, he eivät voi tuoda lisäseuralaista, he istuvat samassa pöydässä ja toinen voi vastata toisenkin puolesta. Sovellus kertoo, jos seuralainen on jo listalla, ja näyttää, montako voi enintään tulla.",
           "Ottakaa mukaan toastmaster: kohdassa Tiedot Ulkopuoliset auttajat antaa henkilökohtaisen linkin ilman tiliä, ja se päättyy 1 päivä, 3 päivää tai 1 viikko juhlien jälkeen. He voivat tehdä kaiken näille juhlille paitsi poistaa ne, eivätkä näe muuta perheen tietoa. Uudessa vaiheessa, Suunnitelma, ovat puheet, tarjoilu, leikit ja muistiinpanot kellon mukaan, ja he valitsevat, keneltä se salataan: heille se on himmennetty.",
           "Ilmoittautuminen on valinnainen sivu: ajastaan alkaen vieraiden linkki näyttää lähtölaskennan, ilmoittautumisen, tietonne ja peukun. Peukku alas ja valinnainen viesti muuttavat vastauksen, ja saatte tiedon heti. Ennen portaalin avautumista skannattu QR-koodi johtaa odotussivulle.",
           "Kohdassa Lähetykset Viestit näyttää, mitä kukin viesti sanoo. Muuttakaa tekstiä, katsokaa miltä se näyttää ja suunnitelkaa lähetysaika.",

@@ -935,3 +935,96 @@ async def test_a_task_for_someone(client):
     out = (await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": None, "helper_id": made["helpers"][0]["id"]})).json()
     row = next(t for t in out["tasks"] if t["id"] == task)
     assert row["who"] is None and row["helper_id"] == made["helpers"][0]["id"]
+
+
+async def test_guests_who_belong_together(client):
+    await _family(client)
+    pid, token, _ = await _token_party(client)
+    await client.put(f"/api/parties/{pid}", json={"bring": "one", "tables": [{"id": "a", "name": "Bord 1", "seats": 8}]})
+    # Saga brings Nils as her +1; Nils also replies by himself; Maja hasn't answered.
+    saga_key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "coming": True, "companions": [{"first_name": "Nils"}]})).json()["key"]
+    nils_key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "last_name": "Ek", "coming": True})).json()["key"]
+    detail = (await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Maja", "invited": True})).json()
+    by = {g["first_name"]: g for g in detail["guests"]}
+    assert detail["coming"] == 3  # Nils twice
+    assert detail["capacity"] == {"coming": 3, "waiting": 1, "most": 2 + 2 + 2, "open": False}
+
+    path = f"/api/parties/{pid}/guests"
+    assert (await client.put(f"{path}/{by['Saga']['id']}/table", json={"table_id": "a"})).status_code == 200
+    linked = (await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Nils"]["id"]})).json()
+    by = {g["first_name"]: g for g in linked["guests"]}
+    assert by["Saga"]["group_id"] and by["Saga"]["group_id"] == by["Nils"]["group_id"]
+    assert by["Saga"]["companions"] == [] and linked["coming"] == 2  # counted once now
+    assert linked["capacity"] == {"coming": 2, "waiting": 1, "most": 1 + 1 + 2, "open": False}
+    assert by["Nils"]["table_id"] == "a"  # they sit together
+    assert (await client.put(f"{path}/{by['Saga']['id']}/table", json={"table_id": None})).json()["guests"][1]["table_id"] is None
+    assert (await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Saga"]["id"]})).status_code == 404
+
+    # Each keeps their own link, and sees who they're with; no other +1 comes in.
+    page = (await client.get(f"/api/party/{token}?key={saga_key}")).json()
+    assert page["together"] == [{"name": "Nils", "pending": False}] and page["mine"]["first_name"] == "Saga"
+    assert (await client.get(f"/api/party/{token}")).json()["together"] == []
+    await client.post(f"/api/party/{token}/reply?key={saga_key}", json={"first_name": "Saga", "last_name": "Berg", "coming": True, "companions": [{"first_name": "Ella"}]})
+    assert (await client.get(f"/api/party/{token}?key={saga_key}")).json()["mine"]["companions"] == []
+    assert (await client.get(f"/api/party/{token}?key={nils_key}")).json()["mine"]["first_name"] == "Nils"
+
+    # One answers for the other who hasn't: only then, and not over their own answer.
+    with_maja = (await client.put(f"{path}/{by['Maja']['id']}/group", json={"with_id": by["Nils"]["id"]})).json()
+    assert len({g["group_id"] for g in with_maja["guests"]}) == 1
+    await client.post(f"/api/party/{token}/reply?key={nils_key}", json={"first_name": "Nils", "last_name": "Ek", "coming": False, "for_group": True})
+    after = {g["first_name"]: g for g in (await client.get(f"/api/parties/{pid}")).json()["guests"]}
+    assert after["Maja"]["coming"] is False and after["Maja"]["pending"] is False
+    assert after["Saga"]["coming"] is True  # she'd answered herself
+
+    # Apart again, and the last one left isn't together with anyone.
+    await client.put(f"{path}/{by['Maja']['id']}/group", json={"with_id": None})
+    await client.put(f"{path}/{by['Nils']['id']}/group", json={"with_id": None})
+    assert all(g["group_id"] is None for g in (await client.get(f"/api/parties/{pid}")).json()["guests"])
+    await client.put(f"{path}/{by['Saga']['id']}/group", json={"with_id": by["Nils"]["id"]})
+    out = (await client.delete(f"{path}/{by['Saga']['id']}")).json()
+    assert all(g["group_id"] is None for g in out["guests"])
+
+
+async def test_the_mails_are_html_in_the_partys_theme(client, db_session, monkeypatch):
+    from app.models import AppSetting
+    from app.services import mailer, party_mail
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append({"to": to, "subject": subject, "text": text, "html": html}))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    db_session.add(AppSetting(key="external_url", value="https://fest.example"))
+    await db_session.commit()
+    pid, token, _ = await _token_party(client, page_theme="glamour", title="Galan <b>2027</b>")
+    await client.put(f"/api/parties/{pid}", json={"mail_texts": {"confirm": {"text": "Tack {name}! <script>alert(1)</script>\nVi ses."}}})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga<img>", "email": "saga@example.com", "updates": True, "coming": True})
+    mail = sent[0]
+    gold = party_mail.THEMES["glamour"]["accent"]
+    assert gold in mail["html"] and party_mail.THEMES["glamour"]["bg"] in mail["html"]
+    # Nothing from the hosts or the guests is markup, and the plain text is still there.
+    assert "<script>" not in mail["html"] and "&lt;script&gt;" in mail["html"] and "Saga<img>" not in mail["html"] and "<b>2027" not in mail["html"]
+    assert "<script>alert(1)</script>" in mail["text"]
+    # The guest's own link as the button, the stop link, and the theme's picture from the server.
+    key = mail["text"].split("?key=")[1].split()[0]
+    assert f"{token}?key={key}" in mail["html"] and "?unsubscribe=" in mail["html"] and "https://fest.example/party-assets/" in mail["html"]
+
+    # An own theme: its colours.
+    theme = (await client.post("/api/parties/themes", json={"name": "Lila", "bg": "#220033", "bg2": "#330044", "accent": "#ff00aa", "ink": "#ffffff"})).json()
+    await client.put(f"/api/parties/{pid}", json={"page_theme": "custom", "page_custom_id": theme["id"]})
+    sent.clear()
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "email": "nils@example.com", "updates": True, "coming": True})
+    assert "#ff00aa" in sent[0]["html"] and gold not in sent[0]["html"]
+
+    # The preview is what's sent, with a made-up guest.
+    preview = (await client.post(f"/api/parties/{pid}/mail-preview", json={"subject": "Hej {name}", "text": "<b>Kom</b> {name}", "name": "Anna"})).json()
+    assert preview["subject"] == "Hej Anna" and "&lt;b&gt;Kom&lt;/b&gt; Anna" in preview["html"] and "#ff00aa" in preview["html"]
+
+
+async def test_the_shared_message_is_the_hosts_own(client):
+    await _family(client)
+    pid, _, _ = await _token_party(client)
+    assert (await client.get(f"/api/parties/{pid}")).json()["share_texts"] == {"save": "", "invite": ""}
+    out = (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"share_save": {"text": "Boka {when}! {link}"}}})).json()
+    assert out["share_texts"]["save"] == "Boka {when}! {link}"
+    assert not [m for m in out["mail_templates"] if m["kind"].startswith("share")]
+    assert (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"share_save": {"text": ""}}})).json()["share_texts"]["save"] == ""

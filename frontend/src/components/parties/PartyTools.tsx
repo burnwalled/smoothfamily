@@ -2,8 +2,8 @@
 
 // A party's further tools (3.4.0): what the guests choose and read, helpers from outside and their plan
 // of the evening, the check-in, the wording of the mails, and suppliers.
-import { useState } from "react";
-import { Check, ExternalLink, Link2, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Copy, ExternalLink, Link2, Mail, MessageCircle, MessageSquare, Plus, Printer, Search, Share2, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { newId } from "@/lib/poster";
@@ -219,11 +219,90 @@ export function CheckinCard({ party, change }: { party: Detail; change: Change }
 
 // The mails in their order: their wording, a look at them, and when they go.
 const SCHEDULED: Record<string, { kind: string; audience: string }> = {
-  save: { kind: "save", audience: "all" }, invited: { kind: "invite", audience: "all" }, checkin: { kind: "checkin", audience: "coming" },
+  invited: { kind: "invite", audience: "all" }, checkin: { kind: "checkin", audience: "coming" },
   remind_rsvp: { kind: "remind", audience: "waiting" }, reminder: { kind: "remind", audience: "coming" }, thanks: { kind: "thanks", audience: "coming" },
 };
-const SAMPLE = (party: Detail, name: string) => ({ title: party.title, name, answer: "", by: "", when: new Date(party.starts_at).toLocaleString(), link: party.link, text: party.thanks_text });
-const preview = (text: string, values: Record<string, string>) => text.replace(/\{(\w+)\}/g, (all, k: string) => (k in values ? values[k] : all));
+const fillIn = (text: string, values: Record<string, string>) => text.replace(/\{(\w+)\}/g, (all, k: string) => (k in values ? values[k] : all));
+
+// A mail as the guest would get it: the server's own HTML, in a frame that can't run anything.
+function MailPreview({ path, subject, text }: { path: string; subject: string; text: string }) {
+  const { t } = useI18n();
+  const [out, setOut] = useState<{ subject: string; html: string } | null>(null);
+  useEffect(() => {
+    const wait = setTimeout(() => {
+      api.post<{ subject: string; html: string }>(`${path}/mail-preview`, { subject, text, name: t("poster.sampleGuest") }).then(setOut).catch(() => setOut(null));
+    }, 350);
+    return () => clearTimeout(wait);
+  }, [path, subject, text, t]);
+  if (!out) return null;
+  return (
+    <div className="space-y-1">
+      <span className="label">{t("mailText.preview")}</span>
+      <p className="text-sm font-semibold">{out.subject}</p>
+      <iframe title={t("mailText.preview")} sandbox="" srcDoc={out.html} className="h-96 w-full rounded-lg border border-edge bg-white" />
+    </div>
+  );
+}
+
+// The message to send oneself by text or in any app: with the link, ready to share, and the hosts' own
+// to change. It's how a save-the-date goes out – nobody's address is known yet.
+export function ShareMessage({ party, change }: { party: Detail; change: Change }) {
+  const { t, dateLocale } = useI18n();
+  const save = party.phase === "save" && party.pages.includes("save");
+  const key = save ? "save" : "invite";
+  const standard = t(save ? "parties.shareSaveText" : party.date_poll ? "parties.shareVoteText" : "parties.shareText");
+  const own = party.share_texts[key];
+  const [draft, setDraft] = useState(own || standard);
+  useEffect(() => setDraft(own || standard), [own, standard]);
+  const [copied, setCopied] = useState<"text" | "link" | null>(null);
+  const when = [new Date(party.starts_at).toLocaleString(dateLocale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }), party.place].filter(Boolean).join(" · ");
+  const message = fillIn(draft, { title: party.title, when, link: party.link, emoji: party.emoji });
+  const copy = async (text: string, what: "text" | "link") => {
+    await navigator.clipboard?.writeText(text);
+    setCopied(what);
+  };
+  const share = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: party.title, text: message });
+        return;
+      }
+    } catch {
+      return;
+    }
+    await copy(message, "text");
+  };
+  const body = encodeURIComponent(message);
+  return (
+    <div className="space-y-2 rounded-xl border border-edge p-3">
+      <p className="text-sm font-semibold">{t(save ? "parties.stage.save" : "parties.stage.invite")}</p>
+      {save && <p className="text-xs text-muted">{t("parties.shareSaveHelp")}</p>}
+      <label className="block"><span className="label">{t("parties.shareMessage")}</span><textarea className="input min-h-28" value={draft} maxLength={1000} onChange={(e) => setDraft(e.target.value)} /></label>
+      <div className="flex flex-wrap gap-1" aria-label={t("poster.tokens")}>
+        {["title", "when", "emoji", "link"].map((k) => <button key={k} type="button" className="rounded border border-edge px-1.5 text-[11px] text-muted hover:text-ink" onClick={() => setDraft(`${draft}{${k}}`)}>{`{${k}}`}</button>)}
+      </div>
+      <div className="rounded-lg bg-base p-3 text-sm" aria-label={t("mailText.preview")}><p className="whitespace-pre-line break-words">{message}</p></div>
+      {!draft.includes("{link}") && <p className="text-xs text-red-700" role="alert">{t("parties.shareNoLink")}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-primary flex items-center gap-1.5" onClick={() => { void share(); }}><Share2 className="h-4 w-4" aria-hidden />{t("parties.shareButton")}</button>
+        <button type="button" className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => { void copy(message, "text"); }}><Copy className="h-4 w-4" aria-hidden />{t("parties.copyMessage")}</button>
+        <a className="btn-ghost flex items-center gap-1.5 border border-edge" href={`sms:?&body=${body}`}><MessageSquare className="h-4 w-4" aria-hidden />{t("parties.shareSms")}</a>
+        <a className="btn-ghost flex items-center gap-1.5 border border-edge" href={`https://wa.me/?text=${body}`} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4" aria-hidden />WhatsApp</a>
+        <a className="btn-ghost flex items-center gap-1.5 border border-edge" href={`mailto:?subject=${encodeURIComponent(party.title)}&body=${body}`}><Mail className="h-4 w-4" aria-hidden />{t("parties.shareMail")}</a>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <SaveButton disabled={draft === (own || standard) || !draft.includes("{link}")} onSave={() => change({ mail_texts: { [`share_${key}`]: { subject: "", text: draft === standard ? "" : draft } } }, { quiet: true })} />
+        {own && <button type="button" className="text-xs text-muted hover:underline" onClick={() => change({ mail_texts: { [`share_${key}`]: { subject: "", text: "" } } }, { quiet: true })}>{t("mailText.reset")}</button>}
+      </div>
+      <input className="input text-xs" readOnly value={party.link} aria-label={t("parties.link")} onFocus={(e) => e.target.select()} />
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-ghost flex items-center gap-1.5" onClick={() => { void copy(party.link, "link"); }}><Link2 className="h-4 w-4" aria-hidden />{t("parties.copy")}</button>
+        <a className="btn-ghost text-sm" href={party.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
+      </div>
+      {copied && <p className="text-xs text-accent" role="status">{t("parties.copied")}</p>}
+    </div>
+  );
+}
 
 export function MailTemplates({ party, run, change, path }: TabProps & { change: Change }) {
   const { t, dateLocale } = useI18n();
@@ -231,7 +310,8 @@ export function MailTemplates({ party, run, change, path }: TabProps & { change:
   const [draft, setDraft] = useState({ subject: "", text: "" });
   const [when, setWhen] = useState(localInput(new Date(Date.now() + 3_600_000).toISOString()));
   const list = party.mail_templates.filter((m) => {
-    if (m.kind === "save" || m.kind === "subscribed") return party.pages.includes("save");
+    if (m.kind === "save") return false;
+    if (m.kind === "subscribed") return party.pages.includes("save");
     if (m.kind === "checkin") return party.pages.includes("checkin");
     if (m.kind === "thanks") return party.pages.includes("thanks");
     if (m.kind === "decided") return party.date_poll;
@@ -251,7 +331,6 @@ export function MailTemplates({ party, run, change, path }: TabProps & { change:
     const s = SCHEDULED[kind];
     return run(() => api.post<Detail>(`${path}/mailings`, { kind: s.kind, audience: s.audience, subject: "", text: "", send_at: at.toISOString() }));
   };
-  const sample = SAMPLE(party, t("poster.sampleGuest"));
   return (
     <section className="card space-y-2 p-5 lg:col-span-2" aria-label={t("mailText.title")}>
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("mailText.title")}</h2>
@@ -280,10 +359,7 @@ export function MailTemplates({ party, run, change, path }: TabProps & { change:
                     {["name", "title", "when", "link"].map((k) => <button key={k} type="button" className="rounded border border-edge px-1.5 text-[11px] text-muted hover:text-ink" onClick={() => setDraft({ ...draft, text: `${draft.text}{${k}}` })}>{`{${k}}`}</button>)}
                   </div>
                   <p className="text-xs text-muted">{t("mailText.linkNote")}</p>
-                  <div className="rounded-lg bg-base p-3 text-sm" aria-label={t("mailText.preview")}>
-                    <p className="font-semibold">{preview(draft.subject, sample)}</p>
-                    <p className="whitespace-pre-line">{preview(draft.text, sample)}</p>
-                  </div>
+                  <MailPreview path={path} subject={draft.subject} text={draft.text} />
                   <div className="flex flex-wrap items-center gap-3">
                     <SaveButton className="btn-primary" onSave={() => save(m.kind)} />
                     <button className="text-xs text-muted hover:underline" onClick={() => { setDraft({ subject: m.default_subject, text: m.default_text }); void change({ mail_texts: { [m.kind]: { subject: "", text: "" } } }, { quiet: true }); }}>{t("mailText.reset")}</button>

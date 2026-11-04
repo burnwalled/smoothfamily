@@ -584,14 +584,14 @@ test("bringing in guests, the seating and the last check", async ({ adminPage: p
     await box.getByRole("button", { name: "Add 2 guests" }).click();
     await expect(box.getByRole("status")).toContainText("2 guests added");
     const list = page.getByRole("region", { name: "Guests", exact: true });
-    await expect(list.getByText("Saga Berg")).toBeVisible();
-    await expect(list.getByText("Nils Ek")).toBeVisible();
+    await expect(list.getByText("Saga Berg").locator("visible=true").first()).toBeVisible();
+    await expect(list.getByText("Nils Ek").locator("visible=true").first()).toBeVisible();
     // A real Excel file: a header row and one guest.
     const xlsx = "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";
     await box.getByLabel("Choose a file").setInputFiles({ name: "gaster.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(xlsx, "base64") });
     await expect(box.getByText("1 guests found")).toBeVisible();
     await box.getByRole("button", { name: "Add 1 guests" }).click();
-    await expect(list.getByText("Elsa Lund")).toBeVisible();
+    await expect(list.getByText("Elsa Lund").locator("visible=true").first()).toBeVisible();
     await expect(list.getByText("elsa@example.com")).toBeVisible();
     await box.getByLabel("Choose a file").setInputFiles({ name: "old.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("x") });
     await expect(box.getByRole("alert")).toContainText("old Excel format");
@@ -735,7 +735,8 @@ test("the mails' wording and the suppliers", async ({ adminPage: page, adminApi 
     const mails = page.getByRole("region", { name: "The mails" });
     await mails.getByRole("button", { name: "Open The invitation" }).click();
     await mails.getByRole("textbox", { name: "Text", exact: true }).fill("Hej {name}, kom på fest!");
-    await expect(mails.getByLabel("How it looks")).toContainText("Hej Anna, kom på fest!");
+    // The real mail, in a frame of its own.
+    await expect(mails.frameLocator('iframe[title="How it looks"]').getByText("Hej Anna, kom på fest!")).toBeVisible();
     await mails.getByRole("button", { name: "Save", exact: true }).click();
     await expect(mails.getByRole("status")).toHaveText("Saved");
     await expect(mails.getByRole("listitem").filter({ hasText: "The invitation" }).getByText("Your wording")).toBeVisible();
@@ -772,6 +773,81 @@ test("the seating's papers", async ({ adminPage: page, adminApi }) => {
     await page.goto(`/party-print/${party.id}/cards`);
     await expect(page.getByText("Saga Berg")).toBeVisible();
     await expect(page.getByText("Långbordet")).toBeVisible();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// A couple who both registered: put together, nobody's counted twice, and one answers for both.
+test("guests who belong together", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Parfest"), kind: "party", bring: "one", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  await adminApi.post(`/api/party/${token}/reply`, { data: { first_name: "Saga", last_name: "Berg", coming: true, companions: [{ first_name: "Nils" }] } });
+  const added = await (await adminApi.post(`/api/parties/${party.id}/guests`, { data: { first_name: "Nils", last_name: "Ek", invited: true } })).json();
+  const nils = added.guests.find((g: { first_name: string }) => g.first_name === "Nils");
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
+    const list = page.getByRole("region", { name: "Guests", exact: true });
+    await expect(list.getByTestId("capacity")).toContainText("2 coming, 1 haven't replied – at most 4");
+    await list.getByRole("list", { name: "Maybe the same person twice" }).getByRole("button", { name: "Put them together" }).click();
+    await expect(list.getByTestId("capacity")).toContainText("1 coming, 1 haven't replied – at most 2");
+    await expect(list.getByText(/Together with Nils Ek/)).toBeVisible();
+    await expect(list.getByRole("list", { name: "Maybe the same person twice" })).toHaveCount(0);
+
+    const { link } = await (await adminApi.post(`/api/parties/${party.id}/guests/${nils.id}/link`)).json();
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    const reply = g.getByRole("region", { name: "Will you come?" });
+    await expect(reply.getByText(/signed up together with Saga/)).toBeVisible();
+    await expect(reply.getByRole("button", { name: /\+1/ })).toHaveCount(0);
+    await reply.getByRole("button", { name: /reply/ }).last().click();
+    await expect(g.getByRole("status").filter({ hasText: "see you there" })).toBeVisible();
+    await guest.close();
+
+    await page.reload();
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
+    await expect(page.getByRole("region", { name: "Guests", exact: true }).getByTestId("capacity")).toContainText("2 coming, 0 haven't replied – at most 2");
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// A save-the-date isn't mailed: a ready message to share, in the hosts' own words if they like.
+test("a save-the-date goes out by sharing a message", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const title = unique("Delafest");
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", place: "Folkets hus", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  await adminApi.put(`/api/parties/${party.id}`, { data: { phase: "save" } });
+  try {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
+    const share = page.getByRole("region", { name: /^Share/ });
+    const looks = share.getByLabel("How it looks");
+    await expect(looks).toContainText("Save the date!");
+    await expect(looks).toContainText(title);
+    await expect(looks).toContainText("Folkets hus");
+    await expect(looks).toContainText("/party/");
+    await expect(share.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=.*Save%20the%20date/);
+    await expect(share.getByRole("link", { name: "SMS" })).toHaveAttribute("href", /^sms:/);
+    await share.getByRole("button", { name: "Copy the message" }).click();
+    await expect(share.getByRole("status")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(title);
+
+    // In their own words: kept, and a message without the link says so.
+    await share.getByLabel("The message").fill("Boka {when}!");
+    await expect(share.getByRole("alert")).toBeVisible();
+    await share.getByLabel("The message").fill("Boka {when}! {link}");
+    await share.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(share.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
+    const seen = await (await adminApi.get(`/api/parties/${party.id}`)).json();
+    expect(seen.share_texts.save).toBe("Boka {when}! {link}");
+
+    // Not among the mails.
+    await expect(page.getByRole("region", { name: "The mails" }).getByRole("button", { name: "Open Save the date" })).toHaveCount(0);
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
   }
