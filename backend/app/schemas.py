@@ -197,7 +197,7 @@ class MfaChallengeOut(BaseModel):
 
 class FeedCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    url: str = Field(min_length=8)
+    url: str = Field(min_length=8, max_length=2000)
     color: str = "#4F7A5B"
     visible_to: list[uuid.UUID] = []
     details_for: list[uuid.UUID] = []
@@ -217,11 +217,13 @@ class FeedUpdate(BaseModel):
 class FeedOut(ORMModel):
     id: uuid.UUID
     name: str
+    # The address is the feed's secret (it opens the whole calendar): only its owner and the admin get it.
     url: str
     color: str
     visible_to: list[uuid.UUID] = []
     details_for: list[uuid.UUID] = []
     member_id: uuid.UUID | None = None
+    can_edit: bool = True
 
 
 class PackingItem(BaseModel):
@@ -801,6 +803,8 @@ class ChoreImportRequest(BaseModel):
 class ImportResult(BaseModel):
     imported: int
     skipped: list[str] = []
+    # A child's chores become suggestions for an adult to approve.
+    suggested: int = 0
 
 
 LIST_CATEGORIES_REGEX = r"^(produce|bread|dairy|meat_fish|frozen|pantry|snacks|beverages|household|other)$"

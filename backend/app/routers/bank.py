@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.deps import DB, AdultUser
+from app.services.uploads import read_upload
 from app.models import BankImported, BankRule, Property, Vehicle
 from app.routers import property as homes
 from app.routers import vehicles
@@ -89,9 +90,7 @@ async def _targets(db, user) -> tuple[list[Vehicle], list[Property]]:
 async def parse_file(file: UploadFile, user: AdultUser, db: DB) -> list[RowOut]:
     """The file's purchases (money out) with a suggestion each – read here, not kept. What looks like a
     subscription stays as a suggestion for this person."""
-    data = await file.read()
-    if len(data) > MAX_FILE:
-        raise HTTPException(status_code=413, detail="The file is larger than 5 MB")
+    data = await read_upload(file, MAX_FILE, detail="The file is larger than 5 MB")
     try:
         rows = bank_csv.parse(data)
     except ValueError as exc:

@@ -52,8 +52,9 @@ documents/        – your saved documents, with their numbers and scans in plai
 files/            – the files kept in the vault (not those someone keeps private).
 
 Left out on purpose: passwords (also those in the vault), two-step codes, passkeys, push subscriptions, the calendar
-subscription token and the Home Assistant token. This export is for keeping and reading; to move
-or restore a whole installation, use a backup.
+subscription token and the Home Assistant token – and what the app keeps from the one exporting: another adult's
+private documents, medicines, health they don't share, private costs and subscriptions, chats they aren't in.
+This export is for keeping and reading; to move or restore a whole installation, use a backup.
 """
 
 
@@ -75,7 +76,59 @@ def _parent_column(table, parent: str):
     return None
 
 
-async def _rows(db: AsyncSession, table, family_id: uuid.UUID) -> list[dict]:
+class Viewer:
+    """What the one exporting may see: the app's own rules, so that the export shows no more than the app
+    does – another adult's private documents, medicines, health or chats stay out."""
+
+    def __init__(self, user_id: uuid.UUID | None, people: dict[str, dict], conversations: set[str]) -> None:
+        self.user_id = str(user_id) if user_id else None
+        self.people = people  # user id → {"role", "health_share"}
+        self.conversations = conversations
+
+    def is_adult(self, user_id) -> bool:
+        return self.people.get(str(user_id), {}).get("role") in ("admin", "adult")
+
+    def other_adult(self, user_id) -> bool:
+        return user_id is not None and self.is_adult(user_id) and str(user_id) != self.user_id
+
+    def shares(self, user_id, what: str) -> bool:
+        return (self.people.get(str(user_id), {}).get("health_share") or {}).get(what) in ("adults", "family")
+
+    def keep(self, table: str, row: dict) -> bool:
+        if table == "documents" and row.get("private") and self.other_adult(row.get("user_id")):
+            return False
+        if table == "medications" and self.other_adult(row.get("user_id")):
+            return False
+        if table == "workouts" and self.other_adult(row.get("user_id")) and not self.shares(row["user_id"], "workouts"):
+            return False
+        if table in ("economy_entries", "subscriptions") and row.get("private") and str(row.get("created_by")) != self.user_id:
+            return False
+        if table == "vault_logins" and self.other_adult(row.get("owner_id")) and self.user_id not in [str(x) for x in (row.get("shared_with") or [])]:
+            return False
+        if table in ("conversations", "chat_messages") and str(row.get("id") if table == "conversations" else row.get("conversation_id")) not in self.conversations:
+            return False
+        if table == "conversation_members" and str(row.get("conversation_id")) not in self.conversations:
+            return False
+        return True
+
+    def trim(self, table: str, row: dict) -> dict:
+        if table == "health_days" and self.other_adult(row.get("user_id")):
+            for column, what in (("steps", "steps"), ("sleep_minutes", "sleep"), ("weight_kg", "weight"), ("resting_hr", "steps")):
+                if not self.shares(row["user_id"], what):
+                    row[column] = None
+        return row
+
+
+async def viewer_for(db: AsyncSession, family_id: uuid.UUID, user_id: uuid.UUID | None) -> Viewer:
+    users = Base.metadata.tables["users"]
+    rows = (await db.execute(select(users.c.id, users.c.role, users.c.health_share).where(users.c.family_id == family_id))).all()
+    people = {str(r.id): {"role": r.role, "health_share": r.health_share} for r in rows}
+    members = Base.metadata.tables["conversation_members"]
+    mine = (await db.execute(select(members.c.conversation_id).where(members.c.user_id == user_id))).scalars().all() if user_id else []
+    return Viewer(user_id, people, {str(c) for c in mine})
+
+
+async def _rows(db: AsyncSession, table, family_id: uuid.UUID, viewer: Viewer) -> list[dict]:
     if table.name == "families":
         query = select(table).where(table.c.id == family_id)
     elif "family_id" in table.c:
@@ -89,11 +142,14 @@ async def _rows(db: AsyncSession, table, family_id: uuid.UUID) -> list[dict]:
         return []
     hidden = SECRET_COLUMNS.get(table.name, set())
     rows = (await db.execute(query)).mappings().all()
-    return [{k: _plain(v) for k, v in row.items() if k not in hidden} for row in rows]
+    out = [{k: _plain(v) for k, v in row.items() if k not in hidden} for row in rows]
+    return [viewer.trim(table.name, row) for row in out if viewer.keep(table.name, row)]
 
 
-async def build_export(db: AsyncSession, family_id: uuid.UUID, family_name: str) -> Path:
-    """Writes the zip to a temporary file and returns its path (the caller removes it)."""
+async def build_export(db: AsyncSession, family_id: uuid.UUID, family_name: str, user_id: uuid.UUID | None = None) -> Path:
+    """Writes the zip to a temporary file and returns its path (the caller removes it). `user_id` is the
+    one exporting: the export shows what they may see in the app."""
+    viewer = await viewer_for(db, family_id, user_id)
     tmp = tempfile.NamedTemporaryFile(prefix="smooth-family-export-", suffix=".zip", delete=False)
     tmp.close()
     path = Path(tmp.name)
@@ -103,7 +159,7 @@ async def build_export(db: AsyncSession, family_id: uuid.UUID, family_name: str)
         for table in sorted(Base.metadata.tables.values(), key=lambda t: t.name):
             if table.name in SKIP_TABLES:
                 continue
-            rows = await _rows(db, table, family_id)
+            rows = await _rows(db, table, family_id, viewer)
             zf.writestr(f"data/{table.name}.json", json.dumps(rows, ensure_ascii=False, indent=1))
         media = Path(get_settings().media_root) / str(family_id)
         if media.is_dir():
@@ -112,7 +168,7 @@ async def build_export(db: AsyncSession, family_id: uuid.UUID, family_name: str)
                 rel = file.relative_to(media).as_posix()
                 if file.is_file() and not rel.startswith(("documents/", "files/")):
                     zf.write(file, f"media/{file.relative_to(media).as_posix()}")
-        await _add_documents(db, zf, family_id, media)
+        await _add_documents(db, zf, family_id, media, viewer)
         await _add_vault_files(db, zf, family_id, media)
     return path
 
@@ -129,10 +185,12 @@ async def _add_vault_files(db: AsyncSession, zf: zipfile.ZipFile, family_id: uui
             zf.writestr(f"files/{row.id}/{row.filename}", fernet.decrypt(path.read_bytes()))
 
 
-async def _add_documents(db: AsyncSession, zf: zipfile.ZipFile, family_id: uuid.UUID, media: Path) -> None:
-    """documents/documents.json with the numbers in plain text, and each file readable."""
+async def _add_documents(db: AsyncSession, zf: zipfile.ZipFile, family_id: uuid.UUID, media: Path, viewer: Viewer) -> None:
+    """documents/documents.json with the numbers in plain text, and each file readable – not another
+    adult's private ones."""
     family = await db.get(Family, family_id)
     docs = (await db.execute(select(Document).where(Document.family_id == family_id))).scalars().all()
+    docs = [d for d in docs if not (d.private and viewer.other_adult(d.user_id))]
     if not docs:
         return
     fernet = await family_fernet(db, family)

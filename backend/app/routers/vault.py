@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import false, or_, select
 
 from app.deps import DB, CurrentUser, require_app
+from app.services.uploads import read_upload
 from app.models import Album, Document, DocumentFile, Family, MediaItem, User, VaultFile, VaultLogin
 from app.routers import documents as docs
 from app.routers.albums import ALLOWED_IMAGE_TYPES, MediaOut, _can_view, _media_out, store_upload
@@ -262,7 +263,7 @@ async def upload_receipt(file: UploadFile, user: CurrentUser, db: DB) -> MediaOu
 @router.post("/files", response_model=VaultItem, status_code=status.HTTP_201_CREATED, dependencies=photos_only)
 async def upload_file(user: CurrentUser, db: DB, file: UploadFile, private: bool = Form(default=False)) -> VaultItem:
     """Any file into the vault, encrypted with the family's key."""
-    data = await file.read()
+    data = await read_upload(file, await file_limit.max_bytes(db))
     if not data:
         raise HTTPException(status_code=422, detail="The file is empty")
     # Encrypted as a whole in memory: the server admin sets how large (services/file_limit.py).

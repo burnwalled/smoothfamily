@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Album, AppSetting, MediaItem, User
 from app.services.notify import notify
+from app.services.images import open_image
 from app.services.storage import get_storage
 
 EXIF_IFD = 0x8769
@@ -33,7 +34,7 @@ def exif_taken(data: bytes) -> datetime | None:
     try:
         from PIL import Image
 
-        exif = Image.open(io.BytesIO(data)).getexif()
+        exif = open_image(data).getexif()
         value = exif.get_ifd(EXIF_IFD).get(DATE_TAKEN) or exif.get_ifd(EXIF_IFD).get(DATE_DIGITIZED) or exif.get(DATE_TIME)
         if not value:
             return None

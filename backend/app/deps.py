@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User
-from app.security import read_user_id_from_request
+from app.security import read_session, session_current
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 
@@ -14,10 +14,12 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 async def get_current_user(request: Request, db: DB) -> User:
     from app.models import Family
 
-    user_id = read_user_id_from_request(request)
+    user_id, version = read_session(request)
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists")
+    if not session_current(user, version):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Signed out – sign in again")
     family = await db.get(Family, user.family_id)
     if family is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists")

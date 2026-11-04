@@ -23,14 +23,28 @@ router = APIRouter(prefix="/api/calendar", tags=["calendar"], dependencies=[requ
 ical_router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 
+def _manages(feed: CalendarFeed, user: User) -> bool:
+    """Its owner, the admin, or an adult the admin lets manage the family."""
+    return str(feed.created_by) == str(user.id) or user.role == "admin" or (user.role == "adult" and user.can_manage_family)
+
+
+def _feed_out(feed: CalendarFeed, user: User) -> FeedOut:
+    mine = _manages(feed, user)
+    return FeedOut(
+        id=feed.id, name=feed.name, url=feed.url if mine else "", color=feed.color, visible_to=feed.visible_to or [],
+        details_for=feed.details_for or [], member_id=feed.member_id, can_edit=mine,
+    )
+
+
 @router.get("/feeds", response_model=list[FeedOut])
-async def list_feeds(user: CurrentUser, db: DB) -> list[CalendarFeed]:
+async def list_feeds(user: CurrentUser, db: DB) -> list[FeedOut]:
+    """The feeds this member may see – each with its address only for those who manage it."""
     result = await db.execute(
         select(CalendarFeed)
         .where(CalendarFeed.family_id == user.family_id)
         .order_by(CalendarFeed.created_at)
     )
-    return list(result.scalars().all())
+    return [_feed_out(f, user) for f in result.scalars().all() if feed_visibility(f, user)[0]]
 
 
 async def _family_member(db, user, member_id: uuid.UUID | None) -> uuid.UUID | None:
@@ -60,14 +74,16 @@ async def create_feed(payload: FeedCreate, user: CurrentUser, db: DB) -> Calenda
     db.add(feed)
     await db.commit()
     await db.refresh(feed)
-    return feed
+    return _feed_out(feed, user)
 
 
 @router.patch("/feeds/{feed_id}", response_model=FeedOut)
-async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser, db: DB) -> CalendarFeed:
+async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser, db: DB) -> FeedOut:
     feed = await db.get(CalendarFeed, feed_id)
-    if feed is None or feed.family_id != user.family_id:
+    if feed is None or feed.family_id != user.family_id or not feed_visibility(feed, user)[0]:
         raise HTTPException(status_code=404, detail="Calendar feed not found")
+    if not _manages(feed, user):
+        raise HTTPException(status_code=403, detail="Only the one who added the calendar, or the family's admin, can change it")
 
     if payload.name is not None:
         feed.name = payload.name
@@ -82,14 +98,16 @@ async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser
 
     await db.commit()
     await db.refresh(feed)
-    return feed
+    return _feed_out(feed, user)
 
 
 @router.delete("/feeds/{feed_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_feed(feed_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     feed = await db.get(CalendarFeed, feed_id)
-    if feed is None or feed.family_id != user.family_id:
+    if feed is None or feed.family_id != user.family_id or not feed_visibility(feed, user)[0]:
         raise HTTPException(status_code=404, detail="Calendar feed not found")
+    if not _manages(feed, user):
+        raise HTTPException(status_code=403, detail="Only the one who added the calendar, or the family's admin, can remove it")
     await db.delete(feed)
     await db.commit()
 

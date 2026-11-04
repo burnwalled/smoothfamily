@@ -77,7 +77,7 @@ async def _open_invitation(db, token: str, request: Request) -> Invitation:
 
 
 async def _sign_in(response: Response, user: User) -> None:
-    set_session_cookie(response, create_token(user.id))
+    set_session_cookie(response, create_token(user.id, user.session_version))
 
 
 @router.get("/invite/{token}", response_model=InviteInfo)

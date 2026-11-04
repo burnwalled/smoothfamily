@@ -10,7 +10,9 @@ import base64
 import binascii
 import io
 import re
+import time
 import uuid
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -22,7 +24,7 @@ from app.config import get_settings
 from app.deps import CurrentUser, DB, ServerAdmin
 from app.models import Family, FeedbackReport, User
 from app.schemas import FeedbackAdminOut, FeedbackChange, FeedbackExportIn, FeedbackExportOut, FeedbackIn, FeedbackOut, FeedbackStatusOut
-from app.services import useragent
+from app.services import quota, useragent
 from app.services.notify import notify
 from app.services.storage import get_storage
 
@@ -36,6 +38,20 @@ MAX_URL = 7500
 
 IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
 MAX_IMAGE_BYTES = 6 * 1024 * 1024
+# Reports per member and hour: a report is an action, not a stream, and each may carry a picture.
+REPORTS_PER_HOUR = 10
+_reports: dict[uuid.UUID, deque[float]] = defaultdict(deque)
+
+
+def _report_allowed(user_id: uuid.UUID, now: float | None = None) -> bool:
+    now = now or time.monotonic()
+    recent = _reports[user_id]
+    while recent and recent[0] <= now - 3600:
+        recent.popleft()
+    if len(recent) >= REPORTS_PER_HOUR:
+        return False
+    recent.append(now)
+    return True
 _DATA_URL = re.compile(r"^data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$")
 
 _NEW = {
@@ -97,6 +113,8 @@ async def submit_feedback(payload: FeedbackIn, user: CurrentUser, db: DB) -> Fee
     description = payload.description.strip()
     if not title or not description:
         raise HTTPException(status_code=422, detail="Enter a title and a description")
+    if not _report_allowed(user.id):
+        raise HTTPException(status_code=429, detail="That's a lot of reports in one hour – try again later")
     screenshot = _parse_screenshot(payload.screenshot)
     now = datetime.now(timezone.utc)
     number = ((await db.execute(select(func.max(FeedbackReport.issue_number)))).scalar() or 0) + 1
@@ -107,6 +125,7 @@ async def submit_feedback(payload: FeedbackIn, user: CurrentUser, db: DB) -> Fee
     )
     if screenshot:
         data, ext = screenshot
+        await quota.check(db, user.family_id, len(data))
         report.screenshot_key = f"feedback/{report.id}.{ext}"
         get_storage().save(user.family_id, report.screenshot_key, io.BytesIO(data))
     db.add(report)

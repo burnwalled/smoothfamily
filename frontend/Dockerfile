@@ -1,8 +1,9 @@
 # Multi-arch build stage (arm64 on Raspberry Pi, amd64 on regular servers)
 FROM node:22-alpine AS builder
 WORKDIR /srv/app
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+# Exactly the versions in the lock file – the ones the audit looked at.
+RUN npm ci
 COPY . .
 RUN npm run build
 

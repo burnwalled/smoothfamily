@@ -12,8 +12,8 @@ from fastapi.responses import StreamingResponse
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import User
-from app.security import read_user_id_from_request
+from app.models import Family, User
+from app.security import read_session, session_current
 from app.services.events import family_channel, redis_client, user_channel
 
 router = APIRouter(prefix="/api", tags=["events"])
@@ -26,10 +26,11 @@ async def event_stream(request: Request) -> StreamingResponse:
     if not get_settings().live_events:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Live updates are off")
     # A short session for the sign-in check only: the stream may stay open for hours.
-    user_id = read_user_id_from_request(request)
+    user_id, version = read_session(request)
     async with SessionLocal() as db:
         user = await db.get(User, user_id)
-    if user is None:
+        family = await db.get(Family, user.family_id) if user else None
+    if user is None or family is None or not session_current(user, version) or family.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists")
     channels = [family_channel(user.family_id), user_channel(user.id)]
 

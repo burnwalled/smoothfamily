@@ -81,6 +81,9 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="adult")  # admin | adult | child
+    # Every session carries this number; a new password (or "sign out everywhere") raises it, and
+    # the old sessions end.
+    session_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     color: Mapped[str] = mapped_column(String(20), default="#4F7A5B")
     # Per-user preferences: display language (en|sv|nb|da|fi) and UI theme.
     language: Mapped[str] = mapped_column(String(5), default="en")
@@ -501,6 +504,8 @@ class Conversation(Base):
     # decides who's in it.
     party_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), nullable=True, index=True)
     party_kind: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # The family's own chat: everyone in the family is in it, always.
+    is_family: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     members: Mapped[list["ConversationMember"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"

@@ -171,15 +171,27 @@ async def list_conversations(user: CurrentUser, db: DB) -> list[ChatConversation
 
 
 async def _ensure_family_conversation(user: User, db: DB) -> Conversation:
+    """The family's own chat (marked is_family – a group someone names "Family" is not it): made on first
+    use with everyone in it, and anyone who has joined the family since is let in."""
     existing = (
         await db.execute(
             select(Conversation).where(
                 Conversation.family_id == user.family_id,
-                Conversation.name == "Family",
-            )
+                Conversation.is_family.is_(True),
+            ).order_by(Conversation.created_at)
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if existing:
+        mine = (
+            await db.execute(
+                select(ConversationMember).where(
+                    ConversationMember.conversation_id == existing.id, ConversationMember.user_id == user.id
+                )
+            )
+        ).scalar_one_or_none()
+        if mine is None:
+            db.add(ConversationMember(conversation_id=existing.id, user_id=user.id, joined_at=datetime.now(timezone.utc)))
+            await db.commit()
         return existing
 
     members = (
@@ -190,6 +202,7 @@ async def _ensure_family_conversation(user: User, db: DB) -> Conversation:
         family_id=user.family_id,
         name="Family",
         created_by=user.id,
+        is_family=True,
     )
     db.add(conv)
     await db.flush()
@@ -231,6 +244,8 @@ async def update_conversation(conv_id: uuid.UUID, payload: ConversationMembersUp
     conv = await _get_conversation(conv_id, user, db)
     if conv.party_id is not None:
         raise HTTPException(status_code=403, detail="The party decides who's in this chat")
+    if conv.is_family and payload.remove_member_ids:
+        raise HTTPException(status_code=403, detail="Everyone in the family is in the family's chat")
     if conv.created_by != user.id and user.role not in ("admin",):
         raise HTTPException(status_code=403, detail="Only creator or admin can manage this conversation")
 

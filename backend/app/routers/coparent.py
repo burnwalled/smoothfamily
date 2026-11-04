@@ -240,12 +240,14 @@ async def accept(token: str, payload: JoinIn, request: Request, response: Respon
 @router.post("/coparent/login", status_code=status.HTTP_204_NO_CONTENT)
 async def login(payload: LoginIn, request: Request, response: Response, db: DB) -> None:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    username = payload.username.strip().lower()
+    if login_throttle.retry_after(f"coparent:{username}", ip):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
-    row = (await db.execute(select(CoParent).where(CoParent.username == payload.username.strip().lower()))).scalar_one_or_none()
+    row = (await db.execute(select(CoParent).where(CoParent.username == username))).scalar_one_or_none()
     if row is None or row.revoked_at is not None or not row.password_hash or not verify_password(payload.password, row.password_hash):
-        login_throttle.record_ip_failure(ip)
+        login_throttle.record_failure(f"coparent:{username}", ip)
         raise HTTPException(status_code=401, detail="Wrong username or password")
+    login_throttle.record_success(f"coparent:{username}")
     _set_cookie(response, row.id)
 
 
