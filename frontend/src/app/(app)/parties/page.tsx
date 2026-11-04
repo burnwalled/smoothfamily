@@ -368,7 +368,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       {tab === "details" && <InviteTab party={party} change={change} />}
       {tab === "design" && (
         <div className="space-y-4">
-          <PosterTab party={party} />
+          <PosterTab party={party} change={change} />
           <ThanksTab party={party} change={change} />
         </div>
       )}
@@ -413,17 +413,13 @@ function InviteTab({ party, change }: { party: Detail; change: (p: Record<string
         </div>
         <BringSelect value={party.bring} onChange={(bring) => change({ bring })} />
         <WishlistSelect people={people} value={party.wishlist && party.person_id ? party.person_id : ""} onChange={(id) => change({ person_id: id || null, wishlist: !!id })} />
-        <InvitePicture party={party} />
         <label>
           <span className="label">{t("parties.showGuests")}</span>
           <select className="input" value={party.show_guests} onChange={(e) => change({ show_guests: e.target.value })}>
             {(["none", "count", "names"] as const).map((v) => <option key={v} value={v}>{t(`parties.show.${v}` as TranslationKey)}</option>)}
           </select>
         </label>
-        <div className="sm:col-span-2">
-          <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
-        </div>
-        <div className="flex items-end">
+        <div className="flex items-end sm:col-span-2">
           <button className="btn-primary" onClick={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })}>
             {t("common.save")}
           </button>
@@ -453,7 +449,7 @@ function WhenField({ label, help, value, suggest, onSave }: { label: string; hel
 
 // The party's posters (save the date, the invitation, the day's portal, the thank-you), what the
 // link shows, the playlist, and the portal with its QR code.
-function PosterTab({ party }: { party: Detail }) {
+function PosterTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
@@ -486,6 +482,16 @@ function PosterTab({ party }: { party: Detail }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <TemplatePicker party={party} data={data} customId={party.page_custom_id} onApplied={keep} />
+      <section className="card space-y-4 p-5 lg:col-span-2" aria-label={t("parties.look")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.look")}</h2>
+        <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
+        <InvitePicture party={party} />
+        {/* The thank-you wears the invitation's theme until someone wants another. */}
+        <details open={!!party.thanks_theme}>
+          <summary className="cursor-pointer text-sm font-semibold">{t("parties.thanksTheme")}{!party.thanks_theme && <span className="font-normal text-muted"> · {t("parties.themeSame")}</span>}</summary>
+          <div className="mt-2"><ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} /></div>
+        </details>
+      </section>
       <section className="card space-y-3 p-5" aria-label={t("parties.posters")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.posters")}</h2>
         <p className="text-xs text-muted">{t("parties.postersHelp")}</p>
@@ -956,7 +962,6 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.thanksSection")}</h2>
       <p className="text-xs text-muted">{t("parties.thanksHelp")}</p>
       <label className="block"><span className="label">{t("parties.thanksText")}</span><textarea className="input min-h-24" value={text} maxLength={4000} placeholder={t("parties.thanksPh")} onChange={(e) => setText(e.target.value)} /></label>
-      <ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} />
       <label className="block">
         <span className="label">{t("parties.album")}</span>
         <select className="input" value={party.thanks_album_id ?? ""} onChange={(e) => change({ thanks_album_id: e.target.value || null })}>

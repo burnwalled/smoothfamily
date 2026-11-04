@@ -20,9 +20,9 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     await expect(page.getByRole("checkbox", { name: "Share the invitation" })).toBeVisible();
 
     // The invitation page's look: the jungle.
-    await page.getByRole("button", { name: /^\d\s?Details$/ }).click();
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     await page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ }).click();
-    await expect(page.getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
 
     // A guest, without an account.
     const guest = await browser.newContext();
@@ -121,6 +121,9 @@ test("a party in an own theme", async ({ adminPage: page, adminApi, browser }) =
   const link: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link;
   try {
     // The party's own category first: Disco is there.
+    // The look lives under Design, not among the party's details.
+    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     const picker = page.getByRole("radiogroup", { name: "The invitation page's look" });
     await expect(picker.getByRole("radio", { name: /Disco/ })).toBeVisible();
     await picker.getByRole("button", { name: "Create your own theme" }).click();

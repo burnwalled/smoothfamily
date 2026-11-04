@@ -364,7 +364,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "Kalenteri → Juhlat → Uudet juhlat: nimi, laji, kenen juhlat, aika ja paikka – sitten juhlat vievät sinut seitsemän vaiheen läpi.",
-          "1 Tiedot ja teema · 2 Ulkoasu: merkitse päivä, kutsu, juhlaportaali ja kiitos, kullakin oma juliste · 3 Vieraat: ketkä tulevat, allergiat, sähköpostiosoitteet – ja oma kutsuttujen lista.",
+          "1 Tiedot · 2 Ulkoasu: mallit ja ulkoasu (teemat ja kuva), merkitse päivä, kutsu, juhlaportaali ja kiitos, kullakin oma juliste · 3 Vieraat: ketkä tulevat, allergiat, sähköpostiosoitteet – ja oma kutsuttujen lista.",
           "4 Tehtävät – ennen, aikana ja jälkeen · 5 Budjetti · 6 Ohjelma, jonka kohtia voi piilottaa vierailta · 7 Lähetykset: viestit ajallaan (palvelimen sähköpostilla) tai linkit jaettavaksi itse."
         ]
       },

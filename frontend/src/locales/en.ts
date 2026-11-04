@@ -2854,6 +2854,7 @@ const en = {
   "cook.tapNext": "Tap a step when it's done.",
   "cook.done": "Done – enjoy your meal!",
   "nav.pantry": "Pantry",
+  "parties.look": "Look",
   "poster.phoneHelp": "You're changing the phone: the order, what's shown, the alignment and the size apply only to phones. Texts and pictures are shared with the computer.",
   "poster.phoneReset": "Make the phone follow the computer again",
   "poster.phoneResetConfirm": "Remove the phone's own order, alignment and sizes on this poster?",

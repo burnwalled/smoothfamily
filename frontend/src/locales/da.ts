@@ -2840,6 +2840,7 @@ const da: Dictionary = {
   "cook.tapNext": "Tryk på trinnet, når det er færdigt.",
   "cook.done": "Færdig – velbekomme!",
   "nav.pantry": "Spisekammer",
+  "parties.look": "Udseende",
   "poster.phoneHelp": "Du ændrer mobilen: rækkefølge, hvad der vises, justering og størrelse gælder kun mobil. Tekster og billeder deles med computeren.",
   "poster.phoneReset": "Lad mobilen følge computeren igen",
   "poster.phoneResetConfirm": "Fjerne mobilens egen rækkefølge, justering og størrelser på denne plakat?",

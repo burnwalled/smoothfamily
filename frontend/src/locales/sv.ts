@@ -2844,6 +2844,7 @@ const sv: Dictionary = {
   "cook.tapNext": "Tryck på steget när det är klart.",
   "cook.done": "Klart – smaklig måltid!",
   "nav.pantry": "Skafferi",
+  "parties.look": "Utseende",
   "poster.phoneHelp": "Du ändrar mobilen: ordning, vad som visas, justering och storlek gäller bara mobil. Texter och bilder delas med datorn.",
   "poster.phoneReset": "Låt mobilen följa datorn igen",
   "poster.phoneResetConfirm": "Ta bort mobilens egen ordning, justering och storlekar på den här affischen?",

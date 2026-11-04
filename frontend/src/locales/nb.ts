@@ -2840,6 +2840,7 @@ const nb: Dictionary = {
   "cook.tapNext": "Trykk på steget når det er ferdig.",
   "cook.done": "Ferdig – velbekomme!",
   "nav.pantry": "Spiskammer",
+  "parties.look": "Utseende",
   "poster.phoneHelp": "Du endrer mobilen: rekkefølge, hva som vises, justering og størrelse gjelder bare mobil. Tekster og bilder deles med datamaskinen.",
   "poster.phoneReset": "La mobilen følge datamaskinen igjen",
   "poster.phoneResetConfirm": "Fjerne mobilens egen rekkefølge, justering og størrelser på denne plakaten?",

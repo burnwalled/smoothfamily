@@ -364,7 +364,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "Calendar → Parties → New party: the name, kind, whose party, the time and the place – then the party walks you through seven steps.",
-          "1 Details and the theme · 2 Design: the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
+          "1 Details · 2 Design: templates and the look (themes and picture), the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
           "4 To do – before, on the day and after · 5 Budget · 6 The day's plan, with points you can hide from the guests · 7 Sending out: mails at their time (with the server's e-mail), or the links to share yourself."
         ]
       },

@@ -2840,6 +2840,7 @@ const fi: Dictionary = {
   "cook.tapNext": "Napauta vaihetta, kun se on tehty.",
   "cook.done": "Valmista – hyvää ruokahalua!",
   "nav.pantry": "Ruokavarasto",
+  "parties.look": "Ulkoasu",
   "poster.phoneHelp": "Muutat puhelinta: järjestys, näkyvyys, tasaus ja koko koskevat vain puhelinta. Tekstit ja kuvat ovat yhteisiä tietokoneen kanssa.",
   "poster.phoneReset": "Anna puhelimen seurata taas tietokonetta",
   "poster.phoneResetConfirm": "Poistetaanko puhelimen oma järjestys, tasaus ja koot tästä julisteesta?",
