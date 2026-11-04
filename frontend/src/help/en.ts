@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Departures: add a card per stop under Add widget – SL in Stockholm, or another provider for all of Sweden, Norway, Finland, Denmark or London (some need a key the server admin adds under Server → Address and services).",
           "The cards' sources – the weather place, waste collection calendar and school – are set by the family under Family settings → Everyday.",
           "A card for an app you can't use doesn't show."
         ]
@@ -174,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Who drives, and what to pack"
       },
       {
-        "p": "Tap Rides & packing next to an event – in the calendar or the Sunday check-in – to say that a ride is needed and take the drop-off or the pick-up. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
+        "p": "Tap Rides & packing next to an event – in the calendar or the Sunday check-in – to say that a ride is needed and take the drop-off or the pick-up – or, with Someone else, write who outside the family drives, such as a teammate's parent. Give it a packing list: the same list comes back for every event with the same title, such as each football practice, and is ticked off per time. An adult can choose the day it's time to pack, and the one going gets a task that day."
       },
       {
         "shot": "calendar-month",
@@ -253,6 +254,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (club and team calendar)",
+            "blocks": [
+              {
+                "steps": [
+                  "Open the club's website on MyClub (clubname.myclub.se) and go to the team's calendar, or the page about subscribing to the calendar.",
+                  "Copy the subscription link. A team's looks like webcal://calendar.myclub.se/public/teams/12345/calendar.ics – the whole club's has /public/clubs/ instead.",
+                  "Paste the link in Smooth Family."
+                ]
+              },
+              {
+                "note": "Can't find the link? Ask the team leader for the calendar's subscription link – it's the same one the club gives for iPhone and Google. Add one subscription per team, give each its own color, and choose the child it concerns."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (club and team calendar)",
+            "blocks": [
+              {
+                "steps": [
+                  "Open the team's page on laget.se, for example laget.se/TeamName.",
+                  "Go to Kalender (calendar) and click Prenumerera (subscribe) below the calendar.",
+                  "Copy the link. It looks like webcal://cal.laget.se/TeamName.ics – the same name as in the team's laget.se address.",
+                  "Paste the link in Smooth Family."
+                ]
+              },
+              {
+                "note": "The calendar from laget.se covers a month back and six months ahead. Add one subscription per team, give each its own color, and choose the child it concerns."
+              }
+            ]
+          },
+          {
             "title": "Add the link in Smooth Family",
             "blocks": [
               {
@@ -284,6 +316,12 @@ const texts: Record<string, TopicText> = {
           "Subscribed calendars are read-only and refresh every 15 minutes.",
           "Your own calendar can be added to your phone with the subscription link under My profile."
         ]
+      },
+      {
+        "h": "Red days"
+      },
+      {
+        "p": "The country's public holidays are in the calendar as red days, with the eves that work like them (Christmas Eve, Midsummer Eve …) in a lighter red. Choose the country – or turn them off – under Family settings → Everyday. For another country, add a public holiday calendar as a subscription."
       }
     ]
   },
@@ -308,6 +346,177 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "The evening before you leave, everyone going is reminded of what's left to pack and check.",
           "Children see and pack their own things; adults plan the rest."
+        ]
+      }
+    ]
+  },
+  "parties": {
+    "title": "Parties",
+    "summary": "Plan a party together – one invitation page for the guests, and the checklist, budget and timeline for you.",
+    "blocks": [
+      {
+        "p": "Under Calendar → Parties, plan a child's birthday party, a celebration, a dinner, a match night, a barbecue or a day outdoors. The guests get one shared page – no account – first a save-the-date if you like, then the invitation where they reply with their name, allergies and whoever they bring as far as you allow, on the day the portal for their photos, and afterwards the thank-you. They can change their reply later. You choose what they see of each other: nothing, how many are coming, or the names."
+      },
+      {
+        "shot": "parties",
+        "caption": "The party's eight steps – here Design, starting with the templates."
+      },
+      {
+        "steps": [
+          "Calendar → Parties → New party: the name, kind, whose party, the time and the place – then the party walks you through seven steps.",
+          "1 Details · 2 Design: templates and the look (theme and picture), the save-the-date, the invitation, the party day's portal and the thank-you, each a poster of its own · 3 Guests: who's coming, allergies, e-mail addresses – and your own list of invited guests.",
+          "4 To do – before, on the day and after · 5 Budget · 6 The day's plan, with points you can hide from the guests · 7 Sending out: mails at their time (with the server's e-mail), or the links to share yourself."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "The guests' invitation: the poster in the party's theme, the details, the calendar buttons and the reply."
+      },
+      {
+        "h": "Planning"
+      },
+      {
+        "p": "A new party starts with a checklist for its kind – before, on the day and after – with dates; each morning one is due, the adults are reminded. Change it as you like. The budget keeps what's spent against what you planned, and the day's plan its times (a child's party starts with one) – a point can be hidden from the guests on the portal."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "The party day's portal from the QR code: photos from the guests, the day's plan and more."
+      },
+      {
+        "tips": [
+          "A surprise party: tick it under Details. Those being celebrated are taken out of the planning, and the party is in the calendar only for those planning it, not on the kitchen display or in guest links.",
+          "Who's being celebrated and who's planning are two choices. Those being celebrated get the party in their calendar. Those ticked under Who's planning can open and change it, get its reminders and are in its chats; the others in the family don't see it among the parties. Parents can plan a child's party, or a partner a surprise.",
+          "A party can have two chats, chosen under Details. The guests' chat is on their pages and in the portal, where they write to each other and to you before and during the party; it's also in your chat app. The planners' chat is for the family's adults and the helpers, and leaves out those the plan is kept from.",
+          "The mails are HTML in the party's theme, with the guest's own button, and plain text for programs that want it. A save-the-date isn't mailed, as you don't have the addresses yet: under Sending out you get a ready message with the link, to share by text, WhatsApp, e-mail or any app. Those who sign up leave their address and get the invitation by mail.",
+          "Under Guests you can put guests together, such as a couple who both registered. Each keeps their own reply and link, but nobody is counted twice, they can't also bring another +1, they sit at the same table, and one can answer for the other. The app points out when someone's +1 is already on the list, and shows how many can come at most.",
+          "Bring in a toastmaster: under Details, Helpers from outside gives someone a personal link, without an account, ending 1 day, 3 days or 1 week after the party. They can do everything for that party except remove it, and see nothing else of the family's. A new step, The plan, holds speeches, serving, games and notes by the clock, and they choose whom it's kept from: for them it's greyed out.",
+          "The check-in is an optional page: from its time the guests' link shows a countdown, that they're signed up, your information, and a thumb up or down. A thumb down with an optional message changes their reply, and you're told at once. A QR code scanned before the portal opens leads to a waiting page.",
+          "Under Sending out, The mails shows what every mail says. Change the wording, see how it looks and plan when it goes.",
+          "Details also has the menu, where guests choose their food with the reply, a sign-up for speeches, and practical information. Under Budget you gather suppliers, through the server's search or by hand, and a chosen one goes into the budget. Each task can have someone responsible, who gets its reminder. There's a run sheet, a seating list and place cards to print.",
+          "Choose the party's pages under Details: the invitation with the reply is always there, the save-the-date, the party day's portal and the thank-you are up to you. What isn't chosen doesn't show under Design or Sending out, and the guests' link skips it.",
+          "Bring in a guest list under Guests: Excel (.xlsx), CSV, a text file or pasted names. Everyone becomes invited with their own link. The seating is there too: add the tables and choose one for each guest; their company sits with them and the places are counted.",
+          "Write {guest} in a text on a poster and a guest on a personal link sees their own first name. A text with it isn't shown to those without one, so it suits a greeting: the invitation and the thank-you start with one.",
+          "The portal lives under Sending out: when it opens and when its QR code and link stop working – 3 hours after the party unless you change it, so nobody gets in the morning after. Printing the QR code is a task under To do, on a page in the party's theme. In your browser's print window, turn on background graphics to get the colours.",
+          "Each page has Preview as guest under Design, for computer and phone. The last step, The party, gives a last check of what's left – then have fun!",
+          "Under Guests, the link button beside each guest copies the personal link for them and their company, to send by text or however you like. It lets whoever has it reply as that guest, so send it only to them.",
+          "Each poster can differ between computers and phones: choose Phone in the poster editor, and the order, what's shown, the alignment and the size you change apply only to phones. Texts and pictures are shared, so a correction shows on both. Until you change anything, the phone follows the computer. Wide tablets count as computers, narrow ones as phones.",
+          "Templates (Design → Templates) put all the posters and the look on at once: the built-in Gala, or your own – save any party as a template. Or make one with your own AI: write your wishes, copy the prompt into any AI, and paste its answer back. You see it before it's used, only what the posters know comes in (no code, no outside pictures), and it can all be changed afterwards. A template can also be saved as a file and opened by another family.",
+          "One link all the way: on the save-the-date the guests register with a name and an e-mail. The invitation mail gives each of them a personal link to reply with. Opening it again shows their reply, which they can change. Waiting guests get a reminder by themselves before the last day to reply (Mailings). From the time you set under Design the same link opens the party portal, and at the time you set under Thanks the thank-you goes out to those who came.",
+          "One party, four pages in the same theme, each with a poster of its own (Poster): a save-the-date first if you like – the guests save the date and leave their e-mail, and get a mail when you switch the link to the invitation – then the invitation, the party day's portal and the thank-you. Paste a collaborative Spotify playlist and the guests can wish for songs. Open the portal and print its QR code for the tables: the guests upload their photos straight to an album in the vault and see the day's plan.",
+          "The app comes with a picture library: backgrounds and top pictures for many of the themes, and stickers – balloons, a disco ball, a crayfish, a student cap, rings, a pumpkin and more – to put on the poster in place of emoji (Poster → a decoration row or the emblem → Library).",
+          "Under Poster, make the invitation's page your own: add, move and remove its parts (texts, pictures, an emblem, a decoration row, when and where as a ticket, a card, a list or a big date, a countdown, calendar buttons, the invitation, a ribbon). Write every text with its typeface, size, alignment and colour – {title}, {date} and the like fill themselves in. Swap the emoji for others or for pictures of your own, and choose which calendar buttons the guests get: a calendar file (it opens Apple's Calendar on an iPhone or a Mac, and most others), Google or Outlook. The theme's poster is always one tap away.",
+          "No set date yet: tick Let the guests vote on the date and add the dates that suit you. The guests tick the ones that suit them; under Invitation you see how many each date suits, and choose one – then it's in the calendar, the ones who voted for it are coming, and those who asked for updates get a mail.",
+          "Choose what each guest may bring: no one, a +1, or the family – then they add everyone in their party, each with their allergies and whether they're a child. A dinner, a barbecue or a day outdoors starts with the family.",
+          "Choose the party's look, which all its pages share – the ones for the kind of party first (balloons, pirates and dinosaurs for a child's party; disco, glitter, the 80s and champagne for a party; bistro, Christmas and a crayfish party for a dinner; football and hockey for a match; barbecue, rounders and the beach outdoors). Or create your own: colours, a pattern, emoji and your own pictures at the top and in the background – kept to use again. A picture of your own can go on the invitation too.",
+          "Guests who give their e-mail and ask for updates get a confirmation, a mail if the time or place changes, a reminder the day before and the thank-you – and the messages you send them from Guests. It needs the server's e-mail, set up by the server admin under Server → Address and services.",
+          "The party goes in the calendar by itself – for everyone whose party it is (tick one or more of the family), and you choose whose wish list is on the invitation.",
+          "Show the wish list: the guests see the wishes of whose party it is and tick what they'll buy; the one it's for never sees who.",
+          "Afterwards, under Thank-you: a thank-you text and the photos from an album in the vault, on the same page the guests already have.",
+          "Only the adults plan parties – the wish list's reservations are on the planning."
+        ]
+      }
+    ]
+  },
+  "school": {
+    "title": "School",
+    "summary": "The children's school day from InfoMentor or SchoolSoft, through Home Assistant: the school card, the school's calendars and the weekly letter.",
+    "blocks": [
+      {
+        "p": "If the family has connected Home Assistant, the children's school can come into Smooth Family through the community integrations for InfoMentor and SchoolSoft. The school card on Today shows each child's school day, PE the next school day, the after-school hours, homework, absence and what's next – and the weekly letter, which opens right there. The school's calendars – the schedule, tests and trips, after school – come into the calendar as the child's."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (recommended)",
+            "blocks": [
+              {
+                "steps": [
+                  "In Home Assistant, open HACS → ⋮ → Custom repositories, add https://github.com/c14ym0re/infomentor-homeassistant as the type Integration, and install InfoMentor.",
+                  "Restart Home Assistant.",
+                  "Settings → Devices & services → Add integration → InfoMentor. Sign in with BankID (scan the QR code – so far only for Stockholm) or with your e-mail and password if your municipality still has the classic InfoMentor account.",
+                  "Each child becomes a device. In Smooth Family, tick the child under Family members → the child → School from Home Assistant."
+                ]
+              },
+              {
+                "note": "It gives the school day, PE, homework, the weekly letter, absence, the after-school hours, the school calendar and the school's news – and, if you give it your school's Mateo unit, the lunch. Another integration, https://github.com/chrfo892/ha-infomentor, gives the schedule, check-in at after school and unread notifications; it's installed the same way."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (schedule and attendance)",
+            "blocks": [
+              {
+                "steps": [
+                  "In HACS → ⋮ → Custom repositories, add https://github.com/chriseckl/Schoolsoft-for-Home-Assistant as the type Integration, install it and restart Home Assistant.",
+                  "Settings → Devices & services → Add integration → SchoolSoft, and sign in with the guardian's username and password.",
+                  "Add it once per child, then tick each child's account in Smooth Family."
+                ]
+              },
+              {
+                "note": "It gives the schedule as a calendar (lessons marked absent or late), the current and next lesson and the day's start and end. For the lunch menu there's https://github.com/kanylbullen/ha-schoolsoft – the school's name is the one in its SchoolSoft address."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "A new weekly letter, an absence today and news from the school are sent to the child's adults as notifications. The child's school is seen by their adults and the child themself; the kitchen display shows only the school day, never absence or letters."
+      },
+      {
+        "tips": [
+          "Add the School card to Today under Customize – and The school day to the kitchen display under Family settings → Kitchen display, if you like.",
+          "Beta: the integrations are small, unofficial projects, and their sensors are recognised by their names (in English or Swedish). If something is missing, tell us which sensors your integration has.",
+          "A school's calendar can also be added by hand under Calendar settings with the address homeassistant://calendar.name.",
+          "Calendars from Home Assistant need a direct connection – they can't be read through the gateway."
+        ]
+      }
+    ]
+  },
+  "health": {
+    "title": "Health",
+    "summary": "Your workouts and the day's steps, sleep and weight – private, or shared with the family.",
+    "blocks": [
+      {
+        "p": "Log a workout in a few taps – the kind, the minutes, and a distance if you like – and the day's steps, sleep and weight. Your page shows the last four weeks: minutes a day, your workouts and the days in a row you've moved."
+      },
+      {
+        "h": "Who sees it"
+      },
+      {
+        "p": "Everything is yours alone until you share it, kind by kind: workouts, steps, sleep and weight, each with only you, the adults or the whole family. Others see what you share in the week's overview at the top."
+      },
+      {
+        "steps": [
+          "Open Health in the menu.",
+          "Log a workout or the day's numbers.",
+          "Under Who sees your health, choose what to share and with whom."
+        ]
+      },
+      {
+        "h": "Together"
+      },
+      {
+        "p": "An adult sets the family's goals – hours, kilometres or workouts between two dates, such as 500 km together in May. They count the workouts each person shares with the family, and show on Health, in the Sunday check-in and on the kitchen display (the week's exercise). A task can be done by exercising: choose at least so many minutes that day, and it's ticked off by itself once the person's workouts add up – with points, as any task. Workouts also earn badges."
+      },
+      {
+        "tips": [
+          "The adults always see a child's health and can enter it – a parent can log the football practice.",
+          "A child's weight isn't kept, and weight is never compared: it's not in the overview.",
+          "Download your own data as a file, or remove it all, at the bottom of your page."
+        ]
+      },
+      {
+        "h": "From Home Assistant"
+      },
+      {
+        "p": "If the family has connected Home Assistant, steps, sleep, weight and resting pulse can be fetched from each person's own accounts there: the phone with the companion app, a Withings user, Google Health, Garmin and others. A family admin links the accounts under Family settings → Family members → the person; the person then turns on Fetch my health from Home Assistant in their profile – nothing is fetched before that. For a child, an adult turns it on on the child's page. They're read every 15 minutes and on Fetch now, and kept on the day they're from; what you enter by hand on a day always wins, and a child's weight is never read."
+      },
+      {
+        "tips": [
+          "One account per person in Home Assistant: add the Withings, Garmin or Google Health integration once for each of you, each with your own login – and the companion app on each phone.",
+          "Steps and sleep from your phone: install the Home Assistant companion app and turn on its sensors – on Android the Health Connect ones (steps, sleep, heart rate, weight…), on iPhone the pedometer (steps).",
+          "A scale or a watch: Withings has its own integration in Home Assistant; Garmin, Fitbit, Oura and others are available as integrations from the community (HACS).",
+          "Workouts (beta): from Withings' workout calendar, or an integration's last-activities sensor such as Garmin Connect or Strava – the last two weeks, each workout once, also when it's logged here by hand."
         ]
       }
     ]
@@ -543,9 +752,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "A task can repeat every workday (Monday–Friday that aren't red days) or every weekend day and red day – walking the dog, feeding the cat. The red days follow the family's country, so Christmas, Easter and Midsummer's Eve count as weekend by themselves.",
+          "Any schedule: every day or every other day, chosen weekdays (weekdays, the weekend), every few weeks, a date or a weekday of the month (the first Saturday), every few months, once a year – with points. Pets, the home and vehicles have their recurring tasks with the same choices.",
           "Children can suggest tasks; an adult turns them into tasks or declines.",
           "Points go to the shop and the allowance – see those topics.",
-          "A task several can do together shares its points between those who did it: choose who when it's ticked off."
+          "A task several can do together shares its points between those who did it: choose who when it's ticked off.",
+          "Taking a task away keeps the points already earned with it – and the times it was done."
         ]
       }
     ]
@@ -704,7 +916,7 @@ const texts: Record<string, TopicText> = {
         "h": "A babysitter or the grandparents"
       },
       {
-        "p": "Make a guest link under Family settings → Sharing: it shows the emergency cards, and what you choose of the calendar and the lists, for some hours or days – then it stops by itself."
+        "p": "Make a guest link under Family settings → Family members: it shows the emergency cards, and what you choose of the calendar and the lists, for some hours or days – then it stops by itself."
       },
       {
         "h": "Medicines"
@@ -762,6 +974,16 @@ const texts: Record<string, TopicText> = {
           "A budget per category and month turns red when it's broken.",
           "Entries can be private, so only you see them."
         ]
+      },
+      {
+        "h": "Subscriptions"
+      },
+      {
+        "p": "Under Home → Subscriptions you gather everything the household pays for regularly, with what it comes to a month and a year. A subscription can point to a login in the vault, one that's there or a new one you make right here, and those who may see the login can copy its password from here; the vault's rules still decide. After a bank import, recurring payments are suggested here, and only you see the suggestions from your file: add them or say they aren't subscriptions, and those you've dismissed don't come back. A later file points out a new price, or a payment for something you've ended. It's an overview, so nothing is added to the economy's sums. Under Reminders each adult chooses their own: the last day to cancel (14 and 2 days before), and quarterly and yearly payments (7 days before). Monthly payments don't remind."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "What it comes to, and the login from the vault."
       }
     ]
   },
@@ -797,6 +1019,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "A pet with its care."
+      },
+      {
+        "tips": [
+          "A task can repeat every workday (Monday–Friday that aren't red days) or every weekend day and red day – walking the dog, feeding the cat. The red days follow the family's country, so Christmas, Easter and Midsummer's Eve count as weekend by themselves."
+        ]
       }
     ]
   },
@@ -841,7 +1068,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "In Home Assistant: your profile → Security → Long-lived access tokens → Create token. Copy it.",
-          "In Smooth Family: Family settings → Sharing and connections → Smart home.",
+          "In Smooth Family: Family settings → Connections → Smart home.",
           "Enter the address, e.g. http://homeassistant.local:8123, and the token, and tap Connect.",
           "Add the devices that should show, and link the home to the right property."
         ]
@@ -872,7 +1099,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Make a pairing code"
       },
       {
-        "p": "Family settings → Sharing and connections → Smart home → Add a home through the add-on. Give it a name and choose the property; the eight-character code is valid for 24 hours."
+        "p": "Family settings → Connections → Smart home → Add a home through the add-on. Give it a name and choose the property; the eight-character code is valid for 24 hours."
       },
       {
         "shot": "gateway",
@@ -975,6 +1202,9 @@ const texts: Record<string, TopicText> = {
         "p": "After the minutes you choose, the screensaver comes on: the family's photos, a flip clock, a calm clock with the weather, a dark screen – or the fox, who plays out the weather outside. It reads on grey days, flies a kite when clouds pass, holds its umbrella in the rain, builds a snowman when it snows and sleeps at night, and the day's open tasks show over the lake. A tap wakes the screen."
       },
       {
+        "p": "Every few minutes the fox does something small that fits the weather – hops, splashes in a puddle, throws a snowball, watches a shooting star – and now and then a hare runs by or a fish jumps in the lake. It dresses up for Halloween, Christmas, New Year, Easter and Midsummer, and on a birthday (the people under Birthdays) it gets balloons, a party hat and a banner with the name. The holidays follow the family's country; turn the dressing up off per screen under the screensaver. With reduced motion on the tablet, the fox keeps still."
+      },
+      {
         "steps": [
           "Family settings → Kitchen display → Connect a screen.",
           "Open the link on the tablet (or scan the QR code) and add it to the home screen.",
@@ -1048,7 +1278,7 @@ const texts: Record<string, TopicText> = {
         "h": "What's where"
       },
       {
-        "p": "Family members: everyone, each with a page of their own (sign-in, apps, language, picture – and a child's birthday, allowance, little ones' mode, two homes, medicines and emergency card), and other people without an account for their birthdays. Everyday: calendars, the home, Today's sources, the points' rules, the household's emergency card and the pets' medicines. Kitchen display. Sharing and connections: guest links, the smart home and the local AI. Security and data: backups and export."
+        "p": "Family members: everyone, each with a page of their own (sign-in, apps, language, picture – and a child's birthday, allowance, little ones' mode, two homes, medicines and emergency card), other people without an account for their birthdays, and guest links for a babysitter or the grandparents. Everyday: calendars, the home, Today's sources, the points' rules, the household's emergency card and the pets' medicines. Kitchen display. Family members: the smart home and the local AI. Security and data: backups and export."
       },
       {
         "tips": [
@@ -1064,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Export, the family's own backup key and moving the family.",
     "blocks": [
       {
-        "p": "Under Family settings → Security and data the admin can export the family's data and, on a hosted server, choose a backup key of the family's own: the family's backups are then sealed so that only you can open them – not even the server's admin."
+        "p": "Under Family settings → Security and data the admin can export the family's data and, on a hosted server, choose a backup key of the family's own: the family's backups are then sealed so that only you can open them – not even the server's admin. The export holds what you yourself may see in the app: another adult's private documents, medicines, health they don't share and chats you aren't in stay out."
       },
       {
         "shot": "familydata",
@@ -1160,7 +1390,7 @@ const texts: Record<string, TopicText> = {
     "summary": "The server's address, the search engine, the local AI and other services.",
     "blocks": [
       {
-        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer."
+        "p": "Services holds the address the server is reached on – used in every link sent out – the recipe and web search (SearXNG on the server itself), Home Assistant for hosted families through the gateway, GIFs in the chat and sending feedback. Local AI sets where Ollama runs, which models are used, and waking and sleep for the computer. E-mail sets up the mail services – Gmail with an app password, Brevo for an address on your own domain, Exchange Online through an app registration in Microsoft Entra, or another SMTP server – which one your family sends with, and whether the hosted families may send mail too (to a party's guests who asked for updates). Addresses turns on the suggestions from OpenStreetMap in the address fields (through komoot's Photon or one of your own) – or off."
       },
       {
         "shot": "serverservices",

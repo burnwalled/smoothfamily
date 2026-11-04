@@ -49,6 +49,8 @@ class Family(Base):
     vault_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The electricity price area (SE1–SE4) for the price card and cheap-hour flows.
     electricity_area: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    # The red days in the calendar (3.4.0): SE, NO, DK, FI, GB-ENG, GB-SCT, GB-NIR – or none.
+    holiday_country: Mapped[str | None] = mapped_column(String(6), nullable=True)
     # Local AI: None = the default (on for the family running the server, off for others), else the
     # family admin's choice. A hosted family also needs the server admin to allow it.
     ai_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
@@ -79,6 +81,9 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="adult")  # admin | adult | child
+    # Every session carries this number; a new password (or "sign out everywhere") raises it, and
+    # the old sessions end.
+    session_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     color: Mapped[str] = mapped_column(String(20), default="#4F7A5B")
     # Per-user preferences: display language (en|sv|nb|da|fi) and UI theme.
     language: Mapped[str] = mapped_column(String(5), default="en")
@@ -130,6 +135,18 @@ class User(Base):
     ha_person_entity: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ha_travel_entity: Mapped[str | None] = mapped_column(String(200), nullable=True)
     presence_share: Mapped[str] = mapped_column(String(10), default="off", server_default="off")
+    # Health (3.4.0): who sees what – {"workouts" | "steps" | "sleep" | "weight": "me" | "adults" | "family"};
+    # what isn't set is "me". The adults always see a child's.
+    health_share: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The Home Assistant sensors their health is read from (3.4.0): {"steps" | "sleep" | "weight" |
+    # "resting_hr": entity_id, "synced_at": iso}; None = nothing connected.
+    health_sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The person lets Smooth Family fetch it (3.4.0): the admin links the accounts, the person (or an
+    # adult, for a child) turns it on.
+    health_import: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The child's school from Home Assistant (3.4.0): {"accounts": [...], "roles": {role: entity},
+    # "calendars": [{"entity", "feed_id"}], "seen": {...}}; linked by the family admin.
+    school_sources: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     @property
     def apps(self) -> list[str]:
@@ -180,6 +197,8 @@ class FamilyEvent(Base):
     color: Mapped[str] = mapped_column(String(20), default="#C2703D")
     # Members the event concerns (user ids as strings); empty = the whole family.
     member_ids: Mapped[list] = mapped_column(JSON, default=list)
+    # Only these users see it (a surprise party's planners); None = the whole family as usual.
+    private_to: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -193,12 +212,23 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     points: Mapped[int] = mapped_column(Integer, default=10)
+    # Taken away (3.4.0): out of every list, but the times it was done – their points, the allowance,
+    # the history – stay. A task never done is removed for real instead.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # none = one-off task (due_date), daily, weekly (weekdays 0=Mon, every interval_weeks weeks
-    # counted from anchor_date), monthly (day_of_month), yearly (month + day_of_month).
+    # counted from anchor_date), monthly (day_of_month), yearly (month + day_of_month); 3.4.0:
+    # workdays (Monday–Friday that aren't red days) and weekends (Saturday, Sunday and the red days).
     recurrence: Mapped[str] = mapped_column(String(20), default="none")
+    # The family's country for the red days (kept with the task so the schedule needs nothing else).
+    holiday_country: Mapped[str | None] = mapped_column(String(6), nullable=True)
     weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # first of weekdays (older clients)
     weekdays: Mapped[list] = mapped_column(JSON, default=list)
     interval_weeks: Mapped[int] = mapped_column(Integer, default=1)
+    # 3.4.0: daily every N days, monthly every N months (both counted from anchor_date), and monthly on
+    # a weekday instead of a date: month_nth 1–4 or -1 (the last) of weekdays[0] – the first Saturday.
+    interval_days: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    interval_months: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    month_nth: Mapped[int | None] = mapped_column(Integer, nullable=True)
     anchor_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     day_of_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -225,6 +255,9 @@ class Task(Base):
     event_key: Mapped[str | None] = mapped_column(String(400), nullable=True)
     # Several can do it together (3.0.3): the points are shared between those who did it.
     shared: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Done by exercising (3.4.0): ticked off by itself once its person's workouts that day add up to
+    # this many minutes (Health). None = an ordinary task.
+    exercise_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     completions: Mapped[list["TaskCompletion"]] = relationship(back_populates="task")
@@ -467,6 +500,12 @@ class Conversation(Base):
     name: Mapped[str] = mapped_column(String(80), default="")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # A party's chat, "guests" or "planners": people from outside write in it too, and the party
+    # decides who's in it.
+    party_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), nullable=True, index=True)
+    party_kind: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # The family's own chat: everyone in the family is in it, always.
+    is_family: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
     members: Mapped[list["ConversationMember"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
@@ -495,7 +534,9 @@ class ChatMessage(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("conversations.id"), nullable=True)
-    sender_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    # Someone from outside the family (a party's guest or helper) has no user, only a name.
+    sender_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    sender_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     body: Mapped[str] = mapped_column(Text)
     media_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("media_items.id"), nullable=True)
     gif_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -1268,6 +1309,9 @@ class EventPlan(Base):
     needs_ride: Mapped[bool] = mapped_column(Boolean, default=False)
     drop_off_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     pick_up_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Someone outside the family drives (3.4.0): free text, e.g. "Saga's dad" – instead of a member.
+    drop_off_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    pick_up_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # Packing list items ticked off for this occurrence.
     checked: Mapped[list] = mapped_column(JSON, default=list)
     ride_alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -1598,6 +1642,8 @@ class KioskScreen(Base):
     theme: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # The smart home devices it may control (3.0.4): ExposedDevice ids; None = none.
     devices: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The fox dresses up for the holidays and the family's birthdays (3.4.0).
+    fox_themes: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # The app version the screen last ran (3.1.0).
     app_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
@@ -1875,6 +1921,59 @@ class BankRule(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class Subscription(Base):
+    """Something the household pays for regularly (3.4.0). It's an overview: costs stay in the economy,
+    and the account's details stay in the vault (login_id)."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    # streaming | music | phone | internet | insurance | membership | software | news | other
+    category: Mapped[str] = mapped_column(String(12), default="other")
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    # week | month | quarter | year
+    interval: Mapped[str] = mapped_column(String(8), default="month")
+    next_payment: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cancel_by: Mapped[date | None] = mapped_column(Date, nullable=True)
+    who: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    login_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vault_logins.id", ondelete="SET NULL"), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Only the one who added it sees it.
+    private: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    ended_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The bank's file: its text for this payment, and what was last paid and when.
+    pattern: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    seen_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    seen_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SubscriptionSuggestion(Base):
+    """A recurring payment found in a bank file, until it's added or dismissed. Dismissed ones stay, so
+    that they aren't suggested again. Only the one who brought the file sees it: it may be their own
+    account, and nothing of it is the family's until they add it."""
+
+    __tablename__ = "subscription_suggestions"
+    __table_args__ = (UniqueConstraint("user_id", "pattern", name="uq_subscription_suggestion"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    pattern: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(120))
+    category: Mapped[str] = mapped_column(String(12), default="other")
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    interval: Mapped[str] = mapped_column(String(8), default="month")
+    last_seen: Mapped[date] = mapped_column(Date)
+    # new | dismissed
+    status: Mapped[str] = mapped_column(String(10), default="new")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class BankImported(Base):
     """A transaction already imported (only a hash of date, amount and text – never the row)."""
 
@@ -1885,3 +1984,382 @@ class BankImported(Base):
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     digest: Mapped[str] = mapped_column(String(64))
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Workout(Base):
+    """A workout someone did (3.4.0): entered by hand, or later from a connected source (source and
+    external_id keep a second import from adding it twice)."""
+
+    __tablename__ = "workouts"
+    __table_args__ = (UniqueConstraint("user_id", "source", "external_id", name="uq_workout_source"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    # walk | run | bike | swim | gym | ski | sport | yoga | play | other
+    kind: Mapped[str] = mapped_column(String(12))
+    minutes: Mapped[int] = mapped_column(Integer)
+    distance_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    note: Mapped[str] = mapped_column(String(300), default="")
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
+    external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HealthGoal(Base):
+    """A goal the family works towards together (3.4.0): minutes, km or workouts between two dates –
+    counting the workouts each member shares with the family."""
+
+    __tablename__ = "health_goals"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    metric: Mapped[str] = mapped_column(String(10))  # minutes | km | workouts
+    target: Mapped[int] = mapped_column(Integer)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HealthDay(Base):
+    """One person's numbers for one day (3.4.0): steps, sleep, weight and resting pulse – each optional."""
+
+    __tablename__ = "health_days"
+    __table_args__ = (UniqueConstraint("user_id", "day", name="uq_health_day"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    steps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sleep_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resting_hr: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# --- Parties (3.4.0) ------------------------------------------------------------------------
+
+
+class Party(Base):
+    """A party the family holds – a child's birthday party, a celebration, a dinner: one shared
+    invitation page for the guests (RSVP, an optional wish list, the thank-you page afterwards) and
+    the planning for the adults (the checklist with reminders, the budget, the day's timeline)."""
+
+    __tablename__ = "parties"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    # child_birthday | birthday | party | dinner | match | bbq | outdoor
+    kind: Mapped[str] = mapped_column(String(20), default="party")
+    # Whose party it is – one or more of the family (theirs in the calendar) – and whose wish list
+    # can be on the invitation (person_id).
+    person_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"), nullable=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    place: Mapped[str] = mapped_column(String(200), default="")
+    address: Mapped[str] = mapped_column(String(300), default="")
+    theme: Mapped[str] = mapped_column(String(120), default="")
+    # A picture word for the page (an emoji) and its colour.
+    emoji: Mapped[str] = mapped_column(String(16), default="🎉")
+    color: Mapped[str] = mapped_column(String(20), default="#E85D75")
+    invitation: Mapped[str] = mapped_column(Text, default="")
+    rsvp_by: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # What one reply may bring along: none | one (a +1) | family (as many as they are)
+    bring: Mapped[str] = mapped_column(String(10), default="none", server_default="none")
+    # What the guests see of each other: none | count | names
+    show_guests: Mapped[str] = mapped_column(String(10), default="count")
+    wishlist: Mapped[bool] = mapped_column(Boolean, default=False)
+    budget: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # The invitation link: its hash to open it, the code itself encrypted so the adults can share it again.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_encrypted: Mapped[str] = mapped_column(Text)
+    # Afterwards: a thank-you on the same page, with an album from the vault.
+    thanks_text: Mapped[str] = mapped_column(Text, default="")
+    thanks_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    thanks_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The look of all the party's pages (a theme's key); "custom" = one of the family's own themes.
+    page_theme: Mapped[str] = mapped_column(String(20), default="balloons", server_default="balloons")
+    # The pages the party has, beside the invitation (save, portal, thanks); None = all of them.
+    pages: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # When the portal's link stops working, so nobody gets in with the QR code after the party.
+    portal_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The seating: [{id, name, seats}]; a guest's company sits at one (party_guests.table_id).
+    tables: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # When the guests' link becomes the check-in, and its poster (a page of its own, if chosen).
+    checkin_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    checkin_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # What the guests choose and offer when they reply: the menu [{id, name}], and signing up for a speech.
+    menu: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    speech_signup: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Practical information for the guests: {parking, lodging, travel}.
+    practical: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # The hosts' own wording of the mails: {kind: {subject, text}}.
+    mail_texts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Whom the helpers keep the planning from: the family's users by id.
+    plan_hidden: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Those of the family's adults who plan it, by user id; None = all of them. It's not who's being
+    # celebrated (person_ids): that's often a child, or someone it's meant to be a surprise for.
+    planners: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # A surprise: those being celebrated don't plan it, and it's in the calendar only for those who do.
+    surprise: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The chats: with the guests, and among those planning (with the helpers).
+    guest_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    planner_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    page_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
+    # A picture on the invitation (the storage key of a web-sized copy).
+    invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # The poster as the hosts made it: its blocks (texts, pictures, details, countdown, calendar
+    # buttons …) in order; None = the theme's own. And the pictures it uses: [{id, key}].
+    layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    assets: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The other posters, in the same theme: save the date, the party day's portal, the thank-you.
+    save_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    portal_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    thanks_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # What the link shows first: save | invite (the thank-you once it's published).
+    phase: Mapped[str] = mapped_column(String(10), default="invite", server_default="invite")
+    # A shared playlist the guests can add songs to (Spotify).
+    playlist_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # The party day's portal: its own link (for a QR code on the table) where the guests see the
+    # day's plan and upload their photos to an album in the vault.
+    portal_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    portal_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    portal_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
+    portal_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    portal_gallery: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # The guests' one link through the party: from this moment it opens the portal; at thanks_at the
+    # thank-you is published and sent to those who came.
+    portal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    thanks_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A reminder to those who haven't replied, this many days before the last day to reply (None = none).
+    rsvp_remind_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3, server_default="3")
+    rsvp_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The day before, the guests who asked for updates are reminded (once).
+    guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;
+    # each as long as the party) until the hosts pick one. Not in the calendar while it's open.
+    date_poll: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    date_options: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("family_events.id", ondelete="SET NULL"), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyGuest(Base):
+    """One reply on the invitation page: a guest, coming or not, and whoever they bring if allowed."""
+
+    __tablename__ = "party_guests"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    first_name: Mapped[str] = mapped_column(String(80))
+    last_name: Mapped[str] = mapped_column(String(80), default="")
+    coming: Mapped[bool] = mapped_column(Boolean, default=True)
+    allergies: Mapped[str] = mapped_column(String(300), default="")
+    message: Mapped[str] = mapped_column(String(500), default="")
+    # The ones they bring: [{first_name, last_name, child, allergies}] – a +1, or the family.
+    companions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Updates by e-mail, if the guest gave an address and asked for them; the link in each mail to
+    # stop them has a code of its own (its hash here).
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    updates: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The dates that suit them, while the hosts let the guests vote (the options' ISO starts).
+    date_votes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Signed up for updates from the save-the-date, or put on the list by the hosts – not replied yet.
+    pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # The guest's own key, kept encrypted so the mails can carry their own link to reply with.
+    key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The guest's browser keeps a key to change the reply later; only its hash is here.
+    key_hash: Mapped[str] = mapped_column(String(64))
+    table_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Guests who belong together, each with their own reply and link: a couple who both registered.
+    group_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    wants_speech: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    speech_note: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    menu_choice: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # The check-in before the party: "yes", "no", or nothing yet; and when.
+    checkin: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    checkin_on: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyTask(Base):
+    """A thing to do before (or after) the party, on a day: the adults are reminded that morning."""
+
+    __tablename__ = "party_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
+    who: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A task the app can help with ("print_qr": the button that prints the QR code).
+    action: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Someone from outside the family who has it (who: someone in it).
+    helper_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_helpers.id", ondelete="SET NULL"), nullable=True)
+
+
+class PartyExpense(Base):
+    """What the party cost: the budget's other side."""
+
+    __tablename__ = "party_expenses"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    paid_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyTheme(Base):
+    """A family's own look for a party page, kept to use again: colours, a pattern, the decoration's
+    emoji, and its own pictures (a top picture and a background)."""
+
+    __tablename__ = "party_themes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    bg: Mapped[str] = mapped_column(String(7), default="#fff1f4")
+    bg2: Mapped[str] = mapped_column(String(7), default="#f4f7ff")
+    accent: Mapped[str] = mapped_column(String(7), default="#e85d75")
+    ink: Mapped[str] = mapped_column(String(7), default="#3b2430")
+    # none | confetti | dots | stars | stripes | hearts
+    pattern: Mapped[str] = mapped_column(String(12), default="confetti")
+    decor: Mapped[str] = mapped_column(String(60), default="")
+    # The typefaces (gala | playful | retro | classic | sporty) and the moving effect behind the page.
+    font: Mapped[str] = mapped_column(String(12), default="playful", server_default="playful")
+    effect: Mapped[str] = mapped_column(String(12), default="confetti", server_default="confetti")
+    header_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    background_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyTemplate(Base):
+    """A family's own template: a party's posters and its look, to use again. Plain data; its pictures
+    stay with their party."""
+
+    __tablename__ = "party_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(60))
+    # One of the app's themes, or a look of its own (colours, pattern, typefaces, effect).
+    theme: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    look: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    layouts: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyHelper(Base):
+    """Someone from outside who helps run one party, such as the toastmaster: in by a personal link,
+    until a while after the party. They see that party and nothing else of the family."""
+
+    __tablename__ = "party_helpers"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    # toastmaster | toastmadame | helper
+    role: Mapped[str] = mapped_column(String(12), default="toastmaster")
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    # How many days after the party the link still works: 1, 3 or 7.
+    days_after: Mapped[int] = mapped_column(Integer, default=3)
+    token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    token_encrypted: Mapped[str] = mapped_column(Text)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyPlanItem(Base):
+    """A point in the helpers' plan of the evening: a speech, the serving, a game."""
+
+    __tablename__ = "party_plan_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    # speech | serving | game | music | note
+    kind: Mapped[str] = mapped_column(String(10), default="note")
+    at: Mapped[str] = mapped_column(String(5), default="", server_default="")
+    minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    title: Mapped[str] = mapped_column(String(160))
+    who: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyVendor(Base):
+    """A supplier the party might use: catering, decoration, a DJ. Found by a search or added by hand."""
+
+    __tablename__ = "party_vendors"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    category: Mapped[str] = mapped_column(String(12), default="other")
+    name: Mapped[str] = mapped_column(String(160))
+    url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    contact: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # idea | asked | booked | no
+    status: Mapped[str] = mapped_column(String(6), default="idea")
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    expense_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_expenses.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class PartyMailing(Base):
+    """A mail to the guests, sent at its time: the save-the-date, the invitation, a reminder, the
+    thank-you, or the hosts' own message – to everyone, those who haven't replied, or those coming."""
+
+    __tablename__ = "party_mailings"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    # save | invite | remind | thanks | custom
+    kind: Mapped[str] = mapped_column(String(10))
+    # all | waiting | coming
+    audience: Mapped[str] = mapped_column(String(10), default="all")
+    subject: Mapped[str] = mapped_column(String(120), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class PartyStep(Base):
+    """The day's timeline: at 14:00 the guests come, 14:30 games, 15:15 the cake …"""
+
+    __tablename__ = "party_steps"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    party_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), index=True)
+    at: Mapped[str] = mapped_column(String(5))  # HH:MM
+    title: Mapped[str] = mapped_column(String(200))
+    # For the hosts only – not on the guests' portal (the surprise, the speeches' order …).
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

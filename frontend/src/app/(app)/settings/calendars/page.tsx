@@ -95,32 +95,40 @@ export default function CalendarSettingsPage() {
               <span className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full" style={{ background: feed.color }} />
                 <span className="font-semibold">{feed.name}</span>
-                <span className="max-w-[40ch] truncate text-xs text-muted">{feed.url}</span>
+                {feed.url && <span className="max-w-[40ch] truncate text-xs text-muted">{feed.url}</span>}
               </span>
-              <button
-                className="text-xs text-red-700 hover:underline"
-                onClick={async () => {
-                  if (confirm(t("common.confirmRemove", { name: feed.name }))) {
-                    await api.del(`/api/calendar/feeds/${feed.id}`);
-                  }
-                }}
-              >
-                {t("common.remove")}
-              </button>
+              {feed.can_edit !== false ? (
+                <button
+                  className="text-xs text-red-700 hover:underline"
+                  onClick={async () => {
+                    if (confirm(t("common.confirmRemove", { name: feed.name }))) {
+                      await api.del(`/api/calendar/feeds/${feed.id}`);
+                    }
+                  }}
+                >
+                  {t("common.remove")}
+                </button>
+              ) : (
+                <span className="text-xs text-muted">{t("settings.feedSomeoneElses")}</span>
+              )}
             </div>
-            <div className="mt-2 max-w-sm">
-              {whose(feed.member_id ?? "", (id) => updateFeedPrivacy(feed.id, { member_id: id || null }), t("settings.feedWhose", { name: feed.name }), savingFeedId === feed.id)}
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("settings.feedVisibleTo")}</p>
-                {memberChecks(feed, "visible_to")}
+            {feed.can_edit !== false && (
+              <>
+              <div className="mt-2 max-w-sm">
+                {whose(feed.member_id ?? "", (id) => updateFeedPrivacy(feed.id, { member_id: id || null }), t("settings.feedWhose", { name: feed.name }), savingFeedId === feed.id)}
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("settings.feedDetailsFor")}</p>
-                {memberChecks(feed, "details_for")}
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("settings.feedVisibleTo")}</p>
+                  {memberChecks(feed, "visible_to")}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("settings.feedDetailsFor")}</p>
+                  {memberChecks(feed, "details_for")}
+                </div>
               </div>
-            </div>
+              </>
+            )}
           </li>
         ))}
       </ul>

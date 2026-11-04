@@ -15,6 +15,7 @@ from app.services.backups import run_scheduled_backup
 from app.services.families import remove_stale_demos
 from app.services.medicine import run_medicine_reminders
 from app.services.pet_care import run_pet_care_reminders
+from app.services.subscription_reminders import run_subscription_reminders
 from app.services.flows import run_time_flows
 from app.services.ha_publish import run_ha_sync
 from app.services.memories import backfill_taken, run_memory_push
@@ -38,7 +39,7 @@ async def run_calendar_reminders(db: AsyncSession, now: datetime | None = None) 
     sent = 0
     for feed in feeds:
         try:
-            raw = await fetch_ical_raw(feed.url)
+            raw = await fetch_ical_raw(feed.url, feed.family_id)
             events = parse_events(raw, window_start.date(), window_end.date())
         except Exception:
             continue
@@ -103,7 +104,10 @@ async def run_calendar_reminders(db: AsyncSession, now: datetime | None = None) 
             continue
         tagged = {str(uid) for uid in (event.member_ids or [])}
         for recipient in users_by_family.get(event.family_id, []):
-            if tagged and str(recipient.id) not in tagged:
+            if event.private_to:
+                if str(recipient.id) not in event.private_to:
+                    continue
+            elif tagged and str(recipient.id) not in tagged:
                 continue
             pref_key = "calendar_mine" if recipient.id == event.created_by else "calendar_family"
             await notify(
@@ -137,6 +141,9 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
     from app.routers.vehicles import run_vehicle_meters, run_vehicle_reminders
     from app.routers.trips import run_trip_reminders
     from app.routers.week import run_week_review_reminders
+    from app.services.health_ha import run_health_sync
+    from app.services.school_ha import run_school_sync
+    from app.routers.parties import run_party_mailings, run_party_reminders, run_party_thanks
 
     settings = get_settings()
     redis = aioredis.from_url(settings.redis_url, decode_responses=True)
@@ -158,6 +165,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await remove_stale_demos(db)
                     await run_medicine_reminders(db)
                     await run_pet_care_reminders(db)
+                    await run_subscription_reminders(db)
                     await run_morning_summaries(db)
                     await run_ride_reminders(db)
                     await run_packing_reminders(db)
@@ -177,6 +185,11 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await run_property_reminders(db)
                     await run_property_meters(db)
                     await run_custody(db)
+                    await run_health_sync(db)
+                    await run_school_sync(db)
+                    await run_party_reminders(db)
+                    await run_party_mailings(db)
+                    await run_party_thanks(db)
                     await prune_notifications(db)
             except Exception:
                 pass

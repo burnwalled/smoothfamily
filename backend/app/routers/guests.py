@@ -193,7 +193,8 @@ async def _open(db, token: str, request: Request) -> GuestAccess:
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     guest = (await db.execute(select(GuestAccess).where(GuestAccess.token_hash == _hash(token)))).scalar_one_or_none()
     now = datetime.now(timezone.utc)
-    if guest is None or guest.revoked_at is not None or _aware(guest.expires_at) <= now:
+    family = await db.get(Family, guest.family_id) if guest else None
+    if guest is None or guest.revoked_at is not None or _aware(guest.expires_at) <= now or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid any more")
     if guest.last_seen_at is None or now - _aware(guest.last_seen_at) >= VISIT_EVERY:

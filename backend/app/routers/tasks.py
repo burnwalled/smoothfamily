@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, CurrentUser, require_app
@@ -34,7 +34,7 @@ from app.services.schedule import due_on, due_today, week_start
 router = APIRouter(prefix="/api/tasks", tags=["tasks"], dependencies=[require_app("tasks")])
 
 
-SCHEDULE_FIELDS = ("recurrence", "weekday", "weekdays", "interval_weeks", "month", "day_of_month", "due_date")
+SCHEDULE_FIELDS = ("recurrence", "weekday", "weekdays", "interval_weeks", "interval_days", "interval_months", "month_nth", "month", "day_of_month", "due_date")
 
 
 def _normalized_schedule(values: dict) -> dict:
@@ -45,10 +45,15 @@ def _normalized_schedule(values: dict) -> dict:
         "weekday": None,
         "weekdays": [],
         "interval_weeks": 1,
+        "interval_days": 1,
+        "interval_months": 1,
+        "month_nth": None,
         "month": None,
         "day_of_month": None,
         "due_date": None,
     }
+    if recurrence == "daily":
+        out["interval_days"] = values.get("interval_days") or 1
     if recurrence == "weekly":
         days = sorted(set(values.get("weekdays") or []))
         if not days and values.get("weekday") is not None:
@@ -57,9 +62,18 @@ def _normalized_schedule(values: dict) -> dict:
             raise HTTPException(status_code=422, detail="Weekly tasks need at least one weekday")
         out.update(weekdays=days, weekday=days[0], interval_weeks=values.get("interval_weeks") or 1)
     elif recurrence == "monthly":
-        if values.get("day_of_month") is None:
+        out["interval_months"] = values.get("interval_months") or 1
+        nth = values.get("month_nth")
+        if nth is not None:
+            # The first … fourth or the last (-1) of a weekday – the first Saturday.
+            days = values.get("weekdays") or ([values["weekday"]] if values.get("weekday") is not None else [])
+            if nth == 0 or len(days) != 1 or not 0 <= days[0] <= 6:
+                raise HTTPException(status_code=422, detail="A monthly weekday needs one weekday and first–fourth or last")
+            out.update(month_nth=nth, weekdays=days, weekday=days[0])
+        elif values.get("day_of_month") is None:
             raise HTTPException(status_code=422, detail="Monthly tasks need day_of_month")
-        out["day_of_month"] = values["day_of_month"]
+        else:
+            out["day_of_month"] = values["day_of_month"]
     elif recurrence == "yearly":
         if values.get("month") is None or values.get("day_of_month") is None:
             raise HTTPException(status_code=422, detail="Yearly tasks need month and day_of_month")
@@ -175,7 +189,7 @@ async def list_tasks(user: CurrentUser, db: DB) -> list[Task]:
 async def list_tasks_manage(user: CurrentUser, db: DB) -> list[Task]:
     _require_adult_or_admin(user)
     result = await db.execute(
-        select(Task).where(Task.family_id == user.family_id).order_by(Task.created_at)
+        select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None)).order_by(Task.created_at)
     )
     return list(result.scalars().all())
 
@@ -204,7 +218,7 @@ async def today_tasks(user: CurrentUser, db: DB, back: int = 0) -> list[TodayTas
     """Today's tasks – or, to report something afterwards, one of the last few days' (`back`)."""
     today = _report_day(back)
     tasks = (
-        (await db.execute(select(Task).where(Task.family_id == user.family_id)))
+        (await db.execute(select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None))))
         .scalars()
         .all()
     )
@@ -279,7 +293,7 @@ async def week_tasks(user: CurrentUser, db: DB, start: date | None = None) -> li
     today = date.today()
     first = week_start(start or today)
     days = [first + timedelta(days=i) for i in range(7)]
-    tasks = (await db.execute(select(Task).where(Task.family_id == user.family_id))).scalars().all()
+    tasks = (await db.execute(select(Task).where(Task.family_id == user.family_id, Task.deleted_at.is_(None)))).scalars().all()
     await _sync_rotations(db, tasks, today)
     rows = (
         await db.execute(
@@ -474,8 +488,16 @@ async def create_task(payload: TaskCreate, user: CurrentUser, db: DB, force: boo
     return await _create_task(payload, user, db, force)
 
 
+async def _family_country(db, family_id) -> str | None:
+    from app.models import Family
+
+    family = await db.get(Family, family_id)
+    return family.holiday_country if family else None
+
+
 async def _create_task(payload: TaskCreate, user: User, db, force: bool) -> Task:
     schedule = _normalized_schedule(payload.model_dump())
+    schedule["holiday_country"] = await _family_country(db, user.family_id)
     if payload.assignee_id is not None:
         assignee = await db.get(User, payload.assignee_id)
         if assignee is None or assignee.family_id != user.family_id:
@@ -530,10 +552,16 @@ async def update_task(task_id: uuid.UUID, payload: TaskUpdate, user: CurrentUser
         if "weekday" in data and "weekdays" not in data:
             current["weekdays"] = []  # an older client changed the single weekday
         schedule = _normalized_schedule({**current, **{k: v for k, v in data.items() if k in SCHEDULE_FIELDS}})
-        if schedule["interval_weeks"] != task.interval_weeks or task.anchor_date is None:
-            # "Every other week" counts from the week it was set up in.
+        if (
+            schedule["interval_weeks"] != task.interval_weeks
+            or schedule["interval_days"] != task.interval_days
+            or schedule["interval_months"] != task.interval_months
+            or task.anchor_date is None
+        ):
+            # "Every other week / day / month" counts from when it was set up.
             data["anchor_date"] = date.today()
         data.update(schedule)
+        data["holiday_country"] = await _family_country(db, task.family_id)
     if data.get("assignee_id") is not None:
         assignee = await db.get(User, data["assignee_id"])
         if assignee is None or assignee.family_id != user.family_id:
@@ -583,14 +611,14 @@ async def delete_task(task_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
         raise HTTPException(status_code=404, detail="Task not found")
     _not_a_dose(task)
 
-    # Hard delete requested: remove related completions first to satisfy FK constraints.
-    await db.execute(
-        delete(TaskCompletion).where(
-            TaskCompletion.family_id == user.family_id,
-            TaskCompletion.task_id == task.id,
-        )
-    )
-    await db.delete(task)
+    # Done before: marked deleted, so the times it was done keep their points and their history
+    # (the allowance and the shop count them). Never done: removed for real.
+    done = (await db.execute(select(TaskCompletion.id).where(TaskCompletion.task_id == task.id).limit(1))).first()
+    if done:
+        task.active = False
+        task.deleted_at = datetime.now(timezone.utc)
+    else:
+        await db.delete(task)
     await db.commit()
 
 
@@ -750,7 +778,7 @@ async def undo_for(db: AsyncSession, task: Task, day: date, by: User | None) -> 
         raise HTTPException(status_code=403, detail="Only an adult can undo this")
     for row in rows:
         await db.delete(row)
-    if task.recurrence == "none":
+    if task.recurrence == "none" and task.deleted_at is None:
         task.active = True
     rotation.before_done(task)
     if task.medication_id is not None:
@@ -762,7 +790,7 @@ async def undo_for(db: AsyncSession, task: Task, day: date, by: User | None) -> 
 async def undo_task(task_id: uuid.UUID, user: CurrentUser, db: DB, back: int = 0) -> None:
     """Ticked off by mistake: not done after all."""
     task = await db.get(Task, task_id)
-    if task is None or task.family_id != user.family_id:
+    if task is None or task.family_id != user.family_id or task.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Task not found")
     await undo_for(db, task, _report_day(back), user)
 

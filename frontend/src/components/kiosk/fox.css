@@ -176,6 +176,163 @@
   92.5% { opacity: 0.6; }
 }
 
+/* 3.4.0: the moments – each plays once, for MOMENT_MS (8 s) – and the holiday things. */
+.fx-hop,
+.fx-splash {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fx-hop 8s ease-in-out both;
+}
+.fx-splash {
+  animation-name: fx-splash;
+}
+@keyframes fx-hop {
+  0%, 18%, 50%, 100% { transform: translateY(0); }
+  24% { transform: translateY(-70px); }
+  30% { transform: translateY(0) scaleY(0.94); }
+  33% { transform: translateY(0); }
+  40% { transform: translateY(-50px); }
+  46% { transform: translateY(0) scaleY(0.95); }
+}
+@keyframes fx-splash {
+  0%, 18%, 36%, 56%, 68%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-50px); }
+  32% { transform: translateY(0) scaleY(0.94); }
+  59% { transform: rotate(-4deg); }
+  62% { transform: rotate(4deg); }
+  65% { transform: rotate(-3deg); }
+}
+.fx-drop {
+  animation: fx-drop 8s ease-out both;
+}
+@keyframes fx-drop {
+  0%, 31% { transform: translateY(0); opacity: 0; }
+  32% { opacity: 1; }
+  42%, 100% { transform: translateY(-46px); opacity: 0; }
+}
+.fx-ballx {
+  animation: fx-ballx 8s linear both;
+}
+@keyframes fx-ballx {
+  0%, 30% { transform: translateX(0); }
+  62%, 100% { transform: translateX(-560px); }
+}
+.fx-bally {
+  animation: fx-bally 8s both;
+}
+@keyframes fx-bally {
+  0%, 28% { transform: translateY(0); opacity: 0; }
+  30% { transform: translateY(0); opacity: 1; animation-timing-function: ease-out; }
+  46% { transform: translateY(-180px); animation-timing-function: ease-in; }
+  62% { transform: translateY(260px); opacity: 1; }
+  64%, 100% { transform: translateY(260px); opacity: 0; }
+}
+.fx-shoot {
+  animation: fx-shoot 8s ease-in both;
+}
+@keyframes fx-shoot {
+  0%, 30% { transform: translate(0, 0); opacity: 0; }
+  32% { opacity: 1; }
+  44%, 100% { transform: translate(620px, 210px); opacity: 0; }
+}
+.fx-gust {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-gust 3.2s ease-in both;
+}
+@keyframes fx-gust {
+  from { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(860px, -150px) rotate(380deg); }
+  to { transform: translate(1720px, -40px) rotate(760deg); }
+}
+.fx-hare {
+  animation: fx-hare 8s linear both;
+}
+@keyframes fx-hare {
+  0% { transform: translateX(1120px); opacity: 0; }
+  6%, 92% { opacity: 1; }
+  100% { transform: translateX(-120px); opacity: 0; }
+}
+.fx-harehop {
+  animation: fx-harehop 0.5s ease-in-out infinite;
+}
+@keyframes fx-harehop {
+  50% { transform: translateY(-26px); }
+}
+.fx-fish {
+  animation: fx-fish 8s ease-in-out both;
+}
+@keyframes fx-fish {
+  0%, 30% { transform: rotate(0deg); opacity: 0; }
+  31% { opacity: 1; }
+  52% { transform: rotate(180deg); opacity: 1; }
+  53%, 100% { transform: rotate(180deg); opacity: 0; }
+}
+.fx-fishsplash {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-fishsplash 8s ease-out both;
+}
+.fx-fishsplash.fx-late {
+  animation-name: fx-fishsplash-late;
+}
+@keyframes fx-fishsplash {
+  0%, 30% { transform: scale(0.2); opacity: 0; }
+  31% { opacity: 0.9; }
+  44%, 100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes fx-fishsplash-late {
+  0%, 52% { transform: scale(0.2); opacity: 0; }
+  53% { opacity: 0.9; }
+  66%, 100% { transform: scale(1.8); opacity: 0; }
+}
+
+.fx-burst {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-burst 3s ease-out infinite;
+  opacity: 0;
+}
+@keyframes fx-burst {
+  0% { transform: scale(0.1); opacity: 0; }
+  8% { opacity: 1; }
+  55% { transform: scale(1); opacity: 0.9; }
+  80%, 100% { transform: scale(1.15); opacity: 0; }
+}
+.fx-bat {
+  animation: fx-bat 22s linear infinite;
+}
+@keyframes fx-bat {
+  0% { transform: translate(-80px, 0); }
+  25% { transform: translate(400px, -50px); }
+  50% { transform: translate(850px, 20px); }
+  75% { transform: translate(1250px, -40px); }
+  100% { transform: translate(1700px, 0); }
+}
+.fx-batwing {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-batwing 0.3s ease-in-out infinite alternate;
+}
+@keyframes fx-batwing {
+  to { transform: scaleY(0.35); }
+}
+.fx-candle {
+  animation: fx-candle 2.6s ease-in-out infinite;
+}
+@keyframes fx-candle {
+  30% { opacity: 0.75; }
+  45% { opacity: 1; }
+  70% { opacity: 0.85; }
+}
+.fx-balloons {
+  animation: fx-balloons 6s ease-in-out infinite alternate;
+}
+@keyframes fx-balloons {
+  from { transform: translate(0, 0); }
+  to { transform: translate(8px, -14px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .foxscene * {
     animation: none !important;

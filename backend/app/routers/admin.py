@@ -20,8 +20,8 @@ from sqlalchemy import select
 
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
-from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut
-from app.services import file_limit, giphy, public_url, recipe_search, security_policy
+from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut, TransitKeyIn, TransitKeyOut
+from app.services import file_limit, giphy, mailer, places, public_url, recipe_search, security_policy, transit
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -791,6 +791,151 @@ async def set_recipe_search(payload: RecipeSearchIn, admin: ServerAdmin, db: DB)
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     await recipe_search.set_url(db, payload.url.rstrip("/") if payload.url else None)
     return await get_recipe_search(admin, db)
+
+
+class PlacesIn(BaseModel):
+    enabled: bool = True
+    # A Photon of the server's own; empty = komoot's public one.
+    url: str | None = Field(default=None, max_length=300, pattern=r"^$|^https?://[^\s]+$")
+
+
+@router.get("/integrations/places")
+async def get_places(admin: ServerAdmin, db: DB) -> dict:
+    """Address suggestions from OpenStreetMap: on or off, and through which Photon."""
+    return {**await places.settings(db), "default_url": places.DEFAULT_URL}
+
+
+@router.put("/integrations/places")
+async def set_places(payload: PlacesIn, admin: ServerAdmin, db: DB) -> dict:
+    return {**await places.save(db, payload.enabled, payload.url), "default_url": places.DEFAULT_URL}
+
+
+class EmailIn(BaseModel):
+    # Gmail and Brevo have their server already; only "smtp" takes one.
+    host: str = Field(default="", max_length=200)
+    port: int = Field(default=587, ge=1, le=65535)
+    security: str = Field(default="starttls", pattern=r"^(starttls|ssl|none)$")
+    username: str = Field(default="", max_length=200)
+    # Left out (or empty) when changing other settings: the saved password stays.
+    password: str | None = Field(default=None, max_length=300)
+    sender: str = Field(default="", max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    sender_name: str = Field(default="", max_length=120)
+    # Exchange Online: the app registration's directory (a GUID or the tenant's domain) and client id.
+    tenant_id: str = Field(default="", max_length=120, pattern=r"^$|^[A-Za-z0-9.-]+$")
+    client_id: str = Field(default="", max_length=64, pattern=r"^$|^[0-9a-fA-F-]{36}$")
+
+
+class EmailUseIn(BaseModel):
+    owner: str = Field(default="", pattern=r"^(|gmail|brevo|exchange|smtp)$")
+    hosted: str = Field(default="", pattern=r"^(|gmail|brevo|exchange|smtp)$")
+
+
+class EmailTestIn(BaseModel):
+    provider: str = Field(pattern=r"^(gmail|brevo|exchange|smtp)$")
+    to: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email_out(value: dict) -> dict:
+    accounts = {}
+    for provider in mailer.PROVIDERS:
+        conf = mailer.account(value, provider)
+        accounts[provider] = {"configured": False} if conf is None else {
+            "configured": True, **{k: conf.get(k) for k in ("host", "port", "security", "username", "sender", "sender_name", "tenant_id", "client_id")}, "has_password": bool(conf.get("password")),
+        }
+    return {"accounts": accounts, "owner": value["owner"], "hosted": value["hosted"]}
+
+
+@router.get("/integrations/email")
+async def get_email(admin: ServerAdmin, db: DB) -> dict:
+    """The server's mail services and who sends with which – never a password."""
+    return _email_out(await mailer.load(db))
+
+
+@router.put("/integrations/email/{provider}")
+async def set_email(provider: str, payload: EmailIn, admin: ServerAdmin, db: DB) -> dict:
+    """Set up Gmail (the address and an app password), Brevo (the SMTP login, its key and a
+    verified sender), Exchange Online (an app registration with Mail.Send, and the mailbox it
+    sends from) or another SMTP server."""
+    if provider not in mailer.PROVIDERS:
+        raise HTTPException(status_code=404, detail="Not found")
+    value = await mailer.load(db)
+    old = value["accounts"].get(provider) or {}
+    conf = payload.model_dump()
+    if provider == "gmail":
+        conf["sender"] = conf["username"]  # Gmail sends as the account itself
+        if "@" not in conf["sender"]:
+            raise HTTPException(status_code=422, detail="The Gmail address is needed")
+    if not conf.get("password"):
+        conf["password"] = old.get("password", "")
+    if provider == "smtp" and not conf["host"].strip():
+        raise HTTPException(status_code=422, detail="The SMTP server is missing")
+    if provider == "exchange":
+        if not (conf["tenant_id"] and conf["client_id"] and conf["password"] and conf["sender"]):
+            raise HTTPException(status_code=422, detail="The tenant, the client id, the secret and the mailbox are needed")
+    elif not conf["sender"] or (provider != "smtp" and not (conf["username"] and conf["password"])):
+        raise HTTPException(status_code=422, detail="The address and password are needed")
+    value["accounts"][provider] = {k: v for k, v in conf.items() if provider == "smtp" or k not in ("host", "port", "security")}
+    # The first service set up is the one the server's own family sends with.
+    if not value["owner"]:
+        value["owner"] = provider
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.delete("/integrations/email/{provider}")
+async def delete_email(provider: str, admin: ServerAdmin, db: DB) -> dict:
+    value = await mailer.load(db)
+    value["accounts"].pop(provider, None)
+    for who in ("owner", "hosted"):
+        if value[who] == provider:
+            value[who] = ""
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.put("/integrations/email-use")
+async def set_email_use(payload: EmailUseIn, admin: ServerAdmin, db: DB) -> dict:
+    """Which service the family running the server sends with, and which – if any – the hosted
+    families may use (none: they can't send mail)."""
+    value = await mailer.load(db)
+    for who in ("owner", "hosted"):
+        chosen = getattr(payload, who)
+        if chosen and chosen not in value["accounts"]:
+            raise HTTPException(status_code=422, detail="That service isn't set up")
+        value[who] = chosen
+    await mailer.store(db, value)
+    return _email_out(value)
+
+
+@router.post("/integrations/email/test")
+async def test_email(payload: EmailTestIn, admin: ServerAdmin, db: DB) -> dict:
+    """Send a test mail through one service – the error from the mail server if it doesn't go."""
+    conf = mailer.account(await mailer.load(db), payload.provider)
+    if conf is None:
+        raise HTTPException(status_code=422, detail="That service isn't set up")
+    try:
+        await mailer.send_with(conf, payload.to, "Smooth Family – test", "This is a test from your Smooth Family server. E-mail works.")
+    except mailer.MailError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't send: {exc}") from exc
+    return {"sent": True}
+
+@router.get("/integrations/transit", response_model=list[TransitKeyOut])
+async def get_transit_keys(admin: ServerAdmin, db: DB) -> list[TransitKeyOut]:
+    """The departure providers and which have a key (the keys themselves are never sent back)."""
+    have = await transit.keys(db)
+    return [TransitKeyOut(id=pid, name=name, area=area, key=need, configured=bool(have.get(pid)), signup=signup) for pid, (name, area, need, signup) in transit.PROVIDERS.items()]
+
+
+@router.put("/integrations/transit", response_model=list[TransitKeyOut])
+async def set_transit_key(payload: TransitKeyIn, admin: ServerAdmin, db: DB) -> list[TransitKeyOut]:
+    """Add, change or remove one provider's key (stored encrypted)."""
+    if payload.provider not in transit.PROVIDERS or transit.PROVIDERS[payload.provider][2] == "none":
+        raise HTTPException(status_code=422, detail="That provider takes no key")
+    key = (payload.api_key or "").strip()
+    if key and len(key) < 8:
+        raise HTTPException(status_code=422, detail="That doesn't look like a key")
+    await transit.set_key(db, payload.provider, key or None)
+    return await get_transit_keys(admin, db)
 
 
 @router.get("/integrations/giphy", response_model=GiphySettingOut)

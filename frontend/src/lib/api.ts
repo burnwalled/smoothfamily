@@ -1,6 +1,7 @@
 // Thin fetch wrapper. All calls go through the Next rewrite /api -> backend,
 // so the session cookie travels along automatically (same origin).
 
+import { isPartyHelper } from "@/lib/partyHelper";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { apiKey, clearQueryCache, queryClient, shouldRetry } from "@/lib/queryClient";
 import { canQueue, enqueue, flush, hasPending } from "@/lib/outbox";
@@ -21,7 +22,7 @@ export class ApiError extends Error {
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...(isPartyHelper() ? { "X-Party-Helper": "1" } : {}), ...init?.headers },
     credentials: "same-origin",
   });
   if (!resp.ok) {
@@ -61,7 +62,7 @@ const RELATED: Record<string, string[]> = {
   easy: ["tasks"],
   // The household's economy counts the receipts (and the homes' and vehicles' costs).
   receipts: ["economy"],
-  bank: ["economy", "receipts"],
+  bank: ["economy", "receipts", "subscriptions"],
   // A receipt read by the local AI is told as a notification.
   notifications: ["receipts", "ai"],
   // The emergency cards list the medicines.
@@ -188,6 +189,9 @@ export type NotificationPrefs = {
   calendar_mine: boolean;
   calendar_family: boolean;
   memories?: boolean;
+  subs_cancel?: boolean;
+  subs_quarter?: boolean;
+  subs_year?: boolean;
 };
 
 export type Member = {
@@ -209,10 +213,12 @@ export type Member = {
 export type Feed = {
   id: string;
   name: string;
+  // Empty for those who don't manage the feed: the address opens the whole calendar.
   url: string;
   color: string;
   visible_to: string[];
   details_for: string[];
+  can_edit?: boolean;
   // A member's own calendar (their Google/iCloud …); null = the family's.
   member_id: string | null;
 };
@@ -221,6 +227,9 @@ export type CalendarEvent = {
   // Exactly one is set: feed_id for iCal subscriptions, event_id for events created in the app.
   feed_id: string | null;
   event_id: string | null;
+  // A public holiday of the family's country (3.4.0), or an eve that works like one.
+  holiday?: boolean;
+  holiday_eve?: boolean;
   feed_name: string;
   color: string;
   title: string | null;
@@ -244,6 +253,9 @@ export type CalendarEvent = {
   needs_ride?: boolean;
   drop_off_by?: string | null;
   pick_up_by?: string | null;
+  // Someone outside the family drives (3.4.0), instead of a member.
+  drop_off_text?: string | null;
+  pick_up_text?: string | null;
   packing?: PackingItem[];
   pack_tasks?: PackTask[];
 };
@@ -255,6 +267,8 @@ export type EventPlan = {
   needs_ride: boolean;
   drop_off_by: string | null;
   pick_up_by: string | null;
+  drop_off_text?: string | null;
+  pick_up_text?: string | null;
   packing: PackingItem[];
   pack_tasks?: PackTask[];
 };
@@ -297,11 +311,17 @@ export type Task = {
   description: string | null;
   points: number;
   assignee_id: string | null;
-  recurrence: "none" | "daily" | "weekly" | "monthly" | "yearly";
+  recurrence: "none" | "daily" | "workdays" | "weekends" | "weekly" | "monthly" | "yearly";
   weekday: number | null;
   // Weekly: the weekdays (0 = Monday) and every how many weeks.
   weekdays: number[];
   interval_weeks: number;
+  // 3.4.0: daily every N days, monthly every N months (from anchor_date), and monthly on the
+  // first … fourth or last (-1) of weekdays[0] instead of a date.
+  interval_days: number;
+  interval_months: number;
+  month_nth: number | null;
+  anchor_date?: string | null;
   month: number | null;
   day_of_month: number | null;
   due_date: string | null;
@@ -309,6 +329,8 @@ export type Task = {
   project_id: string | null;
   vehicle_id: string | null;
   requires_approval: boolean;
+  // 3.4.0: done by exercising this many minutes that day (Health); null = an ordinary task.
+  exercise_minutes?: number | null;
   active: boolean;
   // Taking turns: the members in order (assignee_id is whose turn it is); "done" or "weekly".
   rotation_user_ids: string[];
@@ -441,7 +463,8 @@ export type WidgetType =
   | "memories"
   | "pantry_soon"
   | "upcoming"
-  | "custody";
+  | "custody"
+  | "school";
 
 export type TaskSuggestion = {
   id: string;
@@ -478,6 +501,9 @@ export type Widget = {
 };
 
 export type SlSite = { id: number; name: string };
+// 3.4.0: departures from several providers (SL keyless as before; the others' keys from the server admin).
+export type TransitProvider = { id: string; name: string; area: string; needs_key: boolean; available: boolean; suggested: boolean };
+export type TransitStop = { id: string; name: string };
 
 export type SlDeparture = {
   line: string;
@@ -572,7 +598,7 @@ export type ListItem = {
   pending?: boolean;
 };
 
-export type ImportResult = { imported: number; skipped: string[] };
+export type ImportResult = { imported: number; skipped: string[]; suggested?: number };
 
 export type Album = {
   id: string;
@@ -784,7 +810,7 @@ export type ChatConversation = {
 
 export type ChatMessage = {
   id: string;
-  sender_id: string;
+  sender_id: string | null;
   sender_name: string;
   sender_color: string;
   recipient_id: string | null;
@@ -1025,7 +1051,7 @@ export async function postRaw<T>(path: string, body: string): Promise<T> {
 export async function uploadFile<T>(path: string, file: File): Promise<T> {
   const data = new FormData();
   data.append("file", file);
-  const resp = await fetch(path, { method: "POST", body: data, credentials: "same-origin" });
+  const resp = await fetch(path, { method: "POST", body: data, credentials: "same-origin", headers: isPartyHelper() ? { "X-Party-Helper": "1" } : undefined });
   if (!resp.ok) {
     let detail = resp.statusText;
     try {
@@ -1151,6 +1177,8 @@ export type TodaySources = {
   weather_place: string | null;
   waste_schedules: WasteSchedule[];
   electricity_area: string | null;
+  // The red days in the calendar (3.4.0); null is off.
+  holiday_country: string | null;
 };
 
 export type PriceHour = { start: string; ore: number };
@@ -1182,6 +1210,8 @@ export type KioskScreen = {
   // 3.0.4: "" = the app's first theme; the smart home devices it may control.
   theme: string;
   devices: string[];
+  // 3.4.0: the fox dresses up for the holidays and birthdays.
+  fox_themes: boolean;
   url?: string;
   qr_svg?: string;
   widgets: KioskWidget[];
@@ -1215,12 +1245,44 @@ export type KioskView = {
   theme?: string;
   week?: { date: string; name: string; meal_id: string; cook: boolean }[];
   devices?: SmarthomeDeviceState[];
+  // 3.4.0: what the fox dresses up for today ("" = nothing) and whose birthday it is (first names).
+  fox_theme?: "" | "halloween" | "christmas" | "newyear" | "easter" | "midsummer";
+  birthdays?: string[];
+  // 3.4.0: this week's exercise of those who share it with the family, and the family's goals.
+  exercise?: { people: { name: string; color: string | null; minutes: number; workouts: number }[]; goals: ExerciseGoal[] } | null;
+  // 3.4.0: each child's school day (never absence or letters on the kitchen display).
+  school?: { name: string; color: string | null; school_day: string | null; pe: boolean | null; leisure_today: string | null; next_event: string | null; assignments: number | null }[];
 };
+
+// 3.4.0: a child's school day from Home Assistant (InfoMentor, SchoolSoft).
+export type SchoolDay = {
+  user_id: string;
+  name: string;
+  color: string | null;
+  accounts: string[];
+  school_day: string | null;
+  pe: boolean | null;
+  leisure_today: string | null;
+  checked_in: boolean | null;
+  assignments: number | null;
+  assignment_titles: string[];
+  absent_today: boolean | null;
+  last_absence: string | null;
+  next_event: string | null;
+  next_lesson: string | null;
+  notifications: number | null;
+  weekly_letter: string | null;
+  news: number | null;
+  news_titles: string[];
+  lunch: string | null;
+};
+
+export type ExerciseGoal = { title: string; metric: "minutes" | "km" | "workouts"; target: number; progress: number; end_date?: string };
 
 export const KIOSK_SCREENSAVERS = ["photos", "flipclock", "calm", "fox", "dark"] as const;
 export type KioskScreensaver = (typeof KIOSK_SCREENSAVERS)[number];
 
-export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow"] as const;
+export const KIOSK_WIDGETS = ["calendar", "weather", "tasks", "food", "week", "recipes", "presence", "flows", "waste", "lunch", "electricity", "emergency", "slideshow", "exercise", "school"] as const;
 export type KioskWidget = (typeof KIOSK_WIDGETS)[number];
 
 export type WasteSchedule = {
@@ -1382,6 +1444,9 @@ export type WeekReview = {
   // The day's dinner, and its lunch or lunchbox (3.2.0).
   days: { date: string; events: CalendarEvent[]; meal: string | null; lunch?: string | null }[];
   turns: { title: string; user_id: string | null; name: string | null }[];
+  // 3.4.0: last week's exercise (shared with the family) and the family's goals.
+  exercise?: { user_id: string; name: string; color: string | null; minutes: number; workouts: number; km: number }[];
+  exercise_goals?: ExerciseGoal[];
 };
 
 // --- Backups ---

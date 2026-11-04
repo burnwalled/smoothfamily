@@ -64,7 +64,8 @@ async def run_ride_reminders(db: AsyncSession, now: datetime | None = None) -> i
     sent = 0
     for plan in plans:
         plan.ride_alerted_at = now_local
-        missing = [leg for leg in ("drop_off", "pick_up") if getattr(plan, f"{leg}_by") is None]
+        # Taken by a member or by someone outside the family (3.4.0).
+        missing = [leg for leg in ("drop_off", "pick_up") if getattr(plan, f"{leg}_by") is None and not getattr(plan, f"{leg}_text")]
         await db.commit()
         if not missing:
             continue

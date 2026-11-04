@@ -16,10 +16,10 @@ SUPPORTED_LANGUAGES = r"^(en|sv|nb|da|fi)$"
 SUPPORTED_THEMES = r"^(forest|ocean|sunset|lavender|midnight|sand|berry|citrus|aurora)$"
 # Menu sections a user can reorder or hide ("today" can't be hidden).
 NavSection = Literal[
-    "today", "calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry"
+    "today", "calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry", "health"
 ]
 # Apps the family admin can turn on or off per member (see app/apps.py).
-AppKey = Literal["calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry"]
+AppKey = Literal["calendar", "tasks", "chat", "allowance", "lists", "food", "smarthome", "property", "vehicles", "photos", "achievements", "birthdays", "shop", "medicine", "pets", "week", "documents", "emergency", "trips", "pantry", "health"]
 
 
 def _clean(value):
@@ -47,6 +47,8 @@ class SetupRequest(BaseModel):
     # Sign-in policy for the family (can be changed later in Family admin → Security).
     passkeys_enabled: bool = True
     totp_policy: str = Field(default="optional", pattern=r"^(off|optional|required)$")
+    # The language the admin set the family up in – also the first choice of public holidays.
+    language: str | None = Field(default=None, pattern=r"^(en|sv|nb|da|fi)$")
 
 
 class LoginRequest(BaseModel):
@@ -112,6 +114,10 @@ class NotificationPrefs(BaseModel):
     calendar_family: bool = False
     # The weekly "memory" (photos from this week in earlier years).
     memories: bool = True
+    # Subscriptions: the last day to cancel, and quarterly and yearly payments on their way.
+    subs_cancel: bool = True
+    subs_quarter: bool = True
+    subs_year: bool = True
 
 
 class MeOut(MemberOut):
@@ -191,7 +197,7 @@ class MfaChallengeOut(BaseModel):
 
 class FeedCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    url: str = Field(min_length=8)
+    url: str = Field(min_length=8, max_length=2000)
     color: str = "#4F7A5B"
     visible_to: list[uuid.UUID] = []
     details_for: list[uuid.UUID] = []
@@ -211,11 +217,13 @@ class FeedUpdate(BaseModel):
 class FeedOut(ORMModel):
     id: uuid.UUID
     name: str
+    # The address is the feed's secret (it opens the whole calendar): only its owner and the admin get it.
     url: str
     color: str
     visible_to: list[uuid.UUID] = []
     details_for: list[uuid.UUID] = []
     member_id: uuid.UUID | None = None
+    can_edit: bool = True
 
 
 class PackingItem(BaseModel):
@@ -258,11 +266,17 @@ class EventOut(BaseModel):
     vehicle_id: uuid.UUID | None = None
     # A home's maintenance (Property).
     property_id: uuid.UUID | None = None
+    # A public holiday of the family's country (3.4.0) – an eve (julafton) is marked too.
+    holiday: bool = False
+    holiday_eve: bool = False
     # Names the occurrence for who drives and the packing list (not for busy or birthday events).
     key: str | None = None
     needs_ride: bool = False
     drop_off_by: uuid.UUID | None = None
     pick_up_by: uuid.UUID | None = None
+    # Someone outside the family drives (3.4.0), instead of a member.
+    drop_off_text: str | None = None
+    pick_up_text: str | None = None
     packing: list[PackingItem] = []
     # The day it's time to pack: a task per member going (2.9.0).
     pack_tasks: list["PackTask"] = []
@@ -299,10 +313,13 @@ class TaskCreate(BaseModel):
     description: str | None = None
     points: int = Field(default=10, ge=1, le=1000)
     assignee_id: uuid.UUID | None = None
-    recurrence: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly|yearly)$")
+    recurrence: str = Field(default="none", pattern=r"^(none|daily|weekly|monthly|yearly|workdays|weekends)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] = Field(default=[], max_length=7)
-    interval_weeks: int = Field(default=1, ge=1, le=4)
+    interval_weeks: int = Field(default=1, ge=1, le=8)
+    interval_days: int = Field(default=1, ge=1, le=30)
+    interval_months: int = Field(default=1, ge=1, le=12)
+    month_nth: int | None = Field(default=None, ge=-1, le=4)
     month: int | None = Field(default=None, ge=1, le=12)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     due_date: date | None = None
@@ -317,6 +334,8 @@ class TaskCreate(BaseModel):
     picture: str | None = Field(default=None, max_length=16)
     # Several can do it together; the points are shared (3.0.3).
     shared: bool = False
+    # Done by exercising this many minutes that day (3.4.0, Health).
+    exercise_minutes: int | None = Field(default=None, ge=5, le=600)
 
 
 class TaskUpdate(BaseModel):
@@ -324,10 +343,13 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     points: int | None = Field(default=None, ge=1, le=1000)
     assignee_id: uuid.UUID | None = None
-    recurrence: str | None = Field(default=None, pattern=r"^(none|daily|weekly|monthly|yearly)$")
+    recurrence: str | None = Field(default=None, pattern=r"^(none|daily|weekly|monthly|yearly|workdays|weekends)$")
     weekday: int | None = Field(default=None, ge=0, le=6)
     weekdays: list[int] | None = Field(default=None, max_length=7)
-    interval_weeks: int | None = Field(default=None, ge=1, le=4)
+    interval_weeks: int | None = Field(default=None, ge=1, le=8)
+    interval_days: int | None = Field(default=None, ge=1, le=30)
+    interval_months: int | None = Field(default=None, ge=1, le=12)
+    month_nth: int | None = Field(default=None, ge=-1, le=4)
     month: int | None = Field(default=None, ge=1, le=12)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     due_date: date | None = None
@@ -342,6 +364,7 @@ class TaskUpdate(BaseModel):
     picture: str | None = Field(default=None, max_length=16)
     # Several can do it together; the points are shared (3.0.3).
     shared: bool | None = None
+    exercise_minutes: int | None = Field(default=None, ge=5, le=600)
 
 
 class TaskOut(ORMModel):
@@ -354,6 +377,10 @@ class TaskOut(ORMModel):
     weekday: int | None
     weekdays: list[int] = []
     interval_weeks: int = 1
+    interval_days: int = 1
+    interval_months: int = 1
+    month_nth: int | None = None
+    anchor_date: date | None = None
     month: int | None
     day_of_month: int | None
     due_date: date | None
@@ -373,6 +400,7 @@ class TaskOut(ORMModel):
     trip_id: uuid.UUID | None = None
     event_key: str | None = None
     shared: bool = False
+    exercise_minutes: int | None = None
 
 
 class TaskHistoryItem(BaseModel):
@@ -551,7 +579,7 @@ class ChatConversationOut(BaseModel):
 
 class ChatMessageOut(BaseModel):
     id: uuid.UUID
-    sender_id: uuid.UUID
+    sender_id: uuid.UUID | None = None
     sender_name: str
     sender_color: str
     recipient_id: uuid.UUID | None = None
@@ -652,7 +680,7 @@ class LeaderboardEntry(BaseModel):
 
 # --- Dashboard widgets ---
 
-WIDGET_TYPES = r"^(calendar_today|tasks_today|leaderboard|sl_departures|shopping_list|smart_home|chat_unread|family_goals|waste_collection|school_lunch|weather|presence|electricity|memories|pantry_soon|upcoming|custody)$"
+WIDGET_TYPES = r"^(calendar_today|tasks_today|leaderboard|sl_departures|shopping_list|smart_home|chat_unread|family_goals|waste_collection|school_lunch|weather|presence|electricity|memories|pantry_soon|upcoming|custody|school)$"
 
 
 class WidgetCreate(BaseModel):
@@ -682,6 +710,38 @@ class WidgetReorderItem(BaseModel):
 class SlSite(BaseModel):
     id: int
     name: str
+
+
+class TransitStop(BaseModel):
+    # A provider's own id for the stop (SL's are numbers).
+    id: str
+    name: str
+
+
+class TransitProviderOut(BaseModel):
+    id: str
+    name: str
+    area: str
+    needs_key: bool
+    # It can be used on this server (no key needed, or the server admin added one).
+    available: bool
+    # The one for the member's language.
+    suggested: bool = False
+
+
+class TransitKeyOut(BaseModel):
+    id: str
+    name: str
+    area: str
+    key: str  # none | required | optional
+    configured: bool
+    signup: str | None
+
+
+class TransitKeyIn(BaseModel):
+    provider: str = Field(max_length=20)
+    # None (or empty) removes it.
+    api_key: str | None = Field(default=None, max_length=300)
 
 
 class SlDeparture(BaseModel):
@@ -743,6 +803,8 @@ class ChoreImportRequest(BaseModel):
 class ImportResult(BaseModel):
     imported: int
     skipped: list[str] = []
+    # A child's chores become suggestions for an adult to approve.
+    suggested: int = 0
 
 
 LIST_CATEGORIES_REGEX = r"^(produce|bread|dairy|meat_fish|frozen|pantry|snacks|beverages|household|other)$"

@@ -27,6 +27,7 @@ import {
   CalendarDays,
   ChevronDown,
   Gift,
+  GraduationCap,
   GripVertical,
   House,
   LayoutGrid,
@@ -53,6 +54,7 @@ import TaskList from "@/components/TaskList";
 import Leaderboard from "@/components/Leaderboard";
 import AddWidgetPanel from "@/components/widgets/AddWidgetPanel";
 import SlDeparturesWidget from "@/components/widgets/SlDeparturesWidget";
+import SchoolWidget from "@/components/school/SchoolWidget";
 import SmartHomeWidget from "@/components/widgets/SmartHomeWidget";
 import { ElectricityWidget, SchoolLunchWidget, WasteWidget, WeatherWidget } from "@/components/widgets/TodaySourcesWidgets";
 import { EventPlanBadges } from "@/components/EventPlanPanel";
@@ -195,7 +197,7 @@ export default function DashboardPage() {
 
   function widgetTitle(widget: Widget): string {
     if (widget.type === "sl_departures") {
-      return String(widget.config.site_name ?? "SL");
+      return String(widget.config.stop_name ?? widget.config.site_name ?? "SL");
     }
     return t(`widget.${widget.type}`);
   }
@@ -343,7 +345,7 @@ export default function DashboardPage() {
       case "leaderboard":
         return <Leaderboard entries={board} />;
       case "sl_departures":
-        return <SlDeparturesWidget siteId={Number(widget.config.site_id)} />;
+        return <SlDeparturesWidget provider={String(widget.config.provider ?? "sl")} stop={String(widget.config.stop_id ?? widget.config.site_id)} />;
       case "shopping_list":
         {
           const configured = typeof widget.config.list_id === "string" ? widget.config.list_id : "";
@@ -396,6 +398,8 @@ export default function DashboardPage() {
         return <UpcomingWidget />;
       case "custody":
         return <CustodyWidget />;
+      case "school":
+        return <SchoolWidget />;
       case "smart_home":
         return <SmartHomeWidget />;
       case "chat_unread":
@@ -602,6 +606,7 @@ const WIDGET_ICONS: Record<string, LucideIcon> = {
   pantry_soon: Refrigerator,
   upcoming: CalendarClock,
   custody: Repeat,
+  school: GraduationCap,
 };
 
 function WidgetIcon({ type }: { type: string }) {

@@ -4,6 +4,7 @@ STORAGE_PROVIDER=local is the only supported provider. The interface is
 designed so that future providers (Google Drive, OneDrive — phase K) can slot
 in without changing callers.
 """
+import os
 import shutil
 import uuid
 from pathlib import Path
@@ -38,7 +39,12 @@ class LocalStorage:
         self._root = Path(root or get_settings().media_root)
 
     def _path(self, family_id: uuid.UUID, key: str) -> Path:
-        return self._root / str(family_id) / key
+        """A file in the family's own folder: a key can never point outside it."""
+        base = os.path.realpath(self._root / str(family_id))
+        full = os.path.realpath(os.path.join(base, key))
+        if not full.startswith(base + os.sep):
+            raise ValueError("Storage key outside the family's folder")
+        return Path(full)
 
     def save(self, family_id: uuid.UUID, key: str, data: IO[bytes]) -> None:
         dest = self._path(family_id, key)

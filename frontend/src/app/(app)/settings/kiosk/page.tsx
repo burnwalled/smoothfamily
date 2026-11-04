@@ -14,7 +14,7 @@ import SaverPreview from "@/components/kiosk/SaverPreview";
 import { THEMES } from "@/lib/theme";
 import { domainIcon } from "@/lib/smarthome";
 
-type Change = Partial<Pick<KioskScreen, "name" | "pantry_scan" | "easy_mode" | "widgets" | "screensaver" | "idle_minutes" | "night_dim" | "night_from" | "night_to" | "language" | "theme" | "devices">>;
+type Change = Partial<Pick<KioskScreen, "name" | "pantry_scan" | "easy_mode" | "widgets" | "screensaver" | "idle_minutes" | "night_dim" | "night_from" | "night_to" | "language" | "theme" | "fox_themes" | "devices">>;
 const MINUTES = [1, 3, 5, 10, 15, 30, 60];
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 // A screen on the wall never opens a lock (the server keeps to the same).
@@ -68,8 +68,8 @@ export default function KioskSettingsPage() {
   }
 
   async function applyToAll(from: KioskScreen) {
-    const { pantry_scan, easy_mode, widgets, screensaver, idle_minutes, night_dim, night_from, night_to, language, theme, devices } = from;
-    const same: Change = { pantry_scan, easy_mode, widgets, screensaver, idle_minutes, night_dim, night_from, night_to, language, theme, devices };
+    const { pantry_scan, easy_mode, widgets, screensaver, idle_minutes, night_dim, night_from, night_to, language, theme, fox_themes, devices } = from;
+    const same: Change = { pantry_scan, easy_mode, widgets, screensaver, idle_minutes, night_dim, night_from, night_to, language, theme, fox_themes, devices };
     await Promise.all(screens.filter((s) => s.id !== from.id && !s.revoked_at).map((s) => api.put(`/api/kiosks/${s.id}`, same)));
     setApplied(from.id);
   }
@@ -195,6 +195,15 @@ export default function KioskSettingsPage() {
                     {MINUTES.map((m) => <option key={m} value={m}>{t("kiosk.saver.minutes", { n: m })}</option>)}
                   </select>
                 </label>
+                {s.screensaver === "fox" && (
+                  <label className="mt-3 flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-0.5" checked={s.fox_themes !== false} onChange={(e) => change(s, { fox_themes: e.target.checked })} />
+                    <span>
+                      {t("kiosk.saver.foxThemes")}
+                      <span className="block text-xs text-muted">{t("kiosk.saver.foxThemesHelp")}</span>
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* What it shows */}

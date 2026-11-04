@@ -22,7 +22,7 @@ test("a passport with a masked number", async ({ adminPage: page, adminApi }) =>
 test("a babysitter reads the emergency card through a guest link", async ({ adminPage: page, adminApi, browser }, info) => {
   const allergy = unique("Peanuts");
   const sitter = unique("Sara");
-  // A member's card is changed on their page in the family's settings (3.0.4); guest links under Sharing.
+  // A member's card is changed on their page in the family's settings (3.0.4); guest links under Family members (3.4.0).
   const kid = (await (await adminApi.get("/api/family/members")).json()).find((m: { username: string }) => m.username === KID.username);
   await page.goto(`/settings/members/${kid.id}`);
   await page.getByRole("button", { name: `Edit the card for ${KID.name}` }).click();
@@ -32,7 +32,7 @@ test("a babysitter reads the emergency card through a guest link", async ({ admi
   await card.getByRole("button", { name: "Save" }).click();
   await expect(card.getByText(allergy)).toBeVisible();
 
-  await page.goto("/settings/sharing");
+  await page.goto("/settings/members");
   await page.getByLabel("Who", { exact: true }).fill(sitter);
   await page.getByRole("button", { name: "Make a link" }).click();
   const url = await page.getByLabel("Guest link").inputValue();

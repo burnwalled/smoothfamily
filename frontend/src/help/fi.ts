@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Lähdöt: lisää kortti pysäkkiä kohden kohdassa Lisää widget – SL Tukholmassa tai muu lähde koko Ruotsille, Norjalle, Suomelle, Tanskalle tai Lontoolle (osa tarvitsee avaimen, jonka palvelimen ylläpitäjä lisää kohdassa Palvelin → Osoite ja palvelut).",
           "Korttien lähteet – sään paikkakunta, jätehuollon kalenteri ja koulu – asetetaan kohdassa Perheen asetukset → Arki.",
           "Korttia sovellukselle, jota et saa käyttää, ei näytetä."
         ]
@@ -174,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Kuka ajaa ja mitä pakataan"
       },
       {
-        "p": "Napauta tapahtuman vieressä Kyydit ja pakkaus – kalenterissa tai sunnuntaikatsauksessa – kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
+        "p": "Napauta tapahtuman vieressä Kyydit ja pakkaus – kalenterissa tai sunnuntaikatsauksessa – kertoaksesi, että kyyti tarvitaan, ja ota vienti tai haku – tai kirjoita kohdassa Joku muu, kuka perheen ulkopuolelta ajaa, esimerkiksi joukkuekaverin vanhempi. Anna sille pakkauslista: sama lista palaa jokaiseen samannimiseen tapahtumaan, kuten jokaiseen jalkapalloharjoitukseen, ja kuitataan joka kerta. Aikuinen voi valita päivän, jolloin on aika pakata, ja menijä saa sinä päivänä tehtävän."
       },
       {
         "shot": "calendar-month",
@@ -253,6 +254,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (seuran ja joukkueen kalenteri)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa seuran MyClub-sivusto (seuranimi.myclub.se) ja siirry joukkueen kalenteriin tai sivulle, jolla kerrotaan kalenterin tilaamisesta.",
+                  "Kopioi tilauslinkki. Joukkueen linkki on muotoa webcal://calendar.myclub.se/public/teams/12345/calendar.ics – koko seuran linkissä on sen sijaan /public/clubs/.",
+                  "Liitä linkki Smooth Familyyn."
+                ]
+              },
+              {
+                "note": "Etkö löydä linkkiä? Pyydä joukkueenjohtajalta kalenterin tilauslinkki – se on sama, jonka seura antaa iPhonea ja Googlea varten. Lisää yksi tilaus joukkuetta kohden, anna kullekin oma värinsä ja valitse lapsi, jota se koskee."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (seuran ja joukkueen kalenteri)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa joukkueen sivu laget.se-palvelussa, esimerkiksi laget.se/Joukkue.",
+                  "Siirry kohtaan Kalender ja napsauta kalenterin alla Prenumerera (tilaa).",
+                  "Kopioi linkki. Se on muotoa webcal://cal.laget.se/Joukkue.ics – sama nimi kuin joukkueen laget.se-osoitteessa.",
+                  "Liitä linkki Smooth Familyyn."
+                ]
+              },
+              {
+                "note": "laget.se-kalenteri näyttää kuukauden taaksepäin ja kuusi kuukautta eteenpäin. Lisää yksi tilaus joukkuetta kohden, anna kullekin oma värinsä ja valitse lapsi, jota se koskee."
+              }
+            ]
+          },
+          {
             "title": "Lisää linkki Smooth Familyyn",
             "blocks": [
               {
@@ -284,6 +316,12 @@ const texts: Record<string, TopicText> = {
           "Tilatut kalenterit ovat vain luettavia ja päivittyvät 15 minuutin välein.",
           "Oman kalenterisi voi lisätä puhelimeen tilauslinkillä kohdassa Oma profiili."
         ]
+      },
+      {
+        "h": "Punaiset päivät"
+      },
+      {
+        "p": "Maan pyhäpäivät näkyvät kalenterissa punaisina päivinä, ja pyhäpäivien tavoin vietetyt aatot (jouluaatto, juhannusaatto …) vaaleammalla punaisella. Valitse maa – tai poista käytöstä – kohdassa Perheen asetukset → Arki. Muun maan pyhäpäivät saat lisäämällä julkisen pyhäpäiväkalenterin tilauksena."
       }
     ]
   },
@@ -308,6 +346,177 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Lähtöä edeltävänä iltana kaikkia lähtijöitä muistutetaan siitä, mitä on vielä pakattava ja tarkistettava.",
           "Lapset näkevät ja pakkaavat omat tavaransa; aikuiset suunnittelevat loput."
+        ]
+      }
+    ]
+  },
+  "parties": {
+    "title": "Juhlat",
+    "summary": "Suunnitelkaa juhlat yhdessä – yksi kutsusivu vieraille ja teille tarkistuslista, budjetti ja aikataulu.",
+    "blocks": [
+      {
+        "p": "Kalenteri → Juhlat -kohdassa suunnittelet lastenjuhlat, juhlat, illallisen, otteluillan, grilli-illan tai ulkoilupäivän. Vieraat saavat yhteisen sivun – ilman tiliä – ensin halutessanne merkitse päivä -sivun, sitten kutsun, jossa he vastaavat nimellä, allergioilla ja seuralaisilla sallimissanne rajoissa, juhlapäivänä portaalin kuvilleen ja lopuksi kiitoksen. He voivat muuttaa vastaustaan myöhemmin. Valitsette, mitä he näkevät toisistaan: ei mitään, montako tulee tai nimet."
+      },
+      {
+        "shot": "parties",
+        "caption": "Juhlien kahdeksan vaihetta – tässä Ulkoasu, joka alkaa malleista."
+      },
+      {
+        "steps": [
+          "Kalenteri → Juhlat → Uudet juhlat: nimi, laji, kenen juhlat, aika ja paikka – sitten juhlat vievät sinut seitsemän vaiheen läpi.",
+          "1 Tiedot · 2 Ulkoasu: mallit ja ulkoasu (teema ja kuva), merkitse päivä, kutsu, juhlaportaali ja kiitos, kullakin oma juliste · 3 Vieraat: ketkä tulevat, allergiat, sähköpostiosoitteet – ja oma kutsuttujen lista.",
+          "4 Tehtävät – ennen, aikana ja jälkeen · 5 Budjetti · 6 Ohjelma, jonka kohtia voi piilottaa vierailta · 7 Lähetykset: viestit ajallaan (palvelimen sähköpostilla) tai linkit jaettavaksi itse."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "Vieraiden kutsu: juliste juhlien teemassa, tiedot, kalenteripainikkeet ja vastaus."
+      },
+      {
+        "h": "Suunnittelu"
+      },
+      {
+        "p": "Uudet juhlat alkavat lajilleen sopivalla tarkistuslistalla – ennen, aikana ja jälkeen – päivämäärineen; aikuisia muistutetaan aamulla, kun jotain on tehtävä. Muokkaa sitä vapaasti. Budjetti seuraa kuluja suunniteltuun nähden ja ohjelma päivän aikoja (lastenjuhlat alkavat valmiilla ohjelmalla) – kohdan voi piilottaa vierailta portaalissa."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Juhlaportaali QR-koodista: vieraiden kuvat, päivän ohjelma ja muuta."
+      },
+      {
+        "tips": [
+          "Yllätysjuhlat: valitse kohdassa Tiedot. Juhlittavat poistetaan suunnittelusta, ja juhlat näkyvät kalenterissa vain suunnittelijoille, eivät keittiönäytöllä tai vieraslinkeissä.",
+          "Ketä juhlitaan ja ketkä suunnittelevat ovat kaksi eri valintaa. Juhlittavat saavat juhlat kalenteriinsa. Kohdassa Ketkä suunnittelevat valitut voivat avata ja muuttaa niitä, saavat muistutukset ja ovat keskusteluissa; muut perheessä eivät näe niitä juhlien joukossa. Näin vanhemmat voivat suunnitella lapsen juhlat tai kumppani yllätyksen.",
+          "Juhlilla voi olla kaksi keskustelua, jotka valitaan kohdassa Tiedot. Vieraiden keskustelu on heidän sivuillaan ja portaalissa, jossa he kirjoittavat toisilleen ja teille ennen juhlia ja niiden aikana, ja myös chat-sovelluksessanne. Suunnittelijoiden keskustelu on perheen aikuisille ja auttajille, eivätkä ne, joilta suunnitelma salataan, ole mukana.",
+          "Viestit ovat HTML:ää juhlien teemassa, vieraan omalla painikkeella, ja tavallisena tekstinä ohjelmille, jotka sitä haluavat. Merkitse päivä -viestiä ei lähetetä sähköpostilla, koska osoitteita ei vielä ole: kohdassa Lähetykset saat valmiin viestin linkkeineen jaettavaksi tekstiviestillä, WhatsAppilla, sähköpostilla tai sovelluksella. Ilmoittautuneet jättävät osoitteensa ja saavat kutsun sähköpostilla.",
+          "Kohdassa Vieraat voitte yhdistää vieraita, kuten pariskunnan, joka on ilmoittautunut erikseen. Kummallakin säilyy oma vastaus ja linkki, mutta ketään ei lasketa kahdesti, he eivät voi tuoda lisäseuralaista, he istuvat samassa pöydässä ja toinen voi vastata toisenkin puolesta. Sovellus kertoo, jos seuralainen on jo listalla, ja näyttää, montako voi enintään tulla.",
+          "Ottakaa mukaan toastmaster: kohdassa Tiedot Ulkopuoliset auttajat antaa henkilökohtaisen linkin ilman tiliä, ja se päättyy 1 päivä, 3 päivää tai 1 viikko juhlien jälkeen. He voivat tehdä kaiken näille juhlille paitsi poistaa ne, eivätkä näe muuta perheen tietoa. Uudessa vaiheessa, Suunnitelma, ovat puheet, tarjoilu, leikit ja muistiinpanot kellon mukaan, ja he valitsevat, keneltä se salataan: heille se on himmennetty.",
+          "Ilmoittautuminen on valinnainen sivu: ajastaan alkaen vieraiden linkki näyttää lähtölaskennan, ilmoittautumisen, tietonne ja peukun. Peukku alas ja valinnainen viesti muuttavat vastauksen, ja saatte tiedon heti. Ennen portaalin avautumista skannattu QR-koodi johtaa odotussivulle.",
+          "Kohdassa Lähetykset Viestit näyttää, mitä kukin viesti sanoo. Muuttakaa tekstiä, katsokaa miltä se näyttää ja suunnitelkaa lähetysaika.",
+          "Kohdassa Tiedot on myös ruoka, jonka vieraat valitsevat vastauksessaan, ilmoittautuminen puhujaksi ja käytännön tiedot. Kohdassa Budjetti keräätte palveluntarjoajat palvelimen haulla tai käsin, ja valittu menee budjettiin. Jokaisella tehtävällä voi olla vastuuhenkilö, joka saa muistutuksen. Tulostettavina on ohjelma, pöytälista ja paikkakortit.",
+          "Valitkaa juhlien sivut kohdassa Tiedot: kutsu ja vastaus ovat aina mukana, merkitse päivä, juhlaportaali ja kiitos ovat valinnaisia. Valitsematon ei näy kohdissa Ulkoasu tai Lähetykset, ja vieraiden linkki ohittaa sen.",
+          "Tuokaa vieraslista kohdassa Vieraat: Excel (.xlsx), CSV, tekstitiedosto tai liitetyt nimet. Kaikki kutsutaan omalla linkillään. Siellä on myös istumajärjestys: lisätkää pöydät ja valitkaa pöytä kullekin vieraalle; seurue istuu yhdessä ja paikat lasketaan.",
+          "Kirjoittakaa {vieras} julisteen tekstiin, niin henkilökohtaisen linkin vieras näkee oman etunimensä. Tekstiä ei näytetä niille, joilla nimeä ei ole, joten se sopii tervehdykseen: kutsu ja kiitos alkavat sellaisella.",
+          "Portaali on kohdassa Lähetykset: milloin se avautuu ja milloin QR-koodi ja linkki lakkaavat toimimasta – 3 tuntia juhlien jälkeen, ellette muuta, joten kukaan ei pääse sisään seuraavana aamuna. QR-koodin tulostus on tehtävä kohdassa Tehtävät, juhlien teeman mukaisella sivulla. Kytkekää taustagrafiikka päälle selaimen tulostusikkunassa, jotta värit tulevat mukaan.",
+          "Jokaisella sivulla on Esikatsele vieraana kohdassa Ulkoasu, tietokoneelle ja puhelimelle. Viimeinen vaihe, Juhlat, antaa viimeisen tarkistuslistan siitä, mitä on jäljellä – sitten vain pitämään hauskaa!",
+          "Kohdassa Vieraat kunkin vieraan linkkipainike kopioi henkilökohtaisen linkin vieraalle ja seurueelle lähetettäväksi tekstiviestillä tai haluamallanne tavalla. Linkin haltija voi vastata vieraan nimissä, joten lähettäkää se vain heille.",
+          "Jokainen juliste voi näyttää erilaiselta tietokoneella ja puhelimessa: valitse julisteen muokkaimessa Puhelin, niin muuttamasi järjestys, näkyvyys, tasaus ja koko koskevat vain puhelinta. Tekstit ja kuvat ovat yhteisiä, joten korjaus näkyy molemmissa. Ennen muutoksia puhelin seuraa tietokonetta. Leveät tabletit lasketaan tietokoneiksi, kapeat puhelimiksi.",
+          "Mallit (Ulkoasu → Mallit) asettavat kaikki julisteet ja ulkoasun kerralla: valmis Gaala tai omanne – tallentakaa mitkä tahansa juhlat mallina. Tai tehkää malli omalla tekoälyllä: kirjoittakaa toiveet, kopioikaa kehote haluamaanne tekoälyyn ja liittäkää vastaus takaisin. Näette mallin ennen käyttöä, sisään tulee vain se, minkä julisteet tuntevat (ei koodia, ei ulkopuolisia kuvia), ja kaikkea voi muuttaa jälkeenpäin. Mallin voi myös tallentaa tiedostona ja avata toisessa perheessä.",
+          "Yksi linkki alusta loppuun: tallenna päivä -sivulla vieraat rekisteröityvät nimellä ja sähköpostilla. Kutsuviesti antaa jokaiselle henkilökohtaisen linkin, jolla vastata. Kun he avaavat sen uudelleen, he näkevät vastauksensa ja voivat muuttaa sitä. Vastaamattomat saavat muistutuksen itsestään ennen viimeistä vastauspäivää (Lähetykset). Ulkoasu-kohdassa asettamastanne ajasta sama linkki avaa juhlaportaalin, ja Kiitos-kohdassa asettamananne aikana kiitos lähtee tulleille.",
+          "Yksi juhla, neljä sivua samassa teemassa, kullakin oma juliste (Juliste): ensin halutessanne merkitse päivä -sivu – vieraat tallentavat päivän ja jättävät sähköpostinsa ja saavat viestin, kun vaihdatte linkin kutsuun – sitten kutsu, juhlaportaali ja kiitos. Liitä Spotifyn yhteissoittolista, niin vieraat voivat toivoa kappaleita. Avaa juhlaportaali ja tulosta sen QR-koodi pöytiin: vieraat lataavat kuvansa suoraan Holvin albumiin ja näkevät päivän ohjelman.",
+          "Sovelluksessa on kuvakirjasto: taustat ja yläkuvat moniin teemoihin sekä tarroja – ilmapallot, diskopallo, rapu, ylioppilaslakki, sormukset, kurpitsa ja muuta – julisteeseen emojien tilalle (Juliste → koristerivi tai tunnus → Kirjasto).",
+          "Juliste-kohdassa teette kutsusivusta omannäköisen: lisää, siirrä ja poista sen osia (tekstit, kuvat, tunnus, koristerivi, milloin ja missä lippuna, korttina, listana tai isona päivämääränä, lähtölaskenta, kalenteripainikkeet, kutsu, nauha). Kirjoita jokainen teksti omalla kirjasimella, koolla, tasauksella ja värillä – {nimi}, {päivä} ja vastaavat täyttyvät itsestään. Vaihda emojit toisiin tai omiin kuviin ja valitse, mitkä kalenteripainikkeet vieraat saavat: kalenteritiedosto (se avaa Applen Kalenterin iPhonessa ja Macissa sekä useimmat muut), Google tai Outlook. Teeman juliste on aina yhden napautuksen päässä.",
+          "Päivää ei ole vielä sovittu: rastita Anna vieraiden äänestää päivästä ja lisää teille sopivat päivät. Vieraat rastittavat heille sopivat; Kutsu-kohdassa näette, kuinka monelle kukin päivä sopii, ja valitsette yhden – silloin juhlat lisätään kalenteriin, sille äänestäneet lasketaan tuleviksi ja päivityksiä pyytäneet saavat sähköpostin.",
+          "Valitse, mitä kukin vieras saa tuoda: ei ketään, +1 tai perheensä – silloin he lisäävät koko seurueen, jokaisen allergioineen ja tiedon, onko kyseessä lapsi. Illallinen, grilli-ilta tai ulkoilupäivä alkaa perheillä.",
+          "Valitse juhlien teema, joka on yhteinen kaikille sivuille – juhlaan sopivat ensin (ilmapallot, merirosvot ja dinosaurukset lastenjuhliin; disko, glitter, 80-luku ja samppanja juhliin; bistro, joulu ja rapujuhlat illalliselle; jalkapallo ja jääkiekko otteluun; grilli, polttopallo ja uimaranta ulos). Tai luo oma: värit, kuvio, emojit ja omat kuvat ylhäälle ja taustalle – tallessa myöhempää varten. Oman kuvan voi lisätä myös kutsuun.",
+          "Vieraat, jotka antavat sähköpostinsa ja pyytävät päivityksiä, saavat vahvistuksen, viestin jos aika tai paikka muuttuu, muistutuksen edellisenä päivänä ja kiitoksen – sekä viestit, jotka lähetätte kohdasta Vieraat. Se vaatii palvelimen sähköpostin, jonka ylläpitäjä asettaa kohdassa Palvelin → Osoite ja palvelut.",
+          "Juhlat lisätään kalenteriin itsestään – kaikille, joita ne koskevat (rastita yksi tai useampi perheestä), ja valitsette, kenen toivelista näkyy kutsussa.",
+          "Näytä toivelista: vieraat näkevät päivänsankarin toiveet ja merkitsevät, mitä ostavat; lahjan saaja ei koskaan näe kuka.",
+          "Jälkeenpäin, kohdassa Kiitos: kiitosteksti ja kuvat Holvin albumista samalle sivulle, joka vierailla jo on.",
+          "Vain aikuiset suunnittelevat juhlia – toivelistan varaukset näkyvät suunnittelussa."
+        ]
+      }
+    ]
+  },
+  "school": {
+    "title": "Koulu",
+    "summary": "Lasten koulupäivä InfoMentorista tai SchoolSoftista Home Assistantin kautta: koulukortti, koulun kalenterit ja viikkokirje.",
+    "blocks": [
+      {
+        "p": "Jos perhe on yhdistänyt Home Assistantin, lasten koulu voi tulla Smooth Familyyn yhteisön InfoMentor- ja SchoolSoft-integraatioiden kautta. Tänään-näkymän koulukortti näyttää kunkin lapsen koulupäivän, liikunnan seuraavana koulupäivänä, iltapäiväkerhon ajat, läksyt, poissaolot ja mitä seuraavaksi tapahtuu – ja viikkokirjeen, joka avautuu suoraan siinä. Koulun kalenterit – lukujärjestys, kokeet ja retket, iltapäiväkerho – tulevat kalenteriin lapsen kalentereina."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (suositeltu)",
+            "blocks": [
+              {
+                "steps": [
+                  "Avaa Home Assistantissa HACS → ⋮ → Mukautetut repositoriot, lisää https://github.com/c14ym0re/infomentor-homeassistant tyypillä Integraatio ja asenna InfoMentor.",
+                  "Käynnistä Home Assistant uudelleen.",
+                  "Asetukset → Laitteet ja palvelut → Lisää integraatio → InfoMentor. Kirjaudu BankID:llä (skannaa QR-koodi – toistaiseksi vain Tukholman kaupungille) tai sähköpostilla ja salasanalla, jos kunnallasi on yhä perinteinen InfoMentor-tili.",
+                  "Jokaisesta lapsesta tulee laite. Valitse lapsi Smooth Familyssa kohdassa Perheenjäsenet → lapsi → Koulu Home Assistantista."
+                ]
+              },
+              {
+                "note": "Se antaa koulupäivän, liikunnan, läksyt, viikkokirjeen, poissaolot, iltapäiväkerhon ajat, koulun kalenterin ja koulun uutiset – ja lounaan, jos annat koulun Mateo-yksikön. Toinen integraatio, https://github.com/chrfo892/ha-infomentor, antaa lukujärjestyksen, iltapäiväkerhon sisäänkirjautumisen ja lukemattomat ilmoitukset; se asennetaan samalla tavalla."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (lukujärjestys ja läsnäolo)",
+            "blocks": [
+              {
+                "steps": [
+                  "Lisää HACS → ⋮ → Mukautetut repositoriot -kohdassa https://github.com/chriseckl/Schoolsoft-for-Home-Assistant tyypillä Integraatio, asenna se ja käynnistä Home Assistant uudelleen.",
+                  "Asetukset → Laitteet ja palvelut → Lisää integraatio → SchoolSoft, ja kirjaudu huoltajan käyttäjätunnuksella ja salasanalla.",
+                  "Lisää se kerran lasta kohden ja valitse sitten kunkin lapsen tili Smooth Familyssa."
+                ]
+              },
+              {
+                "note": "Se antaa lukujärjestyksen kalenterina (tunnit merkitty poissaoloksi tai myöhästymiseksi), meneillään olevan ja seuraavan tunnin sekä päivän alun ja lopun. Ruokalistaa varten on https://github.com/kanylbullen/ha-schoolsoft – koulun nimi on sama kuin koulun SchoolSoft-osoitteessa."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "Uusi viikkokirje, tämän päivän poissaolo ja koulun uutiset lähetetään lapsen aikuisille ilmoituksina. Lapsen koulun näkevät lapsen aikuiset ja lapsi itse; keittiön näyttö näyttää vain koulupäivän, ei koskaan poissaoloja tai kirjeitä."
+      },
+      {
+        "tips": [
+          "Lisää Koulu-kortti Tänään-näkymään kohdasta Muokkaa – ja halutessanne Koulupäivä keittiön näytölle kohdassa Perheen asetukset → Keittiön näyttö.",
+          "Beta: integraatiot ovat pieniä, epävirallisia projekteja, ja niiden anturit tunnistetaan nimistä (englanniksi tai ruotsiksi). Jos jotain puuttuu, kerro meille, mitä antureita integraatiossanne on.",
+          "Koulun kalenterin voi lisätä myös käsin kalenteriasetuksissa osoitteella homeassistant://calendar.nimi.",
+          "Home Assistantin kalenterit vaativat suoran yhteyden – niitä ei voi lukea yhdyskäytävän kautta."
+        ]
+      }
+    ]
+  },
+  "health": {
+    "title": "Terveys",
+    "summary": "Liikuntasi sekä päivän askeleet, uni ja paino – yksityisesti tai perheen kanssa jaettuna.",
+    "blocks": [
+      {
+        "p": "Kirjaa liikunta muutamalla napautuksella – laji, minuutit ja halutessasi matka – sekä päivän askeleet, uni ja paino. Sivusi näyttää viimeiset neljä viikkoa: minuutit päivässä, treenisi ja montako päivää putkeen olet liikkunut."
+      },
+      {
+        "h": "Kuka sen näkee"
+      },
+      {
+        "p": "Kaikki on vain sinun, kunnes jaat sen, tieto kerrallaan: liikunta, askeleet, uni ja paino, kukin vain sinulle, aikuisille tai koko perheelle. Muut näkevät jakamasi viikon yhteenvedossa ylhäällä."
+      },
+      {
+        "steps": [
+          "Avaa Terveys valikosta.",
+          "Kirjaa liikunta tai päivän arvot.",
+          "Kohdassa Kuka näkee terveytesi valitset, mitä jaat ja kenelle."
+        ]
+      },
+      {
+        "h": "Yhdessä"
+      },
+      {
+        "p": "Aikuinen asettaa perheen tavoitteet – tunnit, kilometrit tai treenit kahden päivämäärän välillä, esimerkiksi 500 km yhdessä toukokuussa. Niihin lasketaan liikunta, jonka kukin jakaa perheen kanssa, ja ne näkyvät Terveys-osiossa, sunnuntaikatsauksessa ja keittiönäytöllä (viikon liikunta). Tehtävän voi tehdä liikkumalla: valitse vähintään niin monta minuuttia sinä päivänä, niin se kuittautuu itsestään, kun henkilön liikunta riittää – pisteineen kuten mikä tahansa tehtävä. Liikunnasta saa myös merkkejä."
+      },
+      {
+        "tips": [
+          "Aikuiset näkevät aina lapsen terveystiedot ja voivat täyttää niitä – vanhempi voi kirjata jalkapallotreenit.",
+          "Lapsen painoa ei tallenneta, eikä painoa koskaan verrata: se ei näy yhteenvedossa.",
+          "Lataa omat tietosi tiedostona tai poista kaikki sivusi alalaidasta."
+        ]
+      },
+      {
+        "h": "Home Assistantista"
+      },
+      {
+        "p": "Jos perhe on yhdistänyt Home Assistantin, askeleet, uni, paino ja leposyke voidaan hakea kunkin omilta tileiltä: puhelin Companion-sovelluksella, Withings-käyttäjä, Google Health, Garmin ja muut. Perheen ylläpitäjä yhdistää tilit kohdassa Perheen asetukset → Perheenjäsenet → henkilö; henkilö ottaa sitten profiilissaan käyttöön Hae terveystietoni Home Assistantista – mitään ei haeta ennen sitä. Lapselle aikuinen ottaa sen käyttöön lapsen sivulla. Ne luetaan 15 minuutin välein ja kun painat Hae nyt, ja ne tallennetaan päivälle, jota ne koskevat; itse syöttämäsi arvo voittaa aina, eikä lapsen painoa koskaan lueta."
+      },
+      {
+        "tips": [
+          "Yksi tili per henkilö Home Assistantissa: lisää Withingsin, Garminin tai Google Healthin integraatio kerran kullekin omalla kirjautumisella – ja Companion-sovellus jokaiseen puhelimeen.",
+          "Askeleet ja uni puhelimesta: asenna Home Assistantin Companion-sovellus ja ota sen anturit käyttöön – Androidissa Health Connect -anturit (askeleet, uni, syke, paino …), iPhonessa askelmittari (askeleet).",
+          "Vaaka tai kello: Withingsillä on oma integraatio Home Assistantissa; Garmin, Fitbit, Oura ja muut löytyvät yhteisön integraatioina (HACS).",
+          "Treenit (beta): Withingsin treenikalenterista tai integraation viimeisimpien aktiviteettien anturista, kuten Garmin Connect tai Strava – viimeiset kaksi viikkoa, jokainen treeni kerran, myös jos se on jo kirjattu tänne käsin."
         ]
       }
     ]
@@ -500,7 +709,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Viivakoodien haun voi ottaa käyttöön kohdassa Perheen asetukset → Jakaminen ja yhteydet; vain viivakoodi lähetetään.",
+          "Viivakoodien haun voi ottaa käyttöön kohdassa Perheen asetukset → Yhteydet; vain viivakoodi lähetetään.",
           "Paikallisen tekoälyn lukema kuitti voi myös täyttää ruokakomeron."
         ]
       }
@@ -543,9 +752,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Tehtävä voi toistua joka arkipäivä (maanantai–perjantai, jotka eivät ole pyhäpäiviä) tai joka viikonloppu- ja pyhäpäivä – koiran ulkoilutus, kissan ruokinta. Pyhäpäivät seuraavat perheen maata, joten joulu, pääsiäinen ja juhannusaatto lasketaan viikonlopuksi itsestään.",
+          "Mikä tahansa aikataulu: joka päivä tai joka toinen päivä, valitut viikonpäivät (arkipäivät, viikonloppu), muutaman viikon välein, kuukauden päivämäärä tai viikonpäivä (ensimmäinen lauantai), muutaman kuukauden välein, kerran vuodessa – pisteineen. Lemmikeillä, kodilla ja ajoneuvoilla on toistuvat tehtävänsä samoin valinnoin.",
           "Lapset voivat ehdottaa tehtäviä; aikuinen tekee niistä tehtäviä tai kieltäytyy.",
           "Pisteet menevät kauppaan ja viikkorahaan – katso niiden aiheet.",
-          "Tehtävä, jonka useampi voi tehdä yhdessä, jakaa pisteensä tekijöiden kesken: valitse ketkä, kun se kuitataan."
+          "Tehtävä, jonka useampi voi tehdä yhdessä, jakaa pisteensä tekijöiden kesken: valitse ketkä, kun se kuitataan.",
+          "Kun poistat tehtävän, jo ansaitut pisteet – ja kerrat, jolloin se tehtiin – säilyvät."
         ]
       }
     ]
@@ -704,7 +916,7 @@ const texts: Record<string, TopicText> = {
         "h": "Lapsenvahti tai isovanhemmat"
       },
       {
-        "p": "Tee vieraslinkki kohdassa Perheen asetukset → Jakaminen ja yhteydet: se näyttää hätäkortit sekä valitsemasi osat kalenterista ja listoista muutaman tunnin tai päivän ajan – sitten se lakkaa itsestään."
+        "p": "Tee vieraslinkki kohdassa Perheen asetukset → Perheenjäsenet: se näyttää hätäkortit sekä valitsemasi osat kalenterista ja listoista muutaman tunnin tai päivän ajan – sitten se lakkaa itsestään."
       },
       {
         "h": "Lääkkeet"
@@ -762,6 +974,16 @@ const texts: Record<string, TopicText> = {
           "Budjetti luokittain ja kuukausittain muuttuu punaiseksi, kun se ylittyy.",
           "Merkinnät voivat olla yksityisiä, jolloin vain sinä näet ne."
         ]
+      },
+      {
+        "h": "Tilaukset"
+      },
+      {
+        "p": "Kohdassa Koti → Tilaukset kokoatte kaiken, mitä kotitalous maksaa säännöllisesti, ja mitä se maksaa kuukaudessa ja vuodessa. Tilaus voi viitata holvin kirjautumiseen, olemassa olevaan tai tässä luomaasi uuteen, ja sen näkemään oikeutettu voi kopioida salasanan tästä; holvin säännöt pätevät tavalliseen tapaan. Pankkituonnin jälkeen toistuvia maksuja ehdotetaan tässä, ja vain sinä näet tiedostosi ehdotukset: lisää ne tai kerro, etteivät ne ole tilauksia, eivätkä hylätyt palaa. Myöhempi tiedosto kertoo uudesta hinnasta tai maksusta lopetetulle tilaukselle. Tämä on yleiskatsaus, joten mitään ei lisätä Talouden summiin. Kohdassa Muistutukset jokainen aikuinen valitsee itse: viimeinen irtisanomispäivä (14 ja 2 päivää ennen) sekä neljännesvuosi- ja vuosimaksut (7 päivää ennen). Kuukausimaksuista ei muistuteta."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Mitä ne maksavat, ja kirjautuminen holvista."
       }
     ]
   },
@@ -797,6 +1019,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "Lemmikki hoitoineen."
+      },
+      {
+        "tips": [
+          "Tehtävä voi toistua joka arkipäivä (maanantai–perjantai, jotka eivät ole pyhäpäiviä) tai joka viikonloppu- ja pyhäpäivä – koiran ulkoilutus, kissan ruokinta. Pyhäpäivät seuraavat perheen maata, joten joulu, pääsiäinen ja juhannusaatto lasketaan viikonlopuksi itsestään."
+        ]
       }
     ]
   },
@@ -841,7 +1068,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "Home Assistantissa: profiilisi → Turvallisuus → Pitkäaikaiset käyttötunnukset → Luo tunnus. Kopioi se.",
-          "Smooth Familyssa: Perheen asetukset → Jakaminen ja yhteydet → Älykoti.",
+          "Smooth Familyssa: Perheen asetukset → Yhteydet → Älykoti.",
           "Kirjoita osoite, esim. http://homeassistant.local:8123, ja tunnus ja napauta Yhdistä.",
           "Lisää näytettävät laitteet ja liitä koti oikeaan asuntoon."
         ]
@@ -872,7 +1099,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Tee parikoodi"
       },
       {
-        "p": "Perheen asetukset → Jakaminen ja yhteydet → Älykoti → Lisää koti lisäosan kautta. Anna sille nimi ja valitse asunto; kahdeksanmerkkinen koodi on voimassa 24 tuntia."
+        "p": "Perheen asetukset → Yhteydet → Älykoti → Lisää koti lisäosan kautta. Anna sille nimi ja valitse asunto; kahdeksanmerkkinen koodi on voimassa 24 tuntia."
       },
       {
         "shot": "gateway",
@@ -975,6 +1202,9 @@ const texts: Record<string, TopicText> = {
         "p": "Valitsemiesi minuuttien jälkeen tulee näytönsäästäjä: perheen kuvat, läppäkello, rauhallinen kello ja sää, pimeä näyttö – tai kettu, joka näyttää ulkona olevan sään. Se lukee harmaina päivinä, lennättää leijaa pilvien ohittaessa, pitää sateenvarjoa sateessa, rakentaa lumiukon lumisateessa ja nukkuu yöllä, ja päivän avoimet tehtävät näkyvät järven yllä. Napautus herättää näytön."
       },
       {
+        "p": "Muutaman minuutin välein kettu tekee jotain pientä säähän sopivaa – hyppää, loiskii lätäkössä, heittää lumipallon, katsoo tähdenlentoa – ja joskus jänis loikkii ohi tai kala hyppää järvessä. Se pukeutuu halloweeniksi, jouluksi, uudeksivuodeksi, pääsiäiseksi ja juhannukseksi, ja syntymäpäivänä (Syntymäpäivät-kohdan henkilöt) se saa ilmapalloja, juhlahatun ja banderollin nimellä. Juhlapyhät seuraavat perheen maata; asun voi kytkeä pois näyttökohtaisesti näytönsäästäjän alta. Kun tabletissa on vähennetty liike, kettu pysyy paikallaan."
+      },
+      {
         "steps": [
           "Perheen asetukset → Keittiön näyttö → Yhdistä näyttö.",
           "Avaa linkki tabletilla (tai skannaa QR-koodi) ja lisää se aloitusnäytölle.",
@@ -1048,7 +1278,7 @@ const texts: Record<string, TopicText> = {
         "h": "Mitä missäkin"
       },
       {
-        "p": "Perheenjäsenet: kaikki, jokaisella oma sivunsa (kirjautuminen, sovellukset, kieli, kuva – ja lapselta syntymäpäivä, viikkoraha, Pikkutila, kaksi kotia, lääkkeet ja hätäkortti), sekä muut ihmiset ilman tiliä syntymäpäiviä varten. Arki: kalenterit, koti, Tänään-näkymän lähteet, pistesäännöt, kotitalouden hätäkortti ja lemmikkien lääkkeet. Keittiön näyttö. Jakaminen ja yhteydet: vieraslinkit, älykoti ja paikallinen tekoäly. Turvallisuus ja tiedot: varmuuskopiot ja vienti."
+        "p": "Perheenjäsenet: kaikki, jokaisella oma sivunsa (kirjautuminen, sovellukset, kieli, kuva – ja lapselta syntymäpäivä, viikkoraha, Pikkutila, kaksi kotia, lääkkeet ja hätäkortti), muut ihmiset ilman tiliä syntymäpäiviä varten sekä vieraslinkit lapsenvahdille tai isovanhemmille. Arki: kalenterit, koti, Tänään-näkymän lähteet, pistesäännöt, kotitalouden hätäkortti ja lemmikkien lääkkeet. Keittiön näyttö. Yhteydet: älykoti ja paikallinen tekoäly. Turvallisuus ja tiedot: varmuuskopiot ja vienti."
       },
       {
         "tips": [
@@ -1064,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Vienti, perheen oma avain ja perheen siirtäminen.",
     "blocks": [
       {
-        "p": "Kohdassa Perheen asetukset → Turvallisuus ja tiedot ylläpitäjä voi viedä perheen tiedot ja toisten ylläpitämällä palvelimella valita perheelle oman varmuuskopioavaimen: perheen varmuuskopiot sinetöidään silloin niin, että vain te voitte avata ne – ei edes palvelimen ylläpitäjä."
+        "p": "Kohdassa Perheen asetukset → Turvallisuus ja tiedot ylläpitäjä voi viedä perheen tiedot ja toisten ylläpitämällä palvelimella valita perheelle oman varmuuskopioavaimen: perheen varmuuskopiot sinetöidään silloin niin, että vain te voitte avata ne – ei edes palvelimen ylläpitäjä. Vienti sisältää sen, mitä itse saat nähdä sovelluksessa: toisen aikuisen yksityiset asiakirjat, lääkkeet, jakamaton terveys ja keskustelut, joissa et ole mukana, jäävät pois."
       },
       {
         "shot": "familydata",
@@ -1160,7 +1390,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Palvelimen osoite, hakukone, paikallinen tekoäly ja muut palvelut.",
     "blocks": [
       {
-        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan."
+        "p": "Osoite ja palvelut sisältää osoitteen, josta palvelin tavoitetaan – sitä käytetään kaikissa lähetettävissä linkeissä – resepti- ja verkkohaun (SearXNG palvelimella itsellään), Home Assistantin palvelimen perheille yhdyskäytävän kautta, GIFit chatissa ja palautteen lähettämisen. Tekoälykone asettaa, missä Ollama toimii, mitä malleja käytetään, sekä tietokoneen herätyksen ja lepotilan. Sähköposti ottaa käyttöön sähköpostipalvelut – Gmail sovellussalasanalla, Brevo oman verkkotunnuksen osoitteelle, Exchange Online Microsoft Entran sovellusrekisteröinnin kautta tai muu SMTP-palvelin – ja valitsee, millä perheenne lähettää ja saavatko isännöidyt perheet lähettää sähköpostia (juhlavieraille, jotka pyysivät päivityksiä). Osoitteet ottaa käyttöön OpenStreetMapin ehdotukset osoitekentissä (komootin Photonin tai oman kautta) – tai poistaa ne."
       },
       {
         "shot": "serverservices",

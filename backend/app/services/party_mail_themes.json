@@ -1,0 +1,308 @@
+{
+ "balloons": {
+  "accent": "#e0436a",
+  "bg": "#ffd1dc",
+  "font": "playful",
+  "header": "/party-assets/balloons-header.jpg",
+  "ink": "#3b2430",
+  "muted": "#7a5a66",
+  "surface": "#fff9fa"
+ },
+ "bbq": {
+  "accent": "#ff7a1a",
+  "bg": "#f28c28",
+  "font": "sporty",
+  "header": "/party-assets/bbq-header.jpg",
+  "ink": "#fff4e6",
+  "muted": "#e0bfa0",
+  "surface": "#391c09"
+ },
+ "beach": {
+  "accent": "#0089b8",
+  "bg": "#7fd3f5",
+  "font": "playful",
+  "header": "/party-assets/beach-header.jpg",
+  "ink": "#10324a",
+  "muted": "#4a6a80",
+  "surface": "#edf9fe"
+ },
+ "bistro": {
+  "accent": "#9e2121",
+  "bg": "#fff9f2",
+  "font": "classic",
+  "header": null,
+  "ink": "#2a1410",
+  "muted": "#6b4a40",
+  "surface": "#fffbf5"
+ },
+ "brannboll": {
+  "accent": "#2f855a",
+  "bg": "#bfe6ff",
+  "font": "playful",
+  "header": null,
+  "ink": "#163020",
+  "muted": "#4a6450",
+  "surface": "#f6fcff"
+ },
+ "champagne": {
+  "accent": "#a67c3d",
+  "bg": "#fff8ea",
+  "font": "gala",
+  "header": null,
+  "ink": "#3a2a12",
+  "muted": "#7a6440",
+  "surface": "#fffefc"
+ },
+ "christmas": {
+  "accent": "#e3b04b",
+  "bg": "#1d5e3c",
+  "font": "classic",
+  "header": "/party-assets/christmas-header.jpg",
+  "ink": "#fff7ed",
+  "muted": "#d6c7a8",
+  "surface": "#0c2d1d"
+ },
+ "crayfish": {
+  "accent": "#ff5a4a",
+  "bg": "#2a3f8a",
+  "font": "classic",
+  "header": "/party-assets/crayfish-header.jpg",
+  "ink": "#fff7ed",
+  "muted": "#c9cbe0",
+  "surface": "#111c40"
+ },
+ "dinosaur": {
+  "accent": "#e06d1f",
+  "bg": "#d9f2b4",
+  "font": "playful",
+  "header": null,
+  "ink": "#2c2410",
+  "muted": "#6b5f3a",
+  "surface": "#fafdf4"
+ },
+ "disco": {
+  "accent": "#ff3cc7",
+  "bg": "#b03cff",
+  "font": "retro",
+  "header": "/party-assets/disco-header.jpg",
+  "ink": "#fff3ff",
+  "muted": "#d8b9e8",
+  "surface": "#320e50"
+ },
+ "eighties": {
+  "accent": "#00e5ff",
+  "bg": "#1a0636",
+  "font": "retro",
+  "header": null,
+  "ink": "#fff6ff",
+  "muted": "#e9c3e8",
+  "surface": "#210839"
+ },
+ "elegant": {
+  "accent": "#8a6a3a",
+  "bg": "#fbf7ef",
+  "font": "classic",
+  "header": null,
+  "ink": "#2b2620",
+  "muted": "#6e6354",
+  "surface": "#fffcf7"
+ },
+ "fairytale": {
+  "accent": "#9c6ad8",
+  "bg": "#f1dcff",
+  "font": "classic",
+  "header": null,
+  "ink": "#3a2647",
+  "muted": "#7b5f8c",
+  "surface": "#fdfaff"
+ },
+ "football": {
+  "accent": "#ffd60a",
+  "bg": "#2f8f3a",
+  "font": "sporty",
+  "header": "/party-assets/football-header.jpg",
+  "ink": "#ffffff",
+  "muted": "#cfe8d2",
+  "surface": "#103a1a"
+ },
+ "garden": {
+  "accent": "#d9658a",
+  "bg": "#fdf3df",
+  "font": "classic",
+  "header": null,
+  "ink": "#33281f",
+  "muted": "#6e6051",
+  "surface": "#fffdfb"
+ },
+ "glamour": {
+  "accent": "#d9a94a",
+  "bg": "#2a2214",
+  "font": "gala",
+  "header": "/party-assets/glamour-header.jpg",
+  "ink": "#f3ead8",
+  "muted": "#b9ab8e",
+  "surface": "#19140e"
+ },
+ "glitter": {
+  "accent": "#c08a10",
+  "bg": "#fff2d6",
+  "font": "gala",
+  "header": null,
+  "ink": "#3d2a08",
+  "muted": "#7a6435",
+  "surface": "#fffdf9"
+ },
+ "halloween": {
+  "accent": "#ff8a1f",
+  "bg": "#3b1a63",
+  "font": "retro",
+  "header": "/party-assets/halloween-header.jpg",
+  "ink": "#fff3e0",
+  "muted": "#cdb8e0",
+  "surface": "#160a2a"
+ },
+ "hockey": {
+  "accent": "#1565c0",
+  "bg": "#eaf6ff",
+  "font": "sporty",
+  "header": null,
+  "ink": "#0d2236",
+  "muted": "#4a6176",
+  "surface": "#fcfeff"
+ },
+ "jungle": {
+  "accent": "#f2c14e",
+  "bg": "#3f7a3a",
+  "font": "playful",
+  "header": "/party-assets/jungle-header.jpg",
+  "ink": "#f7f3dc",
+  "muted": "#c9d3ad",
+  "surface": "#17371e"
+ },
+ "midsummer": {
+  "accent": "#2b6cb0",
+  "bg": "#fffbd1",
+  "font": "classic",
+  "header": null,
+  "ink": "#1e3320",
+  "muted": "#55704f",
+  "surface": "#fffef9"
+ },
+ "neon": {
+  "accent": "#ff3cac",
+  "bg": "#2a0845",
+  "font": "retro",
+  "header": null,
+  "ink": "#f3e9ff",
+  "muted": "#b9a6d6",
+  "surface": "#100325"
+ },
+ "newyear": {
+  "accent": "#e8c45c",
+  "bg": "#1d2a6b",
+  "font": "gala",
+  "header": "/party-assets/newyear-header.jpg",
+  "ink": "#f4f2ff",
+  "muted": "#b9bde0",
+  "surface": "#060b26"
+ },
+ "nineties": {
+  "accent": "#7b2ff7",
+  "bg": "#c2fff4",
+  "font": "retro",
+  "header": null,
+  "ink": "#1c1440",
+  "muted": "#4d4570",
+  "surface": "#f6fffd"
+ },
+ "ocean": {
+  "accent": "#0b84b8",
+  "bg": "#bfeaf8",
+  "font": "playful",
+  "header": null,
+  "ink": "#0f3550",
+  "muted": "#47708a",
+  "surface": "#f6fcfe"
+ },
+ "picnic": {
+  "accent": "#c53030",
+  "bg": "#fffaf0",
+  "font": "playful",
+  "header": null,
+  "ink": "#2a1a14",
+  "muted": "#6a5148",
+  "surface": "#fffcf6"
+ },
+ "pirate": {
+  "accent": "#e0b250",
+  "bg": "#0e2233",
+  "font": "playful",
+  "header": null,
+  "ink": "#fbeed3",
+  "muted": "#d2c09c",
+  "surface": "#0e2233"
+ },
+ "space": {
+  "accent": "#8b7bff",
+  "bg": "#4b3fa8",
+  "font": "playful",
+  "header": "/party-assets/space-header.jpg",
+  "ink": "#eef0ff",
+  "muted": "#aeb3e0",
+  "surface": "#181a44"
+ },
+ "sports": {
+  "accent": "#2e8b57",
+  "bg": "#eaf7ec",
+  "font": "sporty",
+  "header": null,
+  "ink": "#1d2b22",
+  "muted": "#4f6356",
+  "surface": "#fcfefc"
+ },
+ "student": {
+  "accent": "#ffd23f",
+  "bg": "#0b5fb4",
+  "font": "gala",
+  "header": "/party-assets/student-header.jpg",
+  "ink": "#ffffff",
+  "muted": "#cfe0f5",
+  "surface": "#082f60"
+ },
+ "superhero": {
+  "accent": "#d32f2f",
+  "bg": "#fff7c2",
+  "font": "retro",
+  "header": null,
+  "ink": "#1a1f3d",
+  "muted": "#4b5077",
+  "surface": "#fffef6"
+ },
+ "techno": {
+  "accent": "#00ff9d",
+  "bg": "#000000",
+  "font": "sporty",
+  "header": null,
+  "ink": "#e6fff5",
+  "muted": "#8fcfb4",
+  "surface": "#040e0a"
+ },
+ "unicorn": {
+  "accent": "#d14ea3",
+  "bg": "#ffd6f0",
+  "font": "playful",
+  "header": null,
+  "ink": "#4a2550",
+  "muted": "#80608a",
+  "surface": "#fff9fd"
+ },
+ "wedding": {
+  "accent": "#a8875a",
+  "bg": "#fbf7f2",
+  "font": "classic",
+  "header": "/party-assets/wedding-header.jpg",
+  "ink": "#3a2f28",
+  "muted": "#7a6b5e",
+  "surface": "#fffcf9"
+ }
+}

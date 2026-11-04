@@ -159,6 +159,9 @@ PINS="$DATA_DIR/updates/pins"
 if [ -f "$PINS" ] && grep -Eq '^(backend|frontend)=' "$PINS"; then
 	grep -Ev '^(backend|frontend)=' "$PINS" > "$PINS.tmp" || true
 	mv "$PINS.tmp" "$PINS"
+	# Only lines that fit (the folder is the app's): the same rule as update.sh.
+	grep -E '^(db=postgres|redis=redis|caddy=caddy|searxng=searxng/searxng):[A-Za-z0-9._-]{1,64}$|^(backend|frontend)=ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64}$' "$PINS" > "$PINS.tmp" 2> /dev/null || true
+	mv "$PINS.tmp" "$PINS"
 	{
 		echo "# Written by update.sh (Server settings → Updates) – the versions in use."
 		echo 'version: "2.4"'

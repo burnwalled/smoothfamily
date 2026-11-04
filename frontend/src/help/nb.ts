@@ -147,6 +147,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Avganger: legg til et kort per holdeplass under Legg til widget – SL i Stockholm, eller en annen kilde for hele Sverige, Norge, Finland, Danmark eller London (noen trenger en nøkkel som serveradministratoren legger inn under Server → Adresse og tjenester).",
           "Kortenes kilder – stedet for været, søppeltømmingens kalender og skolen – stilles inn under Familieinnstillinger → Hverdagen.",
           "Et kort for en app du ikke kan bruke, vises ikke."
         ]
@@ -174,7 +175,7 @@ const texts: Record<string, TopicText> = {
         "h": "Hvem kjører, og hva skal pakkes"
       },
       {
-        "p": "Trykk på Kjøring og pakking ved en hendelse – i kalenderen eller på søndagsmøtet – for å si at skyss trengs og ta levering eller henting. Gi den en pakkeliste: den samme listen kommer tilbake for hver hendelse med samme tittel, som hver fotballtrening, og krysses av for hver gang. En voksen kan velge dagen det er tid for å pakke, og den som skal dit, får en oppgave den dagen."
+        "p": "Trykk på Kjøring og pakking ved en hendelse – i kalenderen eller på søndagsmøtet – for å si at skyss trengs og ta levering eller henting – eller, med Noen andre, skrive hvem utenfor familien som kjører, for eksempel en lagkamerats forelder. Gi den en pakkeliste: den samme listen kommer tilbake for hver hendelse med samme tittel, som hver fotballtrening, og krysses av for hver gang. En voksen kan velge dagen det er tid for å pakke, og den som skal dit, får en oppgave den dagen."
       },
       {
         "shot": "calendar-month",
@@ -253,6 +254,37 @@ const texts: Record<string, TopicText> = {
             ]
           },
           {
+            "title": "MyClub (klubbens og lagets kalender)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne klubbens nettsted på MyClub (klubbnavn.myclub.se) og gå til lagets kalender, eller siden om å abonnere på kalenderen.",
+                  "Kopier abonnementslenken. Et lags ser ut som webcal://calendar.myclub.se/public/teams/12345/calendar.ics – hele klubbens har /public/clubs/ i stedet.",
+                  "Lim inn lenken i Smooth Family."
+                ]
+              },
+              {
+                "note": "Finner du ikke lenken? Be laglederen om kalenderens abonnementslenke – det er den samme klubben gir for iPhone og Google. Legg til ett abonnement per lag, gi hvert sin egen farge og velg barnet det gjelder."
+              }
+            ]
+          },
+          {
+            "title": "laget.se (klubbens og lagets kalender)",
+            "blocks": [
+              {
+                "steps": [
+                  "Åpne lagets side på laget.se, for eksempel laget.se/Lagnavn.",
+                  "Gå til Kalender og klikk på Prenumerera (abonner) under kalenderen.",
+                  "Kopier lenken. Den ser ut som webcal://cal.laget.se/Lagnavn.ics – samme navn som i lagets laget.se-adresse.",
+                  "Lim inn lenken i Smooth Family."
+                ]
+              },
+              {
+                "note": "Kalenderen fra laget.se viser én måned bakover og seks måneder fremover. Legg til ett abonnement per lag, gi hvert sin egen farge og velg barnet det gjelder."
+              }
+            ]
+          },
+          {
             "title": "Legg til lenken i Smooth Family",
             "blocks": [
               {
@@ -284,6 +316,12 @@ const texts: Record<string, TopicText> = {
           "Kalendere dere abonnerer på kan bare leses og oppdateres hvert 15. minutt.",
           "Din egen kalender kan legges inn på telefonen med abonnementslenken under Min profil."
         ]
+      },
+      {
+        "h": "Røde dager"
+      },
+      {
+        "p": "Landets helligdager vises i kalenderen som røde dager, og aftenene som fungerer som helligdager (julaften, nyttårsaften …) i en lysere rød. Velg land – eller slå av – under Familieinnstillinger → Hverdagen. For et annet land legger du til en offentlig helligdagskalender som abonnement."
       }
     ]
   },
@@ -308,6 +346,177 @@ const texts: Record<string, TopicText> = {
         "tips": [
           "Kvelden før avreise påminnes alle som skal, om det som gjenstår å pakke og sjekke.",
           "Barna ser og pakker sine egne ting; de voksne planlegger resten."
+        ]
+      }
+    ]
+  },
+  "parties": {
+    "title": "Selskap",
+    "summary": "Planlegg et selskap sammen – én invitasjonsside for gjestene, og sjekklisten, budsjettet og tidsplanen for dere.",
+    "blocks": [
+      {
+        "p": "Under Kalender → Fest planlegger du en barnebursdag, en fest, en middag, en kampkveld, en grillkveld eller en dag utendørs. Gjestene får én felles side – uten konto – først en sett av datoen om dere vil, så invitasjonen der de svarer med navn, allergier og hvem de tar med så langt dere tillater, på dagen portalen for bildene deres, og etterpå takken. De kan endre svaret senere. Dere velger hva de ser av hverandre: ingenting, hvor mange som kommer eller navnene."
+      },
+      {
+        "shot": "parties",
+        "caption": "Festens åtte trinn – her Design, som begynner med malene."
+      },
+      {
+        "steps": [
+          "Kalender → Fest → Ny fest: navnet, typen, hvem festen er for, tiden og stedet – så tar festen deg gjennom sju trinn.",
+          "1 Detaljer · 2 Design: maler og utseende (tema og bilde), sett av datoen, invitasjonen, festportalen og takken, hver med sin egen plakat · 3 Gjester: hvem som kommer, allergier, e-postadresser – og deres egen liste over inviterte.",
+          "4 Gjøremål – før, under og etter festen · 5 Budsjett · 6 Program, med punkter dere kan skjule for gjestene · 7 Utsendelser: e-post til sin tid (med serverens e-post), eller lenkene å dele selv."
+        ]
+      },
+      {
+        "shot": "partyinvite",
+        "caption": "Gjestenes invitasjon: plakaten i festens tema, detaljene, kalenderknappene og svaret."
+      },
+      {
+        "h": "Planleggingen"
+      },
+      {
+        "p": "En ny fest starter med en sjekkliste for sin type – før, under og etter festen – med datoer; hver morgen noe skal gjøres, blir de voksne påminnet. Endre den som dere vil. Budsjettet holder oversikt over hva som er brukt mot det planlagte, og programmet over dagens tider (en barnebursdag starter med ett) – et punkt kan skjules for gjestene i portalen."
+      },
+      {
+        "shot": "partyportal",
+        "caption": "Festportalen via QR-koden: gjestenes bilder, dagens program og mer."
+      },
+      {
+        "tips": [
+          "Overraskelsesfest: kryss av under Detaljer. De som feires, tas ut av planleggingen, og festen er bare i kalenderen for dem som planlegger, ikke på kjøkkenskjermen eller i gjestelenker.",
+          "Hvem som feires og hvem som planlegger, er to valg. De som feires, får festen i kalenderen. De som er krysset av under Hvem planlegger, kan åpne og endre den, får påminnelsene og er med i chattene; de andre i familien ser den ikke blant festene. Slik kan foreldre planlegge et barns bursdag, eller en partner en overraskelse.",
+          "En fest kan ha to chatter, som velges under Detaljer. Gjestechatten er på sidene deres og i portalen, der de skriver til hverandre og dere før og under festen, og også i chat-appen deres. Planleggingschatten er for familiens voksne og hjelperne, og de planen holdes hemmelig for, er ikke med.",
+          "E-postene er HTML i festens tema, med gjestens egen knapp, og vanlig tekst til programmer som vil ha det. Spar datoen sendes ikke på e-post, siden du ikke har adressene ennå: under Utsendelser får du en ferdig melding med lenken, som kan deles med sms, WhatsApp, e-post eller en app. De som melder seg på, legger igjen adressen og får invitasjonen på e-post.",
+          "Under Gjester kan dere koble sammen gjester, for eksempel et par som begge har registrert seg. Begge beholder sitt eget svar og sin lenke, men ingen telles dobbelt, de kan ikke ta med enda en +1, de havner ved samme bord, og den ene kan svare for den andre. Appen sier fra når noens +1 allerede står på listen, og viser hvor mange som høyst kan komme.",
+          "Ta inn en toastmaster: under Detaljer gir Eksterne hjelpere noen en personlig lenke, uten konto, som slutter å gjelde 1 dag, 3 dager eller 1 uke etter festen. De kan gjøre alt for festen unntatt å fjerne den, og ser ingenting annet av familiens. Et nytt trinn, Planlegging, har taler, servering, leker og notater etter klokken, og de velger hvem det holdes hemmelig for: for dem er det gråtonet.",
+          "Innsjekk er en valgfri side: fra sin tid viser gjestenes lenke nedtelling, at de er påmeldt, informasjonen deres og tommel opp eller ned. Tommel ned, med en valgfri melding, endrer svaret, og dere får vite det med en gang. En QR-kode som skannes før portalen åpner, fører til en venteside.",
+          "Under Utsendelser viser E-postene hva hver e-post sier. Endre teksten, se hvordan det ser ut og planlegg når den går.",
+          "Under Detaljer finnes også maten, der gjestene velger med svaret, påmelding til tale og praktisk info. Under Budsjett samler dere leverandører, via serverens søk eller for hånd, og den dere velger, havner i budsjettet. Hver oppgave kan ha en ansvarlig, som får påminnelsen. Det finnes kjøreplan, bordliste og bordkort å skrive ut.",
+          "Velg festens sider under Detaljer: invitasjonen med svar er alltid med, spar datoen, festportalen og takken velger dere selv. Det som ikke er valgt, vises ikke under Design eller Utsendelser, og gjestenes lenke hopper over det.",
+          "Importer gjesteliste under Gjester: Excel (.xlsx), CSV, en tekstfil eller innlimte navn. Alle blir invitert med sin egen lenke. Der finnes også bordplasseringen: legg til bordene og velg bord for hver gjest; følget sitter sammen og plassene telles.",
+          "Skriv {gjest} i en tekst på plakaten, så ser en gjest med personlig lenke sitt eget fornavn. En tekst med feltet vises ikke for dem uten navn, så det passer til en hilsen: invitasjonen og takken begynner med en.",
+          "Portalen ligger under Utsendelser: når den åpnes og når QR-koden og lenken slutter å gjelde – 3 timer etter festen om dere ikke endrer, så ingen kommer inn morgenen etter. Å skrive ut QR-koden er en oppgave under Å gjøre, på en side i festens tema. Slå på bakgrunnsgrafikk i nettleserens utskriftsvindu for å få med fargene.",
+          "Hver side har Forhåndsvis som gjest under Design, for datamaskin og mobil. Siste trinn, Festen, gir en siste sjekkliste over hva som gjenstår – så er det bare å ha det gøy!",
+          "Under Gjester kopierer lenkeknappen ved hver gjest den personlige lenken til gjesten og følget, til å sende med sms eller hvordan dere vil. Den som har lenken, kan svare som gjesten, så send den bare til dem.",
+          "Hver plakat kan se ulik ut på datamaskin og mobil: velg Mobil i plakateditoren, så gjelder rekkefølgen, det som vises, justeringen og størrelsen du endrer, bare på mobil. Tekster og bilder deles, så en retting vises på begge. Til du endrer noe, følger mobilen datamaskinen. Brede nettbrett regnes som datamaskin, smale som mobil.",
+          "Maler (Design → Maler) setter alle plakatene og utseendet på én gang: den innebygde Gala eller deres egne – lagre hvilken som helst fest som mal. Eller lag en med egen AI: skriv ønskene, kopier prompten til valgfri AI og lim inn svaret. Dere ser malen før den brukes, bare det plakatene kjenner til kommer inn (ingen kode, ingen bilder utenfra), og alt kan endres etterpå. En mal kan også lagres som fil og åpnes av en annen familie.",
+          "Én lenke hele veien: på spar datoen registrerer gjestene seg med navn og e-post. Invitasjonsmailen gir hver av dem en personlig lenke å svare med. Åpner de den igjen, ser de svaret sitt og kan endre det. Den som ikke har svart, får en påminnelse av seg selv før siste svardag (Utsendelser). Fra tiden dere setter under Design åpner samme lenke festportalen, og på tiden dere setter under Takk går takken ut til dem som kom.",
+          "Én fest, fire sider i samme tema, hver med sin egen plakat (Plakat): først en sett av datoen om dere vil – gjestene lagrer datoen og legger igjen e-posten, og får en e-post når dere bytter lenken til invitasjonen – så invitasjonen, festportalen og takken. Lim inn en samarbeidsliste i Spotify, så kan gjestene ønske seg sanger. Åpne festportalen og skriv ut QR-koden til bordene: gjestene laster opp bildene sine rett til et album i hvelvet og ser dagens program.",
+          "Appen har et bildebibliotek: bakgrunner og toppbilder til mange av temaene, og klistremerker – ballonger, discokule, kreps, russelue, ringer, gresskar med mer – å sette på plakaten i stedet for emoji (Plakat → en dekorasjonsrad eller emblemet → Bibliotek).",
+          "Under Plakat gjør dere invitasjonssiden til deres egen: legg til, flytt og fjern delene (tekster, bilder, et emblem, en dekorasjonsrad, når og hvor som billett, kort, liste eller stor dato, en nedtelling, kalenderknapper, invitasjonen, et bånd). Skriv hver tekst med egen skrift, størrelse, justering og farge – {navn}, {dato} og lignende fylles inn av seg selv. Bytt emojiene mot andre eller mot egne bilder, og velg hvilke kalenderknapper gjestene får: kalenderfil (den åpner Apples Kalender på iPhone og Mac, og de fleste andre), Google eller Outlook. Temaets plakat er alltid ett trykk unna.",
+          "Ingen bestemt dato ennå: kryss av for La gjestene stemme over datoen, og legg til datoene som passer dere. Gjestene krysser av for dem som passer dem; under Invitasjon ser dere hvor mange hver dato passer for, og velger én – da havner festen i kalenderen, de som stemte på den regnes som at de kommer, og de som har bedt om oppdateringer får en e-post.",
+          "Velg hva hver gjest kan ta med: ingen, en +1 eller familien – da legger de til alle i følget, hver med allergier og om det er et barn. En middag, en grillkveld eller en utendørsaktivitet starter med familien.",
+          "Velg festens tema, som alle sidene deler – de som passer festen først (ballonger, pirater og dinosaurer for barnebursdag; disco, glitter, 80-tallet og champagne for fest; bistro, jul og krepsefest for middag; fotball og hockey for kamp; grill, slåball og strand utendørs). Eller lag et eget: farger, mønster, emoji og egne bilder øverst og i bakgrunnen – lagret til senere. Et eget bilde kan også ligge på invitasjonen.",
+          "Gjester som oppgir e-post og ber om oppdateringer, får en bekreftelse, en e-post hvis tid eller sted endres, en påminnelse dagen før og takken – og meldingene dere sender under Gjester. Det krever serverens e-post, som serveradministratoren setter opp under Server → Adresse og tjenester.",
+          "Festen legges i kalenderen av seg selv – for alle den gjelder (kryss av for én eller flere i familien), og dere velger hvem sin ønskeliste som vises på invitasjonen.",
+          "Vis ønskelisten: gjestene ser ønskene til den selskapet gjelder og krysser av det de kjøper; den det gjelder ser aldri hvem.",
+          "Etterpå, under Takk: en takketekst og bildene fra et album i Hvelvet, på samme side som gjestene allerede har.",
+          "Bare de voksne planlegger selskap – ønskelistens reservasjoner ligger i planleggingen."
+        ]
+      }
+    ]
+  },
+  "school": {
+    "title": "Skolen",
+    "summary": "Barnas skoledag fra InfoMentor eller SchoolSoft via Home Assistant: skolekortet, skolens kalendere og ukebrevet.",
+    "blocks": [
+      {
+        "p": "Hvis familien har koblet til Home Assistant, kan barnas skole komme inn i Smooth Family via fellesskapets integrasjoner for InfoMentor og SchoolSoft. Skolekortet på I dag viser hvert barns skoledag, gym neste skoledag, SFO-tidene, lekser, fravær og hva som skjer videre – og ukebrevet, som åpnes rett der. Skolens kalendere – timeplanen, prøver og turer, SFO – kommer inn i kalenderen som barnets."
+      },
+      {
+        "details": [
+          {
+            "title": "InfoMentor (anbefales)",
+            "blocks": [
+              {
+                "steps": [
+                  "I Home Assistant: åpne HACS → ⋮ → Egendefinerte repositorier, legg til https://github.com/c14ym0re/infomentor-homeassistant av typen Integration og installer InfoMentor.",
+                  "Start Home Assistant på nytt.",
+                  "Innstillinger → Enheter og tjenester → Legg til integrasjon → InfoMentor. Logg inn med BankID (skann QR-koden – foreløpig bare for Stockholm stad) eller med e-post og passord hvis kommunen fortsatt har den klassiske InfoMentor-kontoen.",
+                  "Hvert barn blir en enhet. I Smooth Family krysser du av barnet under Familiemedlemmer → barnet → Skolen fra Home Assistant."
+                ]
+              },
+              {
+                "note": "Den gir skoledagen, gym, lekser, ukebrevet, fravær, SFO-tidene, skolens kalender og skolens nyheter – og lunsjen hvis du oppgir skolens Mateo-enhet. En annen integrasjon, https://github.com/chrfo892/ha-infomentor, gir timeplanen, innsjekking på SFO og uleste varsler; den installeres på samme måte."
+              }
+            ]
+          },
+          {
+            "title": "SchoolSoft (timeplan og oppmøte)",
+            "blocks": [
+              {
+                "steps": [
+                  "I HACS → ⋮ → Egendefinerte repositorier: legg til https://github.com/chriseckl/Schoolsoft-for-Home-Assistant av typen Integration, installer den og start Home Assistant på nytt.",
+                  "Innstillinger → Enheter og tjenester → Legg til integrasjon → SchoolSoft, og logg inn med foresattes brukernavn og passord.",
+                  "Legg den til én gang per barn, og kryss så av hvert barns konto i Smooth Family."
+                ]
+              },
+              {
+                "note": "Den gir timeplanen som kalender (timer merket fraværende eller sen), nåværende og neste time samt dagens start og slutt. For lunsjmenyen finnes https://github.com/kanylbullen/ha-schoolsoft – skolens navn er det i skolens SchoolSoft-adresse."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "p": "Et nytt ukebrev, fravær i dag og nyheter fra skolen sendes til barnets voksne som varsler. Barnets skole vises for barnets voksne og for barnet selv; kjøkkenskjermen viser bare skoledagen, aldri fravær eller brev."
+      },
+      {
+        "tips": [
+          "Legg til kortet Skolen på I dag under Tilpass – og Skoledagen på kjøkkenskjermen under Familieinnstillinger → Kjøkkenskjerm om dere vil.",
+          "Beta: integrasjonene er små, uoffisielle prosjekter, og sensorene deres gjenkjennes på navnene (på engelsk eller svensk). Mangler noe – fortell oss hvilke sensorer integrasjonen deres har.",
+          "En skolekalender kan også legges til for hånd under kalenderinnstillingene med adressen homeassistant://calendar.navn.",
+          "Kalendere fra Home Assistant krever direkte tilkobling – de kan ikke leses via gatewayen."
+        ]
+      }
+    ]
+  },
+  "health": {
+    "title": "Helse",
+    "summary": "Treningen din og dagens skritt, søvn og vekt – privat eller delt med familien.",
+    "blocks": [
+      {
+        "p": "Logg en treningsøkt med noen trykk – type, minutter og distanse om du vil – og dagens skritt, søvn og vekt. Siden din viser de siste fire ukene: minutter per dag, øktene dine og hvor mange dager på rad du har vært i bevegelse."
+      },
+      {
+        "h": "Hvem ser det"
+      },
+      {
+        "p": "Alt er bare ditt til du deler det, type for type: trening, skritt, søvn og vekt, hver med bare deg, de voksne eller hele familien. Andre ser det du deler i ukens oversikt øverst."
+      },
+      {
+        "steps": [
+          "Åpne Helse i menyen.",
+          "Logg en økt eller dagens verdier.",
+          "Under Hvem ser helsen din velger du hva du deler og med hvem."
+        ]
+      },
+      {
+        "h": "Sammen"
+      },
+      {
+        "p": "En voksen setter familiens mål – timer, kilometer eller økter mellom to datoer, for eksempel 500 km sammen i mai. De teller treningen hver enkelt deler med familien og vises i Helse, i søndagsmøtet og på kjøkkenskjermen (ukens bevegelse). En oppgave kan bli ferdig ved trening: velg minst så mange minutter den dagen, så krysses den av av seg selv når personens trening holder – med poeng, som enhver oppgave. Trening gir også utmerkelser."
+      },
+      {
+        "tips": [
+          "De voksne ser alltid et barns helse og kan fylle den ut – en forelder kan logge fotballtreningen.",
+          "Et barns vekt lagres ikke, og vekt sammenlignes aldri: den er ikke i oversikten.",
+          "Last ned dine egne data som en fil, eller fjern alt, nederst på siden din."
+        ]
+      },
+      {
+        "h": "Fra Home Assistant"
+      },
+      {
+        "p": "Hvis familien har koblet til Home Assistant, kan skritt, søvn, vekt og hvilepuls hentes fra hver enkelts egne kontoer der: telefonen med følgeappen, en bruker i Withings, Google Health, Garmin og flere. En familieadmin kobler kontoene under Familieinnstillinger → Familiemedlemmer → personen; personen slår så på Hent helsen min fra Home Assistant i profilen sin – ingenting hentes før det. For et barn slår en voksen det på på barnets side. De leses hvert 15. minutt og når du trykker Hent nå, og lagres på dagen de gjelder; det du fyller inn selv på en dag vinner alltid, og et barns vekt leses aldri."
+      },
+      {
+        "tips": [
+          "Én konto per person i Home Assistant: legg til integrasjonen for Withings, Garmin eller Google Health én gang for hver av dere, med egen innlogging – og følgeappen på hver telefon.",
+          "Skritt og søvn fra telefonen: installer Home Assistants følgeapp og slå på sensorene – på Android de for Health Connect (skritt, søvn, puls, vekt …), på iPhone skrittelleren (skritt).",
+          "En vekt eller en klokke: Withings har en egen integrasjon i Home Assistant; Garmin, Fitbit, Oura og flere finnes som integrasjoner fra fellesskapet (HACS).",
+          "Treningsøkter (beta): fra Withings' treningskalender eller en integrasjons sensor for siste aktiviteter, som Garmin Connect eller Strava – de siste to ukene, hver økt én gang, også om den allerede er logget her for hånd."
         ]
       }
     ]
@@ -500,7 +709,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
-          "Oppslag av strekkoder kan slås på under Familieinnstillinger → Deling og koblinger; bare strekkoden sendes.",
+          "Oppslag av strekkoder kan slås på under Familieinnstillinger → Koblinger; bare strekkoden sendes.",
           "En kvittering som den lokale AI-en har lest, kan også fylle spiskammeret."
         ]
       }
@@ -543,9 +752,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "En oppgave kan gjentas hver hverdag (mandag–fredag som ikke er røde dager) eller hver helgedag og rød dag – lufte hunden, mate katten. De røde dagene følger familiens land, så jul og påske regnes som helg av seg selv.",
+          "Hvilken som helst plan: hver dag eller annenhver dag, valgte ukedager (hverdager, helg), med noen ukers mellomrom, en dato eller en ukedag i måneden (første lørdag), med noen måneders mellomrom, en gang i året – med poeng. Kjæledyr, hjemmet og kjøretøyene har sine gjentakende oppgaver med de samme valgene.",
           "Barn kan foreslå oppgaver; en voksen gjør dem om til oppgaver eller sier nei.",
           "Poengene går til butikken og ukepengene – se de temaene.",
-          "En oppgave flere kan gjøre sammen, deler poengene mellom dem som gjorde den: velg hvem når den krysses av."
+          "En oppgave flere kan gjøre sammen, deler poengene mellom dem som gjorde den: velg hvem når den krysses av.",
+          "Fjerner du en oppgave, beholdes poengene som allerede er tjent – og gangene den ble gjort."
         ]
       }
     ]
@@ -704,7 +916,7 @@ const texts: Record<string, TopicText> = {
         "h": "En barnevakt eller besteforeldrene"
       },
       {
-        "p": "Lag en gjestelenke under Familieinnstillinger → Deling og koblinger: den viser nødkortene, og det du velger av kalenderen og listene, i noen timer eller dager – så slutter den av seg selv."
+        "p": "Lag en gjestelenke under Familieinnstillinger → Familiemedlemmer: den viser nødkortene, og det du velger av kalenderen og listene, i noen timer eller dager – så slutter den av seg selv."
       },
       {
         "h": "Medisiner"
@@ -762,6 +974,16 @@ const texts: Record<string, TopicText> = {
           "Et budsjett per kategori og måned blir rødt når det sprekker.",
           "Poster kan være private, så bare du ser dem."
         ]
+      },
+      {
+        "h": "Abonnementer"
+      },
+      {
+        "p": "Under Hjemmet → Abonnementer samler dere alt husholdningen betaler jevnlig, med hva det koster per måned og år. Et abonnement kan peke på en pålogging i hvelvet, en som finnes eller en ny du lager rett her, og den som får se påloggingen, kan kopiere passordet herfra; hvelvets regler gjelder som vanlig. Etter en bankimport foreslås gjentatte betalinger her, og bare du ser forslagene fra din fil: legg dem til eller si at de ikke er abonnementer, og de du har avvist, kommer ikke tilbake. En senere fil sier fra om en ny pris, eller en betaling for noe du har avsluttet. Det er en oversikt, så ingenting legges til i Økonomis summer. Under Påminnelser velger hver voksen selv: siste dag å si opp (14 og 2 dager før), samt kvartals- og årsbetalinger (7 dager før). Månedsbetalinger gir ingen påminnelse."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Hva det koster, og påloggingen fra hvelvet."
       }
     ]
   },
@@ -797,6 +1019,11 @@ const texts: Record<string, TopicText> = {
       {
         "shot": "pets",
         "caption": "Et kjæledyr med stellet sitt."
+      },
+      {
+        "tips": [
+          "En oppgave kan gjentas hver hverdag (mandag–fredag som ikke er røde dager) eller hver helgedag og rød dag – lufte hunden, mate katten. De røde dagene følger familiens land, så jul og påske regnes som helg av seg selv."
+        ]
       }
     ]
   },
@@ -841,7 +1068,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "I Home Assistant: profilen din → Sikkerhet → Langtidstilgangstokener → Opprett token. Kopier den.",
-          "I Smooth Family: Familieinnstillinger → Deling og koblinger → Smarthus.",
+          "I Smooth Family: Familieinnstillinger → Koblinger → Smarthus.",
           "Skriv adressen, f.eks. http://homeassistant.local:8123, og tokenet, og trykk Koble til.",
           "Legg til enhetene som skal vises, og koble hjemmet til riktig bolig."
         ]
@@ -872,7 +1099,7 @@ const texts: Record<string, TopicText> = {
         "h": "1. Lag en koblingskode"
       },
       {
-        "p": "Familieinnstillinger → Deling og koblinger → Smarthus → Legg til et hjem via tillegget. Gi det et navn og velg bolig; koden på åtte tegn gjelder i 24 timer."
+        "p": "Familieinnstillinger → Koblinger → Smarthus → Legg til et hjem via tillegget. Gi det et navn og velg bolig; koden på åtte tegn gjelder i 24 timer."
       },
       {
         "shot": "gateway",
@@ -975,6 +1202,9 @@ const texts: Record<string, TopicText> = {
         "p": "Etter minuttene du velger, kommer skjermspareren: familiens bilder, en klaffeklokke, en rolig klokke med været, en mørk skjerm – eller reven, som viser været ute. Den leser når det er grått, flyr drage når skyene drar forbi, holder paraplyen i regnet, bygger snømann når det snør og sover om natten, og dagens oppgaver vises over vannet. Et trykk vekker skjermen."
       },
       {
+        "p": "Med noen minutters mellomrom gjør reven noe lite som passer været – hopper, plasker i en vannpytt, kaster snøball, ser et stjerneskudd – og av og til hopper en hare forbi eller en fisk hopper i vannet. Den kler seg ut til halloween, jul, nyttår, påske og sankthans, og på en bursdag (personene under Bursdager) får den ballonger, festhatt og et banner med navnet. Høytidene følger familiens land; utkledningen slås av per skjerm under skjermspareren. Med redusert bevegelse på nettbrettet står reven stille."
+      },
+      {
         "steps": [
           "Familieinnstillinger → Kjøkkenskjerm → Koble til en skjerm.",
           "Åpne lenken på nettbrettet (eller skann QR-koden) og legg den til på startskjermen.",
@@ -1048,7 +1278,7 @@ const texts: Record<string, TopicText> = {
         "h": "Hva finnes hvor"
       },
       {
-        "p": "Familiemedlemmer: alle, hver med sin egen side (innlogging, apper, språk, bilde – og for et barn fødselsdag, ukepenger, Lille modus, to hjem, medisin og nødkort), og andre personer uten konto for fødselsdagene deres. Hverdagen: kalendere, hjemmet, Idags kilder, poengreglene, husstandens nødkort og kjæledyrenes medisin. Kjøkkenskjerm. Deling og tilkoblinger: gjestelenker, smarthjemmet og den lokale AI-en. Sikkerhet og data: sikkerhetskopier og eksport."
+        "p": "Familiemedlemmer: alle, hver med sin egen side (innlogging, apper, språk, bilde – og for et barn fødselsdag, ukepenger, Lille modus, to hjem, medisin og nødkort), andre personer uten konto for fødselsdagene deres, og gjestelenker for barnevakten eller besteforeldrene. Hverdagen: kalendere, hjemmet, Idags kilder, poengreglene, husstandens nødkort og kjæledyrenes medisin. Kjøkkenskjerm. Familiemedlemmer: smarthjemmet og den lokale AI-en. Sikkerhet og data: sikkerhetskopier og eksport."
       },
       {
         "tips": [
@@ -1064,7 +1294,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Eksport, familiens egen nøkkel og å flytte familien.",
     "blocks": [
       {
-        "p": "Under Familieinnstillinger → Sikkerhet og data kan administratoren eksportere familiens data og, på en server som drives av andre, velge en egen nøkkel for familien: familiens sikkerhetskopier forsegles da så bare dere kan åpne dem – ikke engang serverens administrator."
+        "p": "Under Familieinnstillinger → Sikkerhet og data kan administratoren eksportere familiens data og, på en server som drives av andre, velge en egen nøkkel for familien: familiens sikkerhetskopier forsegles da så bare dere kan åpne dem – ikke engang serverens administrator. Eksporten inneholder det du selv får se i appen: en annen voksens private dokumenter, medisiner, helse som ikke deles og chatter du ikke er med i, holdes utenfor."
       },
       {
         "shot": "familydata",
@@ -1160,7 +1390,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Serverens adresse, søkemotoren, den lokale AI-en og andre tjenester.",
     "blocks": [
       {
-        "p": "Adresse og tjenester har adressen serveren nås på – den brukes i alle lenker som sendes ut – oppskriftssøket og nettsøket (SearXNG på serveren selv), Home Assistant for familier på serveren via gatewayen, GIF-er i chatten og å sende tilbakemelding. AI-maskinen stiller inn hvor Ollama kjører, hvilke modeller som brukes, og vekking og hvilemodus for maskinen."
+        "p": "Adresse og tjenester har adressen serveren nås på – den brukes i alle lenker som sendes ut – oppskriftssøket og nettsøket (SearXNG på serveren selv), Home Assistant for familier på serveren via gatewayen, GIF-er i chatten og å sende tilbakemelding. AI-maskinen stiller inn hvor Ollama kjører, hvilke modeller som brukes, og vekking og hvilemodus for maskinen. E-post setter opp e-posttjenestene – Gmail med et app-passord, Brevo for en adresse på deres eget domene, Exchange Online via en appregistrering i Microsoft Entra eller en annen SMTP-server – hvilken familien deres sender med, og om de hostede familiene også kan sende e-post (til festgjester som har bedt om oppdateringer). Adresser slår på forslagene fra OpenStreetMap i adressefeltene (via komoots Photon eller en egen) – eller av."
       },
       {
         "shot": "serverservices",

@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
+from app.services.holidays import BY_LANGUAGE
 from app.services import security_policy
 from app.deps import DB, CurrentUser
 from app.models import Family, Invitation, User
@@ -76,7 +77,7 @@ async def _open_invitation(db, token: str, request: Request) -> Invitation:
 
 
 async def _sign_in(response: Response, user: User) -> None:
-    set_session_cookie(response, create_token(user.id))
+    set_session_cookie(response, create_token(user.id, user.session_version))
 
 
 @router.get("/invite/{token}", response_model=InviteInfo)
@@ -94,7 +95,10 @@ async def create_family(token: str, payload: NewFamilyIn, request: Request, resp
         raise HTTPException(status_code=409, detail="Username is already taken")
     await security_policy.check_password(db, payload.password, "admin")
     policy = await security_policy.get_policy(db)
-    family = Family(name=payload.family_name.strip(), kind="hosted", invitation_id=inv.id, passkeys_enabled=policy["passkeys_enabled"], totp_policy=policy["totp_policy"])
+    family = Family(
+        name=payload.family_name.strip(), kind="hosted", invitation_id=inv.id, passkeys_enabled=policy["passkeys_enabled"], totp_policy=policy["totp_policy"],
+        holiday_country=BY_LANGUAGE.get(payload.language or ""),
+    )
     db.add(family)
     await db.flush()
     admin = User(

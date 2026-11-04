@@ -10,6 +10,7 @@ import { NONE, useApi } from "@/lib/query";
 import { THEMES, ThemeId, useTheme } from "@/lib/theme";
 import { useSetMe } from "@/components/Shell";
 import { PresenceSetting } from "@/components/Presence";
+import HealthImport from "@/components/health/HealthImport";
 import { MyEmergencyCard } from "@/components/safety/Emergency";
 import Medicine from "@/components/safety/Medicine";
 import PageTitle from "@/components/PageTitle";
@@ -555,6 +556,11 @@ export default function ProfilePage() {
       <SecuritySettings />
 
       {me && <PresenceSetting me={me} />}
+      {me?.smarthome_available && me.apps.includes("health") && (
+        <div className="mt-4">
+          <HealthImport userId={me.id} />
+        </div>
+      )}
       <PhoneCalendar />
         </>
       )}

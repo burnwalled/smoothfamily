@@ -138,6 +138,7 @@ export default function HomeSettingsPage() {
                 const warnings = result.skipped.length
                   ? t("home.importWarnings", { n: result.skipped.length, warnings: result.skipped.join("; ") })
                   : "";
+                if (result.suggested) return t("home.importSuggested", { n: result.suggested });
                 return t("home.importResult", { n: result.imported }) + warnings;
               }}
             />

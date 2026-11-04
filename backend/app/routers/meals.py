@@ -27,6 +27,7 @@ from app.schemas import (
 from app.services.ai_import import extract_json
 from app.services.prompts import meals_prompt
 from app.services import recipe_search
+from app.services.images import open_image
 from app.services.recipe_import import RecipeImportError, fetch_image, import_recipe, parse_ingredient_lines, parse_step_lines, NOT_IMPORTABLE, not_importable
 from app.services.storage import get_storage
 
@@ -528,7 +529,8 @@ def _save_photo(recipe: Recipe, data: bytes) -> None:
     """A square 256 px JPEG of the picture becomes the recipe photo."""
     from PIL import Image
 
-    img = Image.open(io.BytesIO(data))
+    img = open_image(data)
+    img.draft("RGB", (1024, 1024))
     img = img.convert("RGB")
     w, h = img.size
     edge = min(w, h)

@@ -1,5 +1,6 @@
 """Shared family calendar: read-only iCal feed subscriptions plus events created in the app."""
 import secrets
+import re
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
@@ -22,14 +23,28 @@ router = APIRouter(prefix="/api/calendar", tags=["calendar"], dependencies=[requ
 ical_router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 
+def _manages(feed: CalendarFeed, user: User) -> bool:
+    """Its owner, the admin, or an adult the admin lets manage the family."""
+    return str(feed.created_by) == str(user.id) or user.role == "admin" or (user.role == "adult" and user.can_manage_family)
+
+
+def _feed_out(feed: CalendarFeed, user: User) -> FeedOut:
+    mine = _manages(feed, user)
+    return FeedOut(
+        id=feed.id, name=feed.name, url=feed.url if mine else "", color=feed.color, visible_to=feed.visible_to or [],
+        details_for=feed.details_for or [], member_id=feed.member_id, can_edit=mine,
+    )
+
+
 @router.get("/feeds", response_model=list[FeedOut])
-async def list_feeds(user: CurrentUser, db: DB) -> list[CalendarFeed]:
+async def list_feeds(user: CurrentUser, db: DB) -> list[FeedOut]:
+    """The feeds this member may see – each with its address only for those who manage it."""
     result = await db.execute(
         select(CalendarFeed)
         .where(CalendarFeed.family_id == user.family_id)
         .order_by(CalendarFeed.created_at)
     )
-    return list(result.scalars().all())
+    return [_feed_out(f, user) for f in result.scalars().all() if feed_visibility(f, user)[0]]
 
 
 async def _family_member(db, user, member_id: uuid.UUID | None) -> uuid.UUID | None:
@@ -43,7 +58,8 @@ async def _family_member(db, user, member_id: uuid.UUID | None) -> uuid.UUID | N
 
 @router.post("/feeds", response_model=FeedOut, status_code=status.HTTP_201_CREATED)
 async def create_feed(payload: FeedCreate, user: CurrentUser, db: DB) -> CalendarFeed:
-    if not payload.url.startswith(("https://", "http://", "webcal://")):
+    # 3.4.0: also a calendar in the family's Home Assistant, homeassistant://calendar.<entity>.
+    if not payload.url.startswith(("https://", "http://", "webcal://")) and not re.fullmatch(r"homeassistant://calendar\.[a-z0-9_]+", payload.url):
         raise HTTPException(status_code=422, detail="URL must start with https://, http:// or webcal://")
     feed = CalendarFeed(
         family_id=user.family_id,
@@ -58,14 +74,16 @@ async def create_feed(payload: FeedCreate, user: CurrentUser, db: DB) -> Calenda
     db.add(feed)
     await db.commit()
     await db.refresh(feed)
-    return feed
+    return _feed_out(feed, user)
 
 
 @router.patch("/feeds/{feed_id}", response_model=FeedOut)
-async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser, db: DB) -> CalendarFeed:
+async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser, db: DB) -> FeedOut:
     feed = await db.get(CalendarFeed, feed_id)
-    if feed is None or feed.family_id != user.family_id:
+    if feed is None or feed.family_id != user.family_id or not feed_visibility(feed, user)[0]:
         raise HTTPException(status_code=404, detail="Calendar feed not found")
+    if not _manages(feed, user):
+        raise HTTPException(status_code=403, detail="Only the one who added the calendar, or the family's admin, can change it")
 
     if payload.name is not None:
         feed.name = payload.name
@@ -80,14 +98,16 @@ async def update_feed(feed_id: uuid.UUID, payload: FeedUpdate, user: CurrentUser
 
     await db.commit()
     await db.refresh(feed)
-    return feed
+    return _feed_out(feed, user)
 
 
 @router.delete("/feeds/{feed_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_feed(feed_id: uuid.UUID, user: CurrentUser, db: DB) -> None:
     feed = await db.get(CalendarFeed, feed_id)
-    if feed is None or feed.family_id != user.family_id:
+    if feed is None or feed.family_id != user.family_id or not feed_visibility(feed, user)[0]:
         raise HTTPException(status_code=404, detail="Calendar feed not found")
+    if not _manages(feed, user):
+        raise HTTPException(status_code=403, detail="Only the one who added the calendar, or the family's admin, can remove it")
     await db.delete(feed)
     await db.commit()
 
@@ -183,6 +203,8 @@ class PlanTarget(BaseModel):
 class RideIn(PlanTarget):
     leg: Literal["drop_off", "pick_up"]
     claim: bool
+    # Someone outside the family takes it (3.4.0): their name as free text, e.g. "Saga's dad".
+    other: str | None = Field(default=None, max_length=80)
 
 
 class NeedsRideIn(PlanTarget):
@@ -204,6 +226,8 @@ class PlanOut(BaseModel):
     needs_ride: bool
     drop_off_by: uuid.UUID | None
     pick_up_by: uuid.UUID | None
+    drop_off_text: str | None = None
+    pick_up_text: str | None = None
     packing: list[PackingItem]
     pack_tasks: list[PackTask] = []
 
@@ -248,25 +272,49 @@ async def _plan_out(db, user: User, plan: EventPlan) -> PlanOut:
     await db.commit()
     probe = EventOut(feed_name="", color="", title=plan.title, start=plan.start, end=plan.start, all_day=False, key=plan.key)
     [event] = await attach_plans(db, user.family_id, [probe])
-    return PlanOut(key=plan.key, needs_ride=event.needs_ride, drop_off_by=event.drop_off_by, pick_up_by=event.pick_up_by, packing=event.packing, pack_tasks=event.pack_tasks)
+    return PlanOut(
+        key=plan.key, needs_ride=event.needs_ride, drop_off_by=event.drop_off_by, pick_up_by=event.pick_up_by,
+        drop_off_text=event.drop_off_text, pick_up_text=event.pick_up_text, packing=event.packing, pack_tasks=event.pack_tasks,
+    )
 
 
 @router.post("/plan/ride", response_model=PlanOut)
 async def claim_ride(payload: RideIn, user: CurrentUser, db: DB) -> PlanOut:
-    """"I'm driving" / "I'll pick up" – or let go of it again."""
+    """"I'm driving" / "I'll pick up", or someone outside the family does (`other`) – or let go of it
+    again."""
     if user.role == "child":
         raise HTTPException(status_code=403, detail="Only adults can drive")
     plan = await _plan(db, user, payload)
-    column = "drop_off_by" if payload.leg == "drop_off" else "pick_up_by"
-    current = getattr(plan, column)
+    by, text = f"{payload.leg}_by", f"{payload.leg}_text"
+    other = (payload.other or "").strip() or None
     if payload.claim:
-        if current is not None and current != user.id:
+        taken_by_someone = (getattr(plan, by) not in (None, user.id)) or (getattr(plan, text) and other is None)
+        if taken_by_someone:
             raise HTTPException(status_code=409, detail="Someone else has already taken it")
-        setattr(plan, column, user.id)
+        setattr(plan, by, None if other else user.id)
+        setattr(plan, text, other)
         plan.needs_ride = True
     else:
-        setattr(plan, column, None)
+        setattr(plan, by, None)
+        setattr(plan, text, None)
     return await _plan_out(db, user, plan)
+
+
+@router.get("/plan/others", response_model=list[str])
+async def other_drivers(user: CurrentUser, db: DB) -> list[str]:
+    """The names of people outside the family who have driven lately – the latest first – to choose
+    again with a tap."""
+    rows = (
+        await db.execute(
+            select(EventPlan.drop_off_text, EventPlan.pick_up_text).where(EventPlan.family_id == user.family_id).order_by(EventPlan.start.desc()).limit(200)
+        )
+    ).all()
+    seen: list[str] = []
+    for row in rows:
+        for name in row:
+            if name and name.casefold() not in {s.casefold() for s in seen}:
+                seen.append(name)
+    return seen[:8]
 
 
 @router.post("/plan/needs-ride", response_model=PlanOut)
@@ -382,7 +430,8 @@ async def serve_ical(token: str, db: DB) -> str:
     cal.add("x-published-ttl", "PT1H")
 
     for event in await events_between(db, user, today - timedelta(days=7), today + timedelta(days=365)):
-        if event.busy or not event.title or (event.feed_id is not None and event.feed_id in own_feeds):
+        # The phone's calendar has its own holidays.
+        if event.busy or event.holiday or not event.title or (event.feed_id is not None and event.feed_id in own_feeds):
             continue
         drives = user.id in (event.drop_off_by, event.pick_up_by)
         if event.member_ids and user.id not in event.member_ids and not drives:

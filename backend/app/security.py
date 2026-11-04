@@ -25,10 +25,11 @@ def verify_password(password: str, password_hash: str) -> bool:
 MFA_TOKEN_MINUTES = 5
 
 
-def create_token(user_id: uuid.UUID) -> str:
+def create_token(user_id: uuid.UUID, version: int = 1) -> str:
+    """A session, tied to the user's session_version: when that moves on, the session ends."""
     settings = get_settings()
     expires = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    return jwt.encode({"sub": str(user_id), "exp": expires, "typ": "session"}, settings.secret_key, algorithm="HS256")
+    return jwt.encode({"sub": str(user_id), "exp": expires, "typ": "session", "ver": int(version)}, settings.secret_key, algorithm="HS256")
 
 
 def create_mfa_token(user_id: uuid.UUID) -> str:
@@ -65,7 +66,8 @@ def clear_session_cookie(response: Response) -> None:
     response.delete_cookie(COOKIE_NAME, path="/")
 
 
-def read_user_id_from_request(request: Request) -> uuid.UUID:
+def read_session(request: Request) -> tuple[uuid.UUID, int]:
+    """Who the session cookie says, and the session version it was made for (1 for older cookies)."""
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not signed in")
@@ -74,6 +76,14 @@ def read_user_id_from_request(request: Request) -> uuid.UUID:
         # Tokens from before typ was introduced are sessions; MFA tokens never are.
         if payload.get("typ", "session") != "session":
             raise ValueError("not a session token")
-        return uuid.UUID(payload["sub"])
-    except (jwt.PyJWTError, KeyError, ValueError):
+        return uuid.UUID(payload["sub"]), int(payload.get("ver", 1))
+    except (jwt.PyJWTError, KeyError, ValueError, TypeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+
+
+def read_user_id_from_request(request: Request) -> uuid.UUID:
+    return read_session(request)[0]
+
+
+def session_current(user, version: int) -> bool:
+    return int(version) == int(user.session_version or 1)

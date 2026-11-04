@@ -5,6 +5,7 @@
 // launch or winter storage; this year's costs against last year; the consumption) and, for the
 // chosen one, its reminders, costs, meter (km or engine hours), tyres, documents and settings. A
 // receipt photo or a service history PDF can be read by the local AI; everything works by hand too.
+import LinkedTasks from "@/components/tasks/LinkedTasks";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Camera, Download, FileText, Gauge, Plus, Printer, Search, Trash2 } from "lucide-react";
@@ -360,6 +361,11 @@ function RemindersTab({ vehicle, reminders, currency }: { vehicle: Vehicle; remi
           </button>
         </div>
       )}
+      <div className="border-t border-edge pt-4">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t("linkedTasks.title")}</h3>
+        <p className="mb-2 text-xs text-muted">{t("linkedTasks.vehicleHint")}</p>
+        <LinkedTasks link={{ vehicle_id: vehicle.id }} placeholder={t("linkedTasks.add")} />
+      </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
     </div>
   );

@@ -25,7 +25,7 @@ test("a child's own page in the family's settings", async ({ adminPage: page, ad
 
     // The rest of what is theirs, on the same page.
     await expect(page.getByRole("region", { name: "Signing in" })).toBeVisible();
-    await expect(page.getByRole("region", { name: /^Apps \d+\/20$/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: /^Apps \d+\/21$/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Emergency card", exact: true })).toBeVisible();
   } finally {
     await adminApi.delete(`/api/family/members/${child.id}`);

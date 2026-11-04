@@ -19,6 +19,8 @@ import AllowanceRates from "@/components/allowance/AllowanceRates";
 import Emergency from "@/components/safety/Emergency";
 import Medicine from "@/components/safety/Medicine";
 import TwoHomes from "@/components/custody/TwoHomes";
+import HealthLinks from "@/components/health/HealthLinks";
+import SchoolLinks from "@/components/school/SchoolLinks";
 
 const PRESETS = ["bear", "cat", "dog", "fox", "frog", "hedgehog", "koala", "lion", "owl", "panda", "penguin", "rabbit"];
 type Person = { id: string; name: string; user_id: string | null; birth_year: number | null; birth_month: number | null; birth_day: number | null };
@@ -294,11 +296,18 @@ export default function MemberPage() {
         <Emergency manage only={member.id} />
       </section>
 
+      {/* Health from Home Assistant (3.4.0): the member's accounts, turned on by them */}
+      {me.smarthome_available && (member.role === "admin" || (member.apps ?? []).includes("health")) && (
+        <HealthLinks memberId={member.id} name={member.display_name} child={child} />
+      )}
+      {/* The child's school from Home Assistant (3.4.0) */}
+      {me.smarthome_available && child && <SchoolLinks childId={member.id} name={member.display_name} />}
+
       {!self && iAmAdmin && (
         <button
           className="inline-flex items-center gap-1.5 text-sm text-red-700 hover:underline"
           onClick={async () => {
-            if (confirm(t("common.confirmRemove", { name: member.display_name })) && (await run(() => api.del(`/api/family/members/${member.id}`)))) router.push("/settings/members");
+            if (confirm(t("member.removeConfirm", { name: member.display_name })) && (await run(() => api.del(`/api/family/members/${member.id}`)))) router.push("/settings/members");
           }}
         >
           <Trash2 className="h-4 w-4" aria-hidden />

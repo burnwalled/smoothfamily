@@ -2,11 +2,12 @@
 import io
 import secrets
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from app.services import holidays
 from app.services import security_policy
 from app.services.families import delete_family
 from app.config import get_settings
@@ -14,8 +15,10 @@ from app.deps import DB, CurrentUser
 from app.models import Family, User
 from app.schemas import LoginRequest, MeOut, MfaChallengeOut, PasswordChange, PreferencesUpdate, SetupRequest, SetupStatus
 from app.services import login_throttle, mfa
+from app.services.images import open_image
+from app.services.uploads import read_upload
 from app.services.storage import get_storage
-from app.security import clear_session_cookie, create_mfa_token, create_token, hash_password, set_session_cookie, verify_password
+from app.security import clear_session_cookie, create_mfa_token, create_token, hash_password, read_session, set_session_cookie, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -34,14 +37,18 @@ async def setup_status(db: DB) -> SetupStatus:
 
 
 @router.post("/setup", response_model=MeOut, status_code=status.HTTP_201_CREATED)
-async def first_run_setup(payload: SetupRequest, response: Response, db: DB) -> MeOut:
+async def first_run_setup(payload: SetupRequest, request: Request, response: Response, db: DB) -> MeOut:
     """Create the family that owns the server and its admin (the server admin). Only allowed
     once; further families come through invitations."""
     count = (await db.execute(select(func.count(Family.id)).where(Family.kind != "demo"))).scalar_one()
     if count > 0:
         raise HTTPException(status_code=409, detail="Setup has already been completed")
     expected = get_settings().setup_code
+    ip = login_throttle.client_ip(request)
+    if login_throttle.ip_retry_after(ip):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     if expected and not secrets.compare_digest((payload.setup_code or "").encode(), expected.encode()):
+        login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=403, detail="Wrong setup code")
     if (await db.execute(select(User.id).where(User.username == payload.username.lower()))).first():
         raise HTTPException(status_code=409, detail="Username is already taken")
@@ -55,6 +62,7 @@ async def first_run_setup(payload: SetupRequest, response: Response, db: DB) -> 
         passkeys_enabled=payload.passkeys_enabled,
         totp_policy=payload.totp_policy,
         kind="owner",
+        holiday_country=holidays.BY_LANGUAGE.get(payload.language or ""),
     )
     db.add(family)
     await db.flush()
@@ -66,12 +74,13 @@ async def first_run_setup(payload: SetupRequest, response: Response, db: DB) -> 
         password_hash=hash_password(payload.password),
         role="admin",
         is_server_admin=True,
+        language=payload.language or "en",
     )
     db.add(user)
     await db.commit()
     await security_policy.set_policy(db, {"passkeys_enabled": payload.passkeys_enabled, "totp_policy": payload.totp_policy})
 
-    set_session_cookie(response, create_token(user.id))
+    set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, family)
 
 
@@ -87,7 +96,8 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
             headers={"Retry-After": str(wait)},
         )
     user = (await db.execute(select(User).where(User.username == username))).scalar_one_or_none()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    # An unknown name takes as long as a wrong password, so the answer's timing says nothing.
+    if user is None or not verify_password(payload.password, user.password_hash if user else _NOBODY):
         login_throttle.record_failure(username, ip)
         raise HTTPException(status_code=401, detail="Wrong username or password")
     family = await db.get(Family, user.family_id)
@@ -102,12 +112,22 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
         return MfaChallengeOut(totp_setup_required=True, mfa_token=create_mfa_token(user.id))
 
     login_throttle.record_success(username)
-    set_session_cookie(response, create_token(user.id))
+    set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, family)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(response: Response) -> None:
+async def logout(request: Request, response: Response, db: DB, everywhere: bool = Query(default=False)) -> None:
+    """This browser's session ends; with ?everywhere=true every other session of the account too."""
+    if everywhere:
+        try:
+            user_id, _ = read_session(request)
+        except HTTPException:
+            user_id = None
+        user = await db.get(User, user_id) if user_id else None
+        if user is not None:
+            user.session_version = (user.session_version or 1) + 1
+            await db.commit()
     clear_session_cookie(response)
 
 
@@ -161,14 +181,21 @@ async def update_preferences(payload: PreferencesUpdate, user: CurrentUser, db: 
 
 
 @router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(payload: PasswordChange, user: CurrentUser, db: DB) -> None:
+async def change_password(payload: PasswordChange, response: Response, user: CurrentUser, db: DB) -> None:
     """Change your own password; requires the current one."""
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is wrong")
     await security_policy.check_password(db, payload.new_password, user.role)
     user.password_hash = hash_password(payload.new_password)
+    # Every other session ends; this one goes on with a fresh cookie.
+    user.session_version = (user.session_version or 1) + 1
     await db.commit()
+    set_session_cookie(response, create_token(user.id, user.session_version))
 
+
+# What an unknown username's password is checked against – so that the time taken is the same.
+_NOBODY = hash_password(secrets.token_hex(16))
+AVATAR_MAX_BYTES = 10 * 1024 * 1024
 
 VALID_AVATAR_PRESETS = frozenset([
     "bear", "cat", "dog", "fox", "frog", "hedgehog",
@@ -199,12 +226,12 @@ async def save_avatar(user: User, file: UploadFile) -> None:
 
     from PIL import Image, ImageOps
 
-    raw = await file.read()
+    raw = await read_upload(file, AVATAR_MAX_BYTES)
     if not raw:
         raise HTTPException(status_code=422, detail="Empty file")
 
     try:
-        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img = open_image(raw).convert("RGB")
     except Exception as exc:
         raise HTTPException(status_code=422, detail="Invalid image") from exc
 

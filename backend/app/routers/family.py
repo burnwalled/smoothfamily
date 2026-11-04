@@ -4,11 +4,11 @@ from datetime import date
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.services import quota, security_policy
 from app.deps import DB, AdminUser, CurrentUser
-from app.models import Family, Person, User, WebAuthnCredential
+from app.models import Base, ChatMessage, Family, FamilyEvent, Party, Person, Subscription, Task, User, WebAuthnCredential
 from app.schemas import AppAccessIn, MemberCreate, MemberOut, MemberPasswordReset, MemberPatch
 from app.security import hash_password
 
@@ -63,13 +63,67 @@ def age_on(born: date, day: date) -> int:
     return day.year - born.year - ((day.month, day.day) < (born.month, born.day))
 
 
+# What was only theirs, by the columns that say whose it is: it goes with them. The rest of what links to
+# a member (without a rule of its own in the database) is the family's and stays: without them where it
+# can be, otherwise as made by whoever removes them. Private things (logins, documents, medicine) are
+# removed by the database itself, and never handed over.
+GOES_WITH_MEMBER = {
+    ("conversation_members", "user_id"), ("dashboard_widgets", "user_id"), ("push_subscriptions", "user_id"),
+    ("user_achievements", "user_id"), ("task_completions", "user_id"), ("allowance_payouts", "user_id"),
+    ("subscription_suggestions", "user_id"),
+}
+
+
+async def _let_go(db, member: User, remover: User) -> None:
+    await db.execute(update(ChatMessage).where(ChatMessage.sender_id == member.id).values(sender_name=member.display_name))
+    # Only they could see these, and without them nobody ever would.
+    await db.execute(delete(Subscription).where(Subscription.created_by == member.id, Subscription.private.is_(True)))
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if not any(fk.target_fullname == "users.id" and fk.ondelete is None for fk in column.foreign_keys):
+                continue
+            where = column == member.id
+            if (table.name, column.name) in GOES_WITH_MEMBER:
+                await db.execute(table.delete().where(where))
+            elif column.nullable:
+                await db.execute(table.update().where(where).values({column.name: None}))
+            else:
+                await db.execute(table.update().where(where).values({column.name: remover.id}))
+    # Where they're only named in a list of ids.
+    gone = str(member.id)
+    for task in (await db.execute(select(Task).where(Task.family_id == member.family_id, Task.rotation_user_ids.is_not(None)))).scalars().all():
+        if gone in [str(x) for x in task.rotation_user_ids or []]:
+            task.rotation_user_ids = [x for x in task.rotation_user_ids if str(x) != gone]
+    for event in (await db.execute(select(FamilyEvent).where(FamilyEvent.family_id == member.family_id))).scalars().all():
+        if gone in [str(x) for x in event.member_ids or []]:
+            event.member_ids = [x for x in event.member_ids if str(x) != gone]
+        if gone in (event.private_to or []):
+            event.private_to = [x for x in event.private_to if x != gone] or [str(remover.id)]
+    for party in (await db.execute(select(Party).where(Party.family_id == member.family_id))).scalars().all():
+        if gone in (party.planners or []):
+            party.planners = [x for x in party.planners if x != gone] or None
+        if gone in (party.plan_hidden or []):
+            party.plan_hidden = [x for x in party.plan_hidden if x != gone] or None
+
+
+def _not_the_servers_admin(member: User, admin: User) -> None:
+    """A family admin manages the family's members – not the server's admin, who happens to be one of
+    them: that account reaches every family and the backups."""
+    if member.is_server_admin and member.id != admin.id:
+        raise HTTPException(status_code=403, detail="The server's admin can only be changed by themself")
+
+
 @router.delete("/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_member(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.id == admin.id:
         raise HTTPException(status_code=400, detail="You cannot remove yourself")
+    if member.is_server_admin:
+        raise HTTPException(status_code=400, detail="The server's admin can't be removed")
+    await _let_go(db, member, admin)
     await db.delete(member)
     await db.commit()
 
@@ -79,6 +133,7 @@ async def patch_member(member_id: uuid.UUID, payload: MemberPatch, admin: AdminU
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.id == admin.id and payload.role is not None and payload.role != "admin":
         raise HTTPException(status_code=400, detail="You cannot remove your own admin role")
 
@@ -107,6 +162,7 @@ async def _child_or_self(db, admin, member_id: uuid.UUID) -> User:
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     if member.role != "child" and member.id != admin.id:
         raise HTTPException(status_code=403, detail="Adults choose their own picture")
     return member
@@ -163,8 +219,10 @@ async def reset_member_password(
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     await security_policy.check_password(db, payload.password, member.role)
     member.password_hash = hash_password(payload.password)
+    member.session_version = (member.session_version or 1) + 1
     await db.commit()
 
 
@@ -174,9 +232,11 @@ async def reset_member_mfa(member_id: uuid.UUID, admin: AdminUser, db: DB) -> No
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     member.totp_secret_encrypted = None
     member.totp_pending_encrypted = None
     member.totp_last_step = None
+    member.session_version = (member.session_version or 1) + 1
     await db.execute(delete(WebAuthnCredential).where(WebAuthnCredential.user_id == member.id))
     await db.commit()
 
@@ -187,6 +247,7 @@ async def set_member_apps(member_id: uuid.UUID, payload: AppAccessIn, admin: Adm
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
         raise HTTPException(status_code=404, detail="Member not found")
+    _not_the_servers_admin(member, admin)
     member.app_access = None if payload.apps is None else sorted(set(payload.apps))
     await db.commit()
     await db.refresh(member)

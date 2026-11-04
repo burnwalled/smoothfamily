@@ -6,8 +6,10 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.config import get_settings
-from app.routers import achievements, admin, ai, bank, custody, easy, albums, allowance, auth, backups, birthdays, invite, documents, emergency, flows, guests, kiosk, medicine, pantry, pets, presence, server, trips, week, wish_share, calendar, chat, coparent, dashboard, events, family, feedback, home, lists, meals, mfa, notifications, property, push, rewards, shop, smarthome, tasks, transit, vault, vault_shares, vehicles, web_search, receipts, gateway, economy, csp, updates, guide, devices
+from app.routers import subscriptions
+from app.routers import achievements, admin, ai, bank, custody, easy, albums, allowance, auth, backups, birthdays, invite, documents, emergency, flows, guests, kiosk, health, medicine, parties, places, school, pantry, pets, presence, server, trips, week, wish_share, calendar, chat, coparent, dashboard, events, family, feedback, home, lists, meals, mfa, notifications, property, push, rewards, shop, smarthome, tasks, transit, vault, vault_shares, vehicles, web_search, receipts, gateway, economy, csp, updates, guide, devices
 from app.database import SessionLocal
+from app.services import access_log
 from app.services.ai import ai_worker
 from app.services.ha_live import ha_live_worker
 from app.services.live_writes import LiveWritesMiddleware
@@ -33,7 +35,9 @@ async def lifespan(_: FastAPI):
         await task
 
 
-app = FastAPI(title=get_settings().app_name, version=__version__, lifespan=lifespan)
+# No interactive API docs on a running server (the code is public; the docs would only map the server).
+app = FastAPI(title=get_settings().app_name, version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+access_log.install()
 app.add_middleware(LiveWritesMiddleware)
 
 app.include_router(auth.router)
@@ -66,6 +70,13 @@ app.include_router(notifications.router)
 app.include_router(birthdays.router)
 app.include_router(wish_share.router)
 app.include_router(medicine.router)
+app.include_router(health.router)
+app.include_router(school.router)
+app.include_router(parties.router)
+app.include_router(parties.public)
+app.include_router(places.router)
+app.include_router(parties.portal)
+app.include_router(parties.helpers)
 app.include_router(pets.router)
 app.include_router(week.router)
 app.include_router(documents.router)
@@ -89,6 +100,7 @@ app.include_router(web_search.router)
 app.include_router(receipts.router)
 app.include_router(gateway.router)
 app.include_router(economy.router)
+app.include_router(subscriptions.router)
 app.include_router(csp.router)
 app.include_router(updates.router)
 app.include_router(guide.router)

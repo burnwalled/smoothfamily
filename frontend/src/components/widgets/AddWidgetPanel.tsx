@@ -1,16 +1,16 @@
 "use client";
 
-// Picker shown in dashboard edit mode: built-in widgets plus an SL stop
-// search for adding departure boards.
+// Picker shown in dashboard edit mode: built-in widgets plus a stop search for adding departure
+// boards – SL, or (3.4.0) another provider in Sweden, Norway, Finland, Denmark or London.
 import { useEffect, useState } from "react";
-import { api, FamilyList, SlSite, WidgetType } from "@/lib/api";
+import { api, ApiError, FamilyList, TransitProvider, TransitStop, WidgetType } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { Bus, ShoppingBasket } from "lucide-react";
 import { useMe } from "@/components/Shell";
 import { widgetAllowed } from "@/lib/nav";
 
-const BUILT_IN: WidgetType[] = ["calendar_today", "tasks_today", "leaderboard", "family_goals", "smart_home", "chat_unread", "waste_collection", "school_lunch", "weather", "presence", "electricity", "memories", "pantry_soon", "upcoming", "custody"];
+const BUILT_IN: WidgetType[] = ["calendar_today", "tasks_today", "leaderboard", "family_goals", "smart_home", "chat_unread", "waste_collection", "school_lunch", "weather", "presence", "electricity", "memories", "pantry_soon", "upcoming", "custody", "school"];
 
 export default function AddWidgetPanel({
   onAdd,
@@ -23,8 +23,12 @@ export default function AddWidgetPanel({
   // Presence needs the family's own Home Assistant.
   const smarthome = me.smarthome_available;
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SlSite[]>([]);
+  const [results, setResults] = useState<TransitStop[]>([]);
   const [searched, setSearched] = useState(false);
+  const [needsKey, setNeedsKey] = useState(false);
+  const providers = useApi<TransitProvider[]>("/api/transit/providers").data ?? NONE;
+  const [chosen, setChosen] = useState<string | null>(null);
+  const provider = chosen ?? providers.find((p) => p.suggested && p.available)?.id ?? "sl";
   const lists = useApi<FamilyList[]>(apps.includes("lists") ? "/api/lists" : null).data ?? NONE;
 
   // Debounced stop search.
@@ -35,25 +39,33 @@ export default function AddWidgetPanel({
       return;
     }
     const timer = setTimeout(() => {
+      setNeedsKey(false);
       api
-        .get<SlSite[]>(`/api/transit/sl/sites?q=${encodeURIComponent(query.trim())}`)
-        .then((sites) => {
-          setResults(sites);
+        .get<TransitStop[]>(`/api/transit/${provider}/stops?q=${encodeURIComponent(query.trim())}`)
+        .then((stops) => {
+          setResults(stops);
           setSearched(true);
         })
-        .catch(() => {
+        .catch((e) => {
           setResults([]);
           setSearched(true);
+          setNeedsKey(e instanceof ApiError && e.status === 409);
         });
     }, 300);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, provider]);
+
+  const current = providers.find((p) => p.id === provider);
+  function add(stop: TransitStop) {
+    // SL keeps the shape its widgets always had.
+    onAdd("sl_departures", provider === "sl" ? { provider, site_id: Number(stop.id), site_name: stop.name } : { provider, stop_id: stop.id, stop_name: stop.name });
+  }
 
   return (
     <div className="card p-5 space-y-4">
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("dashboard.addWidget")}</h2>
       <div className="flex flex-wrap gap-2">
-        {BUILT_IN.filter((type) => widgetAllowed(type, apps) && (type !== "presence" || smarthome)).map((type) => (
+        {BUILT_IN.filter((type) => widgetAllowed(type, apps) && ((type !== "presence" && type !== "school") || smarthome)).map((type) => (
           <button key={type} className="btn-ghost border border-edge" onClick={() => onAdd(type)}>
             {t(`widget.${type}`)}
           </button>
@@ -83,17 +95,29 @@ export default function AddWidgetPanel({
       </div>
       )}
       <div>
-        <label className="label inline-flex items-center gap-1.5">
+        <label className="label inline-flex items-center gap-1.5" htmlFor="transit-stop">
           <Bus className="h-4 w-4" strokeWidth={1.75} aria-hidden />
           {t("widget.sl_departures")}
         </label>
+        {providers.length > 1 && (
+          <select className="input mb-2" aria-label={t("transit.provider")} value={provider} onChange={(e) => setChosen(e.target.value)}>
+            {providers.map((p) => (
+              <option key={p.id} value={p.id} disabled={!p.available}>
+                {`${p.name} – ${p.area}${p.available ? "" : ` (${t("transit.noKeyYet")})`}`}
+              </option>
+            ))}
+          </select>
+        )}
+        {current && !current.available && <p className="mb-2 text-xs text-muted">{t("transit.needsKey", { name: current.name })}</p>}
         <input
+          id="transit-stop"
           className="input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("sl.searchPh")}
         />
-        {searched && results.length === 0 && (
+        {needsKey && <p className="mt-2 text-xs text-muted">{t("transit.needsKey", { name: current?.name ?? provider })}</p>}
+        {searched && !needsKey && results.length === 0 && (
           <p className="mt-2 text-xs text-muted">{t("sl.noResults")}</p>
         )}
         {results.length > 0 && (
@@ -103,7 +127,7 @@ export default function AddWidgetPanel({
                 <button
                   className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-base"
                   onClick={() => {
-                    onAdd("sl_departures", { site_id: site.id, site_name: site.name });
+                    add(site);
                     setQuery("");
                     setResults([]);
                     setSearched(false);

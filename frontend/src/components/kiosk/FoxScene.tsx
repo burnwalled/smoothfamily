@@ -5,14 +5,25 @@
 // when clouds come and go, reads on grey days, holds a lantern in the fog, stands under its umbrella
 // in the rain (worried in thunder), builds a snowman when it snows, and sleeps curled up at night.
 // The sky follows the time of day, the trees the season. Drawn in SVG; everything moves on the GPU.
-import { createContext, useContext, useEffect, useId, useRef } from "react";
+// 3.4.0: every few minutes a short moment that fits the weather (a hop, a splash, a snowball, a shooting
+// star, a gust of leaves, now and then a hare or a jumping fish), and dressed up for the holidays and
+// the family's birthdays. Nothing runs between the moments, and with "reduce motion" there are none.
+import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
 import type { WeatherKind } from "@/lib/api";
 import { isNight } from "./FlipClock";
 import "./fox.css";
+import { FoxActivity, FoxMoment, GREY, Season, WET, momentsOf } from "./foxMoments";
+
+export type { FoxActivity, FoxMoment };
 
 type Phase = "dawn" | "day" | "dusk" | "night";
-type Season = "spring" | "summer" | "autumn" | "winter";
-export type FoxActivity = "butterfly" | "kite" | "book" | "lantern" | "umbrella" | "thunder" | "snowman" | "sleep";
+// What the fox dresses up for (the server's fox_theme, or a birthday).
+export type FoxDress = "" | "halloween" | "christmas" | "newyear" | "easter" | "midsummer" | "birthday";
+type Hat = "beanie" | "santa" | "party" | "wreath";
+
+// A moment lasts this long, and comes every three to five minutes.
+export const MOMENT_MS = 8_000;
+const MOMENT_EVERY_MS: [number, number] = [180_000, 300_000];
 
 const ORANGE = "#e8762c";
 const LEG = "#d4661f";
@@ -22,8 +33,6 @@ const CREAM = "#fff4e8";
 // Gradient ids are unique per scene (two scenes on one page would otherwise share the first one's).
 const Ids = createContext({ sky: "fx-sky", glow: "fx-glow" });
 
-const WET: WeatherKind[] = ["rain", "thunder", "sleet"];
-const GREY: WeatherKind[] = ["cloudy", "fog", "rain", "thunder", "sleet", "snow"];
 
 export function phaseOf(now: Date): Phase {
   const h = now.getHours();
@@ -60,8 +69,19 @@ const SKY: Record<Phase, { clear: [string, string]; grey: [string, string] }> = 
   night: { clear: ["#08122a", "#1b2848"], grey: ["#0d1320", "#1a2130"] },
 };
 
-export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: WeatherKind; temp: number | null; wind: number | null }) {
+export default function FoxScene({
+  now, kind, temp, wind, dress = "", lively = true,
+}: {
+  now: Date;
+  kind: WeatherKind;
+  temp: number | null;
+  wind: number | null;
+  dress?: FoxDress;
+  // false: no moments (the small preview in the settings).
+  lively?: boolean;
+}) {
   const svg = useRef<SVGSVGElement>(null);
+  const [moment, setMoment] = useState<FoxMoment | null>(null);
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const ids = { sky: `fx-sky-${uid}`, glow: `fx-glow-${uid}` };
   const phase = phaseOf(now);
@@ -73,12 +93,37 @@ export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: W
   const snowy = kind === "snow" || (season === "winter" && t <= 1);
   const frozen = season === "winter" && t <= -2;
   const windy = (wind ?? 0) >= 8;
+  const choices = momentsOf(activity, kind, season, frozen).join(",");
+  const hat: Hat | undefined = dress === "birthday" || dress === "newyear" ? "party" : dress === "christmas" ? "santa" : dress === "midsummer" ? "wreath" : activity === "snowman" ? "beanie" : undefined;
+  const fireworks = dress === "newyear" && ((now.getMonth() === 11 && now.getHours() >= 17) || (now.getMonth() === 0 && now.getHours() < 2));
   const [top, bottom] = grey ? (kind === "thunder" && !night ? ["#6c7a86", "#a3aeb7"] : SKY[phase].grey) : SKY[phase].clear;
 
   // Respect "reduce motion": the SVG animations stop too (the CSS ones stop in fox.css).
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) svg.current?.pauseAnimations();
   }, []);
+
+  // Now and then a moment: one timer at a time, and nothing at all with "reduce motion".
+  useEffect(() => {
+    if (!lively || !choices || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const all = choices.split(",") as FoxMoment[];
+    let id = 0;
+    const wait = () => {
+      const [min, max] = MOMENT_EVERY_MS;
+      id = window.setTimeout(() => {
+        setMoment(all[Math.floor(Math.random() * all.length)]);
+        id = window.setTimeout(() => {
+          setMoment(null);
+          wait();
+        }, MOMENT_MS);
+      }, min + Math.random() * (max - min));
+    };
+    wait();
+    return () => {
+      window.clearTimeout(id);
+      setMoment(null);
+    };
+  }, [lively, choices]);
 
   const farHill = night ? (snowy ? "#55606f" : "#1c302b") : snowy ? "#e3ebef" : season === "autumn" ? "#8b9a5c" : "#6f9a6a";
   const nearHill = night ? (snowy ? "#7a8798" : "#16261f") : snowy ? "#f4f8fa" : season === "autumn" ? "#6f7f45" : "#4f7f4a";
@@ -122,6 +167,26 @@ export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: W
         !grey && <circle cx={phase === "day" ? 1250 : 1310} cy={phase === "day" ? 200 : 470} r={phase === "day" ? 68 : 80} fill={phase === "day" ? "#fff3c4" : "#ffd29a"} opacity="0.95" />
       )}
 
+      {moment === "star" && (
+        <g transform="translate(260 110)">
+          <g className="fx-shoot">
+            <path d="M0 0 L-150 -50" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+            <circle r="4.5" fill="#fff" />
+          </g>
+        </g>
+      )}
+      {fireworks &&
+        ([[1060, 210, "#ffd56b", 0], [1340, 140, "#f28fb1", -1], [1510, 270, "#6bc1ff", -2]] as const).map(([x, y, color, delay]) => (
+          <g key={x} transform={`translate(${x} ${y})`}>
+            <g className="fx-burst" style={{ animationDelay: `${delay}s` }}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <path key={i} d="M0 -16 L0 -64" transform={`rotate(${i * 30})`} stroke={color} strokeWidth="5" strokeLinecap="round" />
+              ))}
+            </g>
+          </g>
+        ))}
+      {dress === "birthday" && <Bunting />}
+
       {/* Clouds drift by; faster when it's windy */}
       {Array.from({ length: clouds }, (_, i) => (
         <g key={i} className="fx-cloud" style={{ animationDuration: `${(90 + rnd(i + 40) * 70) * drift}s`, animationDelay: `${-rnd(i + 50) * 150}s` }}>
@@ -132,7 +197,7 @@ export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: W
       {/* Far shore with spruces, a birch or two and the red cottage */}
       <path d="M0 1000 L0 610 C 300 530 600 590 900 555 C 1150 525 1400 555 1600 535 L1600 1000 Z" fill={farHill} />
       {[140, 230, 300, 1460, 1530].map((x, i) => (
-        <Spruce key={x} x={x} y={i < 3 ? 600 - i * 18 : 540} s={0.8 + rnd(i) * 0.5} fill={spruce} snow={snowy} />
+        <Spruce key={x} x={x} y={i < 3 ? 600 - i * 18 : 540} s={0.8 + rnd(i) * 0.5} fill={spruce} snow={snowy} lights={dress === "christmas"} />
       ))}
       {[420, 1010].map((x) => (
         <Leafy key={x} x={x} y={x < 600 ? 572 : 548} crown={crown} night={night} trunk={night ? "#2a2a2a" : "#e9e5dc"} />
@@ -150,15 +215,71 @@ export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: W
           <ellipse key={i} className="fx-ripple" cx={980 + rnd(i + 300) * 560} cy={800 + rnd(i + 310) * 170} rx="22" ry="6" fill="none" stroke="#fff" strokeWidth="2" style={{ animationDelay: `${-rnd(i + 320) * 2}s` }} />
         ))}
 
+      {moment === "fish" && (
+        <g transform="translate(1290 880) scale(1.5)">
+          <g className="fx-fish">
+            <path d="M-80 -34 C -92 -20 -92 4 -80 16 C -68 4 -68 -20 -80 -34 Z M-80 12 L-92 30 L-68 30 Z" fill={night ? "#6f7f8f" : "#9fb3bf"} />
+            <circle cx="-83" cy="-22" r="2.4" fill={DARK} />
+          </g>
+          {[-80, 80].map((x) => (
+            <ellipse key={x} className={x < 0 ? "fx-fishsplash" : "fx-fishsplash fx-late"} cx={x} rx="24" ry="6" fill="none" stroke="#fff" strokeWidth="2" />
+          ))}
+        </g>
+      )}
+      {dress === "halloween" && (
+        <g transform="translate(0 250)">
+          <g className="fx-bat">
+            <g className="fx-batwing">
+              <path d="M0 0 C -10 -10 -24 -12 -36 -4 C -28 -2 -24 4 -22 8 C -16 2 -8 2 0 6 C 8 2 16 2 22 8 C 24 4 28 -2 36 -4 C 24 -12 10 -10 0 0 Z" fill="#1f1a24" />
+            </g>
+          </g>
+        </g>
+      )}
+
       {kind === "fog" && <Fog y={560} opacity={0.5} />}
 
       {/* The fox's hill */}
       <path d="M0 1000 L0 790 C 250 705 520 655 760 662 C 950 668 1080 730 1170 1000 Z" fill={nearHill} />
       <Ground season={season} snowy={snowy} night={night} />
+      {dress === "midsummer" && <Maypole x={300} y={716} />}
+      {dress === "easter" &&
+        ([[250, 778, "#f28fb1"], [430, 732, "#6bc1ff"], [885, 694, "#f6d55c"], [1000, 748, "#7ee08a"]] as const).map(([x, y, color]) => (
+          <g key={x} transform={`translate(${x} ${y})`}>
+            <ellipse cy="-12" rx="10" ry="13" fill={color} />
+            <path d="M-9 -14 Q-4 -10 0 -14 Q4 -18 9 -14" stroke="#fff" strokeWidth="2.5" fill="none" />
+          </g>
+        ))}
+      {dress === "halloween" && <Pumpkin x={520} y={680} lit={night || phase === "dusk" || phase === "dawn"} />}
+      {dress === "easter" && <EasterTwigs x={510} y={682} />}
+      {dress === "birthday" && <Balloons x={540} y={678} />}
 
       <g transform="translate(700 672) scale(1.5)">
-        <Fox activity={activity} scarf={t <= 3 || kind === "snow"} shades={kind === "clear" && t >= 20 && !night} wet={WET.includes(kind)} />
+        <g className={moment === "hop" || moment === "splash" ? `fx-${moment}` : undefined}>
+          <Fox activity={activity} scarf={t <= 3 || kind === "snow"} shades={kind === "clear" && t >= 20 && !night} wet={WET.includes(kind)} hat={hat} cape={dress === "halloween"} />
+        </g>
+        {moment === "splash" &&
+          Array.from({ length: 7 }, (_, i) => (
+            <g key={i} transform={`translate(70 4) rotate(${-60 + i * 20})`}>
+              <circle className="fx-drop" r="4" fill="#dcebf4" />
+            </g>
+          ))}
       </g>
+      {moment === "snowball" && (
+        <g transform="translate(640 500)">
+          <g className="fx-ballx">
+            <circle className="fx-bally" r="13" fill="#fbfdff" stroke="#c9d6dc" strokeWidth="2" />
+          </g>
+        </g>
+      )}
+      {moment === "hare" && (
+        <g transform="translate(0 872) scale(1.4)">
+          <g className="fx-hare">
+            <g className="fx-harehop">
+              <Hare winter={snowy} />
+            </g>
+          </g>
+        </g>
+      )}
 
       {/* What's falling */}
       {(kind === "rain" || kind === "thunder" || kind === "sleet") &&
@@ -172,6 +293,10 @@ export default function FoxScene({ now, kind, temp, wind }: { now: Date; kind: W
       {season === "autumn" && !WET.includes(kind) && kind !== "snow" && !night &&
         Array.from({ length: windy ? 18 : 9 }, (_, i) => (
           <ellipse key={i} className="fx-leaf" cx={rnd(i + 600) * 1500} cy="-20" rx="9" ry="5" fill={["#e0902f", "#c9572b", "#e8b33c"][i % 3]} style={{ animationDuration: `${(11 + rnd(i + 610) * 8) * drift}s`, animationDelay: `${-rnd(i + 620) * 18}s` }} />
+        ))}
+      {moment === "gust" &&
+        Array.from({ length: 14 }, (_, i) => (
+          <ellipse key={i} className="fx-gust" cx="-40" cy={420 + rnd(i + 700) * 360} rx="10" ry="5" fill={["#e0902f", "#c9572b", "#e8b33c"][i % 3]} style={{ animationDelay: `${rnd(i + 710) * 4}s` }} />
         ))}
       {kind === "fog" && <Fog y={820} opacity={0.35} />}
       {kind === "thunder" && (
@@ -196,7 +321,9 @@ function Cloud({ x, y, s, fill, opacity }: { x: number; y: number; s: number; fi
   );
 }
 
-function Spruce({ x, y, s, fill, snow }: { x: number; y: number; s: number; fill: string; snow: boolean }) {
+const BULBS = ["#ff5a5a", "#ffd56b", "#6bc1ff", "#7ee08a"];
+
+function Spruce({ x, y, s, fill, snow, lights }: { x: number; y: number; s: number; fill: string; snow: boolean; lights: boolean }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
       <rect x="-5" y="-12" width="10" height="16" fill="#4a3426" />
@@ -204,6 +331,10 @@ function Spruce({ x, y, s, fill, snow }: { x: number; y: number; s: number; fill
         <g key={i}>
           <path d={`M${-44 + i * 8} ${-10 - i * 34} L0 ${-62 - i * 34} L${44 - i * 8} ${-10 - i * 34} Z`} fill={fill} />
           {snow && <path d={`M${-18 + i * 3} ${-48 - i * 34} L0 ${-62 - i * 34} L${18 - i * 3} ${-48 - i * 34} Q0 ${-42 - i * 34} ${-18 + i * 3} ${-48 - i * 34} Z`} fill="#f4f8fa" />}
+          {lights &&
+            [-0.6, -0.2, 0.2, 0.6].map((f, j) => (
+              <circle key={j} className="fx-star" cx={f * (44 - i * 8)} cy={-8 - i * 34 - Math.abs(f) * 6} r="4" fill={BULBS[(i + j) % 4]} style={{ animationDelay: `${-(i + j) * 0.7}s` }} />
+            ))}
         </g>
       ))}
     </g>
@@ -291,8 +422,8 @@ function Ground({ season, snowy, night }: { season: Season; snowy: boolean; nigh
 // --- The fox -------------------------------------------------------------------------------------
 // Drawn around (0, 0) where its paws meet the ground; about 260 tall sitting up.
 
-function Fox({ activity, scarf, shades, wet }: { activity: FoxActivity; scarf: boolean; shades: boolean; wet: boolean }) {
-  if (activity === "sleep") return <SleepingFox umbrella={wet} />;
+function Fox({ activity, scarf, shades, wet, hat, cape }: { activity: FoxActivity; scarf: boolean; shades: boolean; wet: boolean; hat?: Hat; cape: boolean }) {
+  if (activity === "sleep") return <SleepingFox umbrella={wet} hat={hat === "beanie" ? undefined : hat} />;
   const eyes = activity === "book" ? "down" : activity === "snowman" ? "up" : activity === "thunder" ? "wide" : "open";
   const tilt = activity === "book" ? 7 : activity === "snowman" ? -8 : 0;
   // Where the paws go for each thing it holds.
@@ -313,6 +444,7 @@ function Fox({ activity, scarf, shades, wet }: { activity: FoxActivity; scarf: b
         <path d="M50 -25 C 120 -10 178 -52 172 -122 C 168 -152 150 -176 134 -182 C 140 -140 126 -96 96 -76 C 80 -64 62 -56 46 -50 Z" fill={ORANGE} />
         <path d="M134 -182 C 150 -176 168 -152 172 -122 C 162 -128 150 -132 140 -134 C 142 -150 140 -168 134 -182 Z" fill={CREAM} />
       </g>
+      {cape && <path d="M-44 -128 C -96 -70 -106 -20 -94 6 L94 6 C 106 -20 96 -70 44 -128 Z" fill="#3d2257" />}
       {/* Body, chest and front legs */}
       <path d="M-62 0 C -78 -50 -62 -125 0 -135 C 62 -125 78 -50 62 0 Z" fill={ORANGE} />
       <path d="M-34 -4 C -42 -50 -30 -105 0 -112 C 30 -105 42 -50 34 -4 Z" fill={CREAM} />
@@ -327,6 +459,7 @@ function Fox({ activity, scarf, shades, wet }: { activity: FoxActivity; scarf: b
           <path d="M18 -122 L32 -66 L16 -64 L6 -118 Z" fill="#c8372d" />
         </g>
       )}
+      {cape && <path d="M-48 -134 L-22 -114 L0 -126 L22 -114 L48 -134 L42 -120 L0 -108 L-42 -120 Z" fill="#c8372d" />}
       {activity === "book" && <Book />}
       {activity === "lantern" && <Lantern x={62} y={-78} />}
       {activity === "kite" && <Kite hand={[62, -150]} />}
@@ -338,14 +471,14 @@ function Fox({ activity, scarf, shades, wet }: { activity: FoxActivity; scarf: b
         </g>
       ))}
       <g transform={`rotate(${tilt} 0 -135)`}>
-        <Head y={-140} eyes={eyes} earsDown={activity === "thunder"} hat={activity === "snowman"} shades={shades} />
+        <Head y={-140} eyes={eyes} earsDown={activity === "thunder"} hat={hat} shades={shades} />
       </g>
       {activity === "butterfly" && <Butterfly />}
     </g>
   );
 }
 
-function Head({ y, eyes, earsDown = false, hat = false, shades = false, scale = 1 }: { y: number; eyes: "open" | "down" | "up" | "wide" | "closed"; earsDown?: boolean; hat?: boolean; shades?: boolean; scale?: number }) {
+function Head({ y, eyes, earsDown = false, hat, shades = false, scale = 1 }: { y: number; eyes: "open" | "down" | "up" | "wide" | "closed"; earsDown?: boolean; hat?: Hat; shades?: boolean; scale?: number }) {
   const ear = (side: 1 | -1) => (
     <g transform={earsDown ? `rotate(${-side * 32} ${side * 36} -58)` : undefined}>
       <path d={`M${side * 50} -40 L${side * 64} -118 L${side * 10} -72 Z`} fill={ORANGE} />
@@ -386,18 +519,48 @@ function Head({ y, eyes, earsDown = false, hat = false, shades = false, scale = 
           <path d="M-38 -44 L-28 -44" stroke="#fff" strokeWidth="2.5" opacity="0.5" strokeLinecap="round" />
         </g>
       )}
-      {hat && (
+      {hat === "beanie" && (
         <g>
           <path d="M-46 -66 C -42 -116 42 -116 46 -66 Z" fill="#3f6fb5" />
           <rect x="-48" y="-72" width="96" height="14" rx="7" fill="#f1ece2" />
           <circle cy="-112" r="13" fill="#f1ece2" />
         </g>
       )}
+      {hat === "santa" && (
+        <g>
+          <path d="M-48 -68 C -44 -118 30 -134 66 -104 C 80 -92 86 -76 84 -62 L70 -66 C 62 -86 44 -84 48 -68 Z" fill="#c8372d" />
+          <rect x="-52" y="-78" width="104" height="17" rx="8.5" fill="#fbfdff" />
+          <circle cx="82" cy="-58" r="12" fill="#fbfdff" />
+        </g>
+      )}
+      {hat === "party" && (
+        <g transform="rotate(-12 0 -70)">
+          <path d="M-32 -68 L0 -156 L32 -68 Z" fill="#f2b632" />
+          <path d="M-22 -96 L22 -96 L18 -86 L-18 -86 Z M-12 -124 L12 -124 L9 -115 L-9 -115 Z" fill="#e85d75" />
+          <circle cy="-158" r="9" fill="#3f6fb5" />
+        </g>
+      )}
+      {hat === "wreath" && (
+        <g>
+          <path d="M-64 -58 Q0 -106 64 -58" stroke="#4f8f45" strokeWidth="11" fill="none" strokeLinecap="round" />
+          {Array.from({ length: 7 }, (_, i) => {
+            const f = (i + 0.5) / 7;
+            const fx = -64 * (1 - f) ** 2 + 64 * f ** 2;
+            const fy = -58 * (1 - f) ** 2 - 212 * (1 - f) * f - 58 * f ** 2;
+            return (
+              <g key={i}>
+                <circle cx={fx} cy={fy} r="8" fill={["#ffffff", "#f6d55c", "#b39ddb", "#f28fb1"][i % 4]} />
+                <circle cx={fx} cy={fy} r="2.6" fill="#e8a33c" />
+              </g>
+            );
+          })}
+        </g>
+      )}
     </g>
   );
 }
 
-function SleepingFox({ umbrella }: { umbrella: boolean }) {
+function SleepingFox({ umbrella, hat }: { umbrella: boolean; hat?: Hat }) {
   return (
     <g>
       {umbrella && (
@@ -414,7 +577,7 @@ function SleepingFox({ umbrella }: { umbrella: boolean }) {
       <path d="M120 -40 C 128 -2 40 8 -40 2 C -90 -2 -128 -16 -118 -34 C -70 -20 30 -18 84 -34 Z" fill={ORANGE} />
       <path d="M-118 -34 C -128 -16 -100 -2 -70 0 C -74 -14 -90 -26 -118 -34 Z" fill={CREAM} />
       <g transform="translate(-86 0) rotate(-8 0 -46)">
-        <Head y={-46} eyes="closed" scale={0.78} />
+        <Head y={-46} eyes="closed" scale={0.78} hat={hat} />
       </g>
       {["z", "z", "Z"].map((z, i) => (
         <text key={i} className="fx-zzz" x={-10 + i * 26} y={-140 - i * 30} fontSize={22 + i * 8} fontWeight="700" fill="#cfd8ea" style={{ animationDelay: `${i * 1.2}s` }}>
@@ -516,6 +679,113 @@ function Butterfly() {
       </g>
       <rect x="-2" y="-12" width="4" height="26" rx="2" fill={DARK} />
       </g>
+    </g>
+  );
+}
+
+// --- Dressed up (3.4.0) --------------------------------------------------------------------------
+
+function Pumpkin({ x, y, lit }: { x: number; y: number; lit: boolean }) {
+  const { glow } = useContext(Ids);
+  return (
+    <g transform={`translate(${x} ${y}) scale(1.5)`}>
+      {lit && <circle className="fx-candle" cy="-30" r="90" fill={`url(#${glow})`} opacity="0.6" />}
+      <rect x="-4" y="-68" width="8" height="14" rx="3" fill="#4f7f4a" />
+      <ellipse cx="-17" cy="-30" rx="22" ry="29" fill="#c9571c" />
+      <ellipse cx="17" cy="-30" rx="22" ry="29" fill="#c9571c" />
+      <ellipse cy="-30" rx="24" ry="31" fill="#e06a22" />
+      <g className="fx-candle" fill="#ffd56b">
+        <path d="M-20 -42 L-10 -42 L-15 -32 Z M10 -42 L20 -42 L15 -32 Z" />
+        <path d="M-20 -20 Q0 -6 20 -20 L14 -18 L10 -12 L4 -16 L-4 -16 L-10 -12 L-14 -18 Z" />
+      </g>
+    </g>
+  );
+}
+
+function EasterTwigs({ x, y }: { x: number; y: number }) {
+  const tips: [number, number][] = [[-62, -150], [-30, -186], [8, -196], [44, -166], [66, -124], [-58, -104]];
+  const colors = ["#f28fb1", "#f6d55c", "#7ee08a", "#6bc1ff", "#e85d75", "#b39ddb"];
+  return (
+    <g transform={`translate(${x} ${y}) scale(1.4)`}>
+      <g className="fx-sway">
+        {tips.map(([tx, ty], i) => (
+          <g key={i}>
+            <path d={`M0 -38 Q${tx * 0.3} ${ty * 0.6} ${tx} ${ty}`} stroke="#5b4636" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <ellipse cx={tx} cy={ty} rx="6" ry="13" fill={colors[i]} transform={`rotate(${tx / 3} ${tx} ${ty})`} />
+            <ellipse cx={tx * 0.55} cy={ty * 0.7} rx="5" ry="11" fill={colors[(i + 3) % 6]} transform={`rotate(${tx / 2} ${tx * 0.55} ${ty * 0.7})`} />
+          </g>
+        ))}
+      </g>
+      <path d="M-20 0 L-24 -42 L24 -42 L20 0 Z" fill="#3f6fb5" />
+      <rect x="-26" y="-46" width="52" height="8" rx="4" fill="#5784c4" />
+    </g>
+  );
+}
+
+function Maypole({ x, y }: { x: number; y: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(1.3)`}>
+      <rect x="-7" y="-290" width="14" height="290" fill="#4f8f45" />
+      <path d="M-7 -260 L7 -250 M-7 -200 L7 -190 M-7 -140 L7 -130 M-7 -80 L7 -70" stroke="#2f6b33" strokeWidth="4" />
+      <rect x="-84" y="-238" width="168" height="12" rx="6" fill="#4f8f45" />
+      {[-70, 70].map((rx) => (
+        <g key={rx}>
+          <path d={`M${rx} -226 L${rx} -206`} stroke="#4f8f45" strokeWidth="4" />
+          <circle cx={rx} cy="-172" r="34" stroke="#4f8f45" strokeWidth="11" fill="none" />
+          {[0, 72, 144, 216, 288].map((a) => (
+            <circle key={a} cx={rx + 34 * Math.cos((a * Math.PI) / 180)} cy={-172 + 34 * Math.sin((a * Math.PI) / 180)} r="5" fill={a % 144 ? "#f6d55c" : "#ffffff"} />
+          ))}
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function Balloons({ x, y }: { x: number; y: number }) {
+  const balloons: [number, number, string][] = [[-46, -250, "#e85d75"], [2, -300, "#f2b632"], [46, -240, "#3f6fb5"]];
+  return (
+    <g transform={`translate(${x} ${y}) scale(1.4)`}>
+      <g className="fx-balloons">
+        {balloons.map(([bx, by, color]) => (
+          <g key={bx}>
+            <path d={`M0 0 Q${bx * 0.2} ${by * 0.5} ${bx} ${by + 34}`} stroke="#5b4636" strokeWidth="2" fill="none" />
+            <path d={`M${bx - 5} ${by + 40} L${bx + 5} ${by + 40} L${bx} ${by + 32} Z`} fill={color} />
+            <ellipse cx={bx} cy={by} rx="28" ry="34" fill={color} />
+            <ellipse cx={bx - 9} cy={by - 12} rx="6" ry="10" fill="#fff" opacity="0.4" />
+          </g>
+        ))}
+      </g>
+    </g>
+  );
+}
+
+function Bunting() {
+  const flags = Array.from({ length: 16 }, (_, i) => {
+    const fx = 50 + i * 100;
+    return [fx, 26 + 56 * Math.sin((Math.PI * fx) / 1600)] as const;
+  });
+  return (
+    <g>
+      <path d={`M0 26 ${flags.map(([fx, fy]) => `L${fx} ${fy}`).join(" ")} L1600 26`} stroke="#5b4636" strokeWidth="2.5" fill="none" />
+      {flags.map(([fx, fy], i) => (
+        <path key={fx} d={`M${fx - 28} ${fy} L${fx + 28} ${fy} L${fx} ${fy + 48} Z`} fill={["#e85d75", "#f2b632", "#3f6fb5", "#7ee08a"][i % 4]} />
+      ))}
+    </g>
+  );
+}
+
+function Hare({ winter }: { winter: boolean }) {
+  const fur = winter ? "#f1f3f5" : "#9c8266";
+  return (
+    <g>
+      <ellipse cx="0" cy="-26" rx="34" ry="22" fill={fur} />
+      <circle cx="30" cy="-30" r="8" fill="#fff" />
+      <circle cx="-30" cy="-44" r="16" fill={fur} />
+      <path d="M-30 -56 C -40 -96 -30 -104 -24 -60 Z M-22 -56 C -22 -98 -10 -100 -16 -58 Z" fill={fur} />
+      <path d="M-29 -62 C -34 -88 -30 -92 -27 -64 Z" fill={winter ? "#2a2a2a" : "#e9c9b0"} />
+      <circle cx="-38" cy="-46" r="2.6" fill={DARK} />
+      <ellipse cx="-10" cy="-6" rx="16" ry="6" fill={fur} />
+      <ellipse cx="22" cy="-6" rx="18" ry="6" fill={fur} />
     </g>
   );
 }

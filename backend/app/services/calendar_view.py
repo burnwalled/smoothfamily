@@ -74,7 +74,7 @@ async def attach_plans(db: AsyncSession, family_id: uuid.UUID, events: list[Even
         for p in (await db.execute(select(PackingList).where(PackingList.family_id == family_id))).scalars()
     }
     pack = {}
-    for task in (await db.execute(select(Task).where(Task.family_id == family_id, Task.event_key.in_(keys)).order_by(Task.created_at))).scalars():
+    for task in (await db.execute(select(Task).where(Task.family_id == family_id, Task.event_key.in_(keys), Task.deleted_at.is_(None)).order_by(Task.created_at))).scalars():
         pack.setdefault(task.event_key, []).append(PackTask(task_id=task.id, user_id=task.assignee_id, day=task.due_date, done=not task.active))
     for event in events:
         if not event.key:
@@ -88,6 +88,8 @@ async def attach_plans(db: AsyncSession, family_id: uuid.UUID, events: list[Even
             event.needs_ride = plan.needs_ride
             event.drop_off_by = plan.drop_off_by
             event.pick_up_by = plan.pick_up_by
+            event.drop_off_text = plan.drop_off_text
+            event.pick_up_text = plan.pick_up_text
     return events
 
 
@@ -100,7 +102,7 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
         if not visible:
             continue
         try:
-            raw = await fetch_ical_raw(feed.url)
+            raw = await fetch_ical_raw(feed.url, feed.family_id)
             items = parse_events(raw, start, end)
         except Exception:
             # A broken feed must not take down the whole calendar
@@ -134,6 +136,9 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
     # `end` is exclusive, like the iCal feeds (recurring_ical_events.between).
     range_end = datetime.combine(end, time.min, tzinfo=timezone.utc)
     for event in await family_events_between(db, user.family_id, range_start, range_end):
+        # A surprise: only those in on it. A kitchen display or a guest's link is nobody in particular.
+        if event.private_to and str(user.id) not in event.private_to:
+            continue
         events.append(
             EventOut(
                 event_id=event.id,
@@ -150,6 +155,15 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
                 key=app_event_key(event.id),
             )
         )
+    # The red days of the family's country (3.4.0).
+    if family and family.holiday_country:
+        from app.services import holidays
+
+        for day, name, eve in holidays.between(family.holiday_country, start, end):
+            day_start, day_end = all_day_range(day)
+            events.append(
+                EventOut(feed_name="", color="#E07A5F" if eve else "#C0392B", title=name, start=day_start, end=day_end, all_day=True, holiday=True, holiday_eve=eve)
+            )
     if birthdays and "birthdays" in user.apps:
         for person, day in await birthdays_between(db, user.family_id, start, end):
             day_start, day_end = all_day_range(day)

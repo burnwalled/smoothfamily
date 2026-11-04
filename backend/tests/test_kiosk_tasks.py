@@ -133,3 +133,26 @@ async def test_the_kitchen_display_ticks_off_who_did_it(client):
     for r in rows:
         by_task.setdefault(str(r.task_id), []).append(r.points_awarded)
     assert sorted(by_task[shared["id"]]) == [3, 3] and by_task[solo["id"]] == [3]
+
+
+async def test_the_fox_dresses_up_for_birthdays(client):
+    from datetime import datetime, timezone
+
+    from app.services import electricity as el
+
+    await _family(client)
+    today = datetime.now(timezone.utc).astimezone(el._zone()).date()
+    other = today + timedelta(days=3)
+    assert (await client.post("/api/birthdays/people", json={"name": "Maja Andersson", "birth_month": today.month, "birth_day": today.day})).status_code == 201
+    assert (await client.post("/api/birthdays/people", json={"name": "Grandpa", "birth_month": other.month, "birth_day": other.day})).status_code == 201
+    screen = (await client.post("/api/kiosks", json={"name": "Kitchen", "screensaver": "fox"})).json()
+    assert screen["fox_themes"] is True
+    token = screen["url"].rsplit("/", 1)[1]
+    view = (await client.get(f"/api/kiosk/{token}")).json()
+    assert view["birthdays"] == ["Maja"]
+    # Turned off per screen; and only the fox gets dressed.
+    assert (await client.put(f"/api/kiosks/{screen['id']}", json={"fox_themes": False})).json()["fox_themes"] is False
+    view = (await client.get(f"/api/kiosk/{token}")).json()
+    assert view["birthdays"] == [] and view["fox_theme"] == ""
+    await client.put(f"/api/kiosks/{screen['id']}", json={"fox_themes": True, "screensaver": "calm"})
+    assert (await client.get(f"/api/kiosk/{token}")).json()["birthdays"] == []

@@ -519,7 +519,7 @@ async def export_property_data(user: CurrentUser, db: DB, property_id: uuid.UUID
     expenses_q = select(PropertyExpense).where(PropertyExpense.family_id == user.family_id)
     utilities_q = select(UtilityReading).join(Property, Property.id == UtilityReading.property_id).where(Property.family_id == user.family_id)
     recurring_q = select(PropertyRecurringCost).join(Property, Property.id == PropertyRecurringCost.property_id).where(Property.family_id == user.family_id)
-    tasks_q = select(Task).where(Task.family_id == user.family_id, Task.property_id.is_not(None))
+    tasks_q = select(Task).where(Task.family_id == user.family_id, Task.property_id.is_not(None), Task.deleted_at.is_(None))
 
     if property_id is not None:
         properties_q = properties_q.where(Property.id == property_id)

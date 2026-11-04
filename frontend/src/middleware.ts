@@ -17,7 +17,7 @@ export function policy(nonce: string): string {
     "connect-src 'self'",
     "media-src 'self' blob:",
     // PDFs and photos shown from this server; office previews are drawn as HTML.
-    "frame-src 'self' blob:",
+    "frame-src 'self' blob: https://open.spotify.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",

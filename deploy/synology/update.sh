@@ -85,7 +85,17 @@ service_of() {
 	esac
 }
 
+# A pins line the override may carry: one of the stack's services, with its own official image. The
+# folder is the app's (it writes plan.env there), so this script – running as root – trusts no line it
+# hasn't checked itself.
+PIN_RE='^(db=postgres|redis=redis|caddy=caddy|searxng=searxng/searxng):[A-Za-z0-9._-]{1,64}$|^(backend|frontend)=ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64}$'
+keep_valid_pins() {
+	grep -E "$PIN_RE" "$U/pins" > "$U/pins.tmp" 2> /dev/null || true
+	mv "$U/pins.tmp" "$U/pins"
+}
+
 write_override() {
+	keep_valid_pins
 	{
 		echo "# Written by update.sh (Server settings → Updates) – the versions in use."
 		echo 'version: "2.4"'
@@ -97,6 +107,7 @@ write_override() {
 }
 
 touch "$U/pins"
+keep_valid_pins
 cp "$U/pins" "$U/pins.before"
 for image in $PULL; do
 	if ! echo "$image" | grep -Eq '^((postgres|redis|caddy|searxng/searxng):[A-Za-z0-9._-]{1,64}|ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64})$'; then
@@ -172,6 +183,8 @@ until healthy; do
 				$COMPOSE stop backend frontend
 				$COMPOSE exec -T db pg_restore -U smooth -d smoothfamily --clean --if-exists < "$DB_BEFORE"
 			fi
+			# The plain dump of the whole server isn't left behind.
+			rm -f "$DB_BEFORE"
 		fi
 		$COMPOSE up -d
 		result 0 "The new versions did not come up – the old ones are back ($PULL)"

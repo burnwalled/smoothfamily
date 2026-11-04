@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.services.public_url import public_base
 from app.deps import DB, CurrentUser, require_app
-from app.models import Person, User, WishItem, WishShare
+from app.models import Family, Person, User, WishItem, WishShare
 from app.services import login_throttle
 
 router = APIRouter(prefix="/api", tags=["wish-share"])
@@ -127,7 +127,8 @@ async def _open(db, token: str, request: Request) -> tuple[WishShare, Person]:
     expires = None
     if share is not None:
         expires = share.expires_at if share.expires_at.tzinfo else share.expires_at.replace(tzinfo=timezone.utc)
-    if share is None or share.revoked_at or expires <= now:
+    family = await db.get(Family, share.family_id) if share else None
+    if share is None or share.revoked_at or expires <= now or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid")
     return share, await db.get(Person, share.person_id)

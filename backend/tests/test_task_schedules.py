@@ -10,7 +10,7 @@ from app.services.schedule import due_on, week_start
 
 def _task(**kw):
     defaults = dict(
-        recurrence="daily", weekday=None, weekdays=[], interval_weeks=1, anchor_date=None,
+        recurrence="daily", weekday=None, weekdays=[], interval_weeks=1, interval_days=1, interval_months=1, month_nth=None, anchor_date=None,
         month=None, day_of_month=None, due_date=None, active=True,
         created_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
     )
@@ -107,3 +107,41 @@ async def test_week_view_and_history(client):
 
     history = (await client.get("/api/tasks/history")).json()
     assert [(h["title"], h["points_awarded"]) for h in history] == [("Diska", 10)]
+
+
+# --- 3.4.0: every N days, every N months, a month's weekday ----------------------------------
+
+
+def test_every_other_day_from_the_start():
+    task = _task(recurrence="daily", interval_days=2, anchor_date=date(2026, 11, 3))
+    assert [due_on(task, date(2026, 11, d)) for d in range(2, 8)] == [False, True, False, True, False, True]
+
+
+def test_every_third_month_on_a_date():
+    task = _task(recurrence="monthly", day_of_month=15, interval_months=3, anchor_date=date(2026, 11, 3))
+    assert due_on(task, date(2026, 11, 15)) and due_on(task, date(2027, 2, 15)) and due_on(task, date(2027, 5, 15))
+    assert not due_on(task, date(2026, 12, 15)) and not due_on(task, date(2027, 1, 15))
+
+
+def test_the_first_saturday_and_the_last_friday():
+    first_sat = _task(recurrence="monthly", month_nth=1, weekdays=[5])
+    assert due_on(first_sat, date(2026, 11, 7)) and not due_on(first_sat, date(2026, 11, 14))
+    assert due_on(first_sat, date(2026, 12, 5))
+    last_fri = _task(recurrence="monthly", month_nth=-1, weekdays=[4])
+    assert due_on(last_fri, date(2026, 11, 27)) and not due_on(last_fri, date(2026, 11, 20))
+    assert due_on(last_fri, date(2027, 1, 29))
+
+
+@pytest.mark.asyncio
+async def test_the_schedules_through_the_api(client):
+    await client.post("/api/auth/setup", json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"})
+    t = (await client.post("/api/tasks", json={"title": "Water the plants", "recurrence": "daily", "interval_days": 2, "points": 3})).json()
+    assert t["interval_days"] == 2 and t["anchor_date"] == date.today().isoformat()
+    t = (await client.post("/api/tasks", json={"title": "Clean the gutters", "recurrence": "monthly", "month_nth": 1, "weekdays": [5], "interval_months": 6, "points": 30})).json()
+    assert (t["month_nth"], t["weekdays"], t["interval_months"], t["day_of_month"]) == (1, [5], 6, None)
+    bad = await client.post("/api/tasks", json={"title": "Bad", "recurrence": "monthly", "month_nth": 2, "weekdays": [1, 2]})
+    assert bad.status_code == 422
+    # A weekly task back to daily: its other fields are cleared.
+    w = (await client.post("/api/tasks", json={"title": "Bins", "recurrence": "weekly", "weekdays": [0], "interval_weeks": 2})).json()
+    d = (await client.patch(f"/api/tasks/{w['id']}", json={"recurrence": "daily", "interval_days": 3})).json()
+    assert (d["recurrence"], d["interval_days"], d["interval_weeks"], d["weekdays"]) == ("daily", 3, 1, [])

@@ -4,6 +4,7 @@ import {
   FileText,
   Gift,
   HeartHandshake,
+  HeartPulse,
   PawPrint,
   Pill,
   Siren,
@@ -52,6 +53,7 @@ export const APP_PAGES: NavItem[] = [
   { key: "vehicles", href: "/vehicles", labelKey: "nav.vehicles", icon: Car },
   { key: "smarthome", href: "/smarthome", labelKey: "nav.smarthome", icon: Lightbulb },
   { key: "pets", href: "/pets", labelKey: "nav.pets", icon: PawPrint },
+  { key: "health", href: "/health", labelKey: "nav.health", icon: HeartPulse },
 ];
 
 /** A tab inside one of the menu's apps: a page and the app (permission) it needs. */
@@ -72,6 +74,8 @@ export const HUBS: Hub[] = [
       { app: "birthdays", href: "/birthdays", labelKey: "nav.birthdays", hidden: true },
       { app: "trips", href: "/trips", labelKey: "nav.trips" },
       { app: "calendar", href: "/calendar/custody", labelKey: "custody.title" },
+      // 3.4.0: planning a party (adults; the shell leaves it out for children).
+      { app: "calendar", href: "/parties", labelKey: "nav.parties" },
       { app: "week", href: "/week", labelKey: "nav.week" },
     ],
   },
@@ -107,11 +111,14 @@ export const HUBS: Hub[] = [
     tabs: [
       { app: "property", href: "/property", labelKey: "nav.property" },
       { app: "property", href: "/economy", labelKey: "nav.economy" },
+      { app: "property", href: "/subscriptions", labelKey: "nav.subscriptions" },
       { app: "vehicles", href: "/vehicles", labelKey: "nav.vehicles" },
       { app: "pets", href: "/pets", labelKey: "nav.pets" },
     ],
   },
   { key: "smarthome", href: "/smarthome", labelKey: "nav.smarthome", icon: Lightbulb, tabs: [{ app: "smarthome", href: "/smarthome", labelKey: "nav.smarthome" }] },
+  // 3.4.0: each person's workouts and the day's numbers.
+  { key: "health", href: "/health", labelKey: "nav.health", icon: HeartPulse, tabs: [{ app: "health", href: "/health", labelKey: "nav.health" }] },
 ];
 
 // The menu's items (also what the profile's menu settings order and hide).
@@ -152,6 +159,7 @@ export const WIDGET_APP: Partial<Record<WidgetType, string | string[]>> = {
   pantry_soon: "pantry",
   upcoming: ["vehicles", "property"],
   custody: "calendar",
+  school: "calendar",
 };
 
 export function widgetAllowed(type: WidgetType, apps: string[]): boolean {

@@ -9,11 +9,11 @@ test("the admin turns off an app for a child", async ({ adminPage, kidPage, admi
     await adminPage.goto("/settings/members");
     await adminPage.getByRole("link", { name: new RegExp(`@${KID.username}`) }).click();
     // From the cache (#76): the box follows the change a moment after the click, so wait for it.
-    const chat = adminPage.getByRole("region", { name: /^Apps \d+\/20$/ }).getByRole("checkbox", { name: "Chat" });
+    const chat = adminPage.getByRole("region", { name: /^Apps \d+\/21$/ }).getByRole("checkbox", { name: "Chat" });
     await chat.click();
     await expect(chat).not.toBeChecked();
-    // Children get 17 of 20 apps by default (no Property, Vehicles or Documents); Chat is now off too.
-    await expect(adminPage.getByRole("region", { name: "Apps 16/20" })).toBeVisible();
+    // Children get 18 of 21 apps by default (no Property, Vehicles or Documents); Chat is now off too.
+    await expect(adminPage.getByRole("region", { name: "Apps 17/21" })).toBeVisible();
 
     await kidPage.goto("/");
     await expect(kidPage.locator('nav a[href="/chat"]')).toHaveCount(0);

@@ -4,7 +4,8 @@
 // turns – points, approval).
 import { useState } from "react";
 import { isoDate, Member, Task } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { TranslationKey, useI18n } from "@/lib/i18n";
+import { useMaybeMe } from "@/components/Shell";
 import { monthNames, taskWeekdays, weekdayNames } from "@/lib/taskSchedule";
 
 type Recurrence = Task["recurrence"];
@@ -18,12 +19,16 @@ export type TaskDraft = Pick<
   | "weekday"
   | "weekdays"
   | "interval_weeks"
+  | "interval_days"
+  | "interval_months"
+  | "month_nth"
   | "month"
   | "day_of_month"
   | "due_date"
   | "assignee_id"
   | "requires_approval"
   | "shared"
+  | "exercise_minutes"
   | "rotation_user_ids"
   | "rotation_mode"
 >;
@@ -36,12 +41,16 @@ export const NEW_TASK: TaskDraft = {
   weekday: null,
   weekdays: [],
   interval_weeks: 1,
+  interval_days: 1,
+  interval_months: 1,
+  month_nth: null,
   month: null,
   day_of_month: null,
   due_date: null,
   assignee_id: null,
   requires_approval: false,
   shared: false,
+  exercise_minutes: null,
   rotation_user_ids: [],
   rotation_mode: "done",
 };
@@ -69,12 +78,18 @@ export default function TaskEditor({
     return days.length > 0 ? days : [(new Date().getDay() + 6) % 7];
   });
   const [intervalWeeks, setIntervalWeeks] = useState(task.interval_weeks || 1);
+  const [intervalDays, setIntervalDays] = useState(task.interval_days || 1);
+  const [intervalMonths, setIntervalMonths] = useState(task.interval_months || 1);
+  // Monthly on a date (0) or on the first … fourth / last (-1) weekday.
+  const [monthNth, setMonthNth] = useState(task.month_nth ?? 0);
   const [month, setMonth] = useState(task.month ?? 1);
   const [dayOfMonth, setDayOfMonth] = useState(task.day_of_month ?? 1);
   const [dueDate, setDueDate] = useState(task.due_date ?? isoDate(new Date()));
   const [assignee, setAssignee] = useState(task.assignee_id ?? "");
   const [requiresApproval, setRequiresApproval] = useState(task.requires_approval);
   const [shared, setShared] = useState(!!task.shared);
+  const [exercise, setExercise] = useState(task.exercise_minutes ?? 0);
+  const health = useMaybeMe()?.apps.includes("health") ?? false;
   // Taking turns: members in the order they were picked.
   const [turns, setTurns] = useState<string[]>(task.rotation_user_ids ?? []);
   const [rotating, setRotating] = useState((task.rotation_user_ids ?? []).length >= 2);
@@ -85,6 +100,8 @@ export default function TaskEditor({
     setWeekdays((days) => (days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort()));
   }
 
+  const monthWeekday = recurrence === "monthly" && monthNth !== 0;
+
   async function save() {
     setSaving(true);
     try {
@@ -93,15 +110,19 @@ export default function TaskEditor({
         description: description.trim() || null,
         points,
         recurrence,
-        weekday: recurrence === "weekly" ? weekdays[0] : null,
-        weekdays: recurrence === "weekly" ? weekdays : [],
+        weekday: recurrence === "weekly" || monthWeekday ? weekdays[0] : null,
+        weekdays: recurrence === "weekly" ? weekdays : monthWeekday ? weekdays.slice(0, 1) : [],
         interval_weeks: recurrence === "weekly" ? intervalWeeks : 1,
+        interval_days: recurrence === "daily" ? intervalDays : 1,
+        interval_months: recurrence === "monthly" ? intervalMonths : 1,
+        month_nth: monthWeekday ? monthNth : null,
         month: recurrence === "yearly" ? month : null,
-        day_of_month: recurrence === "yearly" || recurrence === "monthly" ? dayOfMonth : null,
+        day_of_month: recurrence === "yearly" || (recurrence === "monthly" && !monthWeekday) ? dayOfMonth : null,
         due_date: recurrence === "none" ? dueDate : null,
         assignee_id: rotating ? turns[0] ?? null : assignee || null,
         requires_approval: requiresApproval,
         shared,
+        exercise_minutes: exercise || null,
         rotation_user_ids: rotating ? turns : [],
         rotation_mode: rotationMode,
       });
@@ -117,43 +138,88 @@ export default function TaskEditor({
     <div className="space-y-3 rounded-lg border border-edge bg-base p-4">
       <div>
         <label className="label">{t("tasks.what")}</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder={t("tasks.whatPh")} />
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder={t("tasks.whatPh")} aria-label={t("tasks.what")} />
       </div>
       <div>
         <label className="label">{t("tasks.description")}</label>
-        <textarea className="input min-h-16" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea className="input min-h-16" value={description} onChange={(e) => setDescription(e.target.value)} aria-label={t("tasks.description")} />
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div>
           <label className="label">{t("tasks.points")}</label>
-          <input className="input" type="number" min={1} max={1000} value={points} onChange={(e) => setPoints(Number(e.target.value))} />
+          <input className="input" type="number" min={1} max={1000} value={points} onChange={(e) => setPoints(Number(e.target.value))} aria-label={t("tasks.points")} />
         </div>
         <div>
           <label className="label">{t("tasks.recurrence")}</label>
-          <select className="input" value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)}>
+          <select className="input" value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)} aria-label={t("tasks.recurrence")}>
             <option value="daily">{t("tasks.daily")}</option>
+            <option value="workdays">{t("tasks.workdays")}</option>
+            <option value="weekends">{t("tasks.weekends")}</option>
             <option value="weekly">{t("tasks.weekly")}</option>
             <option value="monthly">{t("tasks.monthly")}</option>
             <option value="yearly">{t("tasks.yearly")}</option>
             <option value="none">{t("tasks.once")}</option>
           </select>
         </div>
+        {(recurrence === "workdays" || recurrence === "weekends") && <p className="text-xs text-muted sm:col-span-2">{t("tasks.redDaysHelp")}</p>}
+        {recurrence === "daily" && (
+          <div>
+            <label className="label">{t("tasks.interval")}</label>
+            <select className="input" value={intervalDays} onChange={(e) => setIntervalDays(Number(e.target.value))} aria-label={t("tasks.interval")}>
+              <option value={1}>{t("tasks.everyDay")}</option>
+              {[2, 3, 4, 5, 6, 7, 10, 14].map((n) => (
+                <option key={n} value={n}>{t(n === 2 ? "tasks.everyOtherDay" : "tasks.everyNDays", { n })}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {recurrence === "weekly" && (
           <div>
             <label className="label">{t("tasks.interval")}</label>
-            <select className="input" value={intervalWeeks} onChange={(e) => setIntervalWeeks(Number(e.target.value))}>
+            <select className="input" value={intervalWeeks} onChange={(e) => setIntervalWeeks(Number(e.target.value))} aria-label={t("tasks.interval")}>
               <option value={1}>{t("tasks.everyWeek")}</option>
-              {[2, 3, 4].map((n) => (
+              {[2, 3, 4, 6, 8].map((n) => (
                 <option key={n} value={n}>{t("tasks.everyNWeeks", { n })}</option>
               ))}
             </select>
           </div>
         )}
         {recurrence === "monthly" && (
-          <div>
-            <label className="label">{t("tasks.dayOfMonth")}</label>
-            <input className="input" type="number" min={1} max={31} value={dayOfMonth} onChange={(e) => setDayOfMonth(Number(e.target.value))} />
-          </div>
+          <>
+            <div>
+              <label className="label">{t("tasks.interval")}</label>
+              <select className="input" value={intervalMonths} onChange={(e) => setIntervalMonths(Number(e.target.value))} aria-label={t("tasks.interval")}>
+                <option value={1}>{t("tasks.everyMonth")}</option>
+                {[2, 3, 4, 6].map((n) => (
+                  <option key={n} value={n}>{t("tasks.everyNMonths", { n })}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">{t("tasks.monthOn")}</label>
+              <select className="input" value={monthNth} onChange={(e) => setMonthNth(Number(e.target.value))} aria-label={t("tasks.monthOn")}>
+                <option value={0}>{t("tasks.monthOnDate")}</option>
+                {[1, 2, 3, 4, -1].map((n) => (
+                  <option key={n} value={n}>{t(`tasks.nth.${n}` as TranslationKey)}</option>
+                ))}
+              </select>
+            </div>
+            {monthWeekday ? (
+              <div>
+                <label className="label">{t("tasks.weekday")}</label>
+                <select className="input capitalize" value={weekdays[0] ?? 5} onChange={(e) => setWeekdays([Number(e.target.value)])} aria-label={t("tasks.weekday")}>
+                  {weekdayNames(dateLocale).map((name, day) => (
+                    <option key={day} value={day}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="label">{t("tasks.dayOfMonth")}</label>
+                <input className="input" type="number" min={1} max={31} value={dayOfMonth} onChange={(e) => setDayOfMonth(Number(e.target.value))} aria-label={t("tasks.dayOfMonth")} />
+              </div>
+            )}
+          </>
         )}
         {recurrence === "yearly" && (
           <>
@@ -167,14 +233,14 @@ export default function TaskEditor({
             </div>
             <div>
               <label className="label">{t("tasks.dayOfMonth")}</label>
-              <input className="input" type="number" min={1} max={31} value={dayOfMonth} onChange={(e) => setDayOfMonth(Number(e.target.value))} />
+              <input className="input" type="number" min={1} max={31} value={dayOfMonth} onChange={(e) => setDayOfMonth(Number(e.target.value))} aria-label={t("tasks.dayOfMonth")} />
             </div>
           </>
         )}
         {recurrence === "none" && (
           <div>
             <label className="label">{t("tasks.date")}</label>
-            <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label={t("tasks.date")} />
           </div>
         )}
         <div>
@@ -182,7 +248,7 @@ export default function TaskEditor({
           {rotating ? (
             <p className="py-2 text-sm text-muted">{t("tasks.turnsWho")}</p>
           ) : (
-            <select className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+            <select className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label={t("tasks.who")}>
               <option value="">{t("tasks.anyone")}</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>{m.display_name}</option>
@@ -226,6 +292,11 @@ export default function TaskEditor({
       {recurrence === "weekly" && (
         <div>
           <span className="label">{t("tasks.weekdays")}</span>
+          <div className="mb-2 flex flex-wrap gap-2 text-xs">
+            <button type="button" className="rounded-full border border-edge px-3 py-1 hover:bg-surface" onClick={() => setWeekdays([0, 1, 2, 3, 4])}>{t("tasks.presetWeekdays")}</button>
+            <button type="button" className="rounded-full border border-edge px-3 py-1 hover:bg-surface" onClick={() => setWeekdays([5, 6])}>{t("tasks.presetWeekend")}</button>
+            <button type="button" className="rounded-full border border-edge px-3 py-1 hover:bg-surface" onClick={() => setWeekdays([0, 1, 2, 3, 4, 5, 6])}>{t("tasks.presetAllWeek")}</button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {weekdayNames(dateLocale, "short").map((name, day) => {
               const on = weekdays.includes(day);
@@ -246,7 +317,19 @@ export default function TaskEditor({
           </div>
         </div>
       )}
-      {recurrence === "monthly" && <p className="text-xs text-muted">{t("tasks.monthlyHint")}</p>}
+      {recurrence === "monthly" && !monthWeekday && <p className="text-xs text-muted">{t("tasks.monthlyHint")}</p>}
+      {(health || exercise > 0) && (
+        <label className="block text-sm">
+          <span className="label">{t("tasks.exercise")}</span>
+          <select className="input" value={exercise} onChange={(e) => setExercise(Number(e.target.value))}>
+            <option value={0}>{t("tasks.exerciseOff")}</option>
+            {[15, 20, 30, 45, 60, 90].map((n) => (
+              <option key={n} value={n}>{t("tasks.exerciseMin", { n })}</option>
+            ))}
+          </select>
+          {exercise > 0 && <span className="mt-1 block text-xs text-muted">{t("tasks.exerciseHint")}</span>}
+        </label>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={requiresApproval} onChange={(e) => setRequiresApproval(e.target.checked)} />
         {t("tasks.requiresApproval")}

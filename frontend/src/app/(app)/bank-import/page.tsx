@@ -28,6 +28,7 @@ export default function BankImportPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const [rows, setRows] = useState<Choice[] | null>(null);
+  const [suggested, setSuggested] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -58,6 +59,8 @@ export default function BankImportPage() {
       const resp = await fetch("/api/bank/parse", { method: "POST", body: data, credentials: "same-origin" });
       if (!resp.ok) throw new Error((await resp.json().catch(() => null))?.detail ?? t("common.error"));
       const parsed = (await resp.json()) as Row[];
+      // What the file showed of subscriptions is waiting in the overview.
+      api.get<{ suggestions: unknown[] }>("/api/subscriptions").then((o) => setSuggested(o.suggestions.length)).catch(() => {});
       setRows(
         parsed.map((r) => {
           const where = r.suggestion.target === "economy" ? "economy:" : r.suggestion.target === "ignore" || !r.suggestion.target_id ? (r.suggestion.target === "ignore" ? "ignore" : "") : `${r.suggestion.target}:${r.suggestion.target_id}`;
@@ -106,6 +109,7 @@ export default function BankImportPage() {
         {t("bank.back")}
       </button>
       <PageTitle title={t("bank.title")} />
+      {suggested > 0 && <p className="mb-3 rounded-lg bg-accent-soft p-3 text-sm" role="status">{t("subs.foundInFile", { n: suggested })} <Link className="font-semibold underline underline-offset-2" href="/subscriptions">{t("subs.seeThem")}</Link></p>}
       <p className="mt-1 text-sm text-muted">{t("bank.intro")}</p>
       <details className="mt-2 text-xs text-muted">
         <summary className="cursor-pointer">{t("bank.howTitle")}</summary>

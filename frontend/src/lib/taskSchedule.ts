@@ -25,15 +25,25 @@ export function taskWeekdays(task: Pick<Task, "weekdays" | "weekday">): number[]
 export function scheduleLabel(task: Task, t: T, dateLocale: string): string {
   switch (task.recurrence) {
     case "daily":
-      return t("tasks.daily");
+      return (task.interval_days ?? 1) > 1 ? t(task.interval_days === 2 ? "tasks.everyOtherDay" : "tasks.everyNDays", { n: task.interval_days }) : t("tasks.daily");
+    case "workdays":
+      return t("tasks.workdays");
+    case "weekends":
+      return t("tasks.weekends");
     case "weekly": {
       const names = weekdayNames(dateLocale, "short");
       const days = taskWeekdays(task).map((d) => names[d]).join(", ");
       const every = task.interval_weeks > 1 ? t("tasks.everyNWeeks", { n: task.interval_weeks }) : t("tasks.weekly");
       return days ? `${every} · ${days}` : every;
     }
-    case "monthly":
-      return `${t("tasks.monthly")} · ${t("tasks.onDay", { n: task.day_of_month ?? 1 })}`;
+    case "monthly": {
+      const every = (task.interval_months ?? 1) > 1 ? t("tasks.everyNMonths", { n: task.interval_months }) : t("tasks.monthly");
+      if (task.month_nth) {
+        const day = weekdayNames(dateLocale)[taskWeekdays(task)[0] ?? 0];
+        return `${every} · ${t(`tasks.nth.${task.month_nth}` as TranslationKey)} ${day}`;
+      }
+      return `${every} · ${t("tasks.onDay", { n: task.day_of_month ?? 1 })}`;
+    }
     case "yearly":
       return `${t("tasks.yearly")} · ${task.day_of_month} ${monthNames(dateLocale)[(task.month ?? 1) - 1]}`;
     default:

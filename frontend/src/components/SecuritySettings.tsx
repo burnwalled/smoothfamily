@@ -24,6 +24,8 @@ export default function SecuritySettings() {
   const [enrolment, setEnrolment] = useState<TotpSetup | null>(null);
   const [disabling, setDisabling] = useState(false);
   const [disableCode, setDisableCode] = useState("");
+  // Turning the authenticator off takes the password too: a session alone isn't enough.
+  const [disablePassword, setDisablePassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -79,9 +81,10 @@ export default function SecuritySettings() {
 
   const disableTotp = () =>
     run(async () => {
-      await api.post("/api/auth/totp/disable", { code: disableCode });
+      await api.post("/api/auth/totp/disable", { code: disableCode, password: disablePassword });
       setDisabling(false);
       setDisableCode("");
+      setDisablePassword("");
     });
 
   if (!security) return null;
@@ -157,13 +160,17 @@ export default function SecuritySettings() {
                   className="space-y-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (disableCode.length === 6) disableTotp();
+                    if (disableCode.length === 6 && disablePassword) disableTotp();
                   }}
                 >
                   <p className="text-xs text-muted">{t("security.totpDisableHint")}</p>
+                  <label className="block text-sm">
+                    {t("security.disablePassword")}
+                    <input className="input mt-1" type="password" autoComplete="current-password" value={disablePassword} onChange={(e) => setDisablePassword(e.target.value)} />
+                  </label>
                   <CodeInput value={disableCode} onChange={setDisableCode} autoFocus />
                   <div className="flex gap-2">
-                    <button className="btn-primary" type="submit" disabled={busy || disableCode.length !== 6}>
+                    <button className="btn-primary" type="submit" disabled={busy || disableCode.length !== 6 || !disablePassword}>
                       {t("security.totpDisable")}
                     </button>
                     <button className="btn-ghost" type="button" onClick={() => setDisabling(false)}>

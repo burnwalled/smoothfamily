@@ -4,6 +4,7 @@
 // costs against last year, the energy use and the open projects – and, for the chosen one, its
 // maintenance (which can become a task), costs, projects, the things in it, energy, documents and
 // settings. A receipt or invoice can be read by the local AI; everything works by hand too.
+import LinkedTasks from "@/components/tasks/LinkedTasks";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Camera, Download, ExternalLink, FileText, Home, Plus, Search, Trash2 } from "lucide-react";
@@ -32,6 +33,7 @@ import { AiJob, AiNote, useAiJob, useAiStatus } from "@/components/LocalAi";
 import { uploadReceipt } from "@/lib/receipts";
 import { nextDay } from "@/lib/vehicleKinds";
 import { DWELLING_ORDER, dwellingInfo, dwellingLabel, Upkeep, upkeepLabel } from "@/lib/propertyKinds";
+import AddressInput from "@/components/AddressInput";
 
 const CATEGORIES = ["maintenance", "renovation", "repair", "tax", "insurance", "utility", "loan", "other"] as const;
 const KINDS = ["maintenance", "safety", "inspection", "season", "insurance", "warranty", "other"] as const;
@@ -294,6 +296,11 @@ function UpkeepTab({ home, reminders, currency }: { home: Property; reminders: P
           </button>
         </div>
       )}
+      <div className="border-t border-edge pt-4">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t("linkedTasks.title")}</h3>
+        <p className="mb-2 text-xs text-muted">{t("linkedTasks.homeHint")}</p>
+        <LinkedTasks link={{ property_id: home.id }} placeholder={t("linkedTasks.add")} />
+      </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
     </div>
   );
@@ -880,7 +887,7 @@ function SettingsTab({ home, currency, onDeleted }: { home: Property; currency: 
         </label>
         <label className="text-sm">
           <span className="text-xs text-muted">{t("property.address")}</span>
-          <input className="input mt-1 w-full" value={form.address} onChange={(e) => set({ address: e.target.value })} />
+          <AddressInput className="input mt-1 w-full" value={form.address} onChange={(address) => set({ address })} />
         </label>
         <label className="text-sm">
           <span className="text-xs text-muted">{t("property.builtYear")}</span>
@@ -1019,7 +1026,7 @@ export default function PropertyPage() {
           <select className="input" value={newHome.dwelling} aria-label={t("property.dwellingLabel")} onChange={(e) => setNewHome({ ...newHome, dwelling: e.target.value })}>
             {DWELLING_ORDER.map((d) => <option key={d} value={d}>{dwellingInfo(d).icon} {t(dwellingLabel(d))}</option>)}
           </select>
-          <input className="input" value={newHome.address} maxLength={300} placeholder={t("property.address")} aria-label={t("property.address")} onChange={(e) => setNewHome({ ...newHome, address: e.target.value })} />
+          <AddressInput value={newHome.address} placeholder={t("property.address")} aria-label={t("property.address")} showMap={false} onChange={(address) => setNewHome({ ...newHome, address })} />
           <button className="btn-primary" disabled={!newHome.name.trim()}>{t("property.addProperty")}</button>
         </form>
       )}
