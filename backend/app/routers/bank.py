@@ -2,8 +2,9 @@
 
 Upload the file, look over the suggestions – "Circle K → the Volvo, fuel", "Vattenfall → the house,
 utilities" – and choose what goes in. A choice can be remembered as a rule for next time. Nothing
-is stored of the file or of the rows not imported; of the imported ones only a hash, so the same
-purchase isn't imported twice. Only for adults (the bank's rows are the family's economy).
+is stored of the file or of the rows not imported, apart from recurring payments as suggestions of
+subscriptions, which only the one who brought the file sees; of the imported ones only a hash, so the
+same purchase isn't imported twice. Only for adults (the bank's rows are the family's economy).
 """
 import uuid
 from datetime import date
@@ -17,6 +18,7 @@ from app.deps import DB, AdultUser
 from app.models import BankImported, BankRule, Property, Vehicle
 from app.routers import property as homes
 from app.routers import vehicles
+from app.routers.subscriptions import note_from_bank
 from app.services import bank_csv
 
 router = APIRouter(prefix="/api/bank", tags=["bank"])
@@ -85,7 +87,8 @@ async def _targets(db, user) -> tuple[list[Vehicle], list[Property]]:
 
 @router.post("/parse", response_model=list[RowOut])
 async def parse_file(file: UploadFile, user: AdultUser, db: DB) -> list[RowOut]:
-    """The file's purchases (money out) with a suggestion each – read here, not kept."""
+    """The file's purchases (money out) with a suggestion each – read here, not kept. What looks like a
+    subscription stays as a suggestion for this person."""
     data = await file.read()
     if len(data) > MAX_FILE:
         raise HTTPException(status_code=413, detail="The file is larger than 5 MB")
@@ -93,6 +96,9 @@ async def parse_file(file: UploadFile, user: AdultUser, db: DB) -> list[RowOut]:
         rows = bank_csv.parse(data)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # What looks like a subscription becomes a suggestion, and those already known see what was paid.
+    await note_from_bank(db, user, rows)
+    await db.commit()
     rules = (await db.execute(select(BankRule).where(BankRule.family_id == user.family_id))).scalars().all()
     done = set((await db.execute(select(BankImported.digest).where(BankImported.family_id == user.family_id))).scalars().all())
     cars, houses = await _targets(db, user)

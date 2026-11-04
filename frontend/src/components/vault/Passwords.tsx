@@ -13,7 +13,7 @@ import { useMe } from "@/components/Shell";
 import { EmptyState } from "@/components/PageTitle";
 import ShareDialog from "@/components/vault/ShareDialog";
 
-const CLEAR_AFTER_MS = 30_000;
+export const CLEAR_AFTER_MS = 30_000;
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!#%&*+-=?@_";
 
 /** A random password from the browser's secure random numbers (no bias: rejection sampling). */
@@ -28,7 +28,7 @@ export function generatePassword(length = 20): string {
   return out.join("");
 }
 
-async function fetchSecret(id: string): Promise<{ password: string; notes: string }> {
+export async function fetchSecret(id: string): Promise<{ password: string; notes: string }> {
   // A plain fetch: never in the app's cache, and the server says no-store.
   const resp = await fetch(`/api/vault/logins/${id}/secret`, { credentials: "same-origin", cache: "no-store" });
   if (!resp.ok) throw new Error("secret");

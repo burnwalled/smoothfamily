@@ -8,7 +8,7 @@ from sqlalchemy import delete, select, update
 
 from app.services import quota, security_policy
 from app.deps import DB, AdminUser, CurrentUser
-from app.models import Base, ChatMessage, Family, FamilyEvent, Party, Person, Task, User, WebAuthnCredential
+from app.models import Base, ChatMessage, Family, FamilyEvent, Party, Person, Subscription, Task, User, WebAuthnCredential
 from app.schemas import AppAccessIn, MemberCreate, MemberOut, MemberPasswordReset, MemberPatch
 from app.security import hash_password
 
@@ -70,11 +70,14 @@ def age_on(born: date, day: date) -> int:
 GOES_WITH_MEMBER = {
     ("conversation_members", "user_id"), ("dashboard_widgets", "user_id"), ("push_subscriptions", "user_id"),
     ("user_achievements", "user_id"), ("task_completions", "user_id"), ("allowance_payouts", "user_id"),
+    ("subscription_suggestions", "user_id"),
 }
 
 
 async def _let_go(db, member: User, remover: User) -> None:
     await db.execute(update(ChatMessage).where(ChatMessage.sender_id == member.id).values(sender_name=member.display_name))
+    # Only they could see these, and without them nobody ever would.
+    await db.execute(delete(Subscription).where(Subscription.created_by == member.id, Subscription.private.is_(True)))
     for table in Base.metadata.sorted_tables:
         for column in table.columns:
             if not any(fk.target_fullname == "users.id" and fk.ondelete is None for fk in column.foreign_keys):

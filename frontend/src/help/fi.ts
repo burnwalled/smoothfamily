@@ -974,6 +974,12 @@ const texts: Record<string, TopicText> = {
           "Budjetti luokittain ja kuukausittain muuttuu punaiseksi, kun se ylittyy.",
           "Merkinnät voivat olla yksityisiä, jolloin vain sinä näet ne."
         ]
+      },
+      {
+        "h": "Tilaukset"
+      },
+      {
+        "p": "Kohdassa Koti → Tilaukset kokoatte kaiken, mitä kotitalous maksaa säännöllisesti, ja mitä se maksaa kuukaudessa ja vuodessa. Tilaus voi viitata holvin kirjautumiseen, olemassa olevaan tai tässä luomaasi uuteen, ja sen näkemään oikeutettu voi kopioida salasanan tästä; holvin säännöt pätevät tavalliseen tapaan. Pankkituonnin jälkeen toistuvia maksuja ehdotetaan tässä, ja vain sinä näet tiedostosi ehdotukset: lisää ne tai kerro, etteivät ne ole tilauksia, eivätkä hylätyt palaa. Myöhempi tiedosto kertoo uudesta hinnasta tai maksusta lopetetulle tilaukselle. Tämä on yleiskatsaus, joten mitään ei lisätä Talouden summiin."
       }
     ]
   },

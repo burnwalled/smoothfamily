@@ -974,6 +974,12 @@ const texts: Record<string, TopicText> = {
           "A budget per category and month turns red when it's broken.",
           "Entries can be private, so only you see them."
         ]
+      },
+      {
+        "h": "Subscriptions"
+      },
+      {
+        "p": "Under Home → Subscriptions you gather everything the household pays for regularly, with what it comes to a month and a year. A subscription can point to a login in the vault, one that's there or a new one you make right here, and those who may see the login can copy its password from here; the vault's rules still decide. After a bank import, recurring payments are suggested here, and only you see the suggestions from your file: add them or say they aren't subscriptions, and those you've dismissed don't come back. A later file points out a new price, or a payment for something you've ended. It's an overview, so nothing is added to the economy's sums."
       }
     ]
   },
