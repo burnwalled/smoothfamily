@@ -28,7 +28,7 @@ from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpens
 from app.services import login_throttle
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
-from app.services.public_url import public_base
+from app.services.public_url import configured_url, public_base
 from app.services.storage import get_storage
 from app.services.weather import _tz
 
@@ -119,6 +119,11 @@ _STEPS = {
 }
 
 
+async def _came(db: AsyncSession, party: Party) -> list[PartyGuest]:
+    """Those the thank-you is for: the guests who said they'd come."""
+    return (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.coming == True))).scalars().all()  # noqa: E712
+
+
 async def _mail_ready(db: AsyncSession, party: Party) -> bool:
     """Whether this family's server lets it send e-mail (a hosted family needs the admin's yes)."""
     from app.services import mailer
@@ -188,6 +193,9 @@ _MAIL = {
         "subscribed": ("{title}: you'll hear from us", "Thank you, {name}! Save the date – we'll send the invitation when it's ready."),
         "invited": ("{title}: the invitation is here", "The invitation to {title} is here – reply on the party's page."),
         "save": ("Save the date: {title}", "Save the date – {title}! The invitation follows; the page has the date and a button for your calendar."),
+        "remind_rsvp": ("{title}: we haven't heard from you", "Hi {name}! We haven't had your reply to the invitation to {title}.{by}"),
+        "reminder": ("{title}: a reminder", "A reminder about {title}."),
+        "by": " Please reply by {date}.",
         "page": "The party's page: {link}", "stop": "You get this because you asked for updates when you replied. Stop them: {link}",
     },
     "sv": {
@@ -202,6 +210,9 @@ _MAIL = {
         "subscribed": ("{title}: du hör av oss", "Tack, {name}! Spara datumet – vi skickar inbjudan när den är klar."),
         "invited": ("{title}: inbjudan är här", "Inbjudan till {title} är här – svara på festens sida."),
         "save": ("Spara datumet: {title}", "Spara datumet – {title}! Inbjudan kommer; på sidan finns datumet och en knapp för din kalender."),
+        "remind_rsvp": ("{title}: vi har inte hört från dig", "Hej {name}! Vi har inte fått ditt svar på inbjudan till {title}.{by}"),
+        "reminder": ("{title}: en påminnelse", "En påminnelse om {title}."),
+        "by": " Svara senast {date}.",
         "page": "Festens sida: {link}", "stop": "Du får det här för att du bad om uppdateringar när du svarade. Avsluta dem: {link}",
     },
     "nb": {
@@ -216,6 +227,9 @@ _MAIL = {
         "subscribed": ("{title}: du hører fra oss", "Takk, {name}! Sett av datoen – vi sender invitasjonen når den er klar."),
         "invited": ("{title}: invitasjonen er her", "Invitasjonen til {title} er her – svar på festens side."),
         "save": ("Sett av datoen: {title}", "Sett av datoen – {title}! Invitasjonen kommer; på siden finner du datoen og en knapp for kalenderen din."),
+        "remind_rsvp": ("{title}: vi har ikke hørt fra deg", "Hei {name}! Vi har ikke fått svaret ditt på invitasjonen til {title}.{by}"),
+        "reminder": ("{title}: en påminnelse", "En påminnelse om {title}."),
+        "by": " Svar innen {date}.",
         "page": "Festens side: {link}", "stop": "Du får dette fordi du ba om oppdateringer da du svarte. Avslutt dem: {link}",
     },
     "da": {
@@ -230,6 +244,9 @@ _MAIL = {
         "subscribed": ("{title}: du hører fra os", "Tak, {name}! Gem datoen – vi sender invitationen, når den er klar."),
         "invited": ("{title}: invitationen er her", "Invitationen til {title} er her – svar på festens side."),
         "save": ("Gem datoen: {title}", "Gem datoen – {title}! Invitationen kommer; på siden er datoen og en knap til din kalender."),
+        "remind_rsvp": ("{title}: vi har ikke hørt fra dig", "Hej {name}! Vi har ikke fået dit svar på invitationen til {title}.{by}"),
+        "reminder": ("{title}: en påmindelse", "En påmindelse om {title}."),
+        "by": " Svar senest {date}.",
         "page": "Festens side: {link}", "stop": "Du får dette, fordi du bad om opdateringer, da du svarede. Stop dem: {link}",
     },
     "fi": {
@@ -244,6 +261,9 @@ _MAIL = {
         "subscribed": ("{title}: kuulet meistä", "Kiitos, {name}! Merkitse päivä – lähetämme kutsun, kun se on valmis."),
         "invited": ("{title}: kutsu on täällä", "Kutsu juhliin {title} on täällä – vastaa juhlien sivulla."),
         "save": ("Merkitse päivä: {title}", "Merkitse päivä – {title}! Kutsu tulee perässä; sivulla on päivä ja painike kalenteriisi."),
+        "remind_rsvp": ("{title}: emme ole kuulleet sinusta", "Hei {name}! Emme ole saaneet vastaustasi kutsuun: {title}.{by}"),
+        "reminder": ("{title}: muistutus", "Muistutus: {title}."),
+        "by": " Vastaa viimeistään {date}.",
         "page": "Juhlien sivu: {link}", "stop": "Saat tämän, koska pyysit päivityksiä vastatessasi. Lopeta ne: {link}",
     },
 }
@@ -290,7 +310,8 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
             answer = texts["voted"].format(n=len(guest.date_votes or []))
         elif guest.coming and guest.companions:
             answer += " " + texts["plus"].format(name=", ".join(_name(c) for c in guest.companions))
-        fields = {"title": party.title, "name": guest.first_name, "answer": answer, **values}
+        by = texts["by"].format(date=f"{party.rsvp_by.day}/{party.rsvp_by.month}") if party.rsvp_by else ""
+        fields = {"title": party.title, "name": guest.first_name, "answer": answer, "by": by, **values}
         body = "\n\n".join([
             body_t.format(**fields),
             _when_where(party, language),
@@ -364,6 +385,9 @@ class PartyChange(BaseModel):
     phase: str | None = Field(default=None, pattern=r"^(save|invite)$")
     playlist_url: str | None = Field(default=None, max_length=300, pattern=r"^$|^https://open\.spotify\.com/[\w/?=&.-]+$")
     portal_gallery: bool | None = None
+    portal_at: datetime | None = None
+    thanks_at: datetime | None = None
+    rsvp_remind_days: int | None = Field(default=None, ge=0, le=60)
     date_poll: bool | None = None
     date_options: list[datetime] | None = Field(default=None, max_length=12)
 
@@ -655,7 +679,8 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "person_ids": [str(x) for x in party.person_ids or ([party.person_id] if party.person_id else [])],
         "page_custom_id": party.page_custom_id, "thanks_custom_id": party.thanks_custom_id, "invite_image": _version(party.invite_image_key),
         "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
-        "portal": await _portal_out(db, party, request),
+        "portal": await _portal_out(db, party, request), "stage": _stage(party), "thanks_at": party.thanks_at,
+        "rsvp_remind_days": party.rsvp_remind_days, "rsvp_reminded_on": party.rsvp_reminded_on, "address_set": bool(await configured_url(db)),
         "budget": float(party.budget) if party.budget is not None else None, "spent": spent,
         "thanks_text": party.thanks_text, "thanks_album_id": party.thanks_album_id, "thanks_published": party.thanks_published,
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme,
@@ -800,7 +825,7 @@ async def get_party(party_id: uuid.UUID, request: Request, user: AdultUser, db: 
 async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Request, user: AdultUser, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     changes = payload.model_dump(exclude_unset=True)
-    for key in ("starts_at", "ends_at"):
+    for key in ("starts_at", "ends_at", "portal_at", "thanks_at"):
         if changes.get(key) is not None:
             changes[key] = _dt(changes[key])
     if "layout" in changes:
@@ -830,6 +855,11 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
         raise HTTPException(status_code=422, detail="The party ends after it starts")
+    # A time for the portal needs the portal: its link and its album are made now.
+    if party.portal_at is not None:
+        await _ensure_portal(db, party, user)
+    if "rsvp_remind_days" in changes or "rsvp_by" in changes:
+        party.rsvp_reminded_on = None
     await _sync_event(db, party, user)
     await db.commit()
     base = await public_base(db, request)
@@ -838,7 +868,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
     if was_save and party.phase == "invite":
         await mail_guests(db, party, "invited", base=base)
     if party.thanks_published and not before[4]:
-        await mail_guests(db, party, "thanks", base=base, text=party.thanks_text or "")
+        await mail_guests(db, party, "thanks", guests=await _came(db, party), base=base, text=party.thanks_text or "")
     return await _detail(db, party, request)
 
 
@@ -952,20 +982,22 @@ async def invite_picture(party_id: uuid.UUID, user: AdultUser, db: DB) -> Respon
     return _picture(party.family_id, party.invite_image_key)
 
 
-async def _portal_out(db: AsyncSession, party: Party, request: Request | None) -> dict | None:
-    if not party.portal_token_encrypted:
-        return None
-    link = f"{await public_base(db, request)}/fest/{decrypt_token(party.portal_token_encrypted)}"
-    photos = 0
-    if party.portal_album_id:
-        photos = (await db.execute(select(func.count()).select_from(MediaItem).where(MediaItem.album_id == party.portal_album_id))).scalar_one()
-    return {"open": party.portal_open, "link": link, "qr_svg": qr_svg(link), "album_id": party.portal_album_id, "photos": photos, "gallery": party.portal_gallery}
+def _portal_live(party: Party, now: datetime | None = None) -> bool:
+    """Opened by the hosts, or its time has come."""
+    return party.portal_open or (party.portal_at is not None and (now or datetime.now(timezone.utc)) >= _utc(party.portal_at))
 
 
-@router.post("/{party_id}/portal")
-async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
-    """Turn on the party day's portal: its link and QR code, and the album the guests' photos go to."""
-    party = await _mine(db, user, party_id)
+def _stage(party: Party, now: datetime | None = None) -> str:
+    """What the guests' one link shows now: the save-the-date, the invitation, the party day's
+    portal from its set time, and the thank-you once it's out."""
+    if party.thanks_published:
+        return "thanks"
+    if party.portal_at is not None and party.portal_token_encrypted and (now or datetime.now(timezone.utc)) >= _utc(party.portal_at):
+        return "portal"
+    return party.phase
+
+
+async def _ensure_portal(db: AsyncSession, party: Party, user: User) -> None:
     if not party.portal_token_encrypted:
         token = secrets.token_urlsafe(18)
         party.portal_token_hash, party.portal_token_encrypted = _hash(token), encrypt_token(token)
@@ -974,6 +1006,23 @@ async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db
         db.add(album)
         await db.flush()
         party.portal_album_id = album.id
+
+
+async def _portal_out(db: AsyncSession, party: Party, request: Request | None) -> dict | None:
+    if not party.portal_token_encrypted:
+        return None
+    link = f"{await public_base(db, request)}/fest/{decrypt_token(party.portal_token_encrypted)}"
+    photos = 0
+    if party.portal_album_id:
+        photos = (await db.execute(select(func.count()).select_from(MediaItem).where(MediaItem.album_id == party.portal_album_id))).scalar_one()
+    return {"open": _portal_live(party), "at": party.portal_at, "link": link, "qr_svg": qr_svg(link), "album_id": party.portal_album_id, "photos": photos, "gallery": party.portal_gallery}
+
+
+@router.post("/{party_id}/portal")
+async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    """Turn on the party day's portal: its link and QR code, and the album the guests' photos go to."""
+    party = await _mine(db, user, party_id)
+    await _ensure_portal(db, party, user)
     party.portal_open = True
     await db.commit()
     return await _detail(db, party, request)
@@ -984,6 +1033,7 @@ async def close_portal(party_id: uuid.UUID, request: Request, user: AdultUser, d
     """Close the portal; the photos stay in the album."""
     party = await _mine(db, user, party_id)
     party.portal_open = False
+    party.portal_at = None
     await db.commit()
     return await _detail(db, party, request)
 
@@ -1104,6 +1154,10 @@ async def delete_mailing(party_id: uuid.UUID, mailing_id: uuid.UUID, request: Re
 async def run_party_mailings(db: AsyncSession, now: datetime | None = None, base: str | None = None) -> int:
     """The mailings whose time has come, each once, to the guests it's for."""
     now = now or datetime.now(timezone.utc)
+    # Without the server's address the links wouldn't lead anywhere: they wait (the hosts are told).
+    base = base if base is not None else await public_base(db)
+    if not base:
+        return 0
     due = (await db.execute(select(PartyMailing).where(PartyMailing.sent_at.is_(None), PartyMailing.send_at <= now))).scalars().all()
     sent = 0
     for m in due:
@@ -1115,11 +1169,15 @@ async def run_party_mailings(db: AsyncSession, now: datetime | None = None, base
         guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.updates == True, PartyGuest.email.is_not(None)))).scalars().all()  # noqa: E712
         if m.audience == "waiting":
             guests = [g for g in guests if g.pending]
-        elif m.audience == "coming":
+        elif m.audience == "coming" or m.kind == "thanks":
             guests = [g for g in guests if g.coming]
-        kind = {"invite": "invited", "custom": "message"}.get(m.kind, m.kind)
+        if m.kind == "invite":
+            party.phase = "invite"
+        elif m.kind == "thanks":
+            party.thanks_published = True
+        kind = {"invite": "invited", "custom": "message", "remind": "remind_rsvp" if m.audience == "waiting" else "reminder"}.get(m.kind, m.kind)
         values = {"subject": m.subject, "text": m.text} if m.kind == "custom" else {"text": party.thanks_text or ""} if m.kind == "thanks" else {}
-        m.sent_count = await mail_guests(db, party, kind, guests=guests, base=base if base is not None else await public_base(db), **values)
+        m.sent_count = await mail_guests(db, party, kind, guests=guests, base=base, **values)
         await db.commit()
         sent += m.sent_count
     return sent
@@ -1239,6 +1297,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
     return {
         "page_theme": party.page_theme, "thanks_theme": party.thanks_theme or party.page_theme, "mail": await _mail_ready(db, party),
         "date_poll": party.date_poll, "date_options": party.date_options or [],
+        "stage": _stage(party), "portal_token": decrypt_token(party.portal_token_encrypted) if _stage(party) == "portal" else None,
         "page_custom": await _custom(db, party, party.page_custom_id), "thanks_custom": await _custom(db, party, party.thanks_custom_id or (party.page_custom_id if not party.thanks_theme else None)),
         "invite_image": _version(party.invite_image_key),
         "layout": party.layout, "layouts": _layouts(party), "assets": _assets_out(party), "phase": party.phase, "playlist_url": party.playlist_url,
@@ -1475,13 +1534,43 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
     await db.commit()
     # The guests who asked for updates: the day before, at the same morning hour.
     tomorrow = today + timedelta(days=1)
+    base = await public_base(db)
+    if not base:
+        return sent  # the links wouldn't lead anywhere: the mails wait for the server's address
     for party in (await db.execute(select(Party).where(Party.guests_reminded_on.is_(None), Party.date_poll == False))).scalars().all():  # noqa: E712
         if _local(party.starts_at).date() != tomorrow:
             continue
         party.guests_reminded_on = today
         coming = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.coming == True, PartyGuest.updates == True))).scalars().all()  # noqa: E712
         await db.commit()
-        sent += await mail_guests(db, party, "remind", guests=coming, base=await public_base(db))
+        sent += await mail_guests(db, party, "remind", guests=coming, base=base)
+    # Those who haven't replied: once, the set number of days before the last day to reply.
+    for party in (await db.execute(select(Party).where(Party.rsvp_reminded_on.is_(None), Party.rsvp_remind_days.is_not(None), Party.rsvp_remind_days > 0, Party.phase == "invite", Party.thanks_published == False, Party.date_poll == False))).scalars().all():  # noqa: E712
+        start = _local(party.starts_at).date()
+        last = party.rsvp_by or start - timedelta(days=7)
+        if not last - timedelta(days=party.rsvp_remind_days) <= today <= last or today >= start:
+            continue
+        party.rsvp_reminded_on = today
+        waiting = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.pending == True, PartyGuest.updates == True))).scalars().all()  # noqa: E712
+        await db.commit()
+        sent += await mail_guests(db, party, "remind_rsvp", guests=waiting, base=base)
+    return sent
+
+
+async def run_party_thanks(db: AsyncSession, now: datetime | None = None) -> int:
+    """The thank-you at its set time, once there's something to say: published, and sent to those
+    who came (the link then shows it)."""
+    now = now or datetime.now(timezone.utc)
+    base = await public_base(db)
+    if not base:
+        return 0
+    sent = 0
+    for party in (await db.execute(select(Party).where(Party.thanks_at.is_not(None), Party.thanks_at <= now, Party.thanks_published == False))).scalars().all():  # noqa: E712
+        if not (party.thanks_text.strip() or party.thanks_album_id):
+            continue
+        party.thanks_published = True
+        await db.commit()
+        sent += await mail_guests(db, party, "thanks", guests=await _came(db, party), base=base, text=party.thanks_text or "")
     return sent
 
 
@@ -1496,7 +1585,7 @@ async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
     if login_throttle.ip_retry_after(ip):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     party = (await db.execute(select(Party).where(Party.portal_token_hash == _hash(token)))).scalar_one_or_none()
-    if party is None or not party.portal_open:
+    if party is None or not _portal_live(party):
         login_throttle.record_ip_failure(ip)
         raise HTTPException(status_code=404, detail="This link isn't valid")
     return party

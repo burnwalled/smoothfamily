@@ -121,8 +121,12 @@ async def test_no_plus_one_unless_allowed(client):
 
 
 async def test_updates_by_email_for_the_guests_who_ask(client, db_session, monkeypatch):
+    from app.models import AppSetting
     from app.routers.parties import run_party_reminders
     from app.services import mailer
+
+    db_session.add(AppSetting(key="external_url", value="https://fest.example"))
+    await db_session.commit()
 
     sent = []
     monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
@@ -392,8 +396,12 @@ async def test_save_the_date_then_the_invitation_and_the_portal(client, monkeypa
 
 
 async def test_the_guest_list_and_mails_at_their_time(client, db_session, monkeypatch):
+    from app.models import AppSetting
     from app.routers.parties import run_party_mailings
     from app.services import mailer
+
+    db_session.add(AppSetting(key="external_url", value="https://fest.example"))
+    await db_session.commit()
 
     sent = []
     monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
@@ -421,10 +429,126 @@ async def test_the_guest_list_and_mails_at_their_time(client, db_session, monkey
     assert detail["coming"] == 1 and detail["signed_up"] == 1 and len(detail["guests"]) == 2
     sent.clear()
     await client.post(f"/api/parties/{pid}/mailings", json={"kind": "remind", "audience": "waiting", "send_at": (later + timedelta(days=1)).isoformat()})
-    assert await run_party_mailings(db_session, later + timedelta(days=2), base="") == 3  # the invitation to both, the reminder to Nils
-    assert [s[0] for s in sent if "påminnelse" in s[2].lower() or "reminder" in s[2].lower()] == ["nils@example.com"]
+    assert await run_party_mailings(db_session, later + timedelta(days=2)) == 3  # the invitation to both, the reminder to Nils
+    assert [s[0] for s in sent if "inte fått ditt svar" in s[2]] == ["nils@example.com"]
     # The day's plan: a point hidden from the guests stays off the portal.
     detail = (await client.post(f"/api/parties/{pid}/steps", json={"at": "21:00", "title": "Överraskningen", "hidden": True})).json()
     detail = (await client.post(f"/api/parties/{pid}/steps", json={"at": "18:00", "title": "Middag"})).json()
     portal = (await client.post(f"/api/parties/{pid}/portal")).json()["portal"]["link"].rsplit("/", 1)[1]
     assert [s["title"] for s in (await client.get(f"/api/party-portal/{portal}")).json()["steps"]] == ["Middag"]
+
+
+async def test_one_link_from_the_save_the_date_to_the_thank_you(client, db_session, monkeypatch):
+    from app.models import AppSetting
+    from app.routers.parties import run_party_mailings, run_party_reminders, run_party_thanks
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    start = (datetime.now(timezone.utc) + timedelta(days=60)).replace(hour=18, minute=0, second=0, microsecond=0)
+    party = (await client.post("/api/parties", json=_party(start, kind="party", title="Sommarfest", rsvp_by=(start - timedelta(days=10)).date().isoformat()))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    assert party["rsvp_remind_days"] == 3 and party["stage"] == "invite"
+    await client.put(f"/api/parties/{pid}", json={"phase": "save"})
+
+    # Saga and Nils register on the save-the-date: a name and an e-mail, and their own link.
+    assert (await client.post(f"/api/party/{token}/subscribe", json={"first_name": "Saga"})).status_code == 422
+    await client.post(f"/api/party/{token}/subscribe", json={"first_name": "Saga", "email": "saga@example.com"})
+    await client.post(f"/api/party/{token}/subscribe", json={"first_name": "Nils", "email": "nils@example.com"})
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "save"
+
+    # The scheduled invitation switches the link and goes out, each with their own link. No server
+    # address: it waits rather than sending links that lead nowhere.
+    sent.clear()
+    await client.post(f"/api/parties/{pid}/mailings", json={"kind": "invite", "send_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()})
+    day2 = datetime.now(timezone.utc) + timedelta(days=2)
+    assert await run_party_mailings(db_session, day2) == 0 and sent == []
+    assert (await client.get(f"/api/parties/{pid}")).json()["address_set"] is False
+    db_session.add(AppSetting(key="external_url", value="https://fest.example"))
+    await db_session.commit()
+    assert await run_party_mailings(db_session, day2) == 2
+    assert {s[0] for s in sent} == {"saga@example.com", "nils@example.com"}
+    link = next(s[2] for s in sent if s[0] == "saga@example.com").split("https://fest.example", 1)[1].split()[0]
+    assert link.startswith(f"/party/{token}?key=")
+    key = link.split("?key=")[1]
+    page = (await client.get(f"/api/party/{token}?key={key}")).json()
+    assert page["stage"] == "invite" and page["mine"]["first_name"] == "Saga" and page["mine"]["pending"] is True
+
+    # Saga replies through her link, and sees her reply when she opens it again.
+    await client.post(f"/api/party/{token}/reply?key={key}", json={"first_name": "Saga", "email": "saga@example.com", "updates": True, "coming": True})
+    mine = (await client.get(f"/api/party/{token}?key={key}")).json()["mine"]
+    assert mine["coming"] is True and mine["pending"] is False
+
+    # The reminder goes by itself, once, three days before the last day, only to who hasn't replied.
+    sent.clear()
+    last = datetime.combine(start.date() - timedelta(days=10), datetime.min.time(), tzinfo=timezone.utc)
+    await run_party_reminders(db_session, last - timedelta(days=5) + timedelta(hours=9))
+    assert sent == []
+    await run_party_reminders(db_session, last - timedelta(days=3) + timedelta(hours=9))
+    await run_party_reminders(db_session, last - timedelta(days=2) + timedelta(hours=9))
+    assert [s[0] for s in sent] == ["nils@example.com"] and "?key=" in sent[0][2]
+
+    # At its time the same link becomes the portal: its album is ready, and the portal opens.
+    portal_at = start - timedelta(minutes=30)
+    detail = (await client.put(f"/api/parties/{pid}", json={"portal_at": portal_at.isoformat()})).json()
+    assert detail["stage"] == "invite" and detail["portal"]["album_id"] and detail["portal"]["open"] is False
+    ptoken = detail["portal"]["link"].rsplit("/", 1)[1]
+    assert (await client.get(f"/api/party/{token}")).json()["portal_token"] is None
+    assert (await client.get(f"/api/party-portal/{ptoken}")).status_code == 404
+    soon = datetime.now(timezone.utc) - timedelta(minutes=1)
+    await client.put(f"/api/parties/{pid}", json={"portal_at": soon.isoformat()})
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["stage"] == "portal" and page["portal_token"] == ptoken
+    assert (await client.get(f"/api/party-portal/{ptoken}")).status_code == 200
+
+    # The thank-you at its time – not without anything to say – to those who came, and the link shows it.
+    sent.clear()
+    at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    await client.put(f"/api/parties/{pid}", json={"thanks_at": at.isoformat()})
+    assert await run_party_thanks(db_session) == 0
+    await client.put(f"/api/parties/{pid}", json={"thanks_text": "Tack för en fin kväll!"})
+    assert await run_party_thanks(db_session) == 1 and await run_party_thanks(db_session) == 0
+    assert [s[0] for s in sent] == ["saga@example.com"] and "Tack för en fin kväll!" in sent[0][2]
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["stage"] == "thanks" and page["portal_token"] is None
+
+
+async def test_mail_through_exchange_online(client, monkeypatch):
+    import httpx
+
+    from app.services import mailer
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if "login.microsoftonline.com" in str(request.url):
+            return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
+        if "stop@" in request.content.decode():
+            return httpx.Response(403, json={"error": {"code": "ErrorAccessDenied", "message": "Access is denied."}})
+        return httpx.Response(202)
+
+    real = httpx.AsyncClient
+    await _family(client)
+    # The tenant, the client id, the secret and the mailbox are all needed; the secret never comes back.
+    assert (await client.put("/api/admin/integrations/email/exchange", json={"sender": "fest@lind.se"})).status_code == 422
+    assert (await client.put("/api/admin/integrations/email/exchange", json={"tenant_id": "../evil", "client_id": "11111111-2222-3333-4444-555555555555", "password": "s3cret", "sender": "fest@lind.se"})).status_code == 422
+    out = (await client.put("/api/admin/integrations/email/exchange", json={"tenant_id": "lind.onmicrosoft.com", "client_id": "11111111-2222-3333-4444-555555555555", "password": "s3cret-value", "sender": "fest@lind.se"})).json()
+    assert out["owner"] == "exchange" and out["accounts"]["exchange"]["client_id"].startswith("1111") and "s3cret-value" not in str(out)
+
+    mailer._tokens.clear()
+    conf = mailer.account({"accounts": {"exchange": {"tenant_id": "lind.onmicrosoft.com", "client_id": "11111111-2222-3333-4444-555555555555", "password": "s3cret-value", "sender": "fest@lind.se"}}}, "exchange")
+    monkeypatch.setattr(mailer.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    await mailer.send_with(conf, "saga@example.com", "Hej", "Välkommen!")
+    await mailer.send_with(conf, "nils@example.com", "Hej", "Välkommen!")
+    assert [str(c.url).split("?")[0] for c in calls] == [
+        "https://login.microsoftonline.com/lind.onmicrosoft.com/oauth2/v2.0/token",
+        "https://graph.microsoft.com/v1.0/users/fest@lind.se/sendMail",
+        "https://graph.microsoft.com/v1.0/users/fest@lind.se/sendMail",
+    ]  # one token, kept
+    assert calls[1].headers["authorization"] == "Bearer tok" and b"saga@example.com" in calls[1].content
+    # Microsoft's refusal comes back in its own words.
+    with pytest.raises(mailer.MailError, match="403: Access is denied"):
+        await mailer.send_with(conf, "stop@example.com", "Hej", "x")
