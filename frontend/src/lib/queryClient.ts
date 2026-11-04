@@ -1,5 +1,6 @@
 // One TanStack Query client for the whole app. Every read is cached under its API path, kept in
 // IndexedDB so a reopened app starts with what it showed last, and refreshed in the background.
+import { isPartyHelper } from "@/lib/partyHelper";
 import { QueryClient } from "@tanstack/react-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
@@ -71,7 +72,7 @@ export const restored: Promise<void> = persister
         // failed for is kept (a kitchen display without a connection shows what it had) – but not an
         // answer that is gone for good (a removed screen's link, 404).
         dehydrateOptions: {
-          shouldDehydrateQuery: (query) => query.state.data !== undefined && !goneForGood(query.state.error) && !NOT_SAVED.has(String(query.queryKey[1])),
+          shouldDehydrateQuery: (query) => query.state.data !== undefined && !goneForGood(query.state.error) && !NOT_SAVED.has(String(query.queryKey[1])) && !isPartyHelper(),
         },
       })[1]
     ).catch(() => {})

@@ -517,13 +517,15 @@ test("the portal under Sending out: printing the QR code and when its link ends"
     const guest = await browser.newContext();
     const g = await guest.newPage();
     await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
-    await expect(g.getByText("This link", { exact: false }).or(g.getByText("isn't valid", { exact: false })).first()).toBeVisible();
+    // Too early, the QR code leads to its waiting page, and nothing else.
+    await expect(g.getByRole("status")).toContainText("isn't open yet");
+    await expect(g.getByText("Your name (optional)")).toHaveCount(0);
 
     // Open now, ending in the past: the cleaners the morning after get nothing.
     const now = Date.now();
     await adminApi.put(`/api/parties/${party.id}`, { data: { portal_at: new Date(now - 60_000).toISOString(), portal_until: new Date(now + 60_000).toISOString() } });
     await g.reload();
-    await expect(g.getByRole("heading", { name: title }).first()).toBeVisible();
+    await expect(g.getByLabel("Your name (optional)")).toBeVisible();
     await adminApi.put(`/api/parties/${party.id}`, { data: { portal_at: new Date(now - 7_200_000).toISOString(), portal_until: new Date(now - 60_000).toISOString() } });
     await g.reload();
     await expect(g.getByRole("heading", { name: title })).toHaveCount(0);
@@ -611,6 +613,165 @@ test("bringing in guests, the seating and the last check", async ({ adminPage: p
     await expect(check.getByText("1 guests without a table")).toBeVisible();
     await check.getByRole("listitem").filter({ hasText: "3 guests haven't replied" }).getByRole("button").click();
     await expect(page.getByRole("region", { name: "The party day's portal" })).toBeVisible();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// The check-in: a thumb down with a message changes the reply; and the food and the speech on the way.
+test("the guest's menu, speech and check-in", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Checkinfest"), kind: "party", bring: "none", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const options = page.getByRole("region", { name: "For the guests" });
+    await options.getByLabel("Add a dish").fill("Vegetariskt");
+    await options.getByRole("button", { name: "Add a dish" }).click();
+    await expect(options.getByRole("listitem").filter({ hasText: "Vegetariskt" })).toBeVisible();
+    await options.getByRole("checkbox", { name: /sign up for a speech/ }).click();
+    await expect(options.getByRole("checkbox", { name: /sign up for a speech/ })).toBeChecked();
+    await options.getByLabel("Parking").fill("Bakom huset");
+    await options.getByRole("button", { name: "Save" }).click();
+    await expect(options.getByRole("status")).toHaveText("Saved");
+    await page.getByRole("region", { name: "Details" }).getByRole("checkbox", { name: "Check-in" }).click();
+    await expect(page.getByRole("region", { name: "Details" }).getByRole("checkbox", { name: "Check-in" })).toBeChecked();
+
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${token}`);
+    await expect(g.getByText("Bakom huset")).toBeVisible();
+    const reply = g.getByRole("region", { name: "Will you come?" });
+    await reply.getByLabel("First name").fill("Saga");
+    await reply.getByLabel("What would you like to eat?").selectOption({ label: "Vegetariskt" });
+    await reply.getByLabel("Wants to give a speech").check();
+    await reply.getByRole("button", { name: "Send the reply" }).click();
+    await expect(g.getByRole("region", { name: "Your reply" })).toContainText("Saga");
+
+    await adminApi.put(`/api/parties/${party.id}`, { data: { checkin_at: new Date(Date.now() - 60_000).toISOString() } });
+    await g.reload();
+    const checkin = g.locator("section").filter({ hasText: "Are you ready?" });
+    await expect(checkin.getByText("Saga, you're signed up.")).toBeVisible();
+    await expect(g.getByRole("region", { name: "Will you come?" })).toHaveCount(0);
+    await checkin.getByRole("radio", { name: "I can't come" }).click();
+    await checkin.getByLabel(/What's happened/).fill("Sjuk tyvärr");
+    await checkin.getByRole("button", { name: "Send" }).click();
+    await expect(g.getByRole("status").filter({ hasText: "we've got it" })).toBeVisible();
+    await expect(checkin.getByText("you've said you can't come")).toBeVisible();
+    await guest.close();
+
+    await page.reload();
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
+    const list = page.getByRole("region", { name: "Guests", exact: true });
+    await expect(list.getByText("Sjuk tyvärr")).toBeVisible();
+    await expect(page.getByRole("region", { name: "The food" })).toContainText("Vegetariskt");
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// A toastmaster's own link: the party's planning without an account, the plan kept from the host, and
+// the papers to print.
+test("a toastmaster plans the party and keeps it from the host", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const title = unique("Fyrtioårsfest");
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await expect(page.getByRole("button", { name: /The plan$/ })).toHaveCount(0);
+    const helpers = page.getByRole("region", { name: "Helpers from outside" });
+    await helpers.getByLabel("Name").fill("Lars");
+    await helpers.getByLabel("The link ends").selectOption("7");
+    await helpers.getByRole("button", { name: "Invite" }).click();
+    await expect(helpers.getByRole("listitem").filter({ hasText: "Lars" })).toBeVisible();
+    const detail = await (await adminApi.get(`/api/parties/${party.id}`)).json();
+    const { link } = await (await adminApi.post(`/api/parties/${party.id}/helpers/${detail.helpers[0].id}/link`)).json();
+    await expect(page.getByRole("button", { name: /^\d\s?The plan$/ })).toBeVisible();
+
+    const outside = await browser.newContext();
+    const l = await outside.newPage();
+    await l.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await expect(l.getByText(/Hi Lars!/)).toBeVisible();
+    await expect(l.getByRole("heading", { level: 1, name: new RegExp(title) })).toBeVisible();
+    await expect(l.getByText("Remove the party")).toHaveCount(0);
+    await l.getByRole("button", { name: /^\d\s?The plan$/ }).click();
+    const plan = l.getByRole("region", { name: "The plan", exact: true });
+    await plan.getByLabel("At", { exact: true }).fill("19:30");
+    await plan.getByLabel("Title", { exact: true }).fill("Överraskningstal");
+    await plan.getByLabel("Who", { exact: true }).fill("Mamma");
+    await plan.getByRole("button", { name: "Add" }).click();
+    await expect(plan.getByRole("listitem").filter({ hasText: "Överraskningstal" })).toBeVisible();
+
+    // The run sheet, in its own tab with the plan on it.
+    const [sheet] = await Promise.all([outside.waitForEvent("page"), plan.getByRole("link", { name: "Run sheet" }).click()]);
+    await expect(sheet.getByText("Överraskningstal")).toBeVisible();
+    await sheet.close();
+
+    // Not yet kept: the host sees it. Kept: greyed out, and none of it comes.
+    await page.reload();
+    await page.getByRole("button", { name: /^\d\s?The plan$/ }).click();
+    await expect(page.getByText("Överraskningstal")).toBeVisible();
+    const keep = l.getByRole("region", { name: "Keep the plan from" });
+    await keep.getByRole("checkbox").first().click();
+    await expect(keep.getByRole("checkbox").first()).toBeChecked();
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^\d\s?The plan$/ })).toBeDisabled();
+    await expect(page.getByText("Överraskningstal")).toHaveCount(0);
+    const seen = await (await adminApi.get(`/api/parties/${party.id}`)).json();
+    expect(JSON.stringify(seen)).not.toContain("Överraskningstal");
+    await outside.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// The wording of a mail, and suppliers into the budget.
+test("the mails' wording and the suppliers", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Mejlfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
+    const mails = page.getByRole("region", { name: "The mails" });
+    await mails.getByRole("button", { name: "Open The invitation" }).click();
+    await mails.getByRole("textbox", { name: "Text", exact: true }).fill("Hej {name}, kom på fest!");
+    await expect(mails.getByLabel("How it looks")).toContainText("Hej Anna, kom på fest!");
+    await mails.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(mails.getByRole("status")).toHaveText("Saved");
+    await expect(mails.getByRole("listitem").filter({ hasText: "The invitation" }).getByText("Your wording")).toBeVisible();
+    const seen = await (await adminApi.get(`/api/parties/${party.id}`)).json();
+    expect(seen.mail_templates.find((m: { kind: string }) => m.kind === "invited").text).toBe("Hej {name}, kom på fest!");
+
+    await page.getByRole("button", { name: /^\d\s?Budget$/ }).click();
+    const vendors = page.getByRole("region", { name: "Suppliers" });
+    await vendors.getByLabel("Search for").fill("catering");
+    await vendors.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(vendors.getByText("The server's search is off").or(vendors.getByLabel("What was found")).or(vendors.getByText("Nothing found.")).or(vendors.getByRole("alert"))).toBeVisible();
+    await vendors.getByLabel("Name").fill("DJ Saga");
+    await vendors.getByLabel("Amount").fill("4000");
+    await vendors.getByRole("button", { name: "Add", exact: true }).click();
+    await vendors.getByRole("button", { name: /into the budget/ }).click();
+    await expect(vendors.getByText("In the budget")).toBeVisible();
+    await expect(page.getByText("DJ Saga").first()).toBeVisible();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// The papers from the seating.
+test("the seating's papers", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Bordsfest"), kind: "party", page_theme: "glamour", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  await adminApi.put(`/api/parties/${party.id}`, { data: { tables: [{ id: "a", name: "Långbordet", seats: 8 }] } });
+  const detail = await (await adminApi.post(`/api/parties/${party.id}/guests`, { data: { first_name: "Saga", last_name: "Berg", coming: true } })).json();
+  await adminApi.put(`/api/parties/${party.id}/guests/${detail.guests[0].id}/table`, { data: { table_id: "a" } });
+  try {
+    await page.goto(`/party-print/${party.id}/tables`);
+    await expect(page.getByRole("heading", { name: "Långbordet" })).toBeVisible();
+    await expect(page.getByText("Saga Berg")).toBeVisible();
+    await page.goto(`/party-print/${party.id}/cards`);
+    await expect(page.getByText("Saga Berg")).toBeVisible();
+    await expect(page.getByText("Långbordet")).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
   }

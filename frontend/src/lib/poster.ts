@@ -38,12 +38,15 @@ export type Block = Base & (
   | ({ type: "schedule"; heading?: string } & TextStyle)
   | ({ type: "upload"; heading?: string } & TextStyle)
   | ({ type: "gallery"; heading?: string } & TextStyle)
+  // Practical information from the hosts, and the guest's thumb up or down before the party.
+  | ({ type: "practical"; heading?: string } & TextStyle)
+  | ({ type: "checkin"; heading?: string } & TextStyle)
 );
 // The posters of one party, in its theme: before, the invitation, the day itself, after.
-export type Stage = "save" | "invite" | "portal" | "thanks";
-export const STAGES: Stage[] = ["save", "invite", "portal", "thanks"];
+export type Stage = "save" | "invite" | "checkin" | "portal" | "thanks";
+export const STAGES: Stage[] = ["save", "invite", "checkin", "portal", "thanks"];
 export type BlockType = Block["type"];
-export const BLOCK_TYPES: BlockType[] = ["text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery"];
+export const BLOCK_TYPES: BlockType[] = ["text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin"];
 // Apple's calendar has no link of its own: the file opens it on an iPhone or a Mac ("apple" in an
 // older poster shows as the file).
 export const CALENDAR_BUTTONS: CalendarButton[] = ["ics", "google", "outlook"];
@@ -71,6 +74,7 @@ export type PosterData = {
   playlist: string | null; steps: { at: string; title: string }[];
   // The guest's first name, when they came by their personal link.
   guest?: string;
+  practical?: { parking?: string; lodging?: string; travel?: string };
 };
 export const TOKENS = ["title", "guest", "family", "date", "weekday", "time", "place", "address", "theme", "rsvp", "invitation"] as const;
 // The same fields by their names in the five languages: {namn}, {datum} … work as well as {title}.
@@ -126,13 +130,14 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
   const lines: Record<Stage, [string, string]> = {
     save: [`${t("party.saveTheDate")} · ${f("date")}`, t("party.comingUp")],
     invite: [`${t("party.invited")} · ${f("date")}`, t("party.welcomeTo")],
+    checkin: [`${t("party.checkinSoon")} · ${f("date")}`, t("party.welcomeTo")],
     portal: [`${t("party.today")} · ${f("place")}`, t("party.welcomeTo")],
     thanks: [t("party.thanks"), t("party.thanksFor")],
   };
   const out: Block[] = [
     { id: pid(), type: "text", side, text: lines[stage][0], font: "theme-body", size: "s", color: "accent", caps: true },
     // A personal link's greeting; without a name it isn't shown.
-    ...(stage === "invite" || stage === "thanks" ? [{ id: pid(), type: "text", side, text: t("party.hello", { name: f("guest") }), font: "theme-script", size: "l" } as Block] : []),
+    ...(stage === "invite" || stage === "checkin" || stage === "thanks" ? [{ id: pid(), type: "text", side, text: t("party.hello", { name: f("guest") }), font: "theme-script", size: "l" } as Block] : []),
     { id: pid(), type: "text", side, text: lines[stage][1], font: "theme-script", size: "l" },
     { id: pid(), type: "text", side, text: f("title"), font: "theme-display", size: "xxl", color: "gold" },
     { id: pid(), type: "divider", side, style: "swash" },
@@ -161,8 +166,17 @@ export function defaultPoster(theme: PartyTheme, d: Pick<PosterData, "theme" | "
     );
     if (d.invitation) out.push({ id: pid(), type: "invitation", text: f("invitation"), ribbon: t("party.welcomeAll"), size: "m" });
     if (d.playlist) out.push({ id: pid(), type: "playlist", heading: t("party.playlistHeading"), font: "theme-display", size: "l" });
+    out.push({ id: pid(), type: "practical", heading: t("party.practicalHeading"), font: "theme-display", size: "l" });
+  } else if (stage === "checkin") {
+    out.push(
+      { id: pid(), type: "countdown", heading: t("party.countdown"), font: "theme-script", size: "xl", align: "center" },
+      { id: pid(), type: "checkin", heading: t("party.checkinHeading"), font: "theme-display", size: "l" },
+      { id: pid(), type: "details", variant: "list", heading: t("party.about"), fields: ["when", "where", "what"], font: "theme-display", size: "l" },
+      { id: pid(), type: "practical", heading: t("party.practicalHeading"), font: "theme-display", size: "l" },
+    );
   } else if (stage === "portal") {
     out.push(
+      { id: pid(), type: "practical", heading: t("party.practicalHeading"), font: "theme-display", size: "l" },
       { id: pid(), type: "upload", heading: t("party.uploadHeading"), font: "theme-display", size: "l" },
       { id: pid(), type: "schedule", heading: t("party.scheduleHeading"), font: "theme-display", size: "l" },
       { id: pid(), type: "details", variant: "list", heading: t("party.about"), fields: ["when", "where"], font: "theme-display", size: "l" },
@@ -193,5 +207,7 @@ export function blankBlock(type: BlockType, theme: PartyTheme, t: T): Block {
     case "schedule": return { id, type, heading: t("party.scheduleHeading"), font: "theme-display", size: "l" };
     case "upload": return { id, type, heading: t("party.uploadHeading"), font: "theme-display", size: "l" };
     case "gallery": return { id, type, heading: t("party.galleryHeading"), font: "theme-display", size: "l" };
+    case "practical": return { id, type, heading: t("party.practicalHeading"), font: "theme-display", size: "l" };
+    case "checkin": return { id, type, heading: t("party.checkinHeading"), font: "theme-display", size: "l" };
   }
 }

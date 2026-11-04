@@ -394,7 +394,7 @@ async def test_save_the_date_then_the_invitation_and_the_portal(client, monkeypa
     assert len(media) == 1 and media[0]["original_name"].startswith("Saga")
     assert (await guest.post(f"/api/party-portal/{portal}/photos", files={"file": ("x.txt", b"hello", "text/plain")})).status_code == 422
     await client.delete(f"/api/parties/{party['id']}/portal")
-    assert (await guest.get(f"/api/party-portal/{portal}")).status_code == 404
+    assert (await guest.get(f"/api/party-portal/{portal}")).json()["locked"] is True
     await guest.aclose()
 
 
@@ -499,7 +499,7 @@ async def test_one_link_from_the_save_the_date_to_the_thank_you(client, db_sessi
     assert detail["stage"] == "invite" and detail["portal"]["album_id"] and detail["portal"]["open"] is False
     ptoken = detail["portal"]["link"].rsplit("/", 1)[1]
     assert (await client.get(f"/api/party/{token}")).json()["portal_token"] is None
-    assert (await client.get(f"/api/party-portal/{ptoken}")).status_code == 404
+    assert (await client.get(f"/api/party-portal/{ptoken}")).json()["locked"] is True
     soon = datetime.now(timezone.utc) - timedelta(minutes=1)
     await client.put(f"/api/parties/{pid}", json={"portal_at": soon.isoformat()})
     page = (await client.get(f"/api/party/{token}")).json()
@@ -668,7 +668,7 @@ async def test_the_portals_link_ends(client):
     # Printing the QR code doesn't open anything.
     ready = (await client.post(f"/api/parties/{pid}/portal/prepare")).json()
     code = ready["portal"]["link"].rsplit("/", 1)[1]
-    assert ready["portal"]["open"] is False and (await client.get(f"/api/party-portal/{code}")).status_code == 404
+    assert ready["portal"]["open"] is False and (await client.get(f"/api/party-portal/{code}")).json()["locked"] is True
 
     # A time for it brings an end by itself, a little after the party.
     out = (await client.put(f"/api/parties/{pid}", json={"portal_at": (now - timedelta(minutes=1)).isoformat()})).json()
@@ -729,3 +729,209 @@ async def test_the_seating(client):
     assert out["guests"][0]["table_id"] is None
     assert (await client.put(f"/api/parties/{pid}", json={"tables": [tables[1], tables[1]]})).status_code == 422
     assert (await client.put(f"/api/parties/{pid}", json={"tables": [{"id": "../x", "name": "x"}]})).status_code == 422
+
+
+async def _token_party(client, **extra):
+    start = extra.pop("start", datetime.now(timezone.utc) + timedelta(days=30))
+    party = (await client.post("/api/parties", json=_party(start, kind="party", **extra))).json()
+    return party["id"], party["link"].rsplit("/", 1)[1], start
+
+
+async def test_speeches_the_menu_and_practical_information(client):
+    await _family(client)
+    pid, token, _ = await _token_party(client)
+    menu = [{"id": "kott", "name": "Kött"}, {"id": "veg", "name": "Vegetariskt"}]
+    await client.put(f"/api/parties/{pid}", json={"menu": menu, "speech_signup": True, "practical": {"parking": "  Bakom huset ", "lodging": ""}})
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["menu"] == menu and page["speech_signup"] is True and page["practical"] == {"parking": "Bakom huset"}
+
+    reply = {"first_name": "Saga", "coming": True, "menu_choice": "veg", "wants_speech": True, "speech_note": "Två minuter", "companions": []}
+    await client.put(f"/api/parties/{pid}", json={"bring": "one"})
+    reply["companions"] = [{"first_name": "Ella", "menu_choice": "kott"}]
+    assert (await client.post(f"/api/party/{token}/reply", json=reply)).status_code in (200, 201)
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "coming": True, "menu_choice": "fel"})
+    detail = (await client.get(f"/api/parties/{pid}")).json()
+    assert {x["name"]: x["people"] for x in detail["menu_tally"]} == {"Kött": 1, "Vegetariskt": 1, "": 1}
+    assert detail["speeches"] == [{"id": detail["guests"][0]["id"], "name": "Saga", "note": "Två minuter"}]
+    # No sign-up on offer: no speech comes in.
+    await client.put(f"/api/parties/{pid}", json={"speech_signup": False})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Maja", "coming": True, "wants_speech": True})
+    assert not next(g for g in (await client.get(f"/api/parties/{pid}")).json()["guests"] if g["first_name"] == "Maja")["wants_speech"]
+
+
+async def test_the_check_in(client, db_session, monkeypatch):
+    await _family(client)
+    now = datetime.now(timezone.utc)
+    pid, token, start = await _token_party(client)
+    out = (await client.put(f"/api/parties/{pid}", json={"pages": ["invite", "checkin"]})).json()
+    assert out["pages"] == ["invite", "checkin"]
+    assert datetime.fromisoformat(out["checkin_at"].replace("Z", "+00:00")).replace(tzinfo=timezone.utc) == datetime.fromisoformat(out["starts_at"].replace("Z", "+00:00")).replace(tzinfo=timezone.utc) - timedelta(days=3)
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "invite"
+    await client.put(f"/api/parties/{pid}", json={"checkin_at": (now - timedelta(minutes=1)).isoformat()})
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "checkin"
+
+    key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "coming": True})).json()["key"]
+    assert (await client.post(f"/api/party/{token}/checkin?key=fel", json={"going": True})).status_code == 404
+    assert (await client.post(f"/api/party/{token}/checkin?key={key}", json={"going": True})).json()["mine"]["checkin"] == "yes"
+    mine = (await client.post(f"/api/party/{token}/checkin?key={key}", json={"going": False, "message": "Sjuk"})).json()["mine"]
+    assert mine["checkin"] == "no" and mine["coming"] is False and mine["message"] == "Sjuk"
+    detail = (await client.get(f"/api/parties/{pid}")).json()
+    assert detail["guests"][0]["checkin"] == "no" and detail["coming"] == 0
+    # Chosen away: gone.
+    assert (await client.put(f"/api/parties/{pid}", json={"pages": ["invite"]})).json()["checkin_at"] is None
+    assert (await client.post(f"/api/party/{token}/checkin?key={key}", json={"going": True})).status_code == 404
+
+
+async def test_the_portal_before_its_time(client):
+    await _family(client)
+    now = datetime.now(timezone.utc)
+    pid, token, _ = await _token_party(client)
+    code = (await client.post(f"/api/parties/{pid}/portal/prepare")).json()["portal"]["link"].rsplit("/", 1)[1]
+    early = (await client.get(f"/api/party-portal/{code}")).json()
+    assert early["locked"] is True and early["opens_at"] is None and "photos" not in early and "steps" not in early
+    opens = now + timedelta(days=2)
+    await client.put(f"/api/parties/{pid}", json={"portal_at": opens.isoformat()})
+    assert (await client.get(f"/api/party-portal/{code}")).json()["opens_at"]
+    assert (await client.get("/api/party-portal/fel-kod")).status_code == 404
+
+
+async def test_the_hosts_own_mails(client, monkeypatch):
+    from app.services import mailer
+
+    sent = []
+    monkeypatch.setattr(mailer, "_send", lambda conf, to, subject, text, html, reply_to: sent.append((to, subject, text)))
+    await _family(client)
+    await client.put("/api/admin/integrations/email/smtp", json={"host": "smtp.example.com", "port": 587, "sender": "fest@example.com"})
+    pid, token, _ = await _token_party(client)
+    templates = (await client.get(f"/api/parties/{pid}")).json()["mail_templates"]
+    assert {t["kind"] for t in templates} >= {"invited", "checkin", "thanks", "confirm"} and all(t["default_text"] for t in templates)
+    assert (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"nope": {"subject": "x"}}})).status_code == 422
+    await client.put(f"/api/parties/{pid}", json={"mail_texts": {"confirm": {"subject": "Hurra {name}", "text": "Tack {name} {okänd}! Länk: {link}"}}})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "email": "saga@example.com", "updates": True, "coming": True})
+    assert sent[0][1] == "Hurra Saga"
+    assert "Tack Saga {okänd}! Länk: " in sent[0][2] and sent[0][2].count("?key=") == 1  # the link once, and not lost
+    # Without the field the link still goes along; empty is the app's own wording again.
+    sent.clear()
+    await client.put(f"/api/parties/{pid}", json={"mail_texts": {"confirm": {"subject": "", "text": "Bara tack"}}})
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Nils", "email": "nils@example.com", "updates": True, "coming": True})
+    assert "Bara tack" in sent[0][2] and "?key=" in sent[0][2]
+    out = (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"confirm": {"subject": "", "text": ""}}})).json()
+    assert next(t for t in out["mail_templates"] if t["kind"] == "confirm")["text"] == ""
+
+
+async def test_suppliers(client, monkeypatch):
+    from app.services import recipe_search
+
+    await _family(client)
+    pid, _, _ = await _token_party(client)
+    assert (await client.get(f"/api/parties/{pid}/vendors/search?q=catering")).json() == {"enabled": False, "hits": []}
+    out = (await client.post(f"/api/parties/{pid}/vendors", json={"category": "dj", "name": "DJ Saga", "url": "https://dj.example", "price": 4000})).json()
+    vid = out["vendors"][0]["id"]
+    assert out["vendors"][0]["status"] == "idea"
+    assert (await client.post(f"/api/parties/{pid}/vendors", json={"name": "x", "url": "javascript:alert(1)"})).status_code == 422
+    booked = (await client.post(f"/api/parties/{pid}/vendors/{vid}/budget")).json()
+    assert booked["vendors"][0]["status"] == "booked" and booked["vendors"][0]["in_budget"] and booked["spent"] == 4000
+    assert (await client.post(f"/api/parties/{pid}/vendors/{vid}/budget")).json()["spent"] == 4000  # once
+    other = (await client.post(f"/api/parties/{pid}/vendors", json={"name": "Utan pris"})).json()["vendors"][1]["id"]
+    assert (await client.post(f"/api/parties/{pid}/vendors/{other}/budget")).status_code == 422
+    # The search: only the words go out.
+    seen = []
+
+    async def fake(url, words, language="en", recipe=True):
+        seen.append((words, recipe))
+        return [recipe_search.Hit(title="Catering AB", url="https://c.example", site="c.example", snippet="Mat")]
+
+    async def on(db):
+        return "http://searxng:8080"
+
+    monkeypatch.setattr(recipe_search, "get_url", on)
+    monkeypatch.setattr(recipe_search, "search", fake)
+    hits = (await client.get(f"/api/parties/{pid}/vendors/search?q=catering Spånga")).json()
+    assert hits["enabled"] and hits["hits"][0]["site"] == "c.example" and seen == [("catering Spånga", False)]
+    assert (await client.delete(f"/api/parties/{pid}/vendors/{vid}")).json()["spent"] == 4000
+
+
+async def test_a_toastmaster_with_a_personal_link(client):
+    await _family(client)
+    me = (await client.get("/api/auth/me")).json()
+    pid, _, _ = await _token_party(client)
+    other, _, _ = await _token_party(client)
+    made = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars", "role": "toastmaster", "days_after": 1})).json()
+    assert made["mailed"] is False
+    helper = made["party"]["helpers"][0]
+    link = (await client.post(f"/api/parties/{pid}/helpers/{helper['id']}/link")).json()["link"]
+    code = link.rsplit("/", 1)[1]
+
+    # A browser with only the link: this party and nothing else.
+    await client.post("/api/auth/logout")
+    assert (await client.get(f"/api/parties/{pid}")).status_code == 401
+    assert (await client.post("/api/party-help/fel/enter")).status_code == 404
+    entered = (await client.post(f"/api/party-help/{code}/enter")).json()
+    assert entered["party_id"] == pid and entered["name"] == "Lars"
+    seen = (await client.get(f"/api/parties/{pid}")).json()
+    assert seen["you"]["helper"] is True and seen["id"] == pid
+    assert (await client.get(f"/api/parties/{other}")).status_code == 404
+    assert (await client.get("/api/parties")).status_code == 401
+    assert (await client.get("/api/auth/me")).status_code == 401
+    assert (await client.get("/api/birthdays/people")).status_code == 401
+    # Everything for the party – but not removing it – and more helpers.
+    assert (await client.put(f"/api/parties/{pid}", json={"place": "Folkets hus"})).json()["place"] == "Folkets hus"
+    assert (await client.delete(f"/api/parties/{pid}")).status_code == 401
+    assert (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Eva", "role": "toastmadame"})).status_code == 201
+    # The plan, kept from the one being celebrated.
+    assert (await client.post(f"/api/parties/{pid}/plan", json={"kind": "speech", "at": "19:30", "minutes": 5, "title": "Överraskningstal", "who": "Mamma"})).status_code == 201
+    assert (await client.post(f"/api/parties/{pid}/plan", json={"title": "x", "at": "25:00"})).status_code == 422
+    out = (await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": [me["id"]]})).json()
+    assert out["plan_hidden"] == [me["id"]] and out["plan"][0]["title"] == "Överraskningstal" and out["adults"][0]["id"] == me["id"]
+    item = out["plan"][0]["id"]
+
+    # The host: in the app, the plan is greyed out; nothing of it comes.
+    client.cookies.clear()
+    await _as(client, "admin", "secret123")
+    mine = (await client.get(f"/api/parties/{pid}")).json()
+    assert mine["plan_kept"] is True and mine["plan"] == [] and mine["speeches"] == [] and mine["plan_hidden"] == [] and "Överraskningstal" not in str(mine)
+    assert (await client.post(f"/api/parties/{pid}/plan", json={"title": "kika"})).status_code == 403
+    assert (await client.put(f"/api/parties/{pid}/plan/{item}", json={"title": "kika"})).status_code == 403
+    assert (await client.delete(f"/api/parties/{pid}/plan/{item}")).status_code == 403
+    assert (await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": []})).status_code == 403
+
+    # In a browser signed in to the app, the helper's page still acts as the helper.
+    await client.post(f"/api/party-help/{code}/enter")
+    as_helper = (await client.get(f"/api/parties/{pid}", headers={"X-Party-Helper": "1"})).json()
+    assert as_helper["you"]["helper"] is True and as_helper["plan"][0]["title"] == "Överraskningstal"
+    assert (await client.get(f"/api/parties/{pid}")).json()["you"]["helper"] is False
+
+    # Removed: the link stops at once.
+    await client.delete(f"/api/parties/{pid}/helpers/{helper['id']}")
+    assert (await client.get(f"/api/parties/{pid}", headers={"X-Party-Helper": "1"})).status_code == 401
+    assert (await client.post(f"/api/party-help/{code}/enter")).status_code == 404
+
+
+async def test_a_helpers_link_ends_after_the_party(client, db_session):
+    from app.models import Party
+
+    await _family(client)
+    pid, _, _ = await _token_party(client)
+    made = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars", "days_after": 1})).json()
+    code = (await client.post(f"/api/parties/{pid}/helpers/{made['party']['helpers'][0]['id']}/link")).json()["link"].rsplit("/", 1)[1]
+    assert (await client.post(f"/api/parties/{pid}/helpers", json={"name": "x", "days_after": 2})).status_code == 422
+    assert (await client.post(f"/api/party-help/{code}/enter")).status_code == 200
+    party = await db_session.get(Party, uuid.UUID(pid))
+    party.starts_at = datetime.now(timezone.utc) - timedelta(days=3)
+    party.ends_at = datetime.now(timezone.utc) - timedelta(days=2)
+    await db_session.commit()
+    assert (await client.post(f"/api/party-help/{code}/enter")).status_code == 410
+    assert (await client.get(f"/api/parties/{pid}", headers={"X-Party-Helper": "1"})).status_code == 401
+
+
+async def test_a_task_for_someone(client):
+    await _family(client)
+    pid, _, _ = await _token_party(client)
+    me = (await client.get("/api/auth/me")).json()
+    made = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars"})).json()["party"]
+    task = made["tasks"][0]["id"]
+    out = (await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": me["id"]})).json()
+    assert next(t for t in out["tasks"] if t["id"] == task)["who"] == me["id"]
+    out = (await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": None, "helper_id": made["helpers"][0]["id"]})).json()
+    row = next(t for t in out["tasks"] if t["id"] == task)
+    assert row["who"] is None and row["helper_id"] == made["helpers"][0]["id"]

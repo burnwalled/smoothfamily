@@ -17,15 +17,17 @@ import re
 import secrets
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Literal
+from dataclasses import dataclass
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import DB, AdultUser, require_app
-from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyMailing, PartyStep, PartyTask, PartyTemplate, PartyTheme, Person, User, WishItem
+from app.config import get_settings
+from app.deps import DB, AdultUser, get_current_user
+from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyHelper, PartyMailing, PartyPlanItem, PartyStep, PartyTask, PartyTemplate, PartyTheme, PartyVendor, Person, User, WishItem
 from app.services import login_throttle
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
@@ -33,7 +35,66 @@ from app.services.public_url import configured_url, public_base
 from app.services.storage import get_storage
 from app.services.weather import _tz
 
-router = APIRouter(prefix="/api/parties", tags=["parties"], dependencies=[require_app("calendar")])
+HELPER_COOKIE = "smooth_party_helper"
+
+
+@dataclass
+class HelperActor:
+    """A helper from outside, acting on the one party their link is for. Things they make are the
+    hosts' on paper (id: whoever made the party)."""
+
+    id: uuid.UUID
+    family_id: uuid.UUID
+    language: str
+    helper_id: uuid.UUID
+    party_id: uuid.UUID
+    is_helper: bool = True
+
+
+def _helper_ends(helper: PartyHelper, party: Party) -> datetime:
+    return _utc(party.ends_at) + timedelta(days=helper.days_after)
+
+
+async def _helper_session(request: Request, db: AsyncSession) -> HelperActor | None:
+    token = request.cookies.get(HELPER_COOKIE)
+    if not token:
+        return None
+    helper = (await db.execute(select(PartyHelper).where(PartyHelper.token_hash == _hash(token)))).scalar_one_or_none()
+    party = await db.get(Party, helper.party_id) if helper else None
+    family = await db.get(Family, party.family_id) if party else None
+    if helper is None or party is None or family is None or family.status != "active" or datetime.now(timezone.utc) >= _helper_ends(helper, party):
+        return None
+    return HelperActor(id=party.created_by, family_id=party.family_id, language=await _host_language(db, party), helper_id=helper.id, party_id=party.id)
+
+
+async def party_actor(request: Request, db: DB) -> User | HelperActor:
+    """Who's planning: a family's adult with the calendar app, or a helper with their link. On a helper's
+    own page (the header) it's always the helper, also in a browser signed in to the app."""
+    actor: User | HelperActor | None = None
+    if request.headers.get("x-party-helper"):
+        actor = await _helper_session(request, db)
+        if actor is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="This link has ended")
+    else:
+        try:
+            user = await get_current_user(request, db)
+        except HTTPException:
+            actor = await _helper_session(request, db)
+            if actor is None:
+                raise
+        else:
+            if user.role not in ("admin", "adult"):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Adults only")
+            if "calendar" not in user.apps:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This app is not enabled for you")
+            actor = user
+    request.state.party_actor = actor
+    return actor
+
+
+PartyActor = Annotated[User | HelperActor, Depends(party_actor)]
+router = APIRouter(prefix="/api/parties", tags=["parties"], dependencies=[Depends(party_actor)])
+helpers = APIRouter(prefix="/api/party-help", tags=["party-help"])
 public = APIRouter(prefix="/api/party", tags=["party-public"])
 
 KINDS = ("child_birthday", "birthday", "party", "dinner", "match", "bbq", "outdoor")
@@ -276,6 +337,30 @@ _MAIL = {
 }
 
 
+for _lang, _texts in {
+    "en": {"checkin": ("{title}: are you ready?", "It's soon time for {title}! Are you coming? Answer with a thumb up or down on your page – and tell us if something's come up."), "helper": ("You're helping with {title}", "Hi {name}! You've been asked to help with {title} as {role}. Your own link, until {until}:\n{link}\n\nDon't share it: it gives access to the party's planning."), "helper_task": ("{title}: a task for you", "{task}\n\n{link}")},
+    "sv": {"checkin": ("{title}: är du taggad?", "Snart är det dags för {title}! Kommer du? Svara med tummen upp eller ner på din sida – och säg till om något har hänt."), "helper": ("Du hjälper till med {title}", "Hej {name}! Du har blivit ombedd att hjälpa till med {title} som {role}. Din egen länk, till och med {until}:\n{link}\n\nDela den inte: den ger tillgång till festens planering."), "helper_task": ("{title}: en uppgift till dig", "{task}\n\n{link}")},
+    "nb": {"checkin": ("{title}: er du klar?", "Snart er det tid for {title}! Kommer du? Svar med tommel opp eller ned på siden din – og si fra om noe har skjedd."), "helper": ("Du hjelper til med {title}", "Hei {name}! Du er bedt om å hjelpe til med {title} som {role}. Din egen lenke, til og med {until}:\n{link}\n\nIkke del den: den gir tilgang til festens planlegging."), "helper_task": ("{title}: en oppgave til deg", "{task}\n\n{link}")},
+    "da": {"checkin": ("{title}: er du klar?", "Snart er det tid til {title}! Kommer du? Svar med tommel op eller ned på din side – og sig til, hvis der er sket noget."), "helper": ("Du hjælper med {title}", "Hej {name}! Du er blevet bedt om at hjælpe med {title} som {role}. Dit eget link, til og med {until}:\n{link}\n\nDel det ikke: det giver adgang til festens planlægning."), "helper_task": ("{title}: en opgave til dig", "{task}\n\n{link}")},
+    "fi": {"checkin": ("{title}: oletko valmis?", "Pian on aika: {title}! Tuletko? Vastaa peukulla ylös tai alas sivullasi – ja kerro, jos jotain on sattunut."), "helper": ("Autat juhlissa: {title}", "Hei {name}! Sinua on pyydetty auttamaan juhlissa {title} roolissa {role}. Oma linkkisi, {until} asti:\n{link}\n\nÄlä jaa sitä: se antaa pääsyn juhlien suunnitteluun."), "helper_task": ("{title}: tehtävä sinulle", "{task}\n\n{link}")},
+}.items():
+    _MAIL[_lang].update(_texts)
+_ROLES = {
+    "en": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "helper"},
+    "sv": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "hjälpare"},
+    "nb": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "hjelper"},
+    "da": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "hjælper"},
+    "fi": {"toastmaster": "toastmaster", "toastmadame": "toastmadame", "helper": "auttaja"},
+}
+# The mails the hosts can word themselves, in the order of the party.
+MAIL_KINDS = ("save", "subscribed", "invited", "confirm", "change", "decided", "remind_rsvp", "reminder", "checkin", "remind", "thanks")
+
+
+def _fill(template: str, fields: dict) -> str:
+    """The {fields} of a text the hosts may have written: what isn't a field stays as it is."""
+    return re.sub(r"\{(\w+)\}", lambda m: str(fields[m.group(1)]) if m.group(1) in fields else m.group(0), template)
+
+
 async def _host_language(db: AsyncSession, party: Party) -> str:
     host = await db.get(User, party.created_by) if party.created_by else None
     if host is None:
@@ -312,21 +397,25 @@ async def mail_guests(db: AsyncSession, party: Party, kind: str, guests: list[Pa
         guest.unsubscribe_hash = _hash(code)
         own = f"{page}?key={decrypt_token(guest.key_encrypted)}" if guest.key_encrypted else page
         subject_t, body_t = texts[kind]
+        own_text = (party.mail_texts or {}).get(kind) or {}
+        subject_t, body_t = own_text.get("subject") or subject_t, own_text.get("text") or body_t
         answer = texts["answers"][0 if guest.coming else 1]
         if party.date_poll:
             answer = texts["voted"].format(n=len(guest.date_votes or []))
         elif guest.coming and guest.companions:
             answer += " " + texts["plus"].format(name=", ".join(_name(c) for c in guest.companions))
         by = texts["by"].format(date=f"{party.rsvp_by.day}/{party.rsvp_by.month}") if party.rsvp_by else ""
-        fields = {"title": party.title, "name": guest.first_name, "answer": answer, "by": by, **values}
-        body = "\n\n".join([
-            body_t.format(**fields),
-            _when_where(party, language),
-            texts["page"].format(link=own),
+        when = _when_where(party, language)
+        fields = {"title": party.title, "name": guest.first_name, "answer": answer, "by": by, "when": when, "link": own, **values}
+        # The guest's own link always goes along, whatever the hosts have written.
+        body = "\n\n".join(x for x in [
+            _fill(body_t, fields),
+            "" if "{when}" in body_t else when,
+            "" if "{link}" in body_t else texts["page"].format(link=own),
             texts["stop"].format(link=f"{page}?unsubscribe={code}"),
-        ])
+        ] if x)
         try:
-            await mailer.send_with(conf, guest.email, subject_t.format(**fields), body)
+            await mailer.send_with(conf, guest.email, _fill(subject_t, fields), body)
             sent += 1
         except mailer.MailError:
             continue
@@ -392,8 +481,13 @@ class PartyChange(BaseModel):
     portal_gallery: bool | None = None
     portal_at: datetime | None = None
     portal_until: datetime | None = None
-    pages: list[Literal["save", "invite", "portal", "thanks"]] | None = Field(default=None, max_length=4)
+    pages: list[Literal["save", "invite", "checkin", "portal", "thanks"]] | None = Field(default=None, max_length=5)
     tables: list["TableIn"] | None = Field(default=None, max_length=100)
+    checkin_at: datetime | None = None
+    menu: list["MenuOption"] | None = Field(default=None, max_length=12)
+    speech_signup: bool | None = None
+    practical: "PracticalIn | None" = None
+    mail_texts: dict[str, "MailTextIn"] | None = None
     thanks_at: datetime | None = None
     rsvp_remind_days: int | None = Field(default=None, ge=0, le=60)
     date_poll: bool | None = None
@@ -418,7 +512,82 @@ class TableIn(BaseModel):
     seats: int = Field(default=8, ge=1, le=500)
 
 
+class MenuOption(BaseModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9-]{1,20}$")
+    name: str = Field(min_length=1, max_length=60)
+
+
+class PracticalIn(BaseModel):
+    parking: str = Field(default="", max_length=1000)
+    lodging: str = Field(default="", max_length=1000)
+    travel: str = Field(default="", max_length=1000)
+
+
+class MailTextIn(BaseModel):
+    subject: str = Field(default="", max_length=160)
+    text: str = Field(default="", max_length=4000)
+
+
 PartyChange.model_rebuild()
+
+
+class CheckinIn(BaseModel):
+    going: bool
+    message: str = Field(default="", max_length=500)
+
+
+class HelperIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    role: str = Field(default="toastmaster", pattern=r"^(toastmaster|toastmadame|helper)$")
+    email: str | None = Field(default=None, max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    days_after: Literal[1, 3, 7] = 3
+
+
+class PlanHiddenIn(BaseModel):
+    user_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
+
+
+class PlanItemIn(BaseModel):
+    kind: str = Field(default="note", pattern=r"^(speech|serving|game|music|note)$")
+    at: str = Field(default="", pattern=r"^$|^([01]\d|2[0-3]):[0-5]\d$")
+    minutes: int | None = Field(default=None, ge=0, le=600)
+    title: str = Field(min_length=1, max_length=160)
+    who: str = Field(default="", max_length=120)
+    note: str = Field(default="", max_length=2000)
+
+
+class PlanItemChange(BaseModel):
+    kind: str | None = Field(default=None, pattern=r"^(speech|serving|game|music|note)$")
+    at: str | None = Field(default=None, pattern=r"^$|^([01]\d|2[0-3]):[0-5]\d$")
+    minutes: int | None = Field(default=None, ge=0, le=600)
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    who: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=2000)
+    done: bool | None = None
+
+
+VENDOR_KINDS = r"^(catering|decoration|dj|music|venue|photo|cake|rental|other)$"
+VENDOR_STATUS = r"^(idea|asked|booked|no)$"
+
+
+class VendorIn(BaseModel):
+    category: str = Field(default="other", pattern=VENDOR_KINDS)
+    name: str = Field(min_length=1, max_length=160)
+    url: str = Field(default="", max_length=500, pattern=r"^$|^https?://")
+    contact: str = Field(default="", max_length=200)
+    price: float | None = Field(default=None, ge=0, le=10_000_000)
+    status: str = Field(default="idea", pattern=VENDOR_STATUS)
+    note: str = Field(default="", max_length=2000)
+
+
+class VendorChange(BaseModel):
+    category: str | None = Field(default=None, pattern=VENDOR_KINDS)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    url: str | None = Field(default=None, max_length=500, pattern=r"^$|^https?://")
+    contact: str | None = Field(default=None, max_length=200)
+    price: float | None = Field(default=None, ge=0, le=10_000_000)
+    status: str | None = Field(default=None, pattern=VENDOR_STATUS)
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class ImportedGuest(BaseModel):
@@ -467,6 +636,7 @@ class TaskIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     due_date: date | None = None
     who: uuid.UUID | None = None
+    helper_id: uuid.UUID | None = None
 
 
 class TaskChange(BaseModel):
@@ -474,6 +644,7 @@ class TaskChange(BaseModel):
     due_date: date | None = None
     done: bool | None = None
     who: uuid.UUID | None = None
+    helper_id: uuid.UUID | None = None
 
 
 class ExpenseIn(BaseModel):
@@ -495,7 +666,7 @@ class StepChange(BaseModel):
 
 
 class MailingIn(BaseModel):
-    kind: str = Field(pattern=r"^(save|invite|remind|thanks|custom)$")
+    kind: str = Field(pattern=r"^(save|invite|checkin|remind|thanks|custom)$")
     audience: str = Field(default="all", pattern=r"^(all|waiting|coming)$")
     subject: str = Field(default="", max_length=120)
     text: str = Field(default="", max_length=4000)
@@ -514,6 +685,9 @@ class GuestIn(BaseModel):
     date_votes: list[str] | None = Field(default=None, max_length=12)
     # Put on the guest list by the hosts (not a reply yet): they get the mails and their own link.
     invited: bool = False
+    wants_speech: bool = False
+    speech_note: str = Field(default="", max_length=200)
+    menu_choice: str | None = Field(default=None, max_length=20)
 
 
 class CompanionIn(BaseModel):
@@ -521,6 +695,7 @@ class CompanionIn(BaseModel):
     last_name: str = Field(default="", max_length=80)
     child: bool = False
     allergies: str = Field(default="", max_length=300)
+    menu_choice: str | None = Field(default=None, max_length=20)
 
 
 GuestIn.model_rebuild()
@@ -530,9 +705,9 @@ def _dt(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=_tz())
 
 
-async def _mine(db: AsyncSession, user: User, party_id: uuid.UUID) -> Party:
+async def _mine(db: AsyncSession, user: User | HelperActor, party_id: uuid.UUID) -> Party:
     party = await db.get(Party, party_id)
-    if party is None or party.family_id != user.family_id:
+    if party is None or party.family_id != user.family_id or (isinstance(user, HelperActor) and user.party_id != party.id):
         raise HTTPException(status_code=404, detail="Party not found")
     return party
 
@@ -575,8 +750,8 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
 
 
 LAYOUT_BYTES = 60_000
-BLOCK_TYPES = {"text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery"}
-STAGES = {"save": "save_layout", "invite": "layout", "portal": "portal_layout", "thanks": "thanks_layout"}
+BLOCK_TYPES = {"text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery", "practical", "checkin"}
+STAGES = {"save": "save_layout", "invite": "layout", "checkin": "checkin_layout", "portal": "portal_layout", "thanks": "thanks_layout"}
 
 
 def _layouts(party: Party) -> dict:
@@ -667,6 +842,7 @@ def _guest_out(g: PartyGuest) -> dict:
     return {
         "id": g.id, "first_name": g.first_name, "last_name": g.last_name, "coming": g.coming, "allergies": g.allergies, "message": g.message,
         "companions": g.companions or [], "updated_at": g.updated_at, "table_id": g.table_id,
+        "wants_speech": g.wants_speech, "speech_note": g.speech_note, "menu_choice": g.menu_choice, "checkin": g.checkin,
         "email": g.email, "updates": bool(g.updates), "date_votes": g.date_votes or [], "pending": bool(g.pending),
     }
 
@@ -702,7 +878,38 @@ def _tally(party: Party, guests: list[PartyGuest], names: bool = True) -> list[d
     return out
 
 
+def _mail_templates(party: Party, language: str) -> list[dict]:
+    texts = _MAIL.get(language, _MAIL["en"])
+    own = party.mail_texts or {}
+    return [{"kind": k, "default_subject": texts[k][0], "default_text": texts[k][1], "subject": (own.get(k) or {}).get("subject", ""), "text": (own.get(k) or {}).get("text", "")} for k in MAIL_KINDS]
+
+
+def _plan_kept_from(party: Party, actor: object) -> bool:
+    """Whether the helpers keep the plan from this person."""
+    return isinstance(actor, User) and str(actor.id) in (party.plan_hidden or [])
+
+
+def _menu_tally(party: Party, guests: list[PartyGuest]) -> list[dict]:
+    counts: dict[str | None, int] = {}
+    for g in guests:
+        if not g.coming:
+            continue
+        counts[g.menu_choice] = counts.get(g.menu_choice, 0) + 1
+        for c in g.companions or []:
+            counts[c.get("menu_choice")] = counts.get(c.get("menu_choice"), 0) + 1
+    known = {m["id"] for m in party.menu or []}
+    return [{"id": m["id"], "name": m["name"], "people": counts.get(m["id"], 0)} for m in party.menu or []] + [{"id": None, "name": "", "people": sum(n for k, n in counts.items() if k not in known)}]
+
+
 async def _detail(db: AsyncSession, party: Party, request: Request | None) -> dict:
+    actor = getattr(request.state, "party_actor", None) if request is not None else None
+    kept = _plan_kept_from(party, actor)
+    plan = [] if kept else (await db.execute(select(PartyPlanItem).where(PartyPlanItem.party_id == party.id).order_by(PartyPlanItem.at, PartyPlanItem.created_at))).scalars().all()
+    party_helpers = (await db.execute(select(PartyHelper).where(PartyHelper.party_id == party.id).order_by(PartyHelper.created_at))).scalars().all()
+    vendors = (await db.execute(select(PartyVendor).where(PartyVendor.party_id == party.id).order_by(PartyVendor.created_at))).scalars().all()
+    family = await db.get(Family, party.family_id)
+    adults = (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])).order_by(User.created_at))).scalars().all()
+    tagged = (await db.execute(select(Person).where(Person.family_id == party.family_id).order_by(Person.name))).scalars().all() if isinstance(actor, HelperActor) else []
     guests = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id).order_by(PartyGuest.created_at))).scalars().all()
     tasks = (await db.execute(select(PartyTask).where(PartyTask.party_id == party.id).order_by(PartyTask.due_date.nulls_last(), PartyTask.position))).scalars().all()
     expenses = (await db.execute(select(PartyExpense).where(PartyExpense.party_id == party.id).order_by(PartyExpense.created_at))).scalars().all()
@@ -737,10 +944,20 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "date_poll": party.date_poll, "date_options": party.date_options or [], "tally": _tally(party, guests),
         "mail": await _mail_ready(db, party), "subscribers": sum(1 for g in guests if g.updates and g.email),
         "link": link, "qr_svg": qr_svg(link),
-        "guests": [_guest_out(g) for g in guests],
+        "guests": [{**_guest_out(g), **({"wants_speech": False, "speech_note": ""} if kept else {})} for g in guests],
         "coming": _people(party, guests), "children": sum(1 for g in guests if g.coming for c in g.companions or [] if c.get("child")), "not_coming": sum(1 for g in guests if not g.coming and not g.pending), "signed_up": sum(1 for g in guests if g.pending), "allergies": allergies,
-        "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who, "action": t.action} for t in tasks],
-        "pages": _pages(party), "tables": party.tables or [],
+        "tasks": [{"id": t.id, "title": t.title, "due_date": t.due_date, "done": t.done, "who": t.who, "helper_id": t.helper_id, "action": t.action} for t in tasks],
+        "pages": _pages(party), "tables": party.tables or [], "family_name": family.name if family else "",
+        "checkin_at": party.checkin_at, "menu": party.menu or [], "menu_tally": _menu_tally(party, guests), "speech_signup": party.speech_signup, "practical": party.practical or {},
+        "adults": [{"id": a.id, "name": a.display_name} for a in adults],
+        "you": {"helper": isinstance(actor, HelperActor), "helper_id": actor.helper_id if isinstance(actor, HelperActor) else None},
+        "people": [{"id": x.id, "name": x.name} for x in tagged],
+        "helpers": [{"id": h.id, "name": h.name, "role": h.role, "email": h.email, "days_after": h.days_after, "ends_at": _helper_ends(h, party), "last_seen": h.last_seen} for h in party_helpers],
+        "plan_kept": kept, "plan_hidden": [] if kept else party.plan_hidden or [],
+        "plan": [{"id": i.id, "kind": i.kind, "at": i.at, "minutes": i.minutes, "title": i.title, "who": i.who, "note": i.note, "done": i.done} for i in plan],
+        "speeches": [] if kept else [{"id": g.id, "name": f"{g.first_name} {g.last_name}".strip(), "note": g.speech_note} for g in guests if g.coming and g.wants_speech],
+        "vendors": [{"id": v.id, "category": v.category, "name": v.name, "url": v.url, "contact": v.contact, "price": float(v.price) if v.price is not None else None, "status": v.status, "note": v.note, "in_budget": v.expense_id is not None} for v in vendors],
+        "mail_templates": _mail_templates(party, await _host_language(db, party)),
         "expenses": [{"id": e.id, "title": e.title, "amount": float(e.amount), "paid_by": e.paid_by} for e in expenses],
         "steps": [{"id": s.id, "at": s.at, "title": s.title, "hidden": s.hidden} for s in steps],
         "mailings": [_mailing_out(m) for m in (await db.execute(select(PartyMailing).where(PartyMailing.party_id == party.id).order_by(PartyMailing.send_at))).scalars()],
@@ -786,7 +1003,7 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
 
 
 @router.get("/themes")
-async def list_themes(user: AdultUser, db: DB) -> list[dict]:
+async def list_themes(user: PartyActor, db: DB) -> list[dict]:
     """The family's own themes, to use again."""
     rows = (await db.execute(select(PartyTheme).where(PartyTheme.family_id == user.family_id).order_by(PartyTheme.created_at))).scalars().all()
     return [_theme_out(t) for t in rows]
@@ -800,7 +1017,7 @@ async def _my_theme(db: AsyncSession, user: User, theme_id: uuid.UUID) -> PartyT
 
 
 @router.post("/themes", status_code=status.HTTP_201_CREATED)
-async def create_theme(payload: ThemeIn, user: AdultUser, db: DB) -> dict:
+async def create_theme(payload: ThemeIn, user: PartyActor, db: DB) -> dict:
     count = (await db.execute(select(func.count()).select_from(PartyTheme).where(PartyTheme.family_id == user.family_id))).scalar_one()
     if count >= 40:
         raise HTTPException(status_code=409, detail="Too many themes")
@@ -815,14 +1032,14 @@ def _template_out(row: PartyTemplate) -> dict:
 
 
 @router.get("/templates")
-async def list_templates(user: AdultUser, db: DB) -> list[dict]:
+async def list_templates(user: PartyActor, db: DB) -> list[dict]:
     """The family's own templates, to use again."""
     rows = (await db.execute(select(PartyTemplate).where(PartyTemplate.family_id == user.family_id).order_by(PartyTemplate.created_at))).scalars().all()
     return [_template_out(t) for t in rows]
 
 
 @router.post("/templates", status_code=status.HTTP_201_CREATED)
-async def create_template(payload: TemplateIn, user: AdultUser, db: DB) -> dict:
+async def create_template(payload: TemplateIn, user: PartyActor, db: DB) -> dict:
     count = (await db.execute(select(func.count()).select_from(PartyTemplate).where(PartyTemplate.family_id == user.family_id))).scalar_one()
     if count >= 40:
         raise HTTPException(status_code=409, detail="Too many templates")
@@ -840,7 +1057,7 @@ async def create_template(payload: TemplateIn, user: AdultUser, db: DB) -> dict:
 
 
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_template(template_id: uuid.UUID, user: AdultUser, db: DB) -> None:
+async def delete_template(template_id: uuid.UUID, user: PartyActor, db: DB) -> None:
     row = await db.get(PartyTemplate, template_id)
     if row is None or row.family_id != user.family_id:
         raise HTTPException(status_code=404, detail="Template not found")
@@ -849,7 +1066,7 @@ async def delete_template(template_id: uuid.UUID, user: AdultUser, db: DB) -> No
 
 
 @router.put("/themes/{theme_id}")
-async def change_theme(theme_id: uuid.UUID, payload: ThemeIn, user: AdultUser, db: DB) -> dict:
+async def change_theme(theme_id: uuid.UUID, payload: ThemeIn, user: PartyActor, db: DB) -> dict:
     theme = await _my_theme(db, user, theme_id)
     for key, value in payload.model_dump().items():
         setattr(theme, key, value.strip() if key == "name" else value)
@@ -858,7 +1075,7 @@ async def change_theme(theme_id: uuid.UUID, payload: ThemeIn, user: AdultUser, d
 
 
 @router.delete("/themes/{theme_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_theme(theme_id: uuid.UUID, user: AdultUser, db: DB) -> None:
+async def delete_theme(theme_id: uuid.UUID, user: PartyActor, db: DB) -> None:
     theme = await _my_theme(db, user, theme_id)
     for party in (await db.execute(select(Party).where(Party.family_id == user.family_id))).scalars():
         if party.page_custom_id == theme.id:
@@ -872,7 +1089,7 @@ async def delete_theme(theme_id: uuid.UUID, user: AdultUser, db: DB) -> None:
 
 
 @router.post("/themes/{theme_id}/pictures/{slot}")
-async def set_theme_picture(theme_id: uuid.UUID, slot: str, file: UploadFile, user: AdultUser, db: DB) -> dict:
+async def set_theme_picture(theme_id: uuid.UUID, slot: str, file: UploadFile, user: PartyActor, db: DB) -> dict:
     theme = await _my_theme(db, user, theme_id)
     if slot not in ("header", "background"):
         raise HTTPException(status_code=404, detail="Not found")
@@ -884,7 +1101,7 @@ async def set_theme_picture(theme_id: uuid.UUID, slot: str, file: UploadFile, us
 
 
 @router.delete("/themes/{theme_id}/pictures/{slot}")
-async def remove_theme_picture(theme_id: uuid.UUID, slot: str, user: AdultUser, db: DB) -> dict:
+async def remove_theme_picture(theme_id: uuid.UUID, slot: str, user: PartyActor, db: DB) -> dict:
     theme = await _my_theme(db, user, theme_id)
     if slot not in ("header", "background"):
         raise HTTPException(status_code=404, detail="Not found")
@@ -898,21 +1115,30 @@ async def remove_theme_picture(theme_id: uuid.UUID, slot: str, user: AdultUser, 
 
 
 @router.get("/themes/{theme_id}/pictures/{slot}")
-async def theme_picture(theme_id: uuid.UUID, slot: str, user: AdultUser, db: DB) -> Response:
+async def theme_picture(theme_id: uuid.UUID, slot: str, user: PartyActor, db: DB) -> Response:
     theme = await _my_theme(db, user, theme_id)
     return _picture(theme.family_id, getattr(theme, f"{slot}_key", None) if slot in ("header", "background") else None)
 
 
 @router.get("/{party_id}")
-async def get_party(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def get_party(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     return await _detail(db, await _mine(db, user, party_id), request)
 
 
 @router.put("/{party_id}")
-async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Request, user: AdultUser, db: DB) -> dict:
+async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     changes = payload.model_dump(exclude_unset=True)
-    for key in ("starts_at", "ends_at", "portal_at", "portal_until", "thanks_at"):
+    if changes.get("mail_texts") is not None:
+        if set(changes["mail_texts"]) - set(MAIL_KINDS):
+            raise HTTPException(status_code=422, detail="No such mail")
+        # Empty is the app's own wording again.
+        changes["mail_texts"] = {k: {"subject": v["subject"].strip(), "text": v["text"].strip()} for k, v in {**(party.mail_texts or {}), **changes["mail_texts"]}.items() if v["subject"].strip() or v["text"].strip()} or None
+    if changes.get("practical") is not None:
+        changes["practical"] = {k: v.strip() for k, v in changes["practical"].items() if v.strip()} or None
+    if "menu" in changes:
+        changes["menu"] = changes["menu"] or None
+    for key in ("starts_at", "ends_at", "portal_at", "portal_until", "thanks_at", "checkin_at"):
         if changes.get(key) is not None:
             changes[key] = _dt(changes[key])
     if "layout" in changes:
@@ -942,7 +1168,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             raise HTTPException(status_code=404, detail="Album not found")
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages", "speech_signup") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -974,7 +1200,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
 
 
 @router.post("/{party_id}/decide")
-async def decide(party_id: uuid.UUID, payload: DecideIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def decide(party_id: uuid.UUID, payload: DecideIn, request: Request, user: PartyActor, db: DB) -> dict:
     """The date is set: the vote closes, the party goes in the calendar, each guest is coming if
     they voted for it (they can change their reply), and those who asked for updates hear of it."""
     party = await _mine(db, user, party_id)
@@ -994,7 +1220,7 @@ async def decide(party_id: uuid.UUID, payload: DecideIn, request: Request, user:
 
 
 @router.post("/{party_id}/announce")
-async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def announce(party_id: uuid.UUID, payload: AnnounceIn, request: Request, user: PartyActor, db: DB) -> dict:
     """A message to every guest who asked for updates by e-mail."""
     party = await _mine(db, user, party_id)
     if not await _mail_ready(db, party):
@@ -1020,7 +1246,7 @@ async def delete_party(party_id: uuid.UUID, user: AdultUser, db: DB) -> None:
 
 
 @router.post("/{party_id}/picture")
-async def set_invite_picture(party_id: uuid.UUID, file: UploadFile, request: Request, user: AdultUser, db: DB) -> dict:
+async def set_invite_picture(party_id: uuid.UUID, file: UploadFile, request: Request, user: PartyActor, db: DB) -> dict:
     """A picture on the invitation – the birthday child, the place, anything."""
     party = await _mine(db, user, party_id)
     party.invite_image_key = _save_picture(party.family_id, f"{party.id}-invite", await _read_picture(file), party.invite_image_key)
@@ -1029,7 +1255,7 @@ async def set_invite_picture(party_id: uuid.UUID, file: UploadFile, request: Req
 
 
 @router.delete("/{party_id}/picture")
-async def remove_invite_picture(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def remove_invite_picture(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     if party.invite_image_key and get_storage().exists(party.family_id, party.invite_image_key):
         get_storage().delete(party.family_id, party.invite_image_key)
@@ -1042,7 +1268,7 @@ MAX_ASSETS = 30
 
 
 @router.post("/{party_id}/assets")
-async def add_asset(party_id: uuid.UUID, file: UploadFile, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_asset(party_id: uuid.UUID, file: UploadFile, request: Request, user: PartyActor, db: DB) -> dict:
     """A picture of the hosts' own for the poster – a sticker in place of an emoji, a photo, a frame."""
     party = await _mine(db, user, party_id)
     assets = list(party.assets or [])
@@ -1057,7 +1283,7 @@ async def add_asset(party_id: uuid.UUID, file: UploadFile, request: Request, use
 
 
 @router.delete("/{party_id}/assets/{asset_id}")
-async def remove_asset(party_id: uuid.UUID, asset_id: str, request: Request, user: AdultUser, db: DB) -> dict:
+async def remove_asset(party_id: uuid.UUID, asset_id: str, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     keep = []
     for a in party.assets or []:
@@ -1072,13 +1298,13 @@ async def remove_asset(party_id: uuid.UUID, asset_id: str, request: Request, use
 
 
 @router.get("/{party_id}/assets/{asset_id}")
-async def asset_picture(party_id: uuid.UUID, asset_id: str, user: AdultUser, db: DB) -> Response:
+async def asset_picture(party_id: uuid.UUID, asset_id: str, user: PartyActor, db: DB) -> Response:
     party = await _mine(db, user, party_id)
     return _picture(party.family_id, next((a["key"] for a in party.assets or [] if a["id"] == asset_id), None))
 
 
 @router.get("/{party_id}/picture")
-async def invite_picture(party_id: uuid.UUID, user: AdultUser, db: DB) -> Response:
+async def invite_picture(party_id: uuid.UUID, user: PartyActor, db: DB) -> Response:
     party = await _mine(db, user, party_id)
     return _picture(party.family_id, party.invite_image_key)
 
@@ -1088,7 +1314,7 @@ PORTAL_AFTER = timedelta(hours=3)
 
 def _pages(party: Party) -> list[str]:
     """The pages the party has: the invitation always, and those chosen (all, until someone chooses)."""
-    return list(party.pages) if party.pages else list(STAGES)
+    return list(party.pages) if party.pages else [p for p in STAGES if p != "checkin"]
 
 
 def _past_portal(party: Party, now: datetime) -> bool:
@@ -1108,7 +1334,11 @@ async def _keep_to_pages(db: AsyncSession, party: Party, user: User) -> None:
     pages = _pages(party)
     if "save" not in pages and party.phase == "save":
         party.phase = "invite"
-    gone = [kind for kind, page in (("save", "save"), ("thanks", "thanks")) if page not in pages]
+    gone = [kind for kind, page in (("save", "save"), ("thanks", "thanks"), ("checkin", "checkin")) if page not in pages]
+    if "checkin" not in pages:
+        party.checkin_at = None
+    elif party.checkin_at is None:
+        party.checkin_at = _utc(party.starts_at) - timedelta(days=3)
     if gone:
         await db.execute(delete(PartyMailing).where(PartyMailing.party_id == party.id, PartyMailing.sent_at.is_(None), PartyMailing.kind.in_(gone)))
     if "thanks" not in pages:
@@ -1141,6 +1371,8 @@ def _stage(party: Party, now: datetime | None = None) -> str:
         return "thanks"
     if "portal" in pages and party.portal_at is not None and party.portal_token_encrypted and now >= _utc(party.portal_at) and not _past_portal(party, now):
         return "portal"
+    if "checkin" in pages and party.checkin_at is not None and _utc(party.checkin_at) <= now < _utc(party.ends_at) and party.phase == "invite":
+        return "checkin"
     return party.phase
 
 
@@ -1166,7 +1398,7 @@ async def _portal_out(db: AsyncSession, party: Party, request: Request | None) -
 
 
 @router.post("/{party_id}/portal")
-async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def open_portal(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     """Turn on the party day's portal: its link and QR code, and the album the guests' photos go to."""
     party = await _mine(db, user, party_id)
     if "portal" not in _pages(party):
@@ -1182,7 +1414,7 @@ async def open_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db
 
 
 @router.post("/{party_id}/portal/prepare")
-async def prepare_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def prepare_portal(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     """The portal's link and QR code made ready to print, without opening it."""
     party = await _mine(db, user, party_id)
     await _ensure_portal(db, party, user)
@@ -1191,7 +1423,7 @@ async def prepare_portal(party_id: uuid.UUID, request: Request, user: AdultUser,
 
 
 @router.delete("/{party_id}/portal")
-async def close_portal(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def close_portal(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     """Close the portal; the photos stay in the album."""
     party = await _mine(db, user, party_id)
     party.portal_open = False
@@ -1205,7 +1437,7 @@ _ALBUM_NAME = {"en": "the guests' photos", "sv": "gästernas bilder", "nb": "gje
 
 
 @router.post("/{party_id}/link")
-async def new_link(party_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def new_link(party_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     """A new invitation link; the old one stops working."""
     party = await _mine(db, user, party_id)
     token = secrets.token_urlsafe(18)
@@ -1215,7 +1447,7 @@ async def new_link(party_id: uuid.UUID, request: Request, user: AdultUser, db: D
 
 
 @router.post("/{party_id}/tasks", status_code=status.HTTP_201_CREATED)
-async def add_task(party_id: uuid.UUID, payload: TaskIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_task(party_id: uuid.UUID, payload: TaskIn, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     count = (await db.execute(select(func.count()).select_from(PartyTask).where(PartyTask.party_id == party.id))).scalar_one()
     db.add(PartyTask(family_id=party.family_id, party_id=party.id, title=payload.title.strip(), due_date=payload.due_date, who=payload.who, position=count))
@@ -1224,7 +1456,7 @@ async def add_task(party_id: uuid.UUID, payload: TaskIn, request: Request, user:
 
 
 @router.put("/{party_id}/tasks/{task_id}")
-async def change_task(party_id: uuid.UUID, task_id: uuid.UUID, payload: TaskChange, request: Request, user: AdultUser, db: DB) -> dict:
+async def change_task(party_id: uuid.UUID, task_id: uuid.UUID, payload: TaskChange, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     task = await db.get(PartyTask, task_id)
     if task is None or task.party_id != party.id:
@@ -1241,7 +1473,7 @@ async def change_task(party_id: uuid.UUID, task_id: uuid.UUID, payload: TaskChan
 
 
 @router.delete("/{party_id}/tasks/{task_id}")
-async def delete_task(party_id: uuid.UUID, task_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def delete_task(party_id: uuid.UUID, task_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     await db.execute(delete(PartyTask).where(PartyTask.id == task_id, PartyTask.party_id == party.id))
     await db.commit()
@@ -1249,7 +1481,7 @@ async def delete_task(party_id: uuid.UUID, task_id: uuid.UUID, request: Request,
 
 
 @router.post("/{party_id}/expenses", status_code=status.HTTP_201_CREATED)
-async def add_expense(party_id: uuid.UUID, payload: ExpenseIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_expense(party_id: uuid.UUID, payload: ExpenseIn, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     db.add(PartyExpense(family_id=party.family_id, party_id=party.id, title=payload.title.strip(), amount=payload.amount, paid_by=payload.paid_by or user.id, created_at=datetime.now(timezone.utc)))
     await db.commit()
@@ -1257,7 +1489,7 @@ async def add_expense(party_id: uuid.UUID, payload: ExpenseIn, request: Request,
 
 
 @router.delete("/{party_id}/expenses/{expense_id}")
-async def delete_expense(party_id: uuid.UUID, expense_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def delete_expense(party_id: uuid.UUID, expense_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     await db.execute(delete(PartyExpense).where(PartyExpense.id == expense_id, PartyExpense.party_id == party.id))
     await db.commit()
@@ -1265,7 +1497,7 @@ async def delete_expense(party_id: uuid.UUID, expense_id: uuid.UUID, request: Re
 
 
 @router.post("/{party_id}/steps", status_code=status.HTTP_201_CREATED)
-async def add_step(party_id: uuid.UUID, payload: StepIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_step(party_id: uuid.UUID, payload: StepIn, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     db.add(PartyStep(family_id=party.family_id, party_id=party.id, at=payload.at, title=payload.title.strip(), hidden=payload.hidden))
     await db.commit()
@@ -1273,7 +1505,7 @@ async def add_step(party_id: uuid.UUID, payload: StepIn, request: Request, user:
 
 
 @router.put("/{party_id}/steps/{step_id}")
-async def change_step(party_id: uuid.UUID, step_id: uuid.UUID, payload: StepChange, request: Request, user: AdultUser, db: DB) -> dict:
+async def change_step(party_id: uuid.UUID, step_id: uuid.UUID, payload: StepChange, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     step = await db.get(PartyStep, step_id)
     if step is None or step.party_id != party.id:
@@ -1290,7 +1522,7 @@ def _mailing_out(m: PartyMailing) -> dict:
 
 
 @router.post("/{party_id}/mailings", status_code=status.HTTP_201_CREATED)
-async def add_mailing(party_id: uuid.UUID, payload: MailingIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_mailing(party_id: uuid.UUID, payload: MailingIn, request: Request, user: PartyActor, db: DB) -> dict:
     """A mail to the guests at a time of the hosts' choosing (now, or later)."""
     party = await _mine(db, user, party_id)
     if not await _mail_ready(db, party):
@@ -1307,7 +1539,7 @@ async def add_mailing(party_id: uuid.UUID, payload: MailingIn, request: Request,
 
 
 @router.delete("/{party_id}/mailings/{mailing_id}")
-async def delete_mailing(party_id: uuid.UUID, mailing_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def delete_mailing(party_id: uuid.UUID, mailing_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     await db.execute(delete(PartyMailing).where(PartyMailing.id == mailing_id, PartyMailing.party_id == party.id, PartyMailing.sent_at.is_(None)))
     await db.commit()
@@ -1347,7 +1579,7 @@ async def run_party_mailings(db: AsyncSession, now: datetime | None = None, base
 
 
 @router.delete("/{party_id}/steps/{step_id}")
-async def delete_step(party_id: uuid.UUID, step_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def delete_step(party_id: uuid.UUID, step_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     await db.execute(delete(PartyStep).where(PartyStep.id == step_id, PartyStep.party_id == party.id))
     await db.commit()
@@ -1355,7 +1587,7 @@ async def delete_step(party_id: uuid.UUID, step_id: uuid.UUID, request: Request,
 
 
 @router.post("/{party_id}/guests", status_code=status.HTTP_201_CREATED)
-async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, user: PartyActor, db: DB) -> dict:
     """A reply that came by text or at the door: an adult adds it."""
     party = await _mine(db, user, party_id)
     now = datetime.now(timezone.utc)
@@ -1369,8 +1601,173 @@ async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, use
     return await _detail(db, party, request)
 
 
+# --- The helpers and their plan ----------------------------------------------------------------
+
+
+@router.post("/{party_id}/helpers", status_code=status.HTTP_201_CREATED)
+async def invite_helper(party_id: uuid.UUID, payload: HelperIn, request: Request, user: PartyActor, db: DB) -> dict:
+    """Someone from outside to help run this party, by a personal link until a while after it."""
+    party = await _mine(db, user, party_id)
+    if (await db.execute(select(func.count()).select_from(PartyHelper).where(PartyHelper.party_id == party.id))).scalar_one() >= 10:
+        raise HTTPException(status_code=409, detail="Too many helpers")
+    token = secrets.token_urlsafe(24)
+    helper = PartyHelper(
+        family_id=party.family_id, party_id=party.id, name=payload.name.strip(), role=payload.role, email=(payload.email or "").strip().lower() or None,
+        days_after=payload.days_after, token_hash=_hash(token), token_encrypted=encrypt_token(token), created_at=datetime.now(timezone.utc),
+    )
+    db.add(helper)
+    await db.commit()
+    mailed = await _mail_helper(db, party, helper, "helper", await _helper_link(db, helper, request)) if await configured_url(db) else False
+    return {"mailed": mailed, "party": await _detail(db, party, request)}
+
+
+@router.post("/{party_id}/helpers/{helper_id}/link")
+async def helper_link(party_id: uuid.UUID, helper_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    helper = await db.get(PartyHelper, helper_id)
+    if helper is None or helper.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Helper not found")
+    return {"link": await _helper_link(db, helper, request)}
+
+
+@router.delete("/{party_id}/helpers/{helper_id}")
+async def remove_helper(party_id: uuid.UUID, helper_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
+    """Their link stops working at once."""
+    party = await _mine(db, user, party_id)
+    await db.execute(delete(PartyHelper).where(PartyHelper.id == helper_id, PartyHelper.party_id == party.id))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+def _plan_open(party: Party, user: object) -> None:
+    if _plan_kept_from(party, user):
+        raise HTTPException(status_code=403, detail="The helpers keep this from you")
+
+
+@router.put("/{party_id}/plan/hidden")
+async def hide_plan(party_id: uuid.UUID, payload: PlanHiddenIn, request: Request, user: PartyActor, db: DB) -> dict:
+    """Whom the plan is kept from. It's the helpers' to choose."""
+    party = await _mine(db, user, party_id)
+    if not isinstance(user, HelperActor):
+        raise HTTPException(status_code=403, detail="Only the helpers choose this")
+    adults = {a for a in (await db.execute(select(User.id).where(User.family_id == party.family_id))).scalars().all()}
+    party.plan_hidden = [str(x) for x in payload.user_ids if x in adults] or None
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/plan", status_code=status.HTTP_201_CREATED)
+async def add_plan_item(party_id: uuid.UUID, payload: PlanItemIn, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    _plan_open(party, user)
+    db.add(PartyPlanItem(family_id=party.family_id, party_id=party.id, created_at=datetime.now(timezone.utc), **{**payload.model_dump(), "title": payload.title.strip()}))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+async def _plan_item(db: AsyncSession, party: Party, item_id: uuid.UUID) -> PartyPlanItem:
+    item = await db.get(PartyPlanItem, item_id)
+    if item is None or item.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Not found")
+    return item
+
+
+@router.put("/{party_id}/plan/{item_id}")
+async def change_plan_item(party_id: uuid.UUID, item_id: uuid.UUID, payload: PlanItemChange, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    _plan_open(party, user)
+    item = await _plan_item(db, party, item_id)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None or key == "minutes":
+            setattr(item, key, value)
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/plan/{item_id}")
+async def delete_plan_item(party_id: uuid.UUID, item_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    _plan_open(party, user)
+    await db.delete(await _plan_item(db, party, item_id))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+# --- Suppliers ---------------------------------------------------------------------------------
+
+
+@router.get("/{party_id}/vendors/search")
+async def search_vendors(party_id: uuid.UUID, user: PartyActor, db: DB, q: str = Query(min_length=2, max_length=200)) -> dict:
+    """Through the server's own search, when the admin has turned it on: only the words go out."""
+    from app.services import recipe_search
+
+    await _mine(db, user, party_id)
+    url = await recipe_search.get_url(db)
+    if not url:
+        return {"enabled": False, "hits": []}
+    try:
+        hits = await recipe_search.search(url, q, user.language or "en", recipe=False)
+    except Exception as exc:  # the search engine's trouble isn't the party's
+        raise HTTPException(status_code=502, detail="The search didn't answer") from exc
+    return {"enabled": True, "hits": [{"title": h.title, "url": h.url, "site": h.site, "snippet": h.snippet} for h in hits]}
+
+
+@router.post("/{party_id}/vendors", status_code=status.HTTP_201_CREATED)
+async def add_vendor(party_id: uuid.UUID, payload: VendorIn, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    if (await db.execute(select(func.count()).select_from(PartyVendor).where(PartyVendor.party_id == party.id))).scalar_one() >= 200:
+        raise HTTPException(status_code=409, detail="Too many")
+    db.add(PartyVendor(family_id=party.family_id, party_id=party.id, created_at=datetime.now(timezone.utc), **{**payload.model_dump(), "name": payload.name.strip()}))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+async def _vendor(db: AsyncSession, party: Party, vendor_id: uuid.UUID) -> PartyVendor:
+    vendor = await db.get(PartyVendor, vendor_id)
+    if vendor is None or vendor.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Not found")
+    return vendor
+
+
+@router.put("/{party_id}/vendors/{vendor_id}")
+async def change_vendor(party_id: uuid.UUID, vendor_id: uuid.UUID, payload: VendorChange, request: Request, user: PartyActor, db: DB) -> dict:
+    party = await _mine(db, user, party_id)
+    vendor = await _vendor(db, party, vendor_id)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None or key == "price":
+            setattr(vendor, key, value)
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.delete("/{party_id}/vendors/{vendor_id}")
+async def delete_vendor(party_id: uuid.UUID, vendor_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
+    """What's gone to the budget stays there: it's what the party cost."""
+    party = await _mine(db, user, party_id)
+    await db.delete(await _vendor(db, party, vendor_id))
+    await db.commit()
+    return await _detail(db, party, request)
+
+
+@router.post("/{party_id}/vendors/{vendor_id}/budget")
+async def vendor_to_budget(party_id: uuid.UUID, vendor_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
+    """The chosen supplier's price among the party's costs: once."""
+    party = await _mine(db, user, party_id)
+    vendor = await _vendor(db, party, vendor_id)
+    if vendor.price is None:
+        raise HTTPException(status_code=422, detail="It has no price")
+    if vendor.expense_id is None:
+        expense = PartyExpense(family_id=party.family_id, party_id=party.id, title=vendor.name[:120], amount=vendor.price, paid_by=user.id, created_at=datetime.now(timezone.utc))
+        db.add(expense)
+        await db.flush()
+        vendor.expense_id = expense.id
+    vendor.status = "booked"
+    await db.commit()
+    return await _detail(db, party, request)
+
+
 @router.post("/{party_id}/guests/import")
-async def import_guests(party_id: uuid.UUID, payload: GuestImportIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def import_guests(party_id: uuid.UUID, payload: GuestImportIn, request: Request, user: PartyActor, db: DB) -> dict:
     """A guest list brought in: everyone invited, with their own link. Who's already there stays as they are."""
     party = await _mine(db, user, party_id)
     now = datetime.now(timezone.utc)
@@ -1394,7 +1791,7 @@ async def import_guests(party_id: uuid.UUID, payload: GuestImportIn, request: Re
 
 
 @router.put("/{party_id}/guests/{guest_id}/table")
-async def seat_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: SeatIn, request: Request, user: AdultUser, db: DB) -> dict:
+async def seat_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: SeatIn, request: Request, user: PartyActor, db: DB) -> dict:
     """A guest and their company at a table, or without one."""
     party = await _mine(db, user, party_id)
     guest = await db.get(PartyGuest, guest_id)
@@ -1408,7 +1805,7 @@ async def seat_guest(party_id: uuid.UUID, guest_id: uuid.UUID, payload: SeatIn, 
 
 
 @router.post("/{party_id}/guests/{guest_id}/link")
-async def guest_link(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def guest_link(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     """A guest's own link, for the hosts to send themselves. Asked for one at a time, so the keys stay
     out of the party's data. A guest from before keys were kept gets a new one."""
     party = await _mine(db, user, party_id)
@@ -1425,7 +1822,7 @@ async def guest_link(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request,
 
 
 @router.delete("/{party_id}/guests/{guest_id}")
-async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: PartyActor, db: DB) -> dict:
     party = await _mine(db, user, party_id)
     await db.execute(delete(PartyGuest).where(PartyGuest.id == guest_id, PartyGuest.party_id == party.id))
     await db.commit()
@@ -1436,8 +1833,12 @@ def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data = {k: (v.strip() if isinstance(v, str) else v) for k, v in payload.model_dump().items()}
     # Whoever they bring, as far as the hosts allow: no one, one, or the family.
     allowed = {"none": 0, "one": 1}.get(party.bring, 20)
+    dishes = {m["id"] for m in party.menu or []}
+    data["menu_choice"] = data.get("menu_choice") if data.get("menu_choice") in dishes else None
+    data["wants_speech"] = bool(data.get("wants_speech") and party.speech_signup)
+    data["speech_note"] = data.get("speech_note", "") if data["wants_speech"] else ""
     data["companions"] = [
-        {"first_name": c["first_name"].strip(), "last_name": c["last_name"].strip(), "child": bool(c["child"]), "allergies": c["allergies"].strip()}
+        {"first_name": c["first_name"].strip(), "last_name": c["last_name"].strip(), "child": bool(c["child"]), "allergies": c["allergies"].strip(), "menu_choice": c["menu_choice"] if c["menu_choice"] in dishes else None}
         for c in payload.model_dump()["companions"] if c["first_name"].strip()
     ][:allowed] or None
     votes = data.pop("date_votes", None)
@@ -1454,6 +1855,31 @@ def _clean_guest(payload: GuestIn, party: Party) -> dict:
     data["email"] = (data.get("email") or "").lower() or None
     data["updates"] = bool(data.get("updates") and data["email"])
     return data
+
+
+# --- A helper's way in --------------------------------------------------------------------------
+
+
+@helpers.post("/{token}/enter")
+async def helper_enter(token: str, request: Request, response: Response, db: DB) -> dict:
+    """A helper's personal link: this browser may plan that party until the link ends."""
+    ip = login_throttle.client_ip(request)
+    if login_throttle.ip_retry_after(ip):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+    helper = (await db.execute(select(PartyHelper).where(PartyHelper.token_hash == _hash(token)))).scalar_one_or_none()
+    party = await db.get(Party, helper.party_id) if helper else None
+    if helper is None or party is None:
+        login_throttle.record_ip_failure(ip)
+        raise HTTPException(status_code=404, detail="This link isn't valid")
+    ends = _helper_ends(helper, party)
+    now = datetime.now(timezone.utc)
+    if now >= ends:
+        raise HTTPException(status_code=410, detail="This link has ended")
+    helper.last_seen = now
+    await db.commit()
+    response.headers.update(NO_STORE)
+    response.set_cookie(HELPER_COOKIE, token, httponly=True, samesite="lax", secure=get_settings().cookie_secure, max_age=int((ends - now).total_seconds()), path="/")
+    return {"party_id": party.id, "title": party.title, "name": helper.name, "role": helper.role, "language": await _host_language(db, party), "ends_at": ends}
 
 
 # --- The guests' side, through the link ------------------------------------------------------
@@ -1525,6 +1951,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme,
         "invitation": party.invitation, "rsvp_by": party.rsvp_by, "bring": party.bring, "open": _open_for_replies(party),
         "guests": seen, "wishes": wishes, "thanks": thanks, "mine": _guest_out(mine) if mine else None,
+        "menu": party.menu or [], "speech_signup": party.speech_signup, "practical": party.practical or {},
     }
 
 
@@ -1647,6 +2074,35 @@ async def _tell_hosts(db: AsyncSession, party: Party, guest: PartyGuest) -> None
         await notify(db, adult, {"title": f"{party.emoji} {party.title}", "body": title.format(name=f"{guest.first_name} {guest.last_name}".strip(), answer=answers[0 if guest.coming else 1]), "route": f"/parties?id={party.id}", "kind": "party_reply"}, pref="calendar_family")
 
 
+@public.post("/{token}/checkin")
+async def check_in(token: str, payload: CheckinIn, request: Request, db: DB, key: str) -> dict:
+    """A thumb up or down before the party, by the guest's own link. Down is a changed reply, and the
+    hosts hear of it at once."""
+    from app.services.notify import notify
+
+    party = await _open(db, token, request)
+    if "checkin" not in _pages(party):
+        raise HTTPException(status_code=404, detail="This party has no check-in")
+    guest = (await db.execute(select(PartyGuest).where(PartyGuest.party_id == party.id, PartyGuest.key_hash == _hash(key)))).scalar_one_or_none()
+    if guest is None:
+        raise HTTPException(status_code=404, detail="Your own link is needed")
+    now = datetime.now(timezone.utc)
+    was_coming = guest.coming
+    guest.checkin, guest.checkin_on, guest.coming, guest.pending, guest.updated_at = "yes" if payload.going else "no", now, payload.going, False, now
+    if payload.message.strip():
+        guest.message = payload.message.strip()
+    await db.commit()
+    if not payload.going and was_coming:
+        name = f"{guest.first_name} {guest.last_name}".strip()
+        language = await _host_language(db, party)
+        line = {"sv": "{name} kan inte komma", "nb": "{name} kan ikke komme", "da": "{name} kan ikke komme", "fi": "{name} ei pääse"}.get(language, "{name} can't come").format(name=name)
+        body = f"{line}: {guest.message}" if payload.message.strip() else line
+        for adult in (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])))).scalars().all():
+            await notify(db, adult, {"title": f"{party.emoji} {party.title}", "body": body, "route": f"/parties?id={party.id}", "kind": "party_task"}, pref="calendar_family")
+        await db.commit()
+    return {"mine": _guest_out(guest)}
+
+
 @public.delete("/{token}/reply", status_code=status.HTTP_204_NO_CONTENT)
 async def withdraw(token: str, request: Request, db: DB, key: str) -> None:
     party = await _open(db, token, request)
@@ -1726,6 +2182,33 @@ async def photo(token: str, item_id: uuid.UUID, request: Request, db: DB, varian
 # --- Reminders ---------------------------------------------------------------------------------
 
 
+async def _helper_link(db: AsyncSession, helper: PartyHelper, request: Request | None) -> str:
+    return f"{await public_base(db, request)}/party-help/{decrypt_token(helper.token_encrypted)}"
+
+
+async def _mail_helper(db: AsyncSession, party: Party, helper: PartyHelper, kind: str, base_link: str, **values) -> bool:
+    """A mail to a helper, if they have an address and the server can send."""
+    from app.services import mailer
+
+    conf = await mailer.for_family(db, await db.get(Family, party.family_id))
+    if conf is None or not helper.email:
+        return False
+    language = await _host_language(db, party)
+    subject, body = _MAIL.get(language, _MAIL["en"])[kind]
+    fields = {"title": party.title, "name": helper.name, "link": base_link, "role": _ROLES.get(language, _ROLES["en"])[helper.role], "until": _helper_ends(helper, party).astimezone(_tz()).strftime("%Y-%m-%d"), **values}
+    try:
+        await mailer.send_with(conf, helper.email, _fill(subject, fields), _fill(body, fields))
+    except mailer.MailError:
+        return False
+    return True
+
+
+async def _mail_helper_task(db: AsyncSession, party: Party, task: PartyTask) -> None:
+    helper = await db.get(PartyHelper, task.helper_id)
+    if helper is not None and await public_base(db):
+        await _mail_helper(db, party, helper, "helper_task", await _helper_link(db, helper, None), task=task.title)
+
+
 async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> int:
     """Each morning from 8: the adults are told of what's due today for a party (once)."""
     from app.services.notify import notify
@@ -1744,6 +2227,9 @@ async def run_party_reminders(db: AsyncSession, now: datetime | None = None) -> 
         if party is None or _local(party.ends_at).date() + timedelta(days=7) < today:
             continue
         adults = (await db.execute(select(User).where(User.family_id == party.family_id, User.role.in_(["admin", "adult"])))).scalars().all()
+        if task.helper_id:
+            await _mail_helper_task(db, party, task)
+            continue
         for adult in adults:
             if task.who and task.who != adult.id:
                 continue
@@ -1811,7 +2297,13 @@ async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
 
 @portal.get("/{token}")
 async def portal_page(token: str, request: Request, response: Response, db: DB) -> dict:
-    """The day's page: what, when and where, the plan, the poster, and the photos so far."""
+    """The day's page: what, when and where, the plan, the poster, and the photos so far. Before it
+    opens, the QR code leads to a countdown and nothing else."""
+    early = (await db.execute(select(Party).where(Party.portal_token_hash == _hash(token)))).scalar_one_or_none()
+    if early is not None and "portal" in _pages(early) and not _portal_live(early) and not _past_portal(early, datetime.now(timezone.utc)):
+        response.headers.update(NO_STORE)
+        own = await _custom(db, early, early.page_custom_id)
+        return {"locked": True, "title": early.title, "emoji": early.emoji, "opens_at": early.portal_at, "language": await _host_language(db, early), "page_theme": early.page_theme, "page_custom": {**own, "header": None, "background": None} if own else None}
     party = await _portal(db, token, request)
     response.headers.update(NO_STORE)
     family = await db.get(Family, party.family_id)
@@ -1820,7 +2312,7 @@ async def portal_page(token: str, request: Request, response: Response, db: DB) 
     if party.portal_gallery and party.portal_album_id:
         photos = [str(m.id) for m in (await db.execute(select(MediaItem).where(MediaItem.album_id == party.portal_album_id, MediaItem.kind == "image").order_by(MediaItem.created_at.desc()))).scalars()][:300]
     return {
-        "title": party.title, "kind": party.kind, "emoji": party.emoji, "family_name": family.name if family else "", "language": await _host_language(db, party),
+        "title": party.title, "kind": party.kind, "emoji": party.emoji, "family_name": family.name if family else "", "language": await _host_language(db, party), "practical": party.practical or {},
         "starts_at": party.starts_at, "ends_at": party.ends_at, "place": party.place, "address": party.address, "theme": party.theme, "invitation": party.invitation,
         "page_theme": party.page_theme, "page_custom": await _custom(db, party, party.page_custom_id), "invite_image": _version(party.invite_image_key),
         "layout": party.portal_layout, "assets": _assets_out(party), "playlist_url": party.playlist_url,
