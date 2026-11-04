@@ -980,6 +980,10 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Under Hjemmet → Abonnementer samler I alt, husholdningen betaler jævnligt, med hvad det koster om måneden og året. Et abonnement kan pege på et login i boksen, et der findes, eller et nyt du laver lige her, og den, der må se login, kan kopiere adgangskoden herfra; boksens regler gælder som sædvanlig. Efter en bankimport foreslås gentagne betalinger her, og kun du ser forslagene fra din fil: tilføj dem, eller sig, at de ikke er abonnementer, og dem, du har afvist, kommer ikke tilbage. En senere fil siger til om en ny pris eller en betaling for noget, du har afsluttet. Det er en oversigt, så intet lægges til Økonomis summer. Under Påmindelser vælger hver voksen selv: sidste dag at opsige (14 og 2 dage før) samt kvartals- og årsbetalinger (7 dage før). Månedsbetalinger giver ingen påmindelse."
+      },
+      {
+        "shot": "subscriptions",
+        "caption": "Hvad det koster, og login fra boksen."
       }
     ]
   },

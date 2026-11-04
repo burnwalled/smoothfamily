@@ -68,6 +68,11 @@ async function seed(api: APIRequestContext, lang: Lang, page: Page) {
   if (child) await api.put(`/api/custody/${child.id}`, { data: { other_home: "Pappa", pattern: "week", anchor_date: day(-2) } });
   await api.post("/api/vault/logins", { data: { title: "Netflix", url: "https://netflix.com", username: "family@example.com", password: "Correct-Horse-Battery-9" } });
   await api.post("/api/vault/logins", { data: { title: "Wi-Fi", username: "Home", password: "blue-meadow-42" } });
+  const netflix = (await (await api.get("/api/vault/logins")).json()).find((l: { title: string }) => l.title === "Netflix");
+  await api.post("/api/subscriptions", { data: { name: "Netflix", category: "streaming", amount: 149, login_id: netflix.id, url: "https://netflix.com" } });
+  await api.post("/api/subscriptions", { data: { name: "Spotify", category: "music", amount: 199 } });
+  await api.post("/api/subscriptions", { data: { name: "Bredband", category: "internet", amount: 399, cancel_by: day(40) } });
+  await api.post("/api/subscriptions", { data: { name: "Hemförsäkring", category: "insurance", amount: 2400, interval: "year", next_payment: day(60) } });
   // A few pictures for the vault – drawn here, nothing downloaded.
   const album = await (await api.post("/api/albums", { data: { name: "2026" } })).json();
   for (const [a, b, emoji] of [["#f6d365", "#fda085", "🏖️"], ["#a1c4fd", "#c2e9fb", "⛷️"], ["#d4fc79", "#96e6a1", "🌳"], ["#fbc2eb", "#a6c1ee", "🎂"]]) {
@@ -142,6 +147,7 @@ for (const lang of Object.keys(LANGS) as Lang[]) {
       await shot(page, lang, "safety", "/emergency");
       await shot(page, lang, "property", "/property");
       await shot(page, lang, "economy", "/economy");
+      await shot(page, lang, "subscriptions", "/subscriptions");
       await shot(page, lang, "vehicles", "/vehicles");
       await shot(page, lang, "pets", "/pets");
       await shot(page, lang, "smarthome", "/smarthome");
