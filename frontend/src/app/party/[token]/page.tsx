@@ -4,9 +4,11 @@
 // reply (first and last name, allergies, and whoever they bring as far as the hosts allow – a +1
 // or the whole family), a vote on the date if it's still open, "add to my calendar",
 // the wish list if the hosts chose it, and afterwards the thank-you with the day's photos. The
-// keys to change your reply and your reservations stay in this browser.
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+// keys to change your reply and your reservations stay in this browser. The same link is the guest's
+// all the way: a mail's personal link (?key=) ties it to their reply, it shows the reply when opened
+// again, opens the party day's portal from its set time, and the thank-you once it's out.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { ExternalLink, Gift, Heart, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
@@ -17,8 +19,11 @@ import Poster from "@/components/parties/Poster";
 import { Block, PosterData, Stage, defaultPoster } from "@/lib/poster";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
-type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[] };
+type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
 type Page = {
+  // What the link shows now, and where the portal is once its time has come.
+  stage: Stage;
+  portal_token: string | null;
   language: string;
   page_theme: string;
   thanks_theme: string;
@@ -100,6 +105,9 @@ function Subscribe({ token, onDone, mine }: { token: string; onDone: (key: strin
 export default function PartyInvitation() {
   const { token } = useParams<{ token: string }>();
   const { t, dateLocale, setLocale } = useI18n();
+  const router = useRouter();
+  const linkKey = useRef<string | null>(null);
+  const [changing, setChanging] = useState(false);
   const [page, setPage] = useState<Page | null>(null);
   const [invalid, setInvalid] = useState(false);
   const [form, setForm] = useState<Reply>(EMPTY);
@@ -113,26 +121,40 @@ export default function PartyInvitation() {
     if (code) api.post(`/api/party/${token}/unsubscribe`, { code }).then(() => setStopped(true)).catch(() => {});
   }, [token]);
 
-  const key = () => stored("sf.party-keys")[token];
+  const key = () => linkKey.current ?? stored("sf.party-keys")[token];
   const load = useCallback(() => {
-    const replyKey = stored("sf.party-keys")[token];
+    // A personal link from a mail: this browser is that guest from now on, and the key leaves the address.
+    const url = new URL(window.location.href);
+    const fromLink = url.searchParams.get("key");
+    if (fromLink) {
+      linkKey.current = fromLink;
+      keep("sf.party-keys", token, fromLink);
+      url.searchParams.delete("key");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+    const replyKey = linkKey.current ?? stored("sf.party-keys")[token];
     const wishKey = stored("sf.party-wish-keys")[token];
     const q = new URLSearchParams();
     if (replyKey) q.set("key", replyKey);
     if (wishKey) q.set("wish_key", wishKey);
     api.get<Page>(`/api/party/${token}${q.toString() ? `?${q}` : ""}`)
       .then((p) => {
+        if (p.stage === "portal" && p.portal_token) {
+          router.replace(`/fest/${p.portal_token}`);
+          return;
+        }
         setPage(p);
         // The family's language, unless this browser has chosen one.
         try {
           if (!localStorage.getItem("sf.locale") && isLocale(p.language)) setLocale(p.language);
         } catch {}
         if (p.mine) {
-          setForm({ ...EMPTY, ...p.mine, email: p.mine.email ?? "" });
+          // Signed up or invited, no reply yet: the form starts as a yes, with their e-mail kept up to date.
+          setForm({ ...EMPTY, ...p.mine, email: p.mine.email ?? "", ...(p.mine.pending ? { coming: true, updates: !!p.mine.email } : {}) });
         }
       })
       .catch(() => setInvalid(true));
-  }, [token, setLocale]);
+  }, [token, setLocale, router]);
   useEffect(load, [load]);
 
   async function send() {
@@ -151,6 +173,7 @@ export default function PartyInvitation() {
         localStorage.setItem("sf.guest-name", form.first_name.trim());
       } catch {}
       setSaved(true);
+      setChanging(false);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
@@ -200,10 +223,13 @@ export default function PartyInvitation() {
     asset: (id) => `/api/party/${token}/assets/${id}?v=${page.assets?.find((x) => x.id === id)?.v ?? ""}`,
     ics: `/api/party/${token}/calendar.ics`, thanks: !!page.thanks, playlist: page.playlist_url, steps: [],
   };
-  // The thank-you once it's out; before the invitation, the save-the-date if the hosts chose one.
-  const stage: Stage = page.thanks ? "thanks" : page.phase === "save" ? "save" : "invite";
+  const stage = page.stage;
   const own_blocks = page.layouts?.[stage] ?? (stage === "invite" ? page.layout : null);
-  const blocks = own_blocks?.length ? own_blocks : defaultPoster(theme, poster, t, stage);
+  const drawn = own_blocks?.length ? own_blocks : defaultPoster(theme, poster, t, stage);
+  // The save-the-date is where the guests register: a poster without the part still has it.
+  const blocks: Block[] = stage === "save" && page.mail && !drawn.some((b) => b.type === "subscribe") ? [...drawn, { id: "subscribe", type: "subscribe", heading: t("party.subscribeHeading"), font: "theme-display", size: "l" }] : drawn;
+  const replied = !!page.mine && !page.mine.pending;
+  const reply = page.mine;
   const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null };
 
   return (
@@ -235,7 +261,18 @@ export default function PartyInvitation() {
           </section>
         )}
 
-        {page.open && stage !== "save" && (
+        {page.open && stage === "invite" && replied && !changing && reply && (
+          <section className="pt-card space-y-2 p-5 sm:p-8" aria-label={t("party.yourReply")}>
+            <h2 className={`pt-display text-3xl ${fonts.caps ? "uppercase" : ""}`}>{t("party.yourReply")}</h2>
+            <p className="text-lg font-semibold">{poll ? t("party.replyVoted", { n: reply.date_votes.length }) : reply.coming ? t("party.replyComing", { name: reply.first_name }) : t("party.replyNot", { name: reply.first_name })}</p>
+            {reply.coming && reply.companions.length > 0 && <p className="text-sm text-muted">{t("parties.withThem", { names: reply.companions.map((c) => `${c.first_name} ${c.last_name}`.trim()).join(", ") })}</p>}
+            {reply.coming && reply.allergies && <p className="text-sm text-muted">{reply.allergies}</p>}
+            {saved && <p className="text-sm font-semibold text-accent" role="status">{poll ? t("party.savedVoted") : reply.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
+            <button className="pt-ghost" onClick={() => { setSaved(false); setChanging(true); }}>{t("party.update")}</button>
+          </section>
+        )}
+
+        {page.open && stage === "invite" && (!replied || changing) && (
           <section className="pt-card space-y-3 p-5 sm:p-8" aria-label={t("party.reply")}>
             <h2 className={`pt-display text-3xl ${fonts.caps ? "uppercase" : ""}`}>{page.mine ? t("party.yourReply") : t("party.reply")}</h2>
             {page.rsvp_by && <p className="text-sm text-muted">{t("party.rsvpBy", { date: new Date(`${page.rsvp_by}T12:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "long" }) })}</p>}
@@ -311,7 +348,6 @@ export default function PartyInvitation() {
               </div>
             )}
             {error && <p className="text-sm text-red-700">{error}</p>}
-            {saved && <p className="text-sm font-semibold text-accent" role="status">{poll ? t("party.savedVoted") : form.coming ? t("party.savedComing") : t("party.savedNot")}</p>}
             <button className="pt-btn w-full" disabled={!form.first_name.trim() || form.companions.some((c) => !c.first_name.trim())} onClick={send}>{page.mine ? t("party.update") : poll ? t("party.vote") : t("party.send")}</button>
           </section>
         )}

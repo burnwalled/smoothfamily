@@ -820,15 +820,18 @@ class EmailIn(BaseModel):
     password: str | None = Field(default=None, max_length=300)
     sender: str = Field(default="", max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
     sender_name: str = Field(default="", max_length=120)
+    # Exchange Online: the app registration's directory (a GUID or the tenant's domain) and client id.
+    tenant_id: str = Field(default="", max_length=120, pattern=r"^$|^[A-Za-z0-9.-]+$")
+    client_id: str = Field(default="", max_length=64, pattern=r"^$|^[0-9a-fA-F-]{36}$")
 
 
 class EmailUseIn(BaseModel):
-    owner: str = Field(default="", pattern=r"^(|gmail|brevo|smtp)$")
-    hosted: str = Field(default="", pattern=r"^(|gmail|brevo|smtp)$")
+    owner: str = Field(default="", pattern=r"^(|gmail|brevo|exchange|smtp)$")
+    hosted: str = Field(default="", pattern=r"^(|gmail|brevo|exchange|smtp)$")
 
 
 class EmailTestIn(BaseModel):
-    provider: str = Field(pattern=r"^(gmail|brevo|smtp)$")
+    provider: str = Field(pattern=r"^(gmail|brevo|exchange|smtp)$")
     to: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -837,7 +840,7 @@ def _email_out(value: dict) -> dict:
     for provider in mailer.PROVIDERS:
         conf = mailer.account(value, provider)
         accounts[provider] = {"configured": False} if conf is None else {
-            "configured": True, **{k: conf.get(k) for k in ("host", "port", "security", "username", "sender", "sender_name")}, "has_password": bool(conf.get("password")),
+            "configured": True, **{k: conf.get(k) for k in ("host", "port", "security", "username", "sender", "sender_name", "tenant_id", "client_id")}, "has_password": bool(conf.get("password")),
         }
     return {"accounts": accounts, "owner": value["owner"], "hosted": value["hosted"]}
 
@@ -851,7 +854,8 @@ async def get_email(admin: ServerAdmin, db: DB) -> dict:
 @router.put("/integrations/email/{provider}")
 async def set_email(provider: str, payload: EmailIn, admin: ServerAdmin, db: DB) -> dict:
     """Set up Gmail (the address and an app password), Brevo (the SMTP login, its key and a
-    verified sender) or another SMTP server."""
+    verified sender), Exchange Online (an app registration with Mail.Send, and the mailbox it
+    sends from) or another SMTP server."""
     if provider not in mailer.PROVIDERS:
         raise HTTPException(status_code=404, detail="Not found")
     value = await mailer.load(db)
@@ -865,7 +869,10 @@ async def set_email(provider: str, payload: EmailIn, admin: ServerAdmin, db: DB)
         conf["password"] = old.get("password", "")
     if provider == "smtp" and not conf["host"].strip():
         raise HTTPException(status_code=422, detail="The SMTP server is missing")
-    if not conf["sender"] or (provider != "smtp" and not (conf["username"] and conf["password"])):
+    if provider == "exchange":
+        if not (conf["tenant_id"] and conf["client_id"] and conf["password"] and conf["sender"]):
+            raise HTTPException(status_code=422, detail="The tenant, the client id, the secret and the mailbox are needed")
+    elif not conf["sender"] or (provider != "smtp" and not (conf["username"] and conf["password"])):
         raise HTTPException(status_code=422, detail="The address and password are needed")
     value["accounts"][provider] = {k: v for k, v in conf.items() if provider == "smtp" or k not in ("host", "port", "security")}
     # The first service set up is the one the server's own family sends with.

@@ -239,3 +239,30 @@ test("a save-the-date, then the party day's portal", async ({ adminPage: page, a
     await adminApi.delete(`/api/parties/${made.id}`);
   }
 });
+
+// One link all the way: a mail's personal link ties the browser to the guest's reply and leaves the
+// address, opening it again shows the reply, and at its time the same link opens the party portal.
+test("a guest's personal link: their reply, then the portal", async ({ adminApi, browser }) => {
+  const title = unique("Sommarfest");
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: new Date(Date.now() + 30 * 86_400_000).toISOString(), ends_at: new Date(Date.now() + 30 * 86_400_000 + 7_200_000).toISOString() } })).json();
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  try {
+    const { key } = await (await adminApi.post(`/api/party/${token}/reply`, { data: { first_name: "Saga", last_name: "Berg", coming: true } })).json();
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${token}?key=${encodeURIComponent(key)}`);
+    await expect(g.getByRole("region", { name: "Your reply" })).toContainText("Saga, you're coming");
+    await expect(g).toHaveURL(new RegExp(`/party/${token}$`));
+    await expect(g.getByRole("region", { name: "Will you come?" })).toHaveCount(0);
+    await g.getByRole("button", { name: "Change my reply" }).click();
+    await expect(g.getByRole("region", { name: "Will you come?" }).getByLabel("First name")).toHaveValue("Saga");
+
+    // The portal's time has come: the very same address now opens it, without the key.
+    const detail = await (await adminApi.put(`/api/parties/${party.id}`, { data: { portal_at: new Date(Date.now() - 60_000).toISOString() } })).json();
+    await g.goto(`/party/${token}`);
+    await expect(g).toHaveURL(new RegExp(`/fest/${detail.portal.link.split("/").pop()}$`));
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});

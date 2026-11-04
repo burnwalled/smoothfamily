@@ -31,7 +31,8 @@ type Detail = {
   page_theme: string; thanks_theme: string; page_custom_id: string | null; thanks_custom_id: string | null; invite_image: string | null; mail: boolean; subscribers: number;
   layout: Block[] | null; assets: { id: string; v: string | null }[];
   layouts: Partial<Record<Stage, Block[] | null>>; phase: "save" | "invite"; playlist_url: string | null; signed_up: number;
-  portal: { open: boolean; link: string; qr_svg: string; album_id: string | null; photos: number; gallery: boolean } | null;
+  stage: Stage; thanks_at: string | null; rsvp_remind_days: number | null; rsvp_reminded_on: string | null; address_set: boolean;
+  portal: { open: boolean; at: string | null; link: string; qr_svg: string; album_id: string | null; photos: number; gallery: boolean } | null;
   // A party whose date the guests vote on (the options' starts).
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
@@ -294,6 +295,11 @@ function withDefaults(d: Detail): Detail {
     signed_up: d.signed_up ?? 0,
     portal: d.portal ?? null,
     mailings: d.mailings ?? [],
+    stage: d.stage ?? d.phase ?? "invite",
+    thanks_at: d.thanks_at ?? null,
+    rsvp_remind_days: d.rsvp_remind_days ?? null,
+    rsvp_reminded_on: d.rsvp_reminded_on ?? null,
+    address_set: d.address_set ?? true,
     date_poll: d.date_poll ?? false,
     date_options: d.date_options ?? [],
     tally: d.tally ?? [],
@@ -426,6 +432,24 @@ function InviteTab({ party, change }: { party: Detail; change: (p: Record<string
   );
 }
 
+// A moment for the guests' link to change, or none.
+function WhenField({ label, help, value, suggest, onSave }: { label: string; help: string; value: string | null; suggest: string; onSave: (iso: string | null) => void }) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState(localInput(value ?? suggest));
+  useEffect(() => setDraft(localInput(value ?? suggest)), [value, suggest]);
+  return (
+    <div className="space-y-1">
+      <span className="label">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="input !w-auto" type="datetime-local" aria-label={label} value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <button type="button" className="btn-ghost border border-edge" disabled={!draft} onClick={() => onSave(new Date(draft).toISOString())}>{value ? t("common.save") : t("parties.setWhen")}</button>
+        {value && <button type="button" className="text-xs text-muted hover:underline" onClick={() => onSave(null)}>{t("parties.clearWhen")}</button>}
+      </div>
+      <span className="block text-xs text-muted">{help}</span>
+    </div>
+  );
+}
+
 // The party's posters (save the date, the invitation, the day's portal, the thank-you), what the
 // link shows, the playlist, and the portal with its QR code.
 function PosterTab({ party }: { party: Detail }) {
@@ -495,8 +519,10 @@ function PosterTab({ party }: { party: Detail }) {
       <section className="card space-y-3 p-5" aria-label={t("parties.portal")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.portal")}</h2>
         <p className="text-xs text-muted">{t("parties.portalHelp")}</p>
-        {party.portal?.open ? (
+        <WhenField label={t("parties.portalAt")} help={t("parties.portalAtHelp")} value={party.portal?.at ?? null} suggest={party.starts_at} onSave={(at) => run(api.put(path, { portal_at: at }))} />
+        {party.portal ? (
           <>
+            {!party.portal.open && <p className="text-sm font-semibold">{party.portal.at ? t("parties.portalOpensAt", { when: new Date(party.portal.at).toLocaleString(dateLocale, LONG) }) : t("parties.portalClosed")}</p>}
             <div className="mx-auto w-44 rounded-lg bg-white p-2" aria-label={t("parties.qr")} dangerouslySetInnerHTML={{ __html: party.portal.qr_svg }} />
             <input className="input text-xs" readOnly value={party.portal.link} aria-label={t("parties.portalLink")} onFocus={(e) => e.target.select()} />
             <div className="flex flex-wrap gap-2">
@@ -505,7 +531,10 @@ function PosterTab({ party }: { party: Detail }) {
             </div>
             <p className="text-sm">{t("parties.portalPhotos", { n: party.portal.photos })}{party.portal.album_id && <> · <a className="text-accent hover:underline" href="/vault">{t("parties.portalAlbum")}</a></>}</p>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.portal.gallery} onChange={(e) => run(api.put(path, { portal_gallery: e.target.checked }))} />{t("parties.portalGallery")}</label>
-            <button className="text-xs text-red-700 hover:underline" onClick={() => run(api.del(`${path}/portal`))}>{t("parties.portalClose")}</button>
+            <div className="flex flex-wrap items-center gap-3">
+              {!party.portal.open && <button className="btn-ghost border border-edge" onClick={() => run(api.post(`${path}/portal`))}>{t("parties.portalOpen")}</button>}
+              {(party.portal.open || party.portal.at) && <button className="text-xs text-red-700 hover:underline" onClick={() => run(api.del(`${path}/portal`))}>{t("parties.portalClose")}</button>}
+            </div>
           </>
         ) : (
           <button className="btn-primary" onClick={() => run(api.post(`${path}/portal`))}>{t("parties.portalOpen")}</button>
@@ -818,8 +847,34 @@ function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => 
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <section className="card space-y-2 p-5 lg:col-span-2" aria-label={t("parties.journey")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.journey")}</h2>
+        <p className="text-xs text-muted">{t("parties.journeyHelp")}</p>
+        <ol className="grid gap-2 sm:grid-cols-4">
+          {STAGES.map((st) => {
+            const at = st === "portal" ? party.portal?.at : st === "thanks" ? party.thanks_at : null;
+            return (
+              <li key={st} aria-current={party.stage === st ? "step" : undefined} className={`rounded-xl border p-3 text-sm ${party.stage === st ? "border-accent bg-accent-soft" : "border-edge"}`}>
+                <span className="block font-semibold">{t(`parties.stage.${st}` as TranslationKey)}</span>
+                <span className="block text-xs text-muted">{party.stage === st ? t("parties.stageNow") : at ? new Date(at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : t(`parties.stageNext.${st}` as TranslationKey)}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
       <section className="card space-y-3 p-5" aria-label={t("parties.mailings")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.mailings")}</h2>
+        {party.mail && !party.address_set && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{t("parties.noAddress")}</p>}
+        {party.mail && (
+          <label className="block">
+            <span className="label">{t("parties.remindWaiting")}</span>
+            <select className="input" value={party.rsvp_remind_days ?? 0} onChange={(e) => run(() => api.put<Detail>(path, { rsvp_remind_days: Number(e.target.value) || null }))}>
+              <option value={0}>{t("parties.remindOff")}</option>
+              {[1, 2, 3, 5, 7, 14].map((n) => <option key={n} value={n}>{t("parties.remindDays", { n })}</option>)}
+            </select>
+            <span className="mt-1 block text-xs text-muted">{party.rsvp_reminded_on ? t("parties.remindSent", { date: party.rsvp_reminded_on }) : t("parties.remindHelp")}</span>
+          </label>
+        )}
         {!party.mail ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{t("parties.noMailService")}</p>
         ) : (
@@ -907,6 +962,7 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
           {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
+      <WhenField label={t("parties.thanksAt")} help={t("parties.thanksAtHelp")} value={party.thanks_at} suggest={new Date(new Date(party.ends_at).getTime() + 86_400_000).toISOString()} onSave={(at) => change({ thanks_text: text, thanks_at: at })} />
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-ghost border border-edge" onClick={() => change({ thanks_text: text })}>{t("common.save")}</button>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.thanks_published} onChange={(e) => change({ thanks_text: text, thanks_published: e.target.checked })} />{t("parties.publishThanks")}</label>

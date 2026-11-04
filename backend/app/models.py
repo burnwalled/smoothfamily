@@ -2046,6 +2046,13 @@ class Party(Base):
     portal_album_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("albums.id", ondelete="SET NULL"), nullable=True)
     portal_open: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     portal_gallery: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # The guests' one link through the party: from this moment it opens the portal; at thanks_at the
+    # thank-you is published and sent to those who came.
+    portal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    thanks_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A reminder to those who haven't replied, this many days before the last day to reply (None = none).
+    rsvp_remind_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3, server_default="3")
+    rsvp_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # The day before, the guests who asked for updates are reminded (once).
     guests_reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # A dinner without a set date yet: the guests vote on the options (their starts, ISO in UTC;
