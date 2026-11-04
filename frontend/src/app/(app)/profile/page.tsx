@@ -441,6 +441,15 @@ export default function ProfilePage() {
               />
               {t("profile.notify.memories")}
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-primary-700"
+                checked={me.notification_prefs.security !== false}
+                onChange={(e) => updateNotificationPrefs({ ...me.notification_prefs, security: e.target.checked })}
+              />
+              {t("profile.notify.security")}
+            </label>
             <div className="rounded-lg border border-edge p-3">
               <label className="flex items-center gap-2 text-sm font-semibold">
                 <input

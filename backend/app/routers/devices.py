@@ -13,13 +13,13 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app import __version__
 from app.config import get_settings
 from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import ClientDevice, Family, KioskScreen, Property, SmarthomeConnection, User
-from app.services import gateway, gateway_release, useragent
+from app.services import gateway, gateway_release, login_throttle, security_log, useragent
 from app.services.notify import notify
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
@@ -131,6 +131,7 @@ async def hello(payload: HelloIn, request: Request, response: Response, user: Cu
     now = datetime.now(timezone.utc)
     about = useragent.describe(request.headers.get("user-agent"))
     device = (await db.execute(select(ClientDevice).where(ClientDevice.user_id == user.id, ClientDevice.device_key == key))).scalar_one_or_none()
+    fresh = device is None
     if device is None:
         device = ClientDevice(family_id=user.family_id, user_id=user.id, device_key=key, first_seen=now)
         db.add(device)
@@ -139,6 +140,10 @@ async def hello(payload: HelloIn, request: Request, response: Response, user: Cu
     device.installed = payload.installed
     device.last_seen = now
     await db.commit()
+    if fresh:
+        others = (await db.execute(select(func.count()).select_from(ClientDevice).where(ClientDevice.user_id == user.id, ClientDevice.id != device.id))).scalar_one()
+        what = " ".join(x for x in (about["browser"], "–", about["os"]) if x).strip(" –") or about["kind"]
+        await security_log.new_device(db, user, what, login_throttle.client_ip(request), first=others == 0)
 
 
 # --- The family admin -----------------------------------------------------------------------------

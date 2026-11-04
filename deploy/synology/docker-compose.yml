@@ -92,8 +92,11 @@ services:
     cap_drop:
       - ALL
     read_only: true
+    # Uploads are spooled under /tmp, which lives in memory: a size on it means a too-big upload
+    # fails on its own instead of taking the server's memory. mem_limit the same, for everything.
     tmpfs:
-      - /tmp
+      - /tmp:size=${BACKEND_TMP:-512m}
+    mem_limit: ${BACKEND_MEMORY:-1g}
     pids_limit: 200
 
   frontend:
@@ -112,8 +115,9 @@ services:
       - ALL
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=64m
       - /srv/app/.next/cache:uid=1000,gid=1000
+    mem_limit: ${FRONTEND_MEMORY:-512m}
     pids_limit: 200
 
   # The recipe search's own search engine (2.8.4): only the backend reaches it, over the internal
@@ -161,7 +165,8 @@ services:
     cap_add: [NET_BIND_SERVICE]
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=64m
+    mem_limit: 128m
     pids_limit: 100
 
 networks:

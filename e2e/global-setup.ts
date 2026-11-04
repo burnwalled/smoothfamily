@@ -37,6 +37,9 @@ export default async function globalSetup(config: FullConfig) {
   // The tests make adults with short passwords; the 12-character default has its own backend test.
   const rules = await (await api.get("/api/admin/security-policy")).json();
   await api.put("/api/admin/security-policy", { data: { ...rules, password_min_adult: 4 } });
+  // Every test's browser context is a "new device": the security notices would crowd the centre.
+  const me = await (await api.get("/api/auth/me")).json();
+  await api.patch("/api/auth/me", { data: { notification_prefs: { ...me.notification_prefs, security: false } } });
   // The setup guides are tested on their own; the test family starts set up.
   await api.post("/api/guide/server/done");
   await api.post("/api/guide/family/done");

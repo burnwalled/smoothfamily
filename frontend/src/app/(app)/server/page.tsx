@@ -18,7 +18,7 @@ import { ServerAiPanel } from "@/components/LocalAi";
 import DiskUsage from "@/components/settings/DiskUsage";
 import FileLimit from "@/components/settings/FileLimit";
 import ServerAddress from "@/components/settings/ServerAddress";
-import ServerSecurity from "@/components/settings/ServerSecurity";
+import ServerSecurity, { SecurityLog } from "@/components/settings/ServerSecurity";
 import ServerUpdates from "@/components/settings/ServerUpdates";
 import ServerServices from "@/components/settings/ServerServices";
 import ServerReports from "@/components/settings/ServerReports";
@@ -307,7 +307,12 @@ export default function ServerPage() {
         </>
       )}
 
-      {tab === "security" && <ServerSecurity />}
+      {tab === "security" && (
+        <>
+          <ServerSecurity />
+          <SecurityLog />
+        </>
+      )}
 
       {tab === "ai" && <ServerAiPanel />}
 

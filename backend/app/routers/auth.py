@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.deps import DB, CurrentUser
 from app.models import Family, User
 from app.schemas import LoginRequest, MeOut, MfaChallengeOut, PasswordChange, PreferencesUpdate, SetupRequest, SetupStatus
-from app.services import login_throttle, mfa
+from app.services import login_throttle, mfa, security_log
 from app.services.images import open_image
 from app.services.uploads import read_upload
 from app.services.storage import get_storage
@@ -49,6 +49,7 @@ async def first_run_setup(payload: SetupRequest, request: Request, response: Res
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     if expected and not secrets.compare_digest((payload.setup_code or "").encode(), expected.encode()):
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "setup_code", ip=ip)
         raise HTTPException(status_code=403, detail="Wrong setup code")
     if (await db.execute(select(User.id).where(User.username == payload.username.lower()))).first():
         raise HTTPException(status_code=409, detail="Username is already taken")
@@ -90,6 +91,7 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
     ip = login_throttle.client_ip(request)
     wait = login_throttle.retry_after(username, ip)
     if wait:
+        await security_log.throttled(db, ip, username)
         raise HTTPException(
             status_code=429,
             detail="Too many failed attempts. Try again later.",
@@ -99,6 +101,7 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
     # An unknown name takes as long as a wrong password, so the answer's timing says nothing.
     if user is None or not verify_password(payload.password, user.password_hash if user else _NOBODY):
         login_throttle.record_failure(username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, username=username)
         raise HTTPException(status_code=401, detail="Wrong username or password")
     family = await db.get(Family, user.family_id)
     if family.status != "active":
@@ -128,6 +131,7 @@ async def logout(request: Request, response: Response, db: DB, everywhere: bool 
         if user is not None:
             user.session_version = (user.session_version or 1) + 1
             await db.commit()
+            await security_log.record(db, "sessions_ended", ip=login_throttle.client_ip(request), user=user)
     clear_session_cookie(response)
 
 
@@ -181,7 +185,7 @@ async def update_preferences(payload: PreferencesUpdate, user: CurrentUser, db: 
 
 
 @router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(payload: PasswordChange, response: Response, user: CurrentUser, db: DB) -> None:
+async def change_password(payload: PasswordChange, request: Request, response: Response, user: CurrentUser, db: DB) -> None:
     """Change your own password; requires the current one."""
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is wrong")
@@ -191,6 +195,7 @@ async def change_password(payload: PasswordChange, response: Response, user: Cur
     user.session_version = (user.session_version or 1) + 1
     await db.commit()
     set_session_cookie(response, create_token(user.id, user.session_version))
+    await security_log.password_changed(db, user, login_throttle.client_ip(request))
 
 
 # What an unknown username's password is checked against – so that the time taken is the same.

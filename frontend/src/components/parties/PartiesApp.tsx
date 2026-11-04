@@ -409,13 +409,15 @@ export function PartyView({ id, onBack }: { id: string; onBack?: () => void }) {
       return message;
     }
   }
+  // A word on how it went, where the eye is: "Saved", "Sent to 12 guests", or what failed.
+  const say = (text: string, failed = false) => {
+    clearTimeout(flashTimer.current);
+    setFlash({ failed, text });
+    flashTimer.current = setTimeout(() => setFlash(null), failed ? 6000 : 3500);
+  };
   const change: Change = async (patch, options) => {
     const failed = await run(() => api.put<Detail>(path, patch));
-    if (!options?.quiet) {
-      clearTimeout(flashTimer.current);
-      setFlash({ failed: !!failed, text: failed ?? t("common.saved") });
-      flashTimer.current = setTimeout(() => setFlash(null), failed ? 6000 : 2500);
-    }
+    if (!options?.quiet) say(failed ?? t("common.saved"), !!failed);
     return failed;
   };
 
@@ -483,7 +485,7 @@ export function PartyView({ id, onBack }: { id: string; onBack?: () => void }) {
         </div>
       )}
       {tab === "schedule" && <TimelineTab party={party} run={run} path={path} />}
-      {tab === "mailings" && <MailingsTab party={party} run={run} change={change} path={path} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
+      {tab === "mailings" && <MailingsTab party={party} run={run} change={change} path={path} say={say} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
       {tab === "party" && <FinalTab party={party} run={run} path={path} go={(to) => { setTab(to); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
       {tab === "plan" && !party.plan_kept && <PlanTab party={party} run={run} path={path} />}
       {open.indexOf(tab) < open.length - 1 && (
@@ -1276,12 +1278,22 @@ function TimelineTab({ party, run, path }: TabProps) {
   );
 }
 
-function MailingsTab({ party, run, change, path, newLink }: TabProps & { change: Change; newLink: () => void }) {
+function MailingsTab({ party, run, change, path, say, newLink }: TabProps & { change: Change; say: (text: string, failed?: boolean) => void; newLink: () => void }) {
   const { t, dateLocale } = useI18n();
   const soon = new Date(Date.now() + 3_600_000);
   const [form, setForm] = useState({ kind: "custom", audience: "all", subject: "", text: "", when: localInput(soon.toISOString()) });
-  const add = (sendAt: Date) => run(() => api.post<Detail>(`${path}/mailings`, { kind: form.kind, audience: form.audience, subject: form.subject, text: form.text, send_at: sendAt.toISOString() })).then(() => setForm({ ...form, subject: "", text: "" }));
-  const reach = (aud: string) => party.guests.filter((g) => g.email && g.updates && (aud === "all" || (aud === "waiting" ? g.pending : g.coming))).length;
+  // Sent now, or planned: the answer says which, and to how many – the list alone is easy to miss.
+  const add = async (sendAt: Date) => {
+    const before = new Set(party.mailings.map((m) => m.id));
+    let next: Detail | null = null;
+    const failed = await run(async () => (next = await api.post<Detail>(`${path}/mailings`, { kind: form.kind, audience: form.audience, subject: form.subject, text: form.text, send_at: sendAt.toISOString() })));
+    if (failed || !next) return;
+    const made = (next as Detail).mailings.find((m) => !before.has(m.id));
+    if (made?.sent_at) say(made.sent_count > 0 ? t("parties.mailSentNow", { n: made.sent_count }) : t("parties.mailNobody"), made.sent_count === 0);
+    else if (made) say(t("parties.mailPlannedFor", { when: new Date(made.send_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }));
+    setForm({ ...form, subject: "", text: "" });
+  };
+  const reach =(aud: string) => party.guests.filter((g) => g.email && g.updates && (aud === "all" || (aud === "waiting" ? g.pending : g.coming))).length;
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">

@@ -21,6 +21,7 @@ from app.schemas import SUPPORTED_LANGUAGES, Email, MeOut, Username
 from app.security import clear_session_cookie, create_token, hash_password, set_session_cookie
 from app.services import families as fam
 from app.services import login_throttle
+from app.services import security_log
 from app.services.demo import create_demo_family
 
 router = APIRouter(prefix="/api", tags=["invite"])
@@ -72,6 +73,7 @@ async def _open_invitation(db, token: str, request: Request) -> Invitation:
     inv = (await db.execute(select(Invitation).where(Invitation.token_hash == token_hash(token)))).scalar_one_or_none()
     if inv is None or _state(inv, datetime.now(timezone.utc)) != "open":
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="invite")
         raise HTTPException(status_code=404, detail="This link isn't valid")
     return inv
 

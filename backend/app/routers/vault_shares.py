@@ -24,6 +24,7 @@ from app.routers.albums import _can_view
 from app.routers.vault import PREVIEWABLE, _may_edit as may_edit_login, may_see_file, read_file
 from app.services.safe_files import headers_for
 from app.services import login_throttle
+from app.services import security_log
 from app.services.storage import get_storage
 from app.services.vault import family_fernet
 
@@ -215,6 +216,7 @@ async def _open(db, token: str, request: Request) -> tuple[VaultShare, tuple]:
     family = await db.get(Family, share.family_id) if share else None
     if share is None or found is None or not _active(share) or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="share")
         raise HTTPException(status_code=404, detail="This link isn't valid any more")
     return share, found
 
