@@ -136,6 +136,9 @@ async def events_between(db: AsyncSession, user: User, start: date, end: date, b
     # `end` is exclusive, like the iCal feeds (recurring_ical_events.between).
     range_end = datetime.combine(end, time.min, tzinfo=timezone.utc)
     for event in await family_events_between(db, user.family_id, range_start, range_end):
+        # A surprise: only those in on it. A kitchen display or a guest's link is nobody in particular.
+        if event.private_to and str(user.id) not in event.private_to:
+            continue
         events.append(
             EventOut(
                 event_id=event.id,

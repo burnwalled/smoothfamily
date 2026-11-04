@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "A surprise party: tick it under Details. Those being celebrated are taken out of the planning, and the party is in the calendar only for those planning it, not on the kitchen display or in guest links.",
           "Who's being celebrated and who's planning are two choices. Those being celebrated get the party in their calendar. Those ticked under Who's planning can open and change it, get its reminders and are in its chats; the others in the family don't see it among the parties. Parents can plan a child's party, or a partner a surprise.",
           "A party can have two chats, chosen under Details. The guests' chat is on their pages and in the portal, where they write to each other and to you before and during the party; it's also in your chat app. The planners' chat is for the family's adults and the helpers, and leaves out those the plan is kept from.",
           "The mails are HTML in the party's theme, with the guest's own button, and plain text for programs that want it. A save-the-date isn't mailed, as you don't have the addresses yet: under Sending out you get a ready message with the link, to share by text, WhatsApp, e-mail or any app. Those who sign up leave their address and get the invitation by mail.",

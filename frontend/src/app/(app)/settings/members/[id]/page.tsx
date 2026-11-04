@@ -307,7 +307,7 @@ export default function MemberPage() {
         <button
           className="inline-flex items-center gap-1.5 text-sm text-red-700 hover:underline"
           onClick={async () => {
-            if (confirm(t("common.confirmRemove", { name: member.display_name })) && (await run(() => api.del(`/api/family/members/${member.id}`)))) router.push("/settings/members");
+            if (confirm(t("member.removeConfirm", { name: member.display_name })) && (await run(() => api.del(`/api/family/members/${member.id}`)))) router.push("/settings/members");
           }}
         >
           <Trash2 className="h-4 w-4" aria-hidden />

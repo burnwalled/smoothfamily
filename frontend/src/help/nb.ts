@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Overraskelsesfest: kryss av under Detaljer. De som feires, tas ut av planleggingen, og festen er bare i kalenderen for dem som planlegger, ikke på kjøkkenskjermen eller i gjestelenker.",
           "Hvem som feires og hvem som planlegger, er to valg. De som feires, får festen i kalenderen. De som er krysset av under Hvem planlegger, kan åpne og endre den, får påminnelsene og er med i chattene; de andre i familien ser den ikke blant festene. Slik kan foreldre planlegge et barns bursdag, eller en partner en overraskelse.",
           "En fest kan ha to chatter, som velges under Detaljer. Gjestechatten er på sidene deres og i portalen, der de skriver til hverandre og dere før og under festen, og også i chat-appen deres. Planleggingschatten er for familiens voksne og hjelperne, og de planen holdes hemmelig for, er ikke med.",
           "E-postene er HTML i festens tema, med gjestens egen knapp, og vanlig tekst til programmer som vil ha det. Spar datoen sendes ikke på e-post, siden du ikke har adressene ennå: under Utsendelser får du en ferdig melding med lenken, som kan deles med sms, WhatsApp, e-post eller en app. De som melder seg på, legger igjen adressen og får invitasjonen på e-post.",

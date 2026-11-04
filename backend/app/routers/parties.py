@@ -479,6 +479,7 @@ class PartyIn(BaseModel):
     date_poll: bool = False
     date_options: list[datetime] = Field(default_factory=list, max_length=12)
     planners: list[uuid.UUID] | None = Field(default=None, max_length=50)
+    surprise: bool = False
 
 
 class PartyChange(BaseModel):
@@ -521,6 +522,7 @@ class PartyChange(BaseModel):
     mail_texts: dict[str, "MailTextIn"] | None = None
     guest_chat: bool | None = None
     planner_chat: bool | None = None
+    surprise: bool | None = None
     planners: list[uuid.UUID] | None = Field(default=None, max_length=50)
     thanks_at: datetime | None = None
     rsvp_remind_days: int | None = Field(default=None, ge=0, le=60)
@@ -783,6 +785,32 @@ async def _mine(db: AsyncSession, user: User | HelperActor, party_id: uuid.UUID)
     return party
 
 
+async def _celebrated_users(db: AsyncSession, party: Party) -> list[str]:
+    """Those being celebrated who have an account."""
+    out: list[str] = []
+    for pid in party.person_ids or ([str(party.person_id)] if party.person_id else []):
+        person = await db.get(Person, uuid.UUID(str(pid)))
+        if person and person.user_id and str(person.user_id) not in out:
+            out.append(str(person.user_id))
+    return out
+
+
+async def _keep_the_surprise(db: AsyncSession, party: Party, user: object) -> None:
+    """Those a surprise is for don't plan it – and someone still has to."""
+    if not party.surprise:
+        return
+    celebrated = await _celebrated_users(db, party)
+    planners = [str(a.id) for a in await _planners(db, party)]
+    left = [x for x in planners if x not in celebrated]
+    if isinstance(user, User) and str(user.id) in celebrated:
+        raise HTTPException(status_code=422, detail="You can't plan a surprise for yourself")
+    if not left:
+        raise HTTPException(status_code=422, detail="Someone else has to plan a surprise")
+    if len(left) != len(planners):
+        party.planners = left
+        party.plan_hidden = [x for x in party.plan_hidden or [] if x in left] or None
+
+
 async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
     """The party in the family's calendar (for the one it's for, a birthday's) – once its date is set."""
     if party.date_poll:
@@ -790,11 +818,7 @@ async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
             await db.delete(old)
         party.event_id = None
         return
-    members = []
-    for pid in party.person_ids or ([str(party.person_id)] if party.person_id else []):
-        person = await db.get(Person, uuid.UUID(str(pid)))
-        if person and person.user_id and str(person.user_id) not in members:
-            members.append(str(person.user_id))
+    members = await _celebrated_users(db, party)
     event = await db.get(FamilyEvent, party.event_id) if party.event_id else None
     if event is None:
         event = FamilyEvent(family_id=party.family_id, created_by=user.id, title=party.title, start=party.starts_at, end=party.ends_at)
@@ -805,7 +829,9 @@ async def _sync_event(db: AsyncSession, party: Party, user: User) -> None:
     event.start, event.end = party.starts_at, party.ends_at
     event.location = ", ".join(x for x in (party.place, party.address) if x) or None
     event.color = party.color
-    event.member_ids = members
+    # A surprise is in the calendar only for those planning it, and isn't marked as anyone's.
+    event.member_ids = [] if party.surprise else members
+    event.private_to = [str(a.id) for a in await _planners(db, party) if str(a.id) not in members] if party.surprise else None
 
 
 async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
@@ -1053,7 +1079,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
         "you": {"helper": isinstance(actor, HelperActor), "helper_id": actor.helper_id if isinstance(actor, HelperActor) else None, "user_id": actor.id if isinstance(actor, User) else None},
         "people": [{"id": x.id, "name": x.name} for x in tagged],
         "helpers": [{"id": h.id, "name": h.name, "role": h.role, "email": h.email, "days_after": h.days_after, "ends_at": _helper_ends(h, party), "last_seen": h.last_seen} for h in party_helpers],
-        "planners": [str(a.id) for a in adults if _plans(party, a)],
+        "planners": [str(a.id) for a in adults if _plans(party, a)], "surprise": party.surprise,
         "guest_chat": party.guest_chat, "planner_chat": party.planner_chat and not kept,
         "plan_kept": kept, "plan_hidden": [] if kept else party.plan_hidden or [],
         "plan": [{"id": i.id, "kind": i.kind, "at": i.at, "minutes": i.minutes, "title": i.title, "who": i.who, "note": i.note, "done": i.done} for i in plan],
@@ -1096,6 +1122,7 @@ async def create_party(payload: PartyIn, request: Request, user: AdultUser, db: 
     party.title = party.title.strip()
     db.add(party)
     await db.flush()
+    await _keep_the_surprise(db, party, user)
     language = user.language or "en"
     today = datetime.now(_tz()).date()
     db.add_all(_starter_tasks(party, language, today))
@@ -1284,7 +1311,7 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
             changes["planners"] = await _clean_planners(db, party.family_id, user, changes["planners"])
     before = (_utc(party.starts_at), _utc(party.ends_at), party.place, party.address, party.thanks_published)
     for key, value in changes.items():
-        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages", "speech_signup", "guest_chat", "planner_chat") and value is None:
+        if key in ("title", "starts_at", "ends_at", "kind", "page_theme", "date_poll", "date_options", "bring", "phase", "portal_gallery", "pages", "speech_signup", "guest_chat", "planner_chat", "surprise") and value is None:
             continue
         setattr(party, key, value)
     if _utc(party.ends_at) <= _utc(party.starts_at):
@@ -1303,11 +1330,13 @@ async def change_party(party_id: uuid.UUID, payload: PartyChange, request: Reque
         raise HTTPException(status_code=422, detail="The portal's link ends after it opens")
     if "rsvp_remind_days" in changes or "rsvp_by" in changes:
         party.rsvp_reminded_on = None
-    if "planners" in changes:
+    if changes.keys() & {"surprise", "person_ids", "person_id", "planners"}:
+        await _keep_the_surprise(db, party, user)
+    if changes.keys() & {"surprise", "person_ids", "person_id", "planners"} and party.planners:
         # Tasks and the keeping-from only concern those planning.
         await db.execute(update(PartyTask).where(PartyTask.party_id == party.id, PartyTask.who.is_not(None), PartyTask.who.not_in([uuid.UUID(x) for x in party.planners])).values(who=None))
         party.plan_hidden = [x for x in party.plan_hidden or [] if x in party.planners] or None
-    if "guest_chat" in changes or "planner_chat" in changes or "title" in changes or "planners" in changes:
+    if "guest_chat" in changes or "planner_chat" in changes or "title" in changes or changes.keys() & {"surprise", "person_ids", "person_id", "planners"}:
         await _sync_chats(db, party)
     await _sync_event(db, party, user)
     await db.commit()
