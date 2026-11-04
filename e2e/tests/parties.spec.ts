@@ -413,3 +413,54 @@ test("saving a party's details says how it went", async ({ adminPage: page, admi
     await adminApi.delete(`/api/parties/${party.id}`);
   }
 });
+
+// A choice saved at once says so, wherever one has scrolled to; a failed one says what went wrong.
+test("a choice saved at once says so", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Valfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const details = page.getByRole("region", { name: "Details" });
+    await expect(details.getByLabel("Party theme/dress code")).toBeVisible();
+    await details.getByLabel("The guests see").selectOption("names");
+    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toBeInViewport();
+    await expect(details.getByLabel("The guests see")).toHaveValue("names");
+    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(0, { timeout: 6000 });
+
+    // The save button speaks for itself: no second note.
+    await details.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(1);
+    await expect(details.getByRole("status")).toHaveText("Saved");
+    await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveCount(0, { timeout: 6000 });
+
+    await page.route(`**/api/parties/${party.id}`, (route) => (route.request().method() === "PUT" ? route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Something broke" }) }) : route.fallback()));
+    await details.getByLabel("The guests see").selectOption("none");
+    await expect(page.getByRole("alert").filter({ hasText: "Something broke" })).toBeInViewport();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// A guest without e-mail: the hosts copy their personal link, and it opens as them.
+test("copying a guest's personal link", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Länkfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  await adminApi.post(`/api/parties/${party.id}/guests`, { data: { first_name: "Saga", invited: true } });
+  try {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
+    await page.getByRole("button", { name: "Copy Saga's personal link" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Copied" })).toBeVisible();
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(link).toContain("?key=");
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await expect(g.getByRole("region", { name: "Will you come?" }).getByLabel("First name")).toHaveValue("Saga");
+    await expect(g).not.toHaveURL(/key=/);
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});

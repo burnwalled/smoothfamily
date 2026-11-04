@@ -1263,6 +1263,23 @@ async def add_guest(party_id: uuid.UUID, payload: GuestIn, request: Request, use
     return await _detail(db, party, request)
 
 
+@router.post("/{party_id}/guests/{guest_id}/link")
+async def guest_link(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
+    """A guest's own link, for the hosts to send themselves. Asked for one at a time, so the keys stay
+    out of the party's data. A guest from before keys were kept gets a new one."""
+    party = await _mine(db, user, party_id)
+    guest = await db.get(PartyGuest, guest_id)
+    if guest is None or guest.party_id != party.id:
+        raise HTTPException(status_code=404, detail="Guest not found")
+    if guest.key_encrypted:
+        key = decrypt_token(guest.key_encrypted)
+    else:
+        key = secrets.token_urlsafe(24)
+        guest.key_hash, guest.key_encrypted = _hash(key), encrypt_token(key)
+        await db.commit()
+    return {"link": f"{await _link(db, party, request)}?key={key}"}
+
+
 @router.delete("/{party_id}/guests/{guest_id}")
 async def delete_guest(party_id: uuid.UUID, guest_id: uuid.UUID, request: Request, user: AdultUser, db: DB) -> dict:
     party = await _mine(db, user, party_id)

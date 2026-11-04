@@ -1,4 +1,5 @@
 """3.4.0: parties – the shared invitation page for the guests, and the adults' planning."""
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -590,3 +591,37 @@ async def test_a_familys_templates(client):
     await client.post("/api/family/members", json={"username": "maja", "display_name": "Maja", "password": "pass1234", "role": "child"})
     await _as(client, "maja")
     assert (await client.get(path)).status_code == 403
+
+
+async def test_a_guests_personal_link_for_the_hosts_to_send(client, db_session):
+    from app.models import PartyGuest
+
+    await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    # Someone without e-mail, added by the hosts: the link is theirs, and it knows them.
+    detail = (await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Saga", "invited": True})).json()
+    gid = detail["guests"][0]["id"]
+    assert "key" not in str(detail["guests"][0])
+    link = (await client.post(f"/api/parties/{pid}/guests/{gid}/link")).json()["link"]
+    assert f"/party/{token}?key=" in link
+    key = link.split("?key=")[1]
+    mine = (await client.get(f"/api/party/{token}?key={key}")).json()["mine"]
+    assert mine["first_name"] == "Saga" and mine["pending"] is True
+    assert (await client.post(f"/api/parties/{pid}/guests/{gid}/link")).json()["link"] == link  # the same each time
+
+    # A guest from before keys were kept gets one; the link works.
+    row = await db_session.get(PartyGuest, uuid.UUID(gid))
+    row.key_encrypted = None
+    await db_session.commit()
+    fresh = (await client.post(f"/api/parties/{pid}/guests/{gid}/link")).json()["link"]
+    assert fresh != link
+    assert (await client.get(f"/api/party/{token}?key={fresh.split('?key=')[1]}")).json()["mine"]["first_name"] == "Saga"
+
+    # Only the family's adults, and only this party's guests.
+    other = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    assert (await client.post(f"/api/parties/{other['id']}/guests/{gid}/link")).status_code == 404
+    await client.post("/api/family/members", json={"username": "maja", "display_name": "Maja", "password": "pass1234", "role": "child"})
+    await _as(client, "maja")
+    assert (await client.post(f"/api/parties/{pid}/guests/{gid}/link")).status_code == 403

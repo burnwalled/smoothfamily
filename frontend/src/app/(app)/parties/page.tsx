@@ -8,7 +8,7 @@
 // reservations are here.
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarHeart, Check, Copy, Eye, EyeOff, Gift, ImagePlus, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarHeart, Check, Copy, Eye, EyeOff, Gift, ImagePlus, Link2, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, setApiData, useApi } from "@/lib/query";
@@ -316,6 +316,9 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
   const party = fetched && withDefaults(fetched);
   const [tab, setTab] = useState<Tab>("details");
   const [error, setError] = useState("");
+  const [flash, setFlash] = useState<{ failed: boolean; text: string } | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
 
   async function run(action: () => Promise<Detail>) {
     setError("");
@@ -329,7 +332,15 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       return message;
     }
   }
-  const change = (patch: Record<string, unknown>) => run(() => api.put<Detail>(path, patch));
+  const change: Change = async (patch, options) => {
+    const failed = await run(() => api.put<Detail>(path, patch));
+    if (!options?.quiet) {
+      clearTimeout(flashTimer.current);
+      setFlash({ failed: !!failed, text: failed ?? t("common.saved") });
+      flashTimer.current = setTimeout(() => setFlash(null), failed ? 6000 : 2500);
+    }
+    return failed;
+  };
 
   if (!party) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   const when = party.date_poll ? t("parties.pollOpen") : new Date(party.starts_at).toLocaleString(dateLocale, LONG);
@@ -368,6 +379,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
         </ol>
       </nav>
       {error && <p className="text-sm text-red-700">{error}</p>}
+      {flash && <p role={flash.failed ? "alert" : "status"} className={`fixed bottom-20 left-1/2 z-40 flex max-w-[90vw] -translate-x-1/2 items-center gap-1.5 rounded-full border border-edge bg-surface px-4 py-2 text-sm font-semibold shadow-lg lg:bottom-6 ${flash.failed ? "text-red-700" : "text-accent"}`}>{!flash.failed && <Check className="h-4 w-4 shrink-0" aria-hidden />}{flash.text}</p>}
       {tab === "details" && <InviteTab party={party} change={change} />}
       {tab === "design" && (
         <div className="space-y-4">
@@ -379,7 +391,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       {tab === "tasks" && <TasksTab party={party} run={run} path={path} />}
       {tab === "budget" && <BudgetTab party={party} run={run} path={path} change={change} />}
       {tab === "schedule" && <TimelineTab party={party} run={run} path={path} />}
-      {tab === "mailings" && <MailingsTab party={party} run={run} path={path} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
+      {tab === "mailings" && <MailingsTab party={party} run={run} change={change} path={path} newLink={() => run(() => api.post<Detail>(`${path}/link`))} />}
       {TABS.indexOf(tab) < TABS.length - 1 && (
         <div className="flex justify-end">
           <button className="btn-ghost flex items-center gap-1.5 border border-edge" onClick={() => { setTab(TABS[TABS.indexOf(tab) + 1]); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -392,9 +404,11 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
+// Changing a party: a choice takes effect at once and says so; quiet when a button shows it itself.
+type Change = (patch: Record<string, unknown>, options?: { quiet?: boolean }) => Promise<string | null>;
 type TabProps = { party: Detail; run: (a: () => Promise<Detail>) => Promise<string | null>; path: string };
 
-function InviteTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
+function InviteTab({ party, change }: { party: Detail; change: Change }) {
   const { t } = useI18n();
   const people = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
   const [draft, setDraft] = useState({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" });
@@ -423,7 +437,7 @@ function InviteTab({ party, change }: { party: Detail; change: (p: Record<string
           </select>
         </label>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <SaveButton className="btn-primary" onSave={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })} />
+          <SaveButton className="btn-primary" onSave={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null }, { quiet: true })} />
         </div>
       </section>
     </div>
@@ -477,7 +491,7 @@ function WhenField({ label, help, value, suggest, onSave }: { label: string; hel
 
 // The party's posters (save the date, the invitation, the day's portal, the thank-you), what the
 // link shows, the playlist, and the portal with its QR code.
-function PosterTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
+function PosterTab({ party, change }: { party: Detail; change: Change }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
@@ -543,7 +557,7 @@ function PosterTab({ party, change }: { party: Detail; change: (p: Record<string
         </ul>
         <label className="block">
           <span className="label">{t("parties.phase")}</span>
-          <select className="input" value={party.phase} onChange={(e) => run(api.put(path, { phase: e.target.value }))}>
+          <select className="input" value={party.phase} onChange={(e) => change({ phase: e.target.value })}>
             <option value="save">{t("parties.phase.save")}</option>
             <option value="invite">{t("parties.phase.invite")}</option>
           </select>
@@ -562,7 +576,7 @@ function PosterTab({ party, change }: { party: Detail; change: (p: Record<string
       <section className="card space-y-3 p-5" aria-label={t("parties.portal")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.portal")}</h2>
         <p className="text-xs text-muted">{t("parties.portalHelp")}</p>
-        <WhenField label={t("parties.portalAt")} help={t("parties.portalAtHelp")} value={party.portal?.at ?? null} suggest={party.starts_at} onSave={(at) => run(api.put(path, { portal_at: at }))} />
+        <WhenField label={t("parties.portalAt")} help={t("parties.portalAtHelp")} value={party.portal?.at ?? null} suggest={party.starts_at} onSave={(at) => change({ portal_at: at }, { quiet: !!at })} />
         {party.portal ? (
           <>
             {!party.portal.open && <p className="text-sm font-semibold">{party.portal.at ? t("parties.portalOpensAt", { when: new Date(party.portal.at).toLocaleString(dateLocale, LONG) }) : t("parties.portalClosed")}</p>}
@@ -573,7 +587,7 @@ function PosterTab({ party, change }: { party: Detail; change: (p: Record<string
               <a className="btn-ghost border border-edge" href={party.portal.link} target="_blank" rel="noreferrer">{t("parties.preview")}</a>
             </div>
             <p className="text-sm">{t("parties.portalPhotos", { n: party.portal.photos })}{party.portal.album_id && <> · <a className="text-accent hover:underline" href="/vault">{t("parties.portalAlbum")}</a></>}</p>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.portal.gallery} onChange={(e) => run(api.put(path, { portal_gallery: e.target.checked }))} />{t("parties.portalGallery")}</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.portal.gallery} onChange={(e) => change({ portal_gallery: e.target.checked })} />{t("parties.portalGallery")}</label>
             <div className="flex flex-wrap items-center gap-3">
               {!party.portal.open && <button className="btn-ghost border border-edge" onClick={() => run(api.post(`${path}/portal`))}>{t("parties.portalOpen")}</button>}
               {(party.portal.open || party.portal.at) && <button className="text-xs text-red-700 hover:underline" onClick={() => run(api.del(`${path}/portal`))}>{t("parties.portalClose")}</button>}
@@ -636,7 +650,7 @@ function InvitePicture({ party }: { party: Detail }) {
 }
 
 // A vote on the date: start one, see which dates suit how many, and choose.
-function DatePoll({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
+function DatePoll({ party, change }: { party: Detail; change: Change }) {
   const { t, dateLocale } = useI18n();
   const initial = () => (party.date_poll ? party.date_options.map(localInput) : [localInput(party.starts_at), localInput(new Date(new Date(party.starts_at).getTime() + 7 * 86_400_000).toISOString())]);
   const [options, setOptions] = useState<string[]>(initial);
@@ -687,10 +701,40 @@ function DatePoll({ party, change }: { party: Detail; change: (p: Record<string,
         <summary className="cursor-pointer text-xs text-muted">{t("parties.addDate")}</summary>
         <div className="mt-2 space-y-2">
           <DateOptions value={options} onChange={setOptions} />
-          <SaveButton disabled={iso().length < 2} onSave={() => change({ date_options: iso() })} />
+          <SaveButton disabled={iso().length < 2} onSave={() => change({ date_options: iso() }, { quiet: true })} />
         </div>
       </details>
     </section>
+  );
+}
+
+// A guest's and their company's personal link, to send oneself. Fetched when asked for: the keys stay
+// out of the page's data and its cache. Where the browser won't copy, the link is shown to copy by hand.
+function GuestLink({ path, name }: { path: string; name: string }) {
+  const { t } = useI18n();
+  const [state, setState] = useState<{ copied?: boolean; link?: string; error?: string }>({});
+  const copy = async () => {
+    try {
+      const { link } = await api.post<{ link: string }>(path);
+      try {
+        await navigator.clipboard.writeText(link);
+        setState({ copied: true });
+        setTimeout(() => setState({}), 2500);
+      } catch {
+        setState({ link });
+      }
+    } catch (e) {
+      setState({ error: e instanceof Error ? e.message : t("common.error") });
+    }
+  };
+  return (
+    <span className="flex shrink-0 flex-col items-end gap-1">
+      <button className="flex items-center gap-1 text-xs text-muted hover:text-ink" title={t("parties.copyGuestLink", { name })} aria-label={t("parties.copyGuestLink", { name })} onClick={() => { void copy(); }}>
+        {state.copied ? <><Check className="h-4 w-4 text-accent" aria-hidden /><span className="font-semibold text-accent" role="status">{t("parties.linkCopied")}</span></> : <Link2 className="h-4 w-4" aria-hidden />}
+      </button>
+      {state.link && <input className="input w-48 text-xs" readOnly autoFocus value={state.link} aria-label={t("parties.copyGuestLink", { name })} onFocus={(e) => e.target.select()} />}
+      {state.error && <span className="text-xs text-red-700" role="alert">{state.error}</span>}
+    </span>
   );
 }
 
@@ -723,6 +767,7 @@ function GuestsTab({ party, run, path }: TabProps) {
                   )}
                   {g.message && <span className="block text-xs italic text-muted">“{g.message}”</span>}
                 </span>
+                <GuestLink path={`${path}/guests/${g.id}/link`} name={g.first_name} />
                 <button className="text-muted hover:text-red-700" aria-label={t("parties.removeGuest", { name: g.first_name })} onClick={() => run(() => api.del(`${path}/guests/${g.id}`).then(() => api.get<Detail>(path)))}>
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
@@ -801,7 +846,7 @@ function TasksTab({ party, run, path }: TabProps) {
   );
 }
 
-function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record<string, unknown>) => Promise<string | null> }) {
+function BudgetTab({ party, run, path, change }: TabProps & { change: Change }) {
   const { t, dateLocale } = useI18n();
   const [form, setForm] = useState({ title: "", amount: "" });
   const [budget, setBudget] = useState(party.budget?.toString() ?? "");
@@ -811,7 +856,7 @@ function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record
     <section className="card space-y-3 p-5" aria-label={t("parties.tab.budget")}>
       <div className="flex flex-wrap items-end gap-2">
         <label><span className="label">{t("parties.budget")}</span><input className="input !w-40" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} /></label>
-        <SaveButton onSave={() => change({ budget: budget ? Number(budget.replace(",", ".")) : null })} />
+        <SaveButton onSave={() => change({ budget: budget ? Number(budget.replace(",", ".")) : null }, { quiet: true })} />
       </div>
       <p className="text-sm">
         {t("parties.spent", { spent: money(party.spent) })}
@@ -864,7 +909,7 @@ function TimelineTab({ party, run, path }: TabProps) {
   );
 }
 
-function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => void }) {
+function MailingsTab({ party, run, change, path, newLink }: TabProps & { change: Change; newLink: () => void }) {
   const { t, dateLocale } = useI18n();
   const soon = new Date(Date.now() + 3_600_000);
   const [form, setForm] = useState({ kind: party.phase === "save" ? "save" : "invite", audience: "all", subject: "", text: "", when: localInput(soon.toISOString()) });
@@ -911,7 +956,7 @@ function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => 
         {party.mail && (
           <label className="block">
             <span className="label">{t("parties.remindWaiting")}</span>
-            <select className="input" value={party.rsvp_remind_days ?? 0} onChange={(e) => run(() => api.put<Detail>(path, { rsvp_remind_days: Number(e.target.value) || null }))}>
+            <select className="input" value={party.rsvp_remind_days ?? 0} onChange={(e) => change({ rsvp_remind_days: Number(e.target.value) || null })}>
               <option value={0}>{t("parties.remindOff")}</option>
               {[1, 2, 3, 5, 7, 14].map((n) => <option key={n} value={n}>{t("parties.remindDays", { n })}</option>)}
             </select>
@@ -988,7 +1033,7 @@ function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => 
   );
 }
 
-function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
+function ThanksTab({ party, change }: { party: Detail; change: Change }) {
   const { t } = useI18n();
   const albums = useApi<Album[]>("/api/albums").data ?? NONE;
   const [text, setText] = useState(party.thanks_text);
@@ -1004,9 +1049,9 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
           {albums.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
-      <WhenField label={t("parties.thanksAt")} help={t("parties.thanksAtHelp")} value={party.thanks_at} suggest={new Date(new Date(party.ends_at).getTime() + 86_400_000).toISOString()} onSave={(at) => change({ thanks_text: text, thanks_at: at })} />
+      <WhenField label={t("parties.thanksAt")} help={t("parties.thanksAtHelp")} value={party.thanks_at} suggest={new Date(new Date(party.ends_at).getTime() + 86_400_000).toISOString()} onSave={(at) => change({ thanks_text: text, thanks_at: at }, { quiet: !!at })} />
       <div className="flex flex-wrap items-center gap-3">
-        <SaveButton onSave={() => change({ thanks_text: text })} />
+        <SaveButton onSave={() => change({ thanks_text: text }, { quiet: true })} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.thanks_published} onChange={(e) => change({ thanks_text: text, thanks_published: e.target.checked })} />{t("parties.publishThanks")}</label>
         {party.thanks_published && <span className="flex items-center gap-1 text-xs text-accent"><Check className="h-3.5 w-3.5" aria-hidden />{t("parties.thanksLive")}</span>}
       </div>
