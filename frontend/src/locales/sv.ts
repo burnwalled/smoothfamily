@@ -146,6 +146,8 @@ const sv: Dictionary = {
   "theme.aurora": "Norrsken",
   "common.add": "Lägg till",
   "common.save": "Spara",
+  "common.saved": "Sparat",
+  "common.saving": "Sparar…",
   "common.remove": "Ta bort",
   "common.edit": "Ändra",
   "linkedTasks.none": "Inga uppgifter än.",

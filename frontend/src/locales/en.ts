@@ -145,6 +145,8 @@ const en = {
   "theme.aurora": "Aurora",
   "common.add": "Add",
   "common.save": "Save",
+  "common.saved": "Saved",
+  "common.saving": "Saving…",
   "common.remove": "Remove",
   "common.edit": "Edit",
   "linkedTasks.none": "No tasks yet.",

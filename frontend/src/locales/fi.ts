@@ -146,6 +146,8 @@ const fi: Dictionary = {
   "theme.aurora": "Revontulet",
   "common.add": "Lisää",
   "common.save": "Tallenna",
+  "common.saved": "Tallennettu",
+  "common.saving": "Tallennetaan…",
   "common.remove": "Poista",
   "common.edit": "Muokkaa",
   "linkedTasks.none": "Ei vielä tehtäviä.",

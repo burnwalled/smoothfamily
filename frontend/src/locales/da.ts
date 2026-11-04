@@ -146,6 +146,8 @@ const da: Dictionary = {
   "theme.aurora": "Nordlys",
   "common.add": "Tilføj",
   "common.save": "Gem",
+  "common.saved": "Gemt",
+  "common.saving": "Gemmer…",
   "common.remove": "Fjern",
   "common.edit": "Rediger",
   "linkedTasks.none": "Ingen opgaver endnu.",

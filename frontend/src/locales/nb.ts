@@ -146,6 +146,8 @@ const nb: Dictionary = {
   "theme.aurora": "Nordlys",
   "common.add": "Legg til",
   "common.save": "Lagre",
+  "common.saved": "Lagret",
+  "common.saving": "Lagrer…",
   "common.remove": "Fjern",
   "common.edit": "Rediger",
   "linkedTasks.none": "Ingen oppgaver ennå.",
