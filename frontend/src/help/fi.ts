@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Yllätysjuhlat: valitse kohdassa Tiedot. Juhlittavat poistetaan suunnittelusta, ja juhlat näkyvät kalenterissa vain suunnittelijoille, eivät keittiönäytöllä tai vieraslinkeissä.",
           "Ketä juhlitaan ja ketkä suunnittelevat ovat kaksi eri valintaa. Juhlittavat saavat juhlat kalenteriinsa. Kohdassa Ketkä suunnittelevat valitut voivat avata ja muuttaa niitä, saavat muistutukset ja ovat keskusteluissa; muut perheessä eivät näe niitä juhlien joukossa. Näin vanhemmat voivat suunnitella lapsen juhlat tai kumppani yllätyksen.",
           "Juhlilla voi olla kaksi keskustelua, jotka valitaan kohdassa Tiedot. Vieraiden keskustelu on heidän sivuillaan ja portaalissa, jossa he kirjoittavat toisilleen ja teille ennen juhlia ja niiden aikana, ja myös chat-sovelluksessanne. Suunnittelijoiden keskustelu on perheen aikuisille ja auttajille, eivätkä ne, joilta suunnitelma salataan, ole mukana.",
           "Viestit ovat HTML:ää juhlien teemassa, vieraan omalla painikkeella, ja tavallisena tekstinä ohjelmille, jotka sitä haluavat. Merkitse päivä -viestiä ei lähetetä sähköpostilla, koska osoitteita ei vielä ole: kohdassa Lähetykset saat valmiin viestin linkkeineen jaettavaksi tekstiviestillä, WhatsAppilla, sähköpostilla tai sovelluksella. Ilmoittautuneet jättävät osoitteensa ja saavat kutsun sähköpostilla.",

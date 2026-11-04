@@ -8,7 +8,7 @@ from sqlalchemy import delete, select, update
 
 from app.services import quota, security_policy
 from app.deps import DB, AdminUser, CurrentUser
-from app.models import ChatMessage, ConversationMember, DashboardWidget, Family, Party, Person, PushSubscription, User, UserAchievement, WebAuthnCredential
+from app.models import Base, ChatMessage, Family, FamilyEvent, Party, Person, Task, User, WebAuthnCredential
 from app.schemas import AppAccessIn, MemberCreate, MemberOut, MemberPasswordReset, MemberPatch
 from app.security import hash_password
 
@@ -63,6 +63,46 @@ def age_on(born: date, day: date) -> int:
     return day.year - born.year - ((day.month, day.day) < (born.month, born.day))
 
 
+# What was only theirs, by the columns that say whose it is: it goes with them. The rest of what links to
+# a member (without a rule of its own in the database) is the family's and stays: without them where it
+# can be, otherwise as made by whoever removes them. Private things (logins, documents, medicine) are
+# removed by the database itself, and never handed over.
+GOES_WITH_MEMBER = {
+    ("conversation_members", "user_id"), ("dashboard_widgets", "user_id"), ("push_subscriptions", "user_id"),
+    ("user_achievements", "user_id"), ("task_completions", "user_id"), ("allowance_payouts", "user_id"),
+}
+
+
+async def _let_go(db, member: User, remover: User) -> None:
+    await db.execute(update(ChatMessage).where(ChatMessage.sender_id == member.id).values(sender_name=member.display_name))
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if not any(fk.target_fullname == "users.id" and fk.ondelete is None for fk in column.foreign_keys):
+                continue
+            where = column == member.id
+            if (table.name, column.name) in GOES_WITH_MEMBER:
+                await db.execute(table.delete().where(where))
+            elif column.nullable:
+                await db.execute(table.update().where(where).values({column.name: None}))
+            else:
+                await db.execute(table.update().where(where).values({column.name: remover.id}))
+    # Where they're only named in a list of ids.
+    gone = str(member.id)
+    for task in (await db.execute(select(Task).where(Task.family_id == member.family_id, Task.rotation_user_ids.is_not(None)))).scalars().all():
+        if gone in [str(x) for x in task.rotation_user_ids or []]:
+            task.rotation_user_ids = [x for x in task.rotation_user_ids if str(x) != gone]
+    for event in (await db.execute(select(FamilyEvent).where(FamilyEvent.family_id == member.family_id))).scalars().all():
+        if gone in [str(x) for x in event.member_ids or []]:
+            event.member_ids = [x for x in event.member_ids if str(x) != gone]
+        if gone in (event.private_to or []):
+            event.private_to = [x for x in event.private_to if x != gone] or [str(remover.id)]
+    for party in (await db.execute(select(Party).where(Party.family_id == member.family_id))).scalars().all():
+        if gone in (party.planners or []):
+            party.planners = [x for x in party.planners if x != gone] or None
+        if gone in (party.plan_hidden or []):
+            party.plan_hidden = [x for x in party.plan_hidden if x != gone] or None
+
+
 @router.delete("/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_member(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
     member = await db.get(User, member_id)
@@ -70,15 +110,9 @@ async def delete_member(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
         raise HTTPException(status_code=404, detail="Member not found")
     if member.id == admin.id:
         raise HTTPException(status_code=400, detail="You cannot remove yourself")
-    # What was only theirs goes with them.
-    for model in (PushSubscription, UserAchievement, DashboardWidget):
-        await db.execute(delete(model).where(model.user_id == member.id))
-    # Out of the chats, with what they wrote kept under their name; a party keeps someone to plan it.
-    await db.execute(delete(ConversationMember).where(ConversationMember.user_id == member.id))
-    await db.execute(update(ChatMessage).where(ChatMessage.sender_id == member.id).values(sender_id=None, sender_name=member.display_name))
-    for party in (await db.execute(select(Party).where(Party.family_id == member.family_id, Party.planners.is_not(None)))).scalars().all():
-        if str(member.id) in party.planners:
-            party.planners = [x for x in party.planners if x != str(member.id)] or None
+    if member.is_server_admin:
+        raise HTTPException(status_code=400, detail="The server's admin can't be removed")
+    await _let_go(db, member, admin)
     await db.delete(member)
     await db.commit()
 

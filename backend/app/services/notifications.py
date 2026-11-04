@@ -103,7 +103,10 @@ async def run_calendar_reminders(db: AsyncSession, now: datetime | None = None) 
             continue
         tagged = {str(uid) for uid in (event.member_ids or [])}
         for recipient in users_by_family.get(event.family_id, []):
-            if tagged and str(recipient.id) not in tagged:
+            if event.private_to:
+                if str(recipient.id) not in event.private_to:
+                    continue
+            elif tagged and str(recipient.id) not in tagged:
                 continue
             pref_key = "calendar_mine" if recipient.id == event.created_by else "calendar_family"
             await notify(

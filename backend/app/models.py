@@ -194,6 +194,8 @@ class FamilyEvent(Base):
     color: Mapped[str] = mapped_column(String(20), default="#C2703D")
     # Members the event concerns (user ids as strings); empty = the whole family.
     member_ids: Mapped[list] = mapped_column(JSON, default=list)
+    # Only these users see it (a surprise party's planners); None = the whole family as usual.
+    private_to: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -2048,6 +2050,8 @@ class Party(Base):
     # Those of the family's adults who plan it, by user id; None = all of them. It's not who's being
     # celebrated (person_ids): that's often a child, or someone it's meant to be a surprise for.
     planners: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # A surprise: those being celebrated don't plan it, and it's in the calendar only for those who do.
+    surprise: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # The chats: with the guests, and among those planning (with the helpers).
     guest_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     planner_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

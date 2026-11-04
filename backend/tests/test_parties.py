@@ -1176,3 +1176,71 @@ async def test_removing_a_member_who_chats_and_plans(client):
     items = (await client.get(f"/api/chat/messages?peer={conv['peer_key']}")).json()["items"]
     assert items[0]["body"] == "Jag fixar tårtan" and items[0]["sender_name"] == "Adult1" and items[0]["sender_id"] is None
     assert (await client.get(f"/api/parties/{party['id']}")).json()["planners"] == [ids["admin"]]
+
+
+async def test_a_surprise_party(client):
+    ids = await _family(client)
+    start = (datetime.now(timezone.utc) + timedelta(days=10)).replace(microsecond=0)
+    day = start.date()
+    # The other adult is being celebrated.
+    person = (await client.post("/api/birthdays/people", json={"name": "Adult1", "user_id": ids["adult1"]})).json()
+    party = (await client.post("/api/parties", json=_party(start, kind="party", title="Hemlisen", person_ids=[person["id"]], surprise=True))).json()
+    pid = party["id"]
+    assert party["surprise"] is True and party["planners"] == [ids["admin"]]
+
+    calendar = f"/api/calendar/events?start={day}&end={day + timedelta(days=2)}"
+    assert "Hemlisen" in str((await client.get(calendar)).json())
+    await _as(client, "adult1")
+    assert "Hemlisen" not in str((await client.get(calendar)).json())
+    assert (await client.get("/api/parties")).json() == []
+    assert (await client.get(f"/api/parties/{pid}")).status_code == 404
+    await _as(client, "maja")
+    assert "Hemlisen" not in str((await client.get(calendar)).json())
+
+    # You can't plan a surprise for yourself, and someone has to plan it.
+    await _as(client, "admin", "secret123")
+    me = (await client.post("/api/birthdays/people", json={"name": "Anna", "user_id": ids["admin"]})).json()
+    assert (await client.put(f"/api/parties/{pid}", json={"person_ids": [me["id"]]})).status_code == 422
+    assert (await client.post("/api/parties", json=_party(start, kind="party", person_ids=[me["id"]], surprise=True))).status_code == 422
+
+    # No longer a surprise: back in the calendar for the family.
+    assert (await client.put(f"/api/parties/{pid}", json={"surprise": False})).json()["surprise"] is False
+    await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"], ids["adult1"]]})
+    await _as(client, "adult1")
+    assert "Hemlisen" in str((await client.get(calendar)).json())
+
+
+def test_every_link_to_a_member_has_a_rule():
+    """A new table pointing at users without saying what happens to it would stop removals again."""
+    from app.models import Base
+    from app.routers.family import GOES_WITH_MEMBER
+
+    tables = {t.name: t for t in Base.metadata.sorted_tables}
+    for table, column in GOES_WITH_MEMBER:
+        assert column in tables[table].columns
+    # Everything else is handled generically; a non-null link that isn't "made by" someone must be decided.
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if not any(fk.target_fullname == "users.id" and fk.ondelete is None for fk in column.foreign_keys):
+                continue
+            if column.nullable or (table.name, column.name) in GOES_WITH_MEMBER:
+                continue
+            assert column.name in ("created_by", "uploaded_by"), f"{table.name}.{column.name}: does it go with the member, or stay with the family?"
+
+
+async def test_removing_an_active_member_hands_over_the_familys_things(client, db_session):
+    from app.models import ChatMessage, Task, User
+
+    ids = await _family(client)
+    await _as(client, "adult1")
+    task = (await client.post("/api/tasks", json={"title": "Klipp gräset", "assignee_id": ids["adult1"], "due_date": datetime.now(timezone.utc).date().isoformat()})).json()
+    await client.post("/api/chat/messages", json={"peer": "family", "body": "Hej då"})
+    await _as(client, "admin", "secret123")
+    assert (await client.delete(f"/api/family/members/{ids['admin']}")).status_code == 400
+    assert (await client.delete(f"/api/family/members/{ids['adult1']}")).status_code == 204
+    db_session.expire_all()
+    row = await db_session.get(Task, uuid.UUID(task["id"]))
+    assert row is not None and str(row.created_by) == ids["admin"] and row.assignee_id is None
+    assert await db_session.get(User, uuid.UUID(ids["adult1"])) is None
+    said = (await client.get("/api/chat/messages?peer=family")).json()["items"]
+    assert said[-1]["body"] == "Hej då" and said[-1]["sender_name"] == "Adult1"

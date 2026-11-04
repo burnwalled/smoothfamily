@@ -42,7 +42,7 @@ export type Detail = {
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null; helper_id?: string | null; action?: string | null }[];
-  guest_chat: boolean; planner_chat: boolean; planners: string[];
+  guest_chat: boolean; planner_chat: boolean; planners: string[]; surprise: boolean;
   capacity: { coming: number; waiting: number; most: number; open: boolean };
   pages: Stage[]; tables: { id: string; name: string; seats: number }[]; family_name: string;
   checkin_at: string | null; menu: { id: string; name: string }[]; menu_tally: { id: string | null; name: string; people: number }[]; speech_signup: boolean;
@@ -198,6 +198,17 @@ function Planners({ adults, value, me, onChange }: { adults: { id: string; name:
   );
 }
 
+// A surprise: those being celebrated are out of the planning, and it's not in the family's calendar.
+function Surprise({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  const { t } = useI18n();
+  return (
+    <label className="flex items-start gap-2 text-sm sm:col-span-2">
+      <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={value} onChange={(e) => onChange(e.target.checked)} />
+      <span>{t("parties.surprise")}<span className="block text-xs text-muted">{t("parties.surpriseHelp")}</span></span>
+    </label>
+  );
+}
+
 function WishlistSelect({ people, value, onChange }: { people: Person[]; value: string; onChange: (v: string) => void }) {
   const { t } = useI18n();
   return (
@@ -232,6 +243,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
   const me = useMe();
   const adults = useApi<{ id: string; name: string }[]>("/api/parties/adults").data ?? NONE;
   const [planners, setPlanners] = useState<string[] | null>(null);
+  const [surprise, setSurprise] = useState(false);
   const [form, setForm] = useState({ title: "", kind: "child_birthday" as string, person_ids: [] as string[], wishlist_of: "", starts: localInput(start.toISOString()), hours: 2, place: "", address: "", rsvp: "", bring: "none", show_guests: "count", date_poll: false, options: [] as string[] });
   const [error, setError] = useState("");
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -242,7 +254,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       const starts = new Date(form.starts);
       const ends = new Date(starts.getTime() + form.hours * 3_600_000);
       const made = await api.post<Detail>("/api/parties", {
-        planners: planners ?? undefined, title: form.title.trim(), kind: form.kind, person_ids: form.person_ids, person_id: form.wishlist_of || null, wishlist: !!form.wishlist_of, emoji: EMOJIS[form.kind],
+        planners: planners ?? undefined, surprise, title: form.title.trim(), kind: form.kind, person_ids: form.person_ids, person_id: form.wishlist_of || null, wishlist: !!form.wishlist_of, emoji: EMOJIS[form.kind],
         starts_at: starts.toISOString(), ends_at: ends.toISOString(), place: form.place, address: form.address,
         rsvp_by: form.rsvp || null, bring: form.bring, show_guests: form.show_guests, page_theme: kindTheme(form.kind),
         date_poll: form.date_poll, date_options: form.date_poll ? form.options.filter(Boolean).map((o) => new Date(o).toISOString()) : [],
@@ -267,6 +279,7 @@ function NewParty({ onDone }: { onDone: (id: string | null) => void }) {
       </label>
       <BringSelect value={form.bring} onChange={(bring) => set({ bring })} />
       <div className="sm:col-span-2">
+        <Surprise value={surprise} onChange={setSurprise} />
         <Planners adults={adults} value={planners ?? adults.map((a) => a.id)} me={me.id} onChange={setPlanners} />
         <WhoseParty people={people} value={form.person_ids} onChange={(person_ids) => set({ person_ids, wishlist_of: form.wishlist_of && !person_ids.includes(form.wishlist_of) ? "" : form.wishlist_of || (form.kind === "child_birthday" && person_ids.length === 1 ? person_ids[0] : "") })} />
       </div>
@@ -338,6 +351,7 @@ function withDefaults(d: Detail): Detail {
     mailings: d.mailings ?? [],
     pages: d.pages ?? STAGES.filter((st) => st !== "checkin"),
     tables: d.tables ?? [],
+    surprise: d.surprise ?? false,
     planners: d.planners ?? (d.adults ?? []).map((a) => a.id),
     guest_chat: d.guest_chat ?? false,
     planner_chat: d.planner_chat ?? false,
@@ -509,6 +523,7 @@ function InviteTab({ party, change }: { party: Detail; change: Change }) {
         <div className="sm:col-span-2">
           <WhoseParty people={people} value={party.person_ids} onChange={(person_ids) => change({ person_ids })} />
         </div>
+        <Surprise value={party.surprise} onChange={(surprise) => change({ surprise })} />
         <Planners adults={party.adults} value={party.planners} me={party.you.user_id} onChange={(planners) => change({ planners })} />
         <fieldset className="sm:col-span-2">
           <legend className="label">{t("parties.pagesLabel")}</legend>
