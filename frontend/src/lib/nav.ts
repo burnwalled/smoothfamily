@@ -111,6 +111,7 @@ export const HUBS: Hub[] = [
     tabs: [
       { app: "property", href: "/property", labelKey: "nav.property" },
       { app: "property", href: "/economy", labelKey: "nav.economy" },
+      { app: "property", href: "/subscriptions", labelKey: "nav.subscriptions" },
       { app: "vehicles", href: "/vehicles", labelKey: "nav.vehicles" },
       { app: "pets", href: "/pets", labelKey: "nav.pets" },
     ],

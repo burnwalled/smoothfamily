@@ -974,6 +974,12 @@ const texts: Record<string, TopicText> = {
           "Et budsjett per kategori og måned blir rødt når det sprekker.",
           "Poster kan være private, så bare du ser dem."
         ]
+      },
+      {
+        "h": "Abonnementer"
+      },
+      {
+        "p": "Under Hjemmet → Abonnementer samler dere alt husholdningen betaler jevnlig, med hva det koster per måned og år. Et abonnement kan peke på en pålogging i hvelvet, og den som får se påloggingen, kan kopiere passordet herfra; hvelvets regler gjelder som vanlig. Etter en bankimport foreslås gjentatte betalinger her, og bare du ser forslagene fra din fil: legg dem til eller si at de ikke er abonnementer, og de du har avvist, kommer ikke tilbake. En senere fil sier fra om en ny pris, eller en betaling for noe du har avsluttet. Det er en oversikt, så ingenting legges til i Økonomis summer."
       }
     ]
   },

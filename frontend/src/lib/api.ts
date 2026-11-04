@@ -62,7 +62,7 @@ const RELATED: Record<string, string[]> = {
   easy: ["tasks"],
   // The household's economy counts the receipts (and the homes' and vehicles' costs).
   receipts: ["economy"],
-  bank: ["economy", "receipts"],
+  bank: ["economy", "receipts", "subscriptions"],
   // A receipt read by the local AI is told as a notification.
   notifications: ["receipts", "ai"],
   // The emergency cards list the medicines.

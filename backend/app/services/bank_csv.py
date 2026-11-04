@@ -132,6 +132,68 @@ def suggest(text: str) -> tuple[str, str] | None:
     return None
 
 
+@dataclass
+class Recurring:
+    pattern: str
+    name: str
+    amount: float
+    interval: str
+    last_day: date
+    category: str
+
+
+# How a known service's payments sort among the subscriptions.
+_KINDS = (
+    (("spotify", "tidal", "apple music"), "music"),
+    (("netflix", "hbo", "max.com", "viaplay", "disney", "youtube premium", "storytel", "nextory"), "streaming"),
+    (("icloud", "google one", "microsoft", "adobe", "dropbox"), "software"),
+    (("telia", "tele2", "telenor", "tre ", "hallon", "comviq", "vimla"), "phone"),
+    (("bredband", "bahnhof", "comhem", "ownit", "fibra", "stadsnät"), "internet"),
+    (("försäkring", "forsakring", "folksam", "länsförsäkringar", "trygg-hansa", "if skadeförs"), "insurance"),
+    (("gym", "sats", "friskis", "nordic wellness", "medlem"), "membership"),
+    (("tidning", "dagens nyheter", "svd", "aftonbladet"), "news"),
+)
+# Between two payments, in days, with the amount staying about the same.
+_GAPS = (("week", 6, 8), ("month", 26, 35), ("quarter", 85, 98), ("year", 350, 380))
+_SIMILAR = 0.15
+
+
+def _kind(text: str) -> str:
+    low = text.casefold()
+    return next((kind for words, kind in _KINDS if any(w in low for w in words)), "other")
+
+
+def recurring(rows: list[Txn]) -> list[Recurring]:
+    """The payments that look like subscriptions: about the same amount at regular intervals, or a service
+    that's known to be one (it may only be there once in a short file)."""
+    groups: dict[str, list[Txn]] = {}
+    for txn in rows:
+        if txn.amount < 0:
+            groups.setdefault(pattern_of(txn.text), []).append(txn)
+    out = []
+    for pattern, txns in groups.items():
+        txns.sort(key=lambda t: t.day)
+        last = txns[-1]
+        amount = round(-last.amount, 2)
+        amounts = sorted(-t.amount for t in txns)
+        middle = amounts[len(amounts) // 2]
+        days = sorted({t.day for t in txns})
+        gaps = sorted((b - a).days for a, b in zip(days, days[1:], strict=False))
+        interval = None
+        if gaps and middle > 0 and (amounts[-1] - amounts[0]) / middle <= _SIMILAR:
+            gap = gaps[len(gaps) // 2]
+            # Every gap has to agree, or it's only a shop visited now and then.
+            interval = next((name for name, low, high in _GAPS if low <= gap <= high and all(low <= g <= high for g in gaps)), None)
+        known = suggest(last.text)
+        if interval is None and known and known[1] == "subscriptions" and len(days) == 1:
+            interval = "month"
+        if interval is None:
+            continue
+        name = " ".join(w.capitalize() for w in pattern.split())[:120]
+        out.append(Recurring(pattern=pattern, name=name, amount=amount, interval=interval, last_day=last.day, category=_kind(last.text)))
+    return out
+
+
 def pattern_of(text: str) -> str:
     """A rule's text from a transaction: the merchant's name without card numbers, dates and the
     city (e.g. 'CIRCLE K SOLNA 12/10' → 'circle k')."""

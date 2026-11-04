@@ -1916,6 +1916,59 @@ class BankRule(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class Subscription(Base):
+    """Something the household pays for regularly (3.4.0). It's an overview: costs stay in the economy,
+    and the account's details stay in the vault (login_id)."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    # streaming | music | phone | internet | insurance | membership | software | news | other
+    category: Mapped[str] = mapped_column(String(12), default="other")
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    # week | month | quarter | year
+    interval: Mapped[str] = mapped_column(String(8), default="month")
+    next_payment: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cancel_by: Mapped[date | None] = mapped_column(Date, nullable=True)
+    who: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    url: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    login_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("vault_logins.id", ondelete="SET NULL"), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Only the one who added it sees it.
+    private: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    ended_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # The bank's file: its text for this payment, and what was last paid and when.
+    pattern: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    seen_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    seen_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SubscriptionSuggestion(Base):
+    """A recurring payment found in a bank file, until it's added or dismissed. Dismissed ones stay, so
+    that they aren't suggested again. Only the one who brought the file sees it: it may be their own
+    account, and nothing of it is the family's until they add it."""
+
+    __tablename__ = "subscription_suggestions"
+    __table_args__ = (UniqueConstraint("user_id", "pattern", name="uq_subscription_suggestion"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    pattern: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(120))
+    category: Mapped[str] = mapped_column(String(12), default="other")
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    interval: Mapped[str] = mapped_column(String(8), default="month")
+    last_seen: Mapped[date] = mapped_column(Date)
+    # new | dismissed
+    status: Mapped[str] = mapped_column(String(10), default="new")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class BankImported(Base):
     """A transaction already imported (only a hash of date, amount and text – never the row)."""
 

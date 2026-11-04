@@ -23,6 +23,11 @@ test("removing a member who has been active", async ({ adminApi, playwright, bas
   const said = unique("Hej från mig");
   expect((await leaver.post("/api/chat/messages", { data: { peer: "family", body: said } })).ok()).toBeTruthy();
   expect((await leaver.post("/api/devices/hello", { data: {} })).status()).toBeLessThan(500);
+  const shared = unique("Their subscription");
+  expect((await leaver.post("/api/subscriptions", { data: { name: shared, amount: 10 } })).ok()).toBeTruthy();
+  expect((await leaver.post("/api/subscriptions", { data: { name: unique("Their own subscription"), amount: 10, private: true } })).ok()).toBeTruthy();
+  const file = "Datum;Text;Belopp\n2026-07-25;NETFLIX.COM;-129,00\n";
+  expect((await leaver.post("/api/bank/parse", { multipart: { file: { name: "bank.csv", mimeType: "text/csv", buffer: Buffer.from(file) } } })).ok()).toBeTruthy();
   await leaver.dispose();
 
   expect((await adminApi.delete(`/api/family/members/${member.id}`)).status()).toBe(204);
@@ -38,6 +43,10 @@ test("removing a member who has been active", async ({ adminApi, playwright, bas
   const message = chat.items.find((m: { body: string }) => m.body === said);
   expect(message.sender_name).toBe("Leaver");
   expect(message.sender_id).toBeNull();
+  const subscriptions = await (await adminApi.get("/api/subscriptions")).json();
+  const theirs = subscriptions.items.filter((x: { name: string }) => x.name.includes("subscription"));
+  expect(theirs.map((x: { name: string }) => x.name)).toEqual([shared]);
+  for (const item of theirs) await adminApi.delete(`/api/subscriptions/${item.id}`);
   const members = await (await adminApi.get("/api/family/members")).json();
   expect(members.find((m: { id: string }) => m.id === member.id)).toBeUndefined();
 

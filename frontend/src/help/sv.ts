@@ -974,6 +974,12 @@ const texts: Record<string, TopicText> = {
           "En budget per kategori och månad blir röd när den spräcks.",
           "Poster kan vara privata, så att bara du ser dem."
         ]
+      },
+      {
+        "h": "Abonnemang"
+      },
+      {
+        "p": "Under Hemmet → Abonnemang samlar ni allt hushållet betalar regelbundet, med vad det kostar per månad och år. Ett abonnemang kan peka på en inloggning i valvet, och den som får se inloggningen kan kopiera lösenordet härifrån; valvets regler gäller som vanligt. Efter en bankimport föreslås återkommande betalningar här, och bara du ser förslagen från din fil: lägg till dem eller säg att de inte är abonnemang, och de du avfärdat kommer inte tillbaka. En senare fil säger till om ett nytt pris, eller en betalning för något du avslutat. Det är en översikt, så inget läggs till i Ekonomis summor."
       }
     ]
   },

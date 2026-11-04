@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.config import get_settings
+from app.routers import subscriptions
 from app.routers import achievements, admin, ai, bank, custody, easy, albums, allowance, auth, backups, birthdays, invite, documents, emergency, flows, guests, kiosk, health, medicine, parties, places, school, pantry, pets, presence, server, trips, week, wish_share, calendar, chat, coparent, dashboard, events, family, feedback, home, lists, meals, mfa, notifications, property, push, rewards, shop, smarthome, tasks, transit, vault, vault_shares, vehicles, web_search, receipts, gateway, economy, csp, updates, guide, devices
 from app.database import SessionLocal
 from app.services.ai import ai_worker
@@ -96,6 +97,7 @@ app.include_router(web_search.router)
 app.include_router(receipts.router)
 app.include_router(gateway.router)
 app.include_router(economy.router)
+app.include_router(subscriptions.router)
 app.include_router(csp.router)
 app.include_router(updates.router)
 app.include_router(guide.router)

@@ -68,7 +68,7 @@ export const TOPICS: Topic[] = [
   { id: "safety", category: "vault", icon: Siren, audience: "everyone", apps: ["emergency", "medicine"], paths: ["/emergency", "/medicine"], related: ["tasks"] },
   // Home
   { id: "property", category: "home", icon: House, audience: "adults", apps: ["property"], paths: ["/property"], related: ["economy", "receipts", "homeassistant"] },
-  { id: "economy", category: "home", icon: Wallet, audience: "adults", apps: ["property"], paths: ["/economy", "/bank-import"], related: ["receipts", "property"] },
+  { id: "economy", category: "home", icon: Wallet, audience: "adults", apps: ["property"], paths: ["/economy", "/bank-import", "/subscriptions"], related: ["receipts", "property"] },
   { id: "vehicles", category: "home", icon: Car, audience: "adults", apps: ["vehicles"], paths: ["/vehicles"], related: ["economy", "localai"] },
   { id: "pets", category: "home", icon: PawPrint, audience: "everyone", apps: ["pets"], paths: ["/pets"], related: ["tasks", "safety"] },
   // Smart home and Home Assistant
