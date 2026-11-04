@@ -1334,6 +1334,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Säkerhet sätter reglerna för passkeys, tvåstegskoder och hur långa lösenord ska vara. Adress och tjänster har serverns adress på internet, sökningen och tjänsterna för alla familjer. Serverns kom igång-guide kan öppnas igen högst upp."
+      },
+      {
+        "h": "Säkerhetsloggen"
+      },
+      {
+        "p": "Under Säkerhet ser serverns admin de senaste 30 dagarnas misslyckade inloggningar, bromsen som stoppar för många försök, länkar som inte finns, medlemmarnas nya enheter och bytta lösenord – från alla familjer på servern, med adressen varje kom från. Bromsen meddelas direkt, och en sammanfattning av dygnet kommer på morgonen när något hänt. Varje medlem får veta om en ny enhet på sitt eget konto och om ett bytt lösenord: inte de? Ett nytt lösenord loggar ut de andra. Var och en väljer under Min profil → Notiser om dessa ska pushas."
       }
     ]
   },

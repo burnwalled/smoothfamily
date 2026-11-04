@@ -2,11 +2,11 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 
-from app.services import quota, security_policy
+from app.services import login_throttle, quota, security_log, security_policy
 from app.deps import DB, AdminUser, CurrentUser
 from app.models import Base, ChatMessage, Family, FamilyEvent, Party, Person, Subscription, Task, User, WebAuthnCredential
 from app.schemas import AppAccessIn, MemberCreate, MemberOut, MemberPasswordReset, MemberPatch
@@ -213,7 +213,7 @@ async def clear_member_avatar(member_id: uuid.UUID, admin: AdminUser, db: DB) ->
 
 @router.post("/members/{member_id}/password", status_code=status.HTTP_204_NO_CONTENT)
 async def reset_member_password(
-    member_id: uuid.UUID, payload: MemberPasswordReset, admin: AdminUser, db: DB
+    member_id: uuid.UUID, payload: MemberPasswordReset, request: Request, admin: AdminUser, db: DB
 ) -> None:
     """Admin sets a new password for a family member (e.g. a forgotten one)."""
     member = await db.get(User, member_id)
@@ -224,10 +224,11 @@ async def reset_member_password(
     member.password_hash = hash_password(payload.password)
     member.session_version = (member.session_version or 1) + 1
     await db.commit()
+    await security_log.password_changed(db, member, login_throttle.client_ip(request), by_admin=admin.display_name)
 
 
 @router.post("/members/{member_id}/reset-mfa", status_code=status.HTTP_204_NO_CONTENT)
-async def reset_member_mfa(member_id: uuid.UUID, admin: AdminUser, db: DB) -> None:
+async def reset_member_mfa(member_id: uuid.UUID, request: Request, admin: AdminUser, db: DB) -> None:
     """Remove a member's authenticator and passkeys (e.g. a lost phone)."""
     member = await db.get(User, member_id)
     if member is None or member.family_id != admin.family_id:
@@ -239,6 +240,7 @@ async def reset_member_mfa(member_id: uuid.UUID, admin: AdminUser, db: DB) -> No
     member.session_version = (member.session_version or 1) + 1
     await db.execute(delete(WebAuthnCredential).where(WebAuthnCredential.user_id == member.id))
     await db.commit()
+    await security_log.record(db, "mfa_reset", ip=login_throttle.client_ip(request), user=member, detail=admin.display_name)
 
 
 @router.put("/members/{member_id}/apps", response_model=MemberOut)

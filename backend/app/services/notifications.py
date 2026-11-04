@@ -23,6 +23,7 @@ from app.services.event_reminders import run_packing_reminders, run_ride_reminde
 from app.services.morning import run_morning_summaries
 from app.services.today_cards import run_waste_reminders
 from app.services.notify import notify, prune_notifications
+from app.services.security_log import prune as prune_security_log, run_security_summary
 
 
 async def run_calendar_reminders(db: AsyncSession, now: datetime | None = None) -> int:
@@ -191,6 +192,8 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                     await run_party_mailings(db)
                     await run_party_thanks(db)
                     await prune_notifications(db)
+                    await run_security_summary(db)
+                    await prune_security_log(db)
             except Exception:
                 pass
 

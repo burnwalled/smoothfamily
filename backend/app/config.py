@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     searxng_url: str = ""
     database_url: str = "postgresql+asyncpg://smooth:smooth@db:5432/smoothfamily"
     redis_url: str = "redis://redis:6379/0"
+    # The one secret everything else hangs on; the server refuses to start with this placeholder.
     secret_key: str = "change-me-in-.env"
     data_dir: str = "./data"
     access_token_expire_minutes: int = 60 * 24 * 14  # 14 days

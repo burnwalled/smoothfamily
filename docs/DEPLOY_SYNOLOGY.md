@@ -26,7 +26,10 @@ PC and copied over. A NAS is usually too small to build the Next.js frontend.
   to `.env`: **small** below 2 GB (Postgres 64 MB buffers, Node 160 MB,
   Redis 48 MB – tested on a DS412+, Atom D2700, 1 GB, DSM 6.2.4, Docker
   20.10.3) or **standard** otherwise (256 MB / 512 MB / 128 MB). Tune the
-  values in `.env`; delete `MEMORY_PROFILE` to let `install.sh` choose again.
+  values in `.env`; delete `MEMORY_PROFILE` to let `install.sh` choose again. Since 3.4.1 the
+  profile also caps the containers (`BACKEND_MEMORY`, `FRONTEND_MEMORY`) and the space uploads may
+  take while they come in (`BACKEND_TMP`, memory-backed): an upload bigger than that fails on its
+  own instead of taking the server's memory.
 - DNS: `family.example.com  CNAME  yourname.myds.me` (or the UniFi DDNS name).
 
 ## 1. Get a release

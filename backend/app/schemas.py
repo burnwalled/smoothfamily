@@ -118,6 +118,7 @@ class NotificationPrefs(BaseModel):
     subs_cancel: bool = True
     subs_quarter: bool = True
     subs_year: bool = True
+    security: bool = True
 
 
 class MeOut(MemberOut):

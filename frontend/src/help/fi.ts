@@ -1334,6 +1334,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Turvallisuus asettaa säännöt pääsyavaimille, kaksivaiheisille koodeille ja salasanojen pituudelle. Osoite ja palvelut sisältää palvelimen internet-osoitteen, haun ja kaikkien perheiden palvelut. Palvelimen aloitusoppaan voi avata uudelleen yläreunasta."
+      },
+      {
+        "h": "Turvallisuusloki"
+      },
+      {
+        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä näkee viimeisten 30 päivän epäonnistuneet kirjautumiset, liian monet yritykset pysäyttävän jarrun, olemattomat linkit, jäsenten uudet laitteet ja vaihdetut salasanat – palvelimen kaikista perheistä, kunkin lähdeosoitteineen. Jarrusta ilmoitetaan heti, ja vuorokauden yhteenveto tulee aamulla, kun jotain on tapahtunut. Jokainen jäsen saa tiedon omalle tililleen tulleesta uudesta laitteesta ja vaihdetusta salasanasta: eikö se ollut sinä? Uusi salasana kirjaa muut ulos. Kukin valitsee kohdassa Oma profiili → Ilmoitukset, lähetetäänkö nämä push-ilmoituksina."
       }
     ]
   },

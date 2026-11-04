@@ -29,7 +29,7 @@ from app.models import Family, User, WebAuthnCredential
 from app.routers.auth import _me
 from app.schemas import MeOut
 from app.security import create_token, read_mfa_token, set_session_cookie, verify_password
-from app.services import login_throttle, mfa, public_url
+from app.services import login_throttle, mfa, public_url, security_log
 
 router = APIRouter(prefix="/api/auth", tags=["mfa"])
 
@@ -138,6 +138,7 @@ async def login_with_code(payload: MfaCode, request: Request, response: Response
         raise HTTPException(status_code=400, detail="No authenticator configured")
     if not _accept_code(user, mfa.decrypt_secret(user.totp_secret_encrypted), payload.code):
         login_throttle.record_failure(user.username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, detail="code")
         raise HTTPException(status_code=401, detail="Wrong code")
     await db.commit()
     return await _finish_login(user, response, db)
@@ -213,6 +214,7 @@ async def passkey_login_verify(payload: PasskeyLoginIn, request: Request, respon
         )
     except (InvalidAuthenticationResponse, InvalidJSONStructure) as exc:
         login_throttle.record_failure(user.username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, detail="passkey")
         raise HTTPException(status_code=401, detail="Passkey could not be verified") from exc
 
     cred.sign_count = verified.new_sign_count
@@ -281,6 +283,7 @@ async def totp_disable(payload: TotpDisable, request: Request, user: CurrentUser
     user.totp_secret_encrypted = None
     user.totp_last_step = None
     await db.commit()
+    await security_log.record(db, "mfa_off", ip=ip, user=user)
 
 
 @router.post("/passkeys/register/options", response_model=ChallengeOut)

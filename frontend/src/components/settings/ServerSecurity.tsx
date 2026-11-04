@@ -5,10 +5,50 @@
 import { useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { api } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 
 type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required"; password_min_adult: number; password_min_child: number };
+type Event = { id: string; kind: string; username: string; name: string | null; ip: string; detail: string; created_at: string };
+type Overview = { day: Record<string, number>; week: Record<string, number>; events: Event[] };
+const SUMMARY = ["login_failed", "throttled", "link_invalid", "new_device"] as const;
+
+// The security log (3.4.1): what's worth knowing about who tried to get in, the last 30 days.
+export function SecurityLog() {
+  const { t, dateLocale } = useI18n();
+  const view = useApi<Overview>("/api/server/security").data;
+  const kind = (k: string) => t(`server.security.kind.${k}` as TranslationKey);
+  if (!view) return null;
+  return (
+    <section className="card mt-4 space-y-3 p-5" aria-label={t("server.security.log")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("server.security.log")}</h2>
+      <p className="text-sm text-muted">{t("server.security.intro")}</p>
+      <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+        {SUMMARY.map((k) => (
+          <div key={k} className="rounded-lg border border-edge p-2">
+            <dt className="text-xs text-muted">{kind(k)}</dt>
+            <dd className="font-semibold">{t("server.security.counts", { day: view.day[k] ?? 0, week: view.week[k] ?? 0 })}</dd>
+          </div>
+        ))}
+      </dl>
+      {view.events.length === 0 ? (
+        <p className="text-sm text-muted">{t("server.security.empty")}</p>
+      ) : (
+        <ul className="divide-y divide-edge text-xs [overflow-wrap:anywhere]">
+          {view.events.slice(0, 150).map((e) => (
+            <li key={e.id} className="flex flex-wrap gap-x-3 gap-y-0.5 py-1.5">
+              <span className="w-28 shrink-0 text-muted">{new Date(e.created_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="font-semibold">{kind(e.kind)}</span>
+              {(e.name || e.username) && <span>{e.name ? `${e.name} (${e.username})` : e.username}</span>}
+              {e.ip && <span className="text-muted">{e.ip}</span>}
+              {e.detail && <span className="text-muted">{e.detail}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export default function ServerSecurity() {
   const { t } = useI18n();

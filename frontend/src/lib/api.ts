@@ -192,6 +192,7 @@ export type NotificationPrefs = {
   subs_cancel?: boolean;
   subs_quarter?: boolean;
   subs_year?: boolean;
+  security?: boolean;
 };
 
 export type Member = {
