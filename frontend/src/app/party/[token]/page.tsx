@@ -18,8 +18,8 @@ import PartySky from "@/components/parties/PartySky";
 import Poster from "@/components/parties/Poster";
 import { Block, PosterData, Stage, defaultPoster } from "@/lib/poster";
 
-type Companion = { first_name: string; last_name: string; child: boolean; allergies: string };
-type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean };
+type Companion = { first_name: string; last_name: string; child: boolean; allergies: string ; menu_choice?: string | null };
+type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null };
 type Page = {
   // What the link shows now, and where the portal is once its time has come.
   stage: Stage;
@@ -46,7 +46,51 @@ type Page = {
   wishes: { id: string; title: string; url: string | null; note: string | null; reserved: boolean; reserved_by_you: boolean }[] | null;
   thanks: { text: string; photos: string[] } | null;
   mine: Reply | null;
+  menu: { id: string; name: string }[]; speech_signup: boolean; practical: { parking?: string; lodging?: string; travel?: string };
 };
+
+// A thumb up or down before the party, by the guest's own link. Down changes their reply.
+function CheckIn({ token, mine, guestKey, onDone }: { token: string; mine: Reply | null; guestKey?: string; onDone: () => void }) {
+  const { t } = useI18n();
+  const [going, setGoing] = useState<boolean | null>(null);
+  const [message, setMessage] = useState("");
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  if (!mine || !guestKey) return <p className="text-sm text-muted">{t("party.checkinNeedsLink")}</p>;
+  const send = async () => {
+    setError("");
+    try {
+      await api.post(`/api/party/${token}/checkin?key=${encodeURIComponent(guestKey)}`, { going, message });
+      setSent(true);
+      setGoing(null);
+      setMessage("");
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.error"));
+    }
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-lg font-semibold">{mine.pending ? t("party.checkinWaiting", { name: mine.first_name }) : mine.coming ? t("party.checkinYou", { name: mine.first_name }) : t("party.replyNot", { name: mine.first_name })}</p>
+      <div className="flex gap-3" role="radiogroup" aria-label={t("party.checkinHeading")}>
+        {[true, false].map((v) => (
+          <button key={String(v)} type="button" role="radio" aria-checked={going === v} aria-label={t(v ? "party.checkinYes" : "party.checkinNo")} className={`flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 p-4 text-sm font-semibold ${going === v ? "border-accent" : "border-edge"}`} onClick={() => setGoing(v)}>
+            <span className="text-4xl" aria-hidden>{v ? "👍" : "👎"}</span>
+            {t(v ? "party.checkinYes" : "party.checkinNo")}
+          </button>
+        ))}
+      </div>
+      {going !== null && (
+        <>
+          <label className="block"><span className="label">{t(going ? "party.checkinNoteYes" : "party.checkinNoteNo")}</span><input className="input" value={message} maxLength={500} onChange={(e) => setMessage(e.target.value)} /></label>
+          <button className="pt-btn" type="button" onClick={() => { void send(); }}>{t("party.checkinSend")}</button>
+        </>
+      )}
+      {sent && <p className="text-sm font-semibold text-accent" role="status">{t("party.checkinThanks")}</p>}
+      {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+    </div>
+  );
+}
 
 const EMPTY: Reply = { first_name: "", last_name: "", coming: true, allergies: "", message: "", companions: [], email: "", updates: false, date_votes: [] };
 const NOBODY: Companion = { first_name: "", last_name: "", child: false, allergies: "" };
@@ -215,6 +259,7 @@ export default function PartyInvitation() {
   const fonts = FONTS[theme.fonts];
   const poster: PosterData = {
     guest: page.mine?.first_name || undefined,
+    practical: page.practical,
     title: page.title, family: page.family_name, emoji: page.emoji, start, end, place: page.place, address: page.address, theme: page.theme,
     invitation: page.invitation, rsvp: page.rsvp_by ? new Date(`${page.rsvp_by}T12:00:00`) : null, poll, guests: page.guests, locale: dateLocale,
     inviteImage: page.invite_image ? `/api/party/${token}/picture?v=${page.invite_image}` : null,
@@ -228,7 +273,7 @@ export default function PartyInvitation() {
   const blocks: Block[] = stage === "save" && page.mail && !drawn.some((b) => b.type === "subscribe") ? [...drawn, { id: "subscribe", type: "subscribe", heading: t("party.subscribeHeading"), font: "theme-display", size: "l" }] : drawn;
   const replied = !!page.mine && !page.mine.pending;
   const reply = page.mine;
-  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null };
+  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null, checkin: <CheckIn token={token} mine={page.mine} guestKey={key()} onDone={load} /> };
 
   return (
     <main className="pt" lang={page.language} style={themeStyle(theme)}>
@@ -310,6 +355,20 @@ export default function PartyInvitation() {
             {coming && (
               <label className="block"><span className="label">{t("parties.allergiesLabel")}</span><input className="input" value={form.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setForm({ ...form, allergies: e.target.value })} /></label>
             )}
+            {coming && page.menu.length > 0 && (
+              <label className="block"><span className="label">{t("party.menuChoice")}</span>
+                <select className="input" value={form.menu_choice ?? ""} onChange={(e) => setForm({ ...form, menu_choice: e.target.value || null })}>
+                  <option value="">{t("party.menuNone")}</option>
+                  {page.menu.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </label>
+            )}
+            {coming && page.speech_signup && (
+              <div className="space-y-2 rounded-xl border border-edge p-3">
+                <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={!!form.wants_speech} onChange={(e) => setForm({ ...form, wants_speech: e.target.checked })} />{t("party.wantsSpeech")}</label>
+                {form.wants_speech && <label className="block"><span className="label">{t("party.speechNote")}</span><input className="input" value={form.speech_note ?? ""} maxLength={200} placeholder={t("party.speechNotePh")} onChange={(e) => setForm({ ...form, speech_note: e.target.value })} /></label>}
+              </div>
+            )}
             {coming && most > 0 && (
               <fieldset className="space-y-2 rounded-xl border border-edge p-3">
                 <legend className="px-1 text-sm font-semibold">{most === 1 ? t("party.plusOne") : t("party.company")}</legend>
@@ -324,6 +383,14 @@ export default function PartyInvitation() {
                       <button type="button" className="mt-6 text-muted hover:text-red-700" aria-label={t("party.removeCompanion", { name: c.first_name || String(i + 1) })} onClick={() => setForm({ ...form, companions: form.companions.filter((_, j) => j !== i) })}><X className="h-4 w-4" aria-hidden /></button>
                     </div>
                     <label className="block"><span className="label">{t("parties.allergiesLabel")}</span><input className="input" value={c.allergies} maxLength={300} placeholder={t("parties.allergiesPh")} onChange={(e) => setCompanion(i, { allergies: e.target.value })} /></label>
+                    {page.menu.length > 0 && (
+                      <label className="block"><span className="label">{t("party.menuChoice")}</span>
+                        <select className="input" value={c.menu_choice ?? ""} onChange={(e) => setCompanion(i, { menu_choice: e.target.value || null })}>
+                          <option value="">{t("party.menuNone")}</option>
+                          {page.menu.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                      </label>
+                    )}
                     <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={c.child} onChange={(e) => setCompanion(i, { child: e.target.checked })} />{t("party.isChild")}</label>
                   </div>
                 ))}

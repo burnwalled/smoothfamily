@@ -10,10 +10,11 @@ import { uploadFile, api } from "@/lib/api";
 import { isLocale, useI18n } from "@/lib/i18n";
 import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThemes";
 import PartySky from "@/components/parties/PartySky";
-import Poster from "@/components/parties/Poster";
+import Poster, { Countdown } from "@/components/parties/Poster";
 import { Block, PosterData, defaultPoster } from "@/lib/poster";
 
 type Portal = {
+  locked?: boolean; opens_at?: string | null; practical?: { parking?: string; lodging?: string; travel?: string };
   title: string; kind: string; emoji: string; family_name: string; language: string; starts_at: string; ends_at: string; place: string; address: string;
   theme: string; invitation: string; page_theme: string; page_custom: CustomTheme | null; invite_image: string | null;
   layout: Block[] | null; assets: { id: string; v: string | null }[]; playlist_url: string | null;
@@ -93,13 +94,29 @@ export default function PartyPortal() {
   if (invalid) return <main className="mx-auto max-w-lg p-6 text-center text-muted">{t("party.invalid")}</main>;
   if (!page) return <main className="mx-auto max-w-lg p-6 text-center text-muted">{t("common.loading")}</main>;
   const own = page.page_custom;
+  if (page.locked) {
+    const look = page.page_theme === "custom" && own ? customTheme(own, () => "") : partyTheme(page.page_theme);
+    const when = page.opens_at ? new Date(page.opens_at) : null;
+    return (
+      <main className="pt" lang={page.language} style={themeStyle(look)}>
+        <PartySky effect={look.effect} colors={look.sparks} />
+        <div className="relative z-10 h-2" style={{ background: look.band }} />
+        <div className="relative z-10 mx-auto max-w-3xl space-y-4 px-4 py-16 text-center">
+          <p className="text-6xl" aria-hidden>{page.emoji}</p>
+          <h1 className="pt-gold pt-display text-5xl">{page.title}</h1>
+          <p className="text-lg" role="status">{when ? t("portal.opensAt", { when: when.toLocaleString(dateLocale, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) }) : t("portal.notOpen")}</p>
+          {when && when.getTime() > Date.now() && <Countdown to={when.getTime()} heading="" s={{ align: "center" }} theme={look} />}
+        </div>
+      </main>
+    );
+  }
   const theme = page.page_theme === "custom" && own ? customTheme(own, (slot, v) => `/api/party-portal/${token}/themes/${own.id}/${slot}?v=${v}`) : partyTheme(page.page_theme);
   const d: PosterData = {
     title: page.title, family: page.family_name, emoji: page.emoji, start: new Date(page.starts_at), end: new Date(page.ends_at), place: page.place, address: page.address,
     theme: page.theme, invitation: page.invitation, rsvp: null, poll: false, guests: null, locale: dateLocale,
     inviteImage: page.invite_image ? `/api/party-portal/${token}/picture?v=${page.invite_image}` : null,
     asset: (id) => `/api/party-portal/${token}/assets/${id}?v=${page.assets.find((x) => x.id === id)?.v ?? ""}`,
-    ics: "", thanks: false, playlist: page.playlist_url, steps: page.steps,
+    ics: "", thanks: false, playlist: page.playlist_url, steps: page.steps, practical: page.practical,
   };
   const blocks = page.layout?.length ? page.layout : defaultPoster(theme, d, t, "portal");
   const gallery = page.gallery ? (
@@ -124,7 +141,7 @@ export default function PartyPortal() {
         <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
       <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-10 sm:px-6">
-        <Poster blocks={blocks} d={d} theme={theme} slots={{ upload: <Upload token={token} onUploaded={load} />, gallery, subscribe: null }} />
+        <Poster blocks={blocks} d={d} theme={theme} slots={{ upload: <Upload token={token} onUploaded={load} />, gallery, subscribe: null, checkin: null }} />
       </div>
     </main>
   );

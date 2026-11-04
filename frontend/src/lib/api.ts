@@ -1,6 +1,7 @@
 // Thin fetch wrapper. All calls go through the Next rewrite /api -> backend,
 // so the session cookie travels along automatically (same origin).
 
+import { isPartyHelper } from "@/lib/partyHelper";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { apiKey, clearQueryCache, queryClient, shouldRetry } from "@/lib/queryClient";
 import { canQueue, enqueue, flush, hasPending } from "@/lib/outbox";
@@ -21,7 +22,7 @@ export class ApiError extends Error {
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...(isPartyHelper() ? { "X-Party-Helper": "1" } : {}), ...init?.headers },
     credentials: "same-origin",
   });
   if (!resp.ok) {
@@ -1045,7 +1046,7 @@ export async function postRaw<T>(path: string, body: string): Promise<T> {
 export async function uploadFile<T>(path: string, file: File): Promise<T> {
   const data = new FormData();
   data.append("file", file);
-  const resp = await fetch(path, { method: "POST", body: data, credentials: "same-origin" });
+  const resp = await fetch(path, { method: "POST", body: data, credentials: "same-origin", headers: isPartyHelper() ? { "X-Party-Helper": "1" } : undefined });
   if (!resp.ok) {
     let detail = resp.statusText;
     try {

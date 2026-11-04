@@ -6,7 +6,7 @@ import type { Block, DecorItem, DetailField, Stage, TextStyle } from "@/lib/post
 import type { CustomTheme } from "@/lib/partyThemes";
 
 export const TEMPLATE_FORMAT = "smooth-family-template";
-const STAGES: Stage[] = ["save", "invite", "portal", "thanks"];
+const STAGES: Stage[] = ["save", "invite", "checkin", "portal", "thanks"];
 const MAX_BLOCKS = 60;
 export const MAX_TEMPLATE_CHARS = 200_000;
 
@@ -108,6 +108,8 @@ function block(r: unknown, id: string, known: Known, warnings: TemplateWarning[]
     case "schedule":
     case "upload":
     case "gallery":
+    case "practical":
+    case "checkin":
       return { ...base, type: r.type, ...compact({ heading }), ...style(r) } as Block;
     case "calendar": {
       const buttons = (Array.isArray(r.buttons) ? r.buttons : []).filter((x): x is "ics" | "google" | "outlook" => ["ics", "google", "outlook"].includes(x as string));
@@ -250,8 +252,8 @@ THE PARTY
 Kind of party: ${kind}. Write all the guests' texts in this language: ${language}.
 
 THE FORMAT
-{ "format": "${TEMPLATE_FORMAT}", "version": 1, "name": string, "theme": string, "look": optional object, "layouts": { "save": blocks, "invite": blocks, "portal": blocks, "thanks": blocks } }
-The four pages are: save = save-the-date, invite = the invitation, portal = the page during the party (photos, plan), thanks = the thank-you afterwards. Leave a page out to use the theme's own.
+{ "format": "${TEMPLATE_FORMAT}", "version": 1, "name": string, "theme": string, "look": optional object, "layouts": { "save": blocks, "invite": blocks, "checkin": blocks, "portal": blocks, "thanks": blocks } }
+The pages are: save = save-the-date, invite = the invitation, checkin = shortly before the party (a thumb up or down), portal = the page during the party (photos, plan), thanks = the thank-you afterwards. Leave a page out to use the theme's own.
 
 "theme" is one of: ${themes.join(", ")}.
 To use your own colours instead, leave out "theme" and give "look": { "bg": "#rrggbb", "bg2": "#rrggbb", "accent": "#rrggbb", "ink": "#rrggbb", "pattern": "none|confetti|dots|stars|stripes|hearts|check", "decor": "up to 6 emoji", "font": "gala|playful|retro|classic|sporty", "effect": "none|confetti|bokeh|stars|bubbles|snow|leaves|embers" }. Make sure "ink" is easy to read on "bg" and "bg2".
@@ -263,7 +265,7 @@ A block is an object with "type". Any block may have "side": "left" or "right" â
 - emblem: "item"
 - decor: "items": a list of items, "size": s|m|l, "align"
 - calendar: "buttons" from ics, google, outlook, "map": true|false, "align"
-- countdown, subscribe (guests register with a name and an e-mail: belongs on save), playlist, schedule, upload, gallery (photos: upload and gallery belong on portal): "heading", and the style fields
+- countdown, subscribe (guests register with a name and an e-mail: belongs on save), checkin (the thumb up or down: belongs on checkin), practical (parking, lodging, travel from the hosts), playlist, schedule, upload, gallery (photos: upload and gallery belong on portal): "heading", and the style fields
 - invitation: "text", "ribbon", and the style fields
 - ribbon: "text", "align"
 - divider: "style": swash|line|dots|stars, "align"

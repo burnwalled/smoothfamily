@@ -198,7 +198,7 @@ function Divider({ b }: { b: Extract<Block, { type: "divider" }> }) {
 }
 
 // What the interactive pieces hold on the page they're on; in the editor, a picture of them.
-export type Slots = Partial<Record<"subscribe" | "upload" | "gallery", ReactNode>>;
+export type Slots = Partial<Record<"subscribe" | "upload" | "gallery" | "checkin", ReactNode>>;
 
 function Section({ heading, s, theme, d, children }: { heading?: string; s: TextStyle; theme: PartyTheme; d: PosterData; children: ReactNode }) {
   const { t } = useI18n();
@@ -307,9 +307,20 @@ function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; the
           </ol>
         </Section>
       ) : null;
+    case "practical": {
+      const rows = (["parking", "lodging", "travel"] as const).filter((k) => d.practical?.[k]);
+      return rows.length ? (
+        <Section heading={b.heading} s={b} theme={theme} d={d}>
+          <dl className="divide-y divide-edge">
+            {rows.map((k) => <div key={k} className="py-2"><dt className="pt-k">{t(`party.practical.${k}`)}</dt><dd className="m-0 whitespace-pre-line text-lg">{d.practical?.[k]}</dd></div>)}
+          </dl>
+        </Section>
+      ) : null;
+    }
     case "subscribe":
     case "upload":
     case "gallery":
+    case "checkin":
       return slots[b.type] === null ? null : <Section heading={b.heading} s={b} theme={theme} d={d}>{slots[b.type] ?? <p className="text-sm text-muted">{t(`poster.slot.${b.type}`)}</p>}</Section>;
   }
 }
