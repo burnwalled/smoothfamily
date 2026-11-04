@@ -1107,3 +1107,72 @@ async def test_the_planners_chat_with_a_toastmaster(client):
     assert [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
     assert (await client.delete(f"/api/parties/{pid}")).status_code == 204
     assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+
+
+async def test_who_plans_is_not_who_is_celebrated(client):
+    ids = await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    # All the adults until someone chooses.
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    assert set(party["planners"]) == {ids["admin"], ids["adult1"]}
+    adults = (await client.get("/api/parties/adults")).json()
+    assert {a["id"] for a in adults} == {ids["admin"], ids["adult1"]}
+
+    # Only me: the other adult doesn't see it, can't open it and hears nothing of it.
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"]], "guest_chat": True, "planner_chat": True})).json()["planners"] == [ids["admin"]]
+    await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "coming": True})
+    await _as(client, "adult1")
+    assert (await client.get("/api/parties")).json() == []
+    assert (await client.get(f"/api/parties/{pid}")).status_code == 404
+    assert (await client.put(f"/api/parties/{pid}", json={"title": "x"})).status_code == 404
+    assert (await client.delete(f"/api/parties/{pid}")).status_code == 404
+    assert (await client.get(f"/api/parties/{pid}/chat/guests")).status_code == 404
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if c["conversation_name"] and "gäster" in c["conversation_name"]]
+    assert not (await client.get("/api/notifications")).json() or "Saga" not in str((await client.get("/api/notifications")).json())
+
+    # Children never plan; nobody takes themselves out, and only the family's adults can be chosen.
+    await _as(client, "admin", "secret123")
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["adult1"]]})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"], ids["maja"]]})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": []})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"title": "Ny titel"})).json()["planners"] == [ids["admin"]]  # left alone
+
+    # A task and the keeping-from only for those planning; back in, the chats follow.
+    task = (await client.get(f"/api/parties/{pid}")).json()["tasks"][0]["id"]
+    both = (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"], ids["adult1"]]})).json()
+    await client.put(f"/api/parties/{pid}/tasks/{task}", json={"who": ids["adult1"]})
+    out = (await client.put(f"/api/parties/{pid}", json={"planners": [ids["admin"]]})).json()
+    assert next(x for x in out["tasks"] if x["id"] == task)["who"] is None and len(both["planners"]) == 2
+
+    # Made with its planners from the start.
+    made = (await client.post("/api/parties", json=_party(start, kind="party", planners=[ids["admin"]]))).json()
+    assert made["planners"] == [ids["admin"]]
+    assert (await client.post("/api/parties", json=_party(start, kind="party", planners=[ids["adult1"]]))).status_code == 422
+    await _as(client, "adult1")
+    assert [p["id"] for p in (await client.get("/api/parties")).json()] == []
+
+    # A helper's link still works, for whoever's planning.
+    await _as(client, "admin", "secret123")
+    code = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars"})).json()["party"]["helpers"][0]["id"]
+    link = (await client.post(f"/api/parties/{pid}/helpers/{code}/link")).json()["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/party-help/{link}/enter")
+    assert (await client.get(f"/api/parties/{pid}", headers={"X-Party-Helper": "1"})).json()["you"]["helper"] is True
+    assert (await client.put(f"/api/parties/{pid}", json={"planners": [ids["adult1"]]}, headers={"X-Party-Helper": "1"})).json()["planners"] == [ids["adult1"]]
+
+
+async def test_removing_a_member_who_chats_and_plans(client):
+    ids = await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    await client.put(f"/api/parties/{party['id']}", json={"planner_chat": True})
+    await _as(client, "adult1")
+    conv = next(c for c in (await client.get("/api/chat/conversations")).json() if "planering" in (c["conversation_name"] or ""))
+    await client.post("/api/chat/messages", json={"peer": conv["peer_key"], "body": "Jag fixar tårtan"})
+    await _as(client, "admin", "secret123")
+    assert (await client.put(f"/api/parties/{party['id']}", json={"planners": [ids["admin"], ids["adult1"]]})).status_code == 200
+    assert (await client.delete(f"/api/family/members/{ids['adult1']}")).status_code == 204
+    # What they wrote stays, under their name, and the party still has its planner.
+    items = (await client.get(f"/api/chat/messages?peer={conv['peer_key']}")).json()["items"]
+    assert items[0]["body"] == "Jag fixar tårtan" and items[0]["sender_name"] == "Adult1" and items[0]["sender_id"] is None
+    assert (await client.get(f"/api/parties/{party['id']}")).json()["planners"] == [ids["admin"]]

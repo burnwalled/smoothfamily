@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Vem som firas och vilka som planerar är två val. De som firas får festen i sin kalender. De som är ikryssade under Vilka planerar kan öppna och ändra den, får dess påminnelser och är med i dess chattar; de andra i familjen ser den inte bland festerna. Så kan föräldrar planera ett barns kalas, eller en partner en överraskning.",
           "En fest kan ha två chattar, som väljs under Detaljer. Gästchatten finns på deras sidor och i portalen, där de skriver till varandra och er före och under festen, och även i er chattapp. Planeringschatten är för familjens vuxna och hjälparna, och de som planen hålls hemlig för är inte med.",
           "Mejlen är HTML i festens tema, med gästens egen knapp, och vanlig text till program som vill ha det. Spara datumet mejlas inte, eftersom du inte har adresserna än: under Utskick får du ett färdigt meddelande med länken, att dela med sms, WhatsApp, e-post eller valfri app. De som anmäler sig lämnar sin adress och får inbjudan med mejl.",
           "Under Gäster kan ni länka ihop gäster, till exempel ett par som båda registrerat sig. Båda behåller sitt eget svar och sin länk, men ingen räknas dubbelt, de kan inte ta med ytterligare en +1, de hamnar vid samma bord och den ena kan svara för den andra. Appen säger till när någons +1 redan står på listan, och visar hur många som som mest kan komma.",

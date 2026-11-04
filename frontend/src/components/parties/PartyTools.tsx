@@ -151,7 +151,7 @@ export function PlanTab({ party, run, path }: TabProps) {
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("plan.hiddenTitle")}</h2>
           <p className="text-xs text-muted">{t("plan.hiddenHelp")}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
-            {party.adults.map((a) => (
+            {party.adults.filter((a) => party.planners.includes(a.id)).map((a) => (
               <label key={a.id} className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.plan_hidden.includes(a.id)} onChange={(e) => hiddenFrom(a.id, e.target.checked)} />{a.name}</label>
             ))}
           </div>

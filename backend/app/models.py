@@ -2045,6 +2045,9 @@ class Party(Base):
     mail_texts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Whom the helpers keep the planning from: the family's users by id.
     plan_hidden: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Those of the family's adults who plan it, by user id; None = all of them. It's not who's being
+    # celebrated (person_ids): that's often a child, or someone it's meant to be a surprise for.
+    planners: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # The chats: with the guests, and among those planning (with the helpers).
     guest_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     planner_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

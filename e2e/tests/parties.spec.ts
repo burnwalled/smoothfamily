@@ -949,3 +949,25 @@ test("every step fits a phone", async ({ adminPage: page, adminApi, browser }) =
     await adminApi.delete(`/api/parties/${party.id}`);
   }
 });
+
+// Who's celebrated and who plans are two choices: the choice is there, and you can't take yourself out.
+test("who's planning", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Planfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const second = await (await adminApi.post("/api/family/members", { data: { display_name: unique("Partner"), username: unique("partner").replace(/\W/g, "").toLowerCase(), password: "correct-horse-battery", role: "adult" } })).json();
+  const detail = await (await adminApi.get(`/api/parties/${party.id}`)).json();
+  expect(detail.adults.length).toBeGreaterThan(1);
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const who = page.getByRole("group", { name: "Who's planning?" });
+    const me = detail.adults.find((a: { id: string }) => a.id === detail.you.user_id);
+    const other = detail.adults.find((a: { id: string }) => a.id !== detail.you.user_id);
+    await expect(who.getByRole("checkbox", { name: me.name })).toBeDisabled();
+    await who.getByRole("checkbox", { name: other.name }).click();
+    await expect(who.getByRole("checkbox", { name: other.name })).not.toBeChecked();
+    await expect.poll(async () => (await (await adminApi.get(`/api/parties/${party.id}`)).json()).planners).not.toContain(other.id);
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+    await adminApi.delete(`/api/family/members/${second.id}`);
+  }
+});
