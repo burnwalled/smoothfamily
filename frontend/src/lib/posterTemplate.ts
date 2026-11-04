@@ -62,7 +62,13 @@ function item(r: unknown, known: Known, warnings: TemplateWarning[]): DecorItem 
 
 function block(r: unknown, id: string, known: Known, warnings: TemplateWarning[]): Block | null {
   if (!isObject(r)) return null;
-  const base = compact({ id, side: oneOf<NonNullable<Block["side"]>>(r.side, SIDES) });
+  const own = isObject(r.phone) ? r.phone : {};
+  const phone = compact({
+    order: typeof own.order === "number" && Number.isInteger(own.order) ? Math.max(0, Math.min(200, own.order)) : undefined,
+    align: oneOf<"left" | "center" | "right">(own.align, ALIGNS), size: oneOf<NonNullable<TextStyle["size"]>>(own.size, SIZES),
+  });
+  const hide = (Array.isArray(r.hide) ? r.hide : []).filter((d): d is "desktop" | "phone" => d === "desktop" || d === "phone");
+  const base = compact({ id, side: oneOf<NonNullable<Block["side"]>>(r.side, SIDES), hide: hide.length ? hide : undefined, phone: Object.keys(phone).length ? phone : undefined });
   const align = oneOf<"left" | "center" | "right">(r.align, ALIGNS);
   const heading = text(r.heading, 200);
   switch (r.type) {
@@ -207,7 +213,7 @@ export function galaTemplate(t: (key: string, values?: Record<string, string | n
     if (stage === "save") out.push({ id: id(), type: "subscribe", heading: t("party.subscribeHeading"), font: "theme-display", size: "l" });
     out.push(
       { id: id(), type: "countdown", heading: t("template.gala.countdown"), font: "theme-script", size: "xl", align: "center" },
-      { id: id(), type: "emblem", side: "left", item: { kind: "library", value: "champagne-bottle" } },
+      { id: id(), type: "emblem", side: "left", hide: ["phone"], item: { kind: "library", value: "champagne-bottle" } },
       { id: id(), type: "text", side: "right", text: t("template.gala.closing"), font: "theme-script", size: "xl", color: "gold" },
       { id: id(), type: "text", side: "right", text: f("invitation"), font: "theme-body", size: "m", color: "muted" },
       { id: id(), type: "ribbon", side: "right", text: stage === "save" ? t("template.gala.more") : t("party.welcomeAll") },
@@ -249,7 +255,7 @@ The four pages are: save = save-the-date, invite = the invitation, portal = the 
 "theme" is one of: ${themes.join(", ")}.
 To use your own colours instead, leave out "theme" and give "look": { "bg": "#rrggbb", "bg2": "#rrggbb", "accent": "#rrggbb", "ink": "#rrggbb", "pattern": "none|confetti|dots|stars|stripes|hearts|check", "decor": "up to 6 emoji", "font": "gala|playful|retro|classic|sporty", "effect": "none|confetti|bokeh|stars|bubbles|snow|leaves|embers" }. Make sure "ink" is easy to read on "bg" and "bg2".
 
-A block is an object with "type". Any block may have "side": "left" or "right" – blocks next to each other in the list share a row on a wide screen. These types exist, with no others:
+A block is an object with "type". Any block may have "side": "left" or "right" – blocks next to each other in the list share a row on a wide screen. On a phone everything stacks. Any block may also have "phone": { "order": number, "align": left|center|right, "size": s|m|l|xl|xxl }, which applies on phones only (give "order" to all blocks of a page, or to none), and "hide": ["phone"] or ["desktop"] to leave it out there. These types exist, with no others:
 - text: "text", and the style fields
 - details: "variant": ticket|card|list|bigdate, "heading", "fields" from when, where, what, rsvp, guests, optional "labels" and "subs" (per field: its name, its small line), and for a ticket "note" and "stub": [{ "label", "value" }]
 - image: "source": "invite" (the party's own picture; show it with "fallback" when there is none) or "library" with "asset"; "style": poster|polaroid|round|plain; "tag"; "align"

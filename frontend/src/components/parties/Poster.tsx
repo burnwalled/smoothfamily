@@ -2,12 +2,13 @@
 
 // A party's poster (3.4.0), drawn from its blocks – on the guests' page and in the hosts' editor.
 // Blocks side by side (left, right) share a row on a wide screen; texts are only ever text.
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CalendarPlus, Music, Navigation } from "lucide-react";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { mapLinks } from "@/lib/maps";
 import type { PartyTheme } from "@/lib/partyThemes";
-import { Block, CalendarButton, DecorItem, DetailField, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { Block, CalendarButton, DecorItem, DetailField, Device, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { PHONE_BELOW, forDevice } from "@/lib/posterDevice";
 import { libraryUrl } from "@/lib/partyLibrary";
 import "@/app/party/[token]/party.css";
 
@@ -326,7 +327,20 @@ function rows(blocks: Block[]): ({ kind: "full"; b: Block } | { kind: "pair"; le
   return out;
 }
 
-export default function Poster({ blocks, d, theme, selected, onSelect, slots = {} }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void; slots?: Slots }) {
+// device: as the editor shows it; the guests get what suits the width they have.
+export default function Poster({ blocks, d, theme, selected, onSelect, slots = {}, device }: { blocks: Block[]; d: PosterData; theme: PartyTheme; selected?: string | null; onSelect?: (id: string) => void; slots?: Slots; device?: Device }) {
+  const root = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<Device>("desktop");
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (device || !el) return;
+    const read = () => setMeasured(el.clientWidth < PHONE_BELOW ? "phone" : "desktop");
+    read();
+    const watch = new ResizeObserver(read);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [device]);
+  const shown = forDevice(blocks, device ?? measured);
   // The page's heading: the text with the party's name, or the hosts' biggest words in its place.
   const titleId = (blocks.find((b) => b.type === "text" && /\{(title|name|namn|navn|nimi)\}/i.test(b.text)) ?? blocks.find((b) => b.type === "text" && b.size === "xxl"))?.id;
   const wrap = (b: Block) => {
@@ -340,8 +354,8 @@ export default function Poster({ blocks, d, theme, selected, onSelect, slots = {
     );
   };
   return (
-    <div className="pt-c space-y-6">
-      {rows(blocks).map((r, i) =>
+    <div ref={root} className="pt-c space-y-6">
+      {(shown.flat ? shown.blocks.map((b) => ({ kind: "full" as const, b })) : rows(shown.blocks)).map((r, i) =>
         r.kind === "full" ? wrap(r.b) : (
           <div key={i} className="pt-pair py-4">
             <div className="min-w-0 space-y-4">{r.left.map(wrap)}</div>

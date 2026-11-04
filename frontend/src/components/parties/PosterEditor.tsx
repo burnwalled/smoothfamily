@@ -3,9 +3,10 @@
 // The hosts' poster editor (3.4.0): the invitation's blocks beside a live picture of the page.
 // Add, move and remove blocks, write every text with its typeface, size, alignment and colour,
 // swap the emoji for others or for pictures of one's own, choose the details' look and which
-// calendar buttons the guests get. Without changes the theme's poster is shown.
+// calendar buttons the guests get. Without changes the theme's poster is shown. Showing the phone,
+// the order, what's hidden, the alignment and the size are the phone's own; the texts are shared.
 import { useMemo, useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, ImagePlus, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Eye, EyeOff, ImagePlus, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import type { PartyTheme } from "@/lib/partyThemes";
@@ -14,6 +15,7 @@ import {
   Align, BLOCK_TYPES, Block, BlockType, CALENDAR_BUTTONS, DETAIL_FIELDS, DecorItem, FONT_CHOICES, FontChoice, PosterData, Side, TOKENS, TextStyle,
   Stage, blankBlock, defaultPoster, fill, fontFamily,
 } from "@/lib/poster";
+import { hasOrder, movePhone, onDevice, phoneDiffers, phoneOrder, placePhone, resetPhone, toggleHidden } from "@/lib/posterDevice";
 import Poster from "@/components/parties/Poster";
 import { LIBRARY, libraryUrl } from "@/lib/partyLibrary";
 
@@ -53,7 +55,14 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
     setNote("");
   };
   const patch = (id: string, p: Partial<Block>) => change(blocks.map((b) => (b.id === id ? ({ ...b, ...p } as Block) : b)));
+  // The alignment and the size: on the phone, the phone's own.
+  const look = (id: string, p: { align?: Align; size?: TextStyle["size"] }) => (device === "phone" ? change(blocks.map((b) => (b.id === id ? ({ ...b, phone: { ...b.phone, ...p } } as Block) : b))) : patch(id, p as Partial<Block>));
+  const listed = device === "phone" ? phoneOrder(blocks) : blocks;
   const move = (id: string, by: number) => {
+    if (device === "phone") {
+      change(movePhone(blocks, id, by));
+      return;
+    }
     const i = blocks.findIndex((b) => b.id === id);
     const j = i + by;
     if (j < 0 || j >= blocks.length) return;
@@ -64,7 +73,8 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
   const add = () => {
     const b = blankBlock(adding, theme, T);
     const i = selected ? blocks.findIndex((x) => x.id === selected) + 1 : blocks.length;
-    change([...blocks.slice(0, i), b, ...blocks.slice(i)]);
+    const next = [...blocks.slice(0, i), b, ...blocks.slice(i)];
+    change(device === "phone" || hasOrder(blocks) ? placePhone(next, b.id, selected) : next);
     setSelected(b.id);
   };
   async function run(action: () => Promise<unknown>, done: string) {
@@ -98,7 +108,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
           </select>
         </label>
         <label><span className="label">{t("poster.size")}</span>
-          <select className="input" value={b.size ?? "m"} onChange={(e) => patch(b.id, { size: e.target.value as TextStyle["size"] })}>
+          <select className="input" value={b.size ?? "m"} onChange={(e) => look(b.id, { size: e.target.value as TextStyle["size"] })}>
             {(["s", "m", "l", "xl", "xxl"] as const).map((s) => <option key={s} value={s}>{T(`poster.size.${s}`)}</option>)}
           </select>
         </label>
@@ -109,7 +119,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
         </label>
         <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={!!b.caps} onChange={(e) => patch(b.id, { caps: e.target.checked })} />{t("poster.caps")}</label>
       </div>
-      {alignPick(b.align ?? "left", (align) => patch(b.id, { align }))}
+      {alignPick(b.align ?? "left", (align) => look(b.id, { align }))}
     </div>
   );
   const alignPick = (value: Align, onChange: (a: Align) => void) => (
@@ -178,8 +188,8 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
           {b.items.map((it, i) => itemPick(it, (n) => patch(b.id, { items: b.items.map((x, j) => (j === i ? n : x)) }), () => patch(b.id, { items: b.items.filter((_, j) => j !== i) }), i))}
           <button type="button" className="btn-ghost flex items-center gap-1 border border-edge text-xs" disabled={b.items.length >= 12} onClick={() => patch(b.id, { items: [...b.items, { kind: "emoji", value: "✨" }] })}><Plus className="h-3.5 w-3.5" aria-hidden />{t("poster.addItem")}</button>
           <div className="flex flex-wrap items-center gap-3">
-            {alignPick(b.align ?? "left", (align) => patch(b.id, { align }))}
-            <Seg label={t("poster.size")} value={b.size ?? "m"} onChange={(size) => patch(b.id, { size })} options={[{ v: "s", label: "S" }, { v: "m", label: "M" }, { v: "l", label: "L" }]} />
+            {alignPick(b.align ?? "left", (align) => look(b.id, { align }))}
+            <Seg label={t("poster.size")} value={b.size ?? "m"} onChange={(size) => look(b.id, { size })} options={[{ v: "s", label: "S" }, { v: "m", label: "M" }, { v: "l", label: "L" }]} />
           </div>
         </div>
       );
@@ -204,7 +214,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
           </div>
           {(b.style ?? "poster") !== "round" && (b.style ?? "poster") !== "plain" && <label className="block"><span className="label">{t("poster.tag")}</span>{textField(b, "tag")}</label>}
           {b.source === "invite" && <div className="space-y-1"><span className="label">{t("poster.fallback")}</span>{b.fallback ? itemPick(b.fallback, (fallback) => patch(b.id, { fallback }), () => patch(b.id, { fallback: undefined })) : <button type="button" className="btn-ghost border border-edge text-xs" onClick={() => patch(b.id, { fallback: { kind: "emoji", value: "🎉" } })}>{t("poster.addItem")}</button>}</div>}
-          {alignPick(b.align ?? "center", (align) => patch(b.id, { align }))}
+          {alignPick(b.align ?? "center", (align) => look(b.id, { align }))}
         </div>
       );
       case "emblem": return itemPick(b.item, (item) => patch(b.id, { item }));
@@ -254,18 +264,18 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
             </label>
           ))}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={!!b.map} onChange={(e) => patch(b.id, { map: e.target.checked })} />{t("party.findWay")}</label>
-          {alignPick(b.align ?? "left", (align) => patch(b.id, { align }))}
+          {alignPick(b.align ?? "left", (align) => look(b.id, { align }))}
         </div>
       );
       case "invitation": return (<>{textField(b, "text", true)}<label className="block"><span className="label">{t("poster.ribbon")}</span><input className="input" value={b.ribbon ?? ""} maxLength={120} onChange={(e) => patch(b.id, { ribbon: e.target.value })} /></label>{textStyle(b, "body")}</>);
-      case "ribbon": return (<>{textField(b, "text")}{alignPick(b.align ?? "left", (align) => patch(b.id, { align }))}</>);
+      case "ribbon": return (<>{textField(b, "text")}{alignPick(b.align ?? "left", (align) => look(b.id, { align }))}</>);
       case "divider": return (
         <div className="flex flex-wrap items-center gap-3">
           <Seg label={t("poster.dividerStyle")} value={b.style} onChange={(style) => patch(b.id, { style })} options={(["swash", "line", "dots", "stars"] as const).map((v) => ({ v, label: T(`poster.divider.${v}`) }))} />
-          {alignPick(b.align ?? "left", (align) => patch(b.id, { align }))}
+          {alignPick(b.align ?? "left", (align) => look(b.id, { align }))}
         </div>
       );
-      case "spacer": return <Seg label={t("poster.size")} value={b.size} onChange={(size) => patch(b.id, { size })} options={[{ v: "s", label: "S" }, { v: "m", label: "M" }, { v: "l", label: "L" }]} />;
+      case "spacer": return <Seg label={t("poster.size")} value={b.size} onChange={(size) => look(b.id, { size })} options={[{ v: "s", label: "S" }, { v: "m", label: "M" }, { v: "l", label: "L" }]} />;
     }
   };
 
@@ -282,7 +292,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
       <div className={`pt overflow-hidden rounded-2xl border border-edge ${device === "phone" ? "mx-auto w-[390px] max-w-full" : "w-full"}`} style={{ ...themeStyle(theme), minHeight: 0 }} onClick={() => setSelected(null)}>
         <div className="h-2" style={{ background: theme.band }} />
         <div className="px-4 py-6 sm:px-8">
-          <Poster blocks={blocks} d={preview} theme={theme} selected={selected} onSelect={setSelected} />
+          <Poster blocks={blocks} d={preview} theme={theme} selected={selected} onSelect={setSelected} device={device} />
           {stage === "invite" && <p className="pt-card mt-6 p-4 text-center text-sm text-muted">{t("poster.replyBelow")}</p>}
         </div>
       </div>
@@ -295,12 +305,19 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
           {note && <p className="text-xs text-accent" role="status">{note}</p>}
           {error && <p className="text-xs text-red-700">{error}</p>}
           <p className="text-xs text-muted">{t("poster.help")}</p>
+          {device === "phone" && (
+            <div className="space-y-1 rounded-lg bg-accent-soft p-2 text-xs">
+              <p>{t("poster.phoneHelp")}</p>
+              {phoneDiffers(blocks) && <button type="button" className="font-semibold underline underline-offset-2" onClick={() => window.confirm(t("poster.phoneResetConfirm")) && change(resetPhone(blocks))}>{t("poster.phoneReset")}</button>}
+            </div>
+          )}
           <ol className="divide-y divide-edge text-sm">
-            {blocks.map((b, i) => (
+            {listed.map((b, i) => (
               <li key={b.id} className={`flex items-center gap-1 py-1 ${selected === b.id ? "font-semibold" : ""}`}>
-                <button className="min-w-0 flex-1 truncate py-1 text-left" aria-pressed={selected === b.id} onClick={() => setSelected(b.id)}>
+                <button className={`min-w-0 flex-1 truncate py-1 text-left ${b.hide?.includes(device) ? "text-muted line-through" : ""}`} aria-pressed={selected === b.id} onClick={() => setSelected(b.id)}>
                   {T(`poster.type.${b.type}`)} {summary(b) && <span className="ml-1 font-normal text-muted">{summary(b)}</span>}
                 </button>
+                <button className="p-1 text-muted hover:text-ink" aria-pressed={!!b.hide?.includes(device)} aria-label={T(`poster.${b.hide?.includes(device) ? "show" : "hide"}.${device}`)} title={T(`poster.${b.hide?.includes(device) ? "show" : "hide"}.${device}`)} onClick={() => change(blocks.map((x) => (x.id === b.id ? toggleHidden(x, device) : x)))}>{b.hide?.includes(device) ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}</button>
                 <button className="p-1 text-muted hover:text-ink disabled:opacity-30" disabled={i === 0} aria-label={t("poster.moveUp")} onClick={() => move(b.id, -1)}><ArrowUp className="h-4 w-4" aria-hidden /></button>
                 <button className="p-1 text-muted hover:text-ink disabled:opacity-30" disabled={i === blocks.length - 1} aria-label={t("poster.moveDown")} onClick={() => move(b.id, 1)}><ArrowDown className="h-4 w-4" aria-hidden /></button>
                 <button className="p-1 text-muted hover:text-red-700" aria-label={t("poster.removeBlock")} onClick={() => { change(blocks.filter((x) => x.id !== b.id)); if (selected === b.id) setSelected(null); }}><Trash2 className="h-4 w-4" aria-hidden /></button>
@@ -317,10 +334,12 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
         {block && (
           <section className="card space-y-3 p-4" aria-label={t("poster.blockSettings")}>
             <h3 className="text-sm font-bold">{T(`poster.type.${block.type}`)}</h3>
-            <div className="flex items-center gap-2 text-xs text-muted">{t("poster.place")}
-              <Seg label={t("poster.place")} value={block.side ?? "full"} onChange={(side: Side) => patch(block.id, { side })} options={[{ v: "full", label: t("poster.side.full") }, { v: "left", label: t("poster.side.left") }, { v: "right", label: t("poster.side.right") }]} />
-            </div>
-            {props(block)}
+            {device === "desktop" && (
+              <div className="flex items-center gap-2 text-xs text-muted">{t("poster.place")}
+                <Seg label={t("poster.place")} value={block.side ?? "full"} onChange={(side: Side) => patch(block.id, { side })} options={[{ v: "full", label: t("poster.side.full") }, { v: "left", label: t("poster.side.left") }, { v: "right", label: t("poster.side.right") }]} />
+              </div>
+            )}
+            {props(onDevice(block, device))}
           </section>
         )}
         <section className="card space-y-2 p-4" aria-label={t("poster.pictures")}>

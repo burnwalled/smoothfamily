@@ -15,7 +15,10 @@ export type DecorItem = { kind: "emoji" | "library" | "sticker"; value: string }
 export type CalendarButton = "ics" | "google" | "outlook" | "apple";
 export type DetailField = "when" | "where" | "what" | "rsvp" | "guests";
 
-type Base = { id: string; side?: Side };
+export type Device = "desktop" | "phone";
+// What's the phone's own: its place in the order, its alignment and size. hide: where it isn't shown.
+export type PhoneLook = { order?: number; align?: Align; size?: TextStyle["size"] };
+type Base = { id: string; side?: Side; hide?: Device[]; phone?: PhoneLook };
 export type Block = Base & (
   | ({ type: "text"; text: string } & TextStyle)
   | { type: "decor"; items: DecorItem[]; align?: Align; size?: "s" | "m" | "l" }
