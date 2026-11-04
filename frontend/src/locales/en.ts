@@ -2857,6 +2857,8 @@ const en = {
   "cook.done": "Done – enjoy your meal!",
   "nav.pantry": "Pantry",
   "nav.subscriptions": "Subscriptions",
+  "subs.newLogin": "+ New login",
+  "subs.saveLogin": "Save in the vault",
   "subs.edit": "Change the subscription",
   "subs.editOf": "Change {name}",
   "subs.adultsOnly": "Subscriptions are for the adults.",

@@ -2843,6 +2843,8 @@ const fi: Dictionary = {
   "cook.done": "Valmista – hyvää ruokahalua!",
   "nav.pantry": "Ruokavarasto",
   "nav.subscriptions": "Tilaukset",
+  "subs.newLogin": "+ Uusi kirjautuminen",
+  "subs.saveLogin": "Tallenna holviin",
   "subs.edit": "Muokkaa tilausta",
   "subs.editOf": "Muokkaa {name}",
   "subs.adultsOnly": "Tilaukset ovat aikuisille.",

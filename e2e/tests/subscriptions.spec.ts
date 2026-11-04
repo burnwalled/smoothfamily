@@ -5,6 +5,7 @@ test("subscriptions: by hand, from the bank and with a vault login", async ({ ad
   const name = unique("Streamia");
   const merchant = unique("BAHNHOFEN").replace(/\W/g, "").toUpperCase();
   const login = await (await adminApi.post("/api/vault/logins", { data: { title: name, url: "https://example.com", username: "anna", password: "hemligt-lösen" } })).json();
+  const created: string[] = [login.id];
   try {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/subscriptions");
@@ -44,6 +45,40 @@ test("subscriptions: by hand, from the bank and with a vault login", async ({ ad
     await expect(list.getByRole("listitem").filter({ hasText: `${pretty} fiber` })).toContainText("399");
     await expect(row).toContainText("anna");
 
+    // A new login, made right from the subscription: it lands in the vault and on the row.
+    const madeRow = list.getByRole("listitem").filter({ has: page.locator("span.font-semibold", { hasText: `${pretty} fiber` }) });
+    await madeRow.getByRole("combobox", { name: `Login for ${pretty} fiber` }).selectOption({ label: "+ New login" });
+    const fresh = madeRow.getByRole("region", { name: "Add a login" });
+    await expect(fresh.getByRole("textbox").first()).toHaveValue(`${pretty} fiber`);
+    const madePassword = await fresh.locator("#new-login-password").inputValue();
+    expect(madePassword.length).toBeGreaterThanOrEqual(20);
+    await fresh.getByRole("textbox").nth(2).fill("fiber-kund");
+    await fresh.getByRole("button", { name: "Save in the vault" }).click();
+    await expect(fresh).toHaveCount(0);
+    await expect(madeRow).toContainText("fiber-kund");
+    await madeRow.getByRole("button", { name: `Copy the password for ${pretty} fiber` }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(madePassword);
+    const vaulted = await (await adminApi.get("/api/vault/logins")).json();
+    const made = vaulted.find((l: { username: string }) => l.username === "fiber-kund");
+    expect(made.title).toBe(`${pretty} fiber`);
+    made && created.push(made.id);
+
+    // And while adding one: the new subscription comes with it.
+    const third = unique("Musiken");
+    await page.getByRole("button", { name: "Add a subscription" }).click();
+    const again = page.getByRole("form", { name: "Add a subscription" });
+    await again.getByLabel("Name").fill(third);
+    await again.getByLabel("What it costs").fill("99");
+    await again.getByLabel("Login in the vault").selectOption({ label: "+ New login" });
+    const inForm = page.getByRole("region", { name: "Add a login" });
+    await inForm.getByRole("textbox").nth(2).fill("musik-kund");
+    await inForm.getByRole("button", { name: "Save in the vault" }).click();
+    await expect(inForm).toHaveCount(0);
+    await again.getByRole("button", { name: "Save" }).click();
+    await expect(list.getByRole("listitem").filter({ has: page.locator("span.font-semibold", { hasText: third }) })).toContainText("musik-kund");
+    const vaultedAgain = await (await adminApi.get("/api/vault/logins")).json();
+    created.push(vaultedAgain.find((l: { username: string }) => l.username === "musik-kund").id);
+
     const view = await (await adminApi.get("/api/subscriptions")).json();
     await expect.poll(async () => (await page.getByTestId("per-month").innerText()).replace(/[^0-9]/g, "")).toBe(String(Math.round(view.per_month)));
 
@@ -52,6 +87,6 @@ test("subscriptions: by hand, from the bank and with a vault login", async ({ ad
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   } finally {
     for (const item of (await (await adminApi.get("/api/subscriptions")).json()).items) await adminApi.delete(`/api/subscriptions/${item.id}`);
-    await adminApi.delete(`/api/vault/logins/${login.id}`);
+    for (const id of created) await adminApi.delete(`/api/vault/logins/${id}`);
   }
 });

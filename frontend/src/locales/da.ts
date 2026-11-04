@@ -2843,6 +2843,8 @@ const da: Dictionary = {
   "cook.done": "Færdig – velbekomme!",
   "nav.pantry": "Spisekammer",
   "nav.subscriptions": "Abonnementer",
+  "subs.newLogin": "+ Nyt login",
+  "subs.saveLogin": "Gem i boksen",
   "subs.edit": "Ret abonnementet",
   "subs.editOf": "Ret {name}",
   "subs.adultsOnly": "Abonnementer er for de voksne.",

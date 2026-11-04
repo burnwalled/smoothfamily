@@ -6,15 +6,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, Copy, ExternalLink, KeyRound, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
-import { api, request } from "@/lib/api";
+import { api, VaultLogin } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
+import NewLogin from "@/components/vault/NewLogin";
+import { CLEAR_AFTER_MS, fetchSecret } from "@/components/vault/Passwords";
 
 const PATH = "/api/subscriptions";
 const CATEGORIES = ["streaming", "music", "phone", "internet", "insurance", "membership", "software", "news", "other"];
 const INTERVALS = ["week", "month", "quarter", "year"];
+const NEW_LOGIN = "new";
 
 type Item = {
   id: string; name: string; category: string; amount: number; interval: string; per_month: number; next_payment: string | null; cancel_by: string | null; who: string; url: string;
@@ -22,7 +25,6 @@ type Item = {
 };
 type Idea = { id: string; name: string; category: string; amount: number; interval: string; last_seen: string };
 type Overview = { currency: string; per_month: number; per_year: number; items: Item[]; suggestions: Idea[]; dismissed: Idea[] };
-type Login = { id: string; title: string; url: string; username: string; has_password: boolean };
 
 const blank = { name: "", category: "streaming", amount: "", interval: "month", next_payment: "", cancel_by: "", who: "", url: "", login_id: "", note: "", private: false };
 
@@ -32,7 +34,12 @@ export default function SubscriptionsPage() {
   const adult = me.role !== "child";
   const view = useApi<Overview>(adult ? PATH : null).data;
   // The vault's own rules decide which logins come back: only those this person may see.
-  const logins = useApi<Login[]>(adult ? "/api/vault/logins" : null).data ?? [];
+  const loginsQuery = useApi<VaultLogin[]>(adult ? "/api/vault/logins" : null);
+  const logins = loginsQuery.data ?? [];
+  // Someone without the vault among their apps has no logins to choose, and can't make one.
+  const vault = !loginsQuery.isError;
+  // Which new login is being made: for a subscription's row, or for the one being added.
+  const [creating, setCreating] = useState<string | null>(null);
   const [form, setForm] = useState(blank);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -58,6 +65,7 @@ export default function SubscriptionsPage() {
     setForm(blank);
     setAdding(false);
     setEditing(null);
+    setCreating(null);
   };
   const save = async () => {
     const { login_id, ...rest } = form;
@@ -72,13 +80,19 @@ export default function SubscriptionsPage() {
     setForm({ ...blank, name: x.name, category: x.category, amount: String(x.amount), interval: x.interval, next_payment: x.next_payment ?? "", cancel_by: x.cancel_by ?? "", who: x.who, url: x.url, note: x.note, private: x.private });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const copyPassword = async (login: Login) => {
+  const copyPassword = async (login: VaultLogin) => {
     setError("");
     try {
-      const { password } = await request<{ password: string }>(`/api/vault/logins/${login.id}/secret`);
+      const { password } = await fetchSecret(login.id);
       await navigator.clipboard.writeText(password);
       setCopied(login.id);
       setTimeout(() => setCopied(""), 2500);
+      // As in the vault: cleared again, if it still holds what was put there.
+      setTimeout(async () => {
+        try {
+          if ((await navigator.clipboard.readText()) === password) await navigator.clipboard.writeText("");
+        } catch {}
+      }, CLEAR_AFTER_MS);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
@@ -122,11 +136,12 @@ export default function SubscriptionsPage() {
             </>
           ) : x.login_id ? <span className="flex items-center gap-1 text-muted"><KeyRound className="h-3.5 w-3.5" aria-hidden />{t("subs.loginElsewhere")}</span> : null}
           {(x.url || login?.url) && <a className="flex items-center gap-1 underline underline-offset-2" href={x.url || login?.url} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5" aria-hidden />{t("subs.open")}</a>}
-          {logins.length > 0 && <label className="flex items-center gap-1 text-muted">
+          {vault && <label className="flex items-center gap-1 text-muted">
             <span className="sr-only">{t("subs.loginOf", { name: x.name })}</span>
-            <select className="input !w-auto py-0 text-xs" aria-label={t("subs.loginOf", { name: x.name })} value={login?.id ?? ""} onChange={(e) => run(api.put<Overview>(`${PATH}/${x.id}`, { login_id: e.target.value || null }))}>
+            <select className="input !w-auto py-0 text-xs" aria-label={t("subs.loginOf", { name: x.name })} value={login?.id ?? ""} onChange={(e) => (e.target.value === NEW_LOGIN ? setCreating(x.id) : run(api.put<Overview>(`${PATH}/${x.id}`, { login_id: e.target.value || null })))}>
               <option value="">{t("subs.noLogin")}</option>
               {logins.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+              <option value={NEW_LOGIN}>{t("subs.newLogin")}</option>
             </select>
           </label>}
           <span className="ml-auto flex items-center gap-3">
@@ -137,6 +152,7 @@ export default function SubscriptionsPage() {
             <button className="text-muted hover:text-red-700" aria-label={t("subs.removeOf", { name: x.name })} onClick={() => window.confirm(t("subs.removeConfirm", { name: x.name })) && run(api.del(`${PATH}/${x.id}`) as unknown as Promise<Overview>)}><Trash2 className="h-4 w-4" aria-hidden /></button>
           </span>
         </div>
+        {creating === x.id && <NewLogin title={x.name} url={x.url} onCancel={() => setCreating(null)} onCreated={(made) => { setCreating(null); void run(api.put<Overview>(`${PATH}/${x.id}`, { login_id: made.id })); }} />}
       </li>
     );
   };
@@ -182,7 +198,7 @@ export default function SubscriptionsPage() {
           <label><span className="label">{t("subs.cancelByLabel")}</span><input className="input" type="date" value={form.cancel_by} onChange={(e) => setForm({ ...form, cancel_by: e.target.value })} /></label>
           <label><span className="label">{t("subs.who")}</span><input className="input" value={form.who} maxLength={120} onChange={(e) => setForm({ ...form, who: e.target.value })} /></label>
           <label><span className="label">{t("subs.url")}</span><input className="input" type="url" value={form.url} maxLength={500} placeholder="https://" onChange={(e) => setForm({ ...form, url: e.target.value })} /></label>
-          {!editing && <label><span className="label">{t("subs.login")}</span><select className="input" value={form.login_id} onChange={(e) => setForm({ ...form, login_id: e.target.value })}><option value="">{t("subs.noLogin")}</option>{logins.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}</select></label>}
+          {!editing && vault && <label><span className="label">{t("subs.login")}</span><select className="input" value={form.login_id} onChange={(e) => (e.target.value === NEW_LOGIN ? setCreating(NEW_LOGIN) : setForm({ ...form, login_id: e.target.value }))}><option value="">{t("subs.noLogin")}</option>{logins.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}<option value={NEW_LOGIN}>{t("subs.newLogin")}</option></select></label>}
           <label><span className="label">{t("subs.note")}</span><input className="input" value={form.note} maxLength={1000} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
           <label className="flex items-start gap-2 text-sm sm:col-span-2"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={form.private} onChange={(e) => setForm({ ...form, private: e.target.checked })} /><span>{t("subs.private")}<span className="block text-xs text-muted">{t("subs.privateHelp")}</span></span></label>
           <div className="flex flex-wrap gap-2 sm:col-span-2">
@@ -191,6 +207,7 @@ export default function SubscriptionsPage() {
           </div>
         </form>
       )}
+      {creating === NEW_LOGIN && <NewLogin title={form.name} url={form.url} onCancel={() => setCreating(null)} onCreated={(made) => { setCreating(null); setForm((f) => ({ ...f, login_id: made.id })); }} />}
 
       <section className="card p-5" aria-label={t("nav.subscriptions")}>
         {view && active.length === 0 ? <EmptyState>{t("subs.empty")}</EmptyState> : <ul className="divide-y divide-edge">{active.map(row)}</ul>}

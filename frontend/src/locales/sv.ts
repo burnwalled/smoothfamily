@@ -2847,6 +2847,8 @@ const sv: Dictionary = {
   "cook.done": "Klart – smaklig måltid!",
   "nav.pantry": "Skafferi",
   "nav.subscriptions": "Abonnemang",
+  "subs.newLogin": "+ Ny inloggning",
+  "subs.saveLogin": "Spara i valvet",
   "subs.edit": "Ändra abonnemanget",
   "subs.editOf": "Ändra {name}",
   "subs.adultsOnly": "Abonnemang är för de vuxna.",
