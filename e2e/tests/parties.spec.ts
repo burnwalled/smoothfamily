@@ -218,6 +218,7 @@ test("a save-the-date, then the party day's portal", async ({ adminPage: page, a
     await page.goto(`/parties?id=${made.id}`);
     await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     await page.getByLabel("The link shows").selectOption("save");
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
     await page.getByRole("button", { name: "Open the portal" }).click();
     const portal = await page.getByLabel("The portal's link").inputValue();
 
@@ -236,7 +237,7 @@ test("a save-the-date, then the party day's portal", async ({ adminPage: page, a
     await expect(g.getByRole("status")).toContainText("1 shared");
     await guest.close();
     await page.reload();
-    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
     await expect(page.getByText("1 photos from the guests")).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${made.id}`);
@@ -348,7 +349,7 @@ test("a poster arranged differently on phones", async ({ adminPage: page, adminA
   try {
     await page.goto(`/parties?id=${party.id}`);
     await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
-    await page.getByRole("region", { name: "The posters" }).getByRole("listitem").filter({ hasText: "Save the date" }).getByRole("button").click();
+    await page.getByRole("region", { name: "The posters" }).getByRole("listitem").filter({ hasText: "Save the date" }).getByRole("button", { name: "Edit" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("radio", { name: "Phone" }).click();
     const parts = dialog.getByRole("region", { name: "The poster's parts" });
@@ -460,6 +461,156 @@ test("copying a guest's personal link", async ({ adminPage: page, adminApi, brow
     await expect(g.getByRole("region", { name: "Will you come?" }).getByLabel("First name")).toHaveValue("Saga");
     await expect(g).not.toHaveURL(/key=/);
     await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// Only the invitation: what's chosen away is gone from Design and Sending out.
+test("a party with only the invitation", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("OSA-fest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const details = page.getByRole("region", { name: "Details" });
+    await expect(details.getByRole("checkbox", { name: "Invitation" })).toBeDisabled();
+    for (const name of ["Save the date", "The party day's portal", "Thank-you"]) {
+      await details.getByRole("checkbox", { name }).click();
+      await expect(details.getByRole("checkbox", { name })).not.toBeChecked();
+    }
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    const posters = page.getByRole("region", { name: "The posters" });
+    await expect(posters.getByRole("listitem")).toHaveCount(1);
+    await expect(posters.getByRole("listitem").filter({ hasText: "Invitation" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "The thank-you" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
+    await expect(page.getByRole("region", { name: "The party day's portal" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^\d\s?To do$/ }).click();
+    await expect(page.getByRole("checkbox", { name: /Print the QR code/ })).toHaveCount(0);
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// The QR code's print, as a task, in the party's theme; printing it opens nothing. The portal's link
+// ends when it's set to.
+test("the portal under Sending out: printing the QR code and when its link ends", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const title = unique("QR-fest");
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", page_theme: "glamour", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?To do$/ }).click();
+    const task = page.getByRole("listitem").filter({ hasText: "Print the QR code" });
+    const [print] = await Promise.all([page.context().waitForEvent("page"), task.getByRole("link", { name: "Print" }).click()]);
+    await expect(print.getByRole("heading", { name: title })).toBeVisible();
+    await expect(print.getByLabel("QR code").locator("svg")).toBeVisible();
+    await expect(print.locator("main.pt")).toHaveCSS("background-image", /gradient/);
+    await print.close();
+
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    await expect(page.getByRole("region", { name: "The party day's portal" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^\d\s?Sending out$/ }).click();
+    const card = page.getByRole("region", { name: "The party day's portal" });
+    await expect(card.getByText("Closed", { exact: false }).first()).toBeVisible();
+    const link: string = await card.getByLabel("The portal's link").inputValue();
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await expect(g.getByText("This link", { exact: false }).or(g.getByText("isn't valid", { exact: false })).first()).toBeVisible();
+
+    // Open now, ending in the past: the cleaners the morning after get nothing.
+    const now = Date.now();
+    await adminApi.put(`/api/parties/${party.id}`, { data: { portal_at: new Date(now - 60_000).toISOString(), portal_until: new Date(now + 60_000).toISOString() } });
+    await g.reload();
+    await expect(g.getByRole("heading", { name: title }).first()).toBeVisible();
+    await adminApi.put(`/api/parties/${party.id}`, { data: { portal_at: new Date(now - 7_200_000).toISOString(), portal_until: new Date(now - 60_000).toISOString() } });
+    await g.reload();
+    await expect(g.getByRole("heading", { name: title })).toHaveCount(0);
+    await guest.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// Preview as a guest on each page; a personal link's greeting, only for those it's for.
+test("preview as a guest, and the guest's own name", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Namnfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const detail = await (await adminApi.post(`/api/parties/${party.id}/guests`, { data: { first_name: "Saga", invited: true } })).json();
+  const token: string = detail.link.split("/").pop();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
+    for (const name of ["Save the date", "Invitation", "The party day's portal", "Thank-you"]) await expect(page.getByRole("button", { name: `Preview ${name} as guest` })).toBeVisible();
+    await page.getByRole("button", { name: "Preview Invitation as guest" }).click();
+    const preview = page.getByRole("dialog", { name: "Preview as guest" });
+    await expect(preview.getByText("Hi Anna!")).toBeVisible();
+    await preview.getByRole("radio", { name: "Phone" }).click();
+    await preview.getByRole("tab", { name: "Thank-you" }).click();
+    await expect(preview.getByRole("tab", { name: "Thank-you" })).toHaveAttribute("aria-selected", "true");
+    await preview.getByRole("button", { name: "Close" }).click();
+
+    const { link } = await (await adminApi.post(`/api/parties/${party.id}/guests/${detail.guests[0].id}/link`)).json();
+    const personal = await browser.newContext();
+    const p = await personal.newPage();
+    await p.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await expect(p.getByText("Hi Saga!")).toBeVisible();
+    await personal.close();
+    const plain = await browser.newContext();
+    const n = await plain.newPage();
+    await n.goto(`/party/${token}`);
+    await expect(n.getByRole("region", { name: "Will you come?" })).toBeVisible();
+    await expect(n.getByText(/^Hi /)).toHaveCount(0);
+    await plain.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// A guest list brought in, placed at tables; and the last step.
+test("bringing in guests, the seating and the last check", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Listfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    await page.getByRole("button", { name: /^\d\s?Guests$/ }).click();
+    const box = page.getByRole("region", { name: "Bring in a guest list" });
+    await box.getByLabel("Choose a file").setInputFiles({ name: "gäster.csv", mimeType: "text/csv", buffer: Buffer.from("Förnamn;Efternamn;E-post;Allergier\nSaga;Berg;saga@example.com;Nötter\nNils;Ek;;\nNils;Ek;;\n") });
+    await expect(box.getByText("2 guests found")).toBeVisible();
+    await expect(box.getByText("1 rows were the same person")).toBeVisible();
+    await box.getByRole("button", { name: "Add 2 guests" }).click();
+    await expect(box.getByRole("status")).toContainText("2 guests added");
+    const list = page.getByRole("region", { name: "Guests", exact: true });
+    await expect(list.getByText("Saga Berg")).toBeVisible();
+    await expect(list.getByText("Nils Ek")).toBeVisible();
+    // A real Excel file: a header row and one guest.
+    const xlsx = "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";
+    await box.getByLabel("Choose a file").setInputFiles({ name: "gaster.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(xlsx, "base64") });
+    await expect(box.getByText("1 guests found")).toBeVisible();
+    await box.getByRole("button", { name: "Add 1 guests" }).click();
+    await expect(list.getByText("Elsa Lund")).toBeVisible();
+    await expect(list.getByText("elsa@example.com")).toBeVisible();
+    await box.getByLabel("Choose a file").setInputFiles({ name: "old.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("x") });
+    await expect(box.getByRole("alert")).toContainText("old Excel format");
+
+    const seating = page.getByRole("region", { name: "Seating" });
+    await seating.getByLabel("The table's name").fill("Långbordet");
+    await seating.getByLabel("Places").fill("1");
+    await seating.getByRole("button", { name: "Add a table" }).click();
+    await expect(seating.getByRole("heading", { name: "Långbordet" })).toBeVisible();
+    await seating.getByLabel("Saga's table").selectOption({ label: "Långbordet" });
+    await expect(seating.getByText("1 of 1")).toBeVisible();
+    await seating.getByLabel("Nils's table").selectOption({ label: "Långbordet" });
+    await expect(seating.getByRole("alert")).toContainText("1 too many");
+
+    await page.getByRole("button", { name: /^\d\s?The party$/ }).click();
+    await expect(page.getByRole("heading", { name: "Have fun!" })).toBeVisible();
+    const check = page.getByRole("region", { name: "A last check" });
+    await expect(check.getByText("3 guests haven't replied")).toBeVisible();
+    await expect(check.getByText("1 guests without a table")).toBeVisible();
+    await check.getByRole("listitem").filter({ hasText: "3 guests haven't replied" }).getByRole("button").click();
+    await expect(page.getByRole("region", { name: "The party day's portal" })).toBeVisible();
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
   }

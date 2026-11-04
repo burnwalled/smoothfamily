@@ -627,3 +627,105 @@ async def test_a_guests_personal_link_for_the_hosts_to_send(client, db_session):
     await client.post("/api/family/members", json={"username": "maja", "display_name": "Maja", "password": "pass1234", "role": "child"})
     await _as(client, "maja")
     assert (await client.post(f"/api/parties/{pid}/guests/{gid}/link")).status_code == 403
+
+
+async def test_the_pages_a_party_has(client):
+    await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    assert party["pages"] == ["save", "invite", "portal", "thanks"]
+    qr = [t for t in party["tasks"] if t["action"] == "print_qr"]
+    assert len(qr) == 1 and not qr[0]["done"]
+
+    # Only the invitation: the save-the-date, the portal and the thank-you are off, whatever was set.
+    await client.put(f"/api/parties/{pid}", json={"phase": "save", "portal_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()})
+    await client.post(f"/api/parties/{pid}/mailings", json={"kind": "thanks", "send_at": (start + timedelta(days=3)).isoformat()})
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "portal"
+    only = (await client.put(f"/api/parties/{pid}", json={"pages": ["invite"]})).json()
+    assert only["pages"] == ["invite"] and only["phase"] == "invite" and only["mailings"] == []
+    assert only["portal"]["at"] is None and not [t for t in only["tasks"] if t["action"] == "print_qr"]
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "invite"
+    assert (await client.post(f"/api/parties/{pid}/portal")).status_code == 409
+    await client.put(f"/api/parties/{pid}", json={"thanks_text": "Tack!", "thanks_published": True})
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "invite"
+
+    # The invitation can't be chosen away; the portal comes back with its task, once.
+    back = (await client.put(f"/api/parties/{pid}", json={"pages": ["portal"]})).json()
+    assert back["pages"] == ["invite", "portal"] and len([t for t in back["tasks"] if t["action"] == "print_qr"]) == 1
+    again = (await client.put(f"/api/parties/{pid}", json={"pages": ["invite", "portal"]})).json()
+    assert len([t for t in again["tasks"] if t["action"] == "print_qr"]) == 1
+    assert (await client.put(f"/api/parties/{pid}", json={"pages": ["nope"]})).status_code == 422
+
+
+async def test_the_portals_link_ends(client):
+    await _family(client)
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(hours=1)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+
+    # Printing the QR code doesn't open anything.
+    ready = (await client.post(f"/api/parties/{pid}/portal/prepare")).json()
+    code = ready["portal"]["link"].rsplit("/", 1)[1]
+    assert ready["portal"]["open"] is False and (await client.get(f"/api/party-portal/{code}")).status_code == 404
+
+    # A time for it brings an end by itself, a little after the party.
+    out = (await client.put(f"/api/parties/{pid}", json={"portal_at": (now - timedelta(minutes=1)).isoformat()})).json()
+    ends = datetime.fromisoformat(party["ends_at"].replace("Z", "+00:00"))
+    assert datetime.fromisoformat(out["portal"]["until"].replace("Z", "+00:00")) == (ends if ends.tzinfo else ends.replace(tzinfo=timezone.utc)) + timedelta(hours=3)
+    assert (await client.get(f"/api/party-portal/{code}")).status_code == 200
+    assert (await client.get(f"/api/party/{token}")).json()["stage"] == "portal"
+
+    # The morning after: the cleaners' phones get nothing, and the guests' link is back on the invitation.
+    await client.put(f"/api/parties/{pid}", json={"portal_until": (now - timedelta(seconds=1)).isoformat(), "portal_at": (now - timedelta(hours=2)).isoformat()})
+    assert (await client.get(f"/api/party-portal/{code}")).status_code == 404
+    page = (await client.get(f"/api/party/{token}")).json()
+    assert page["stage"] == "invite" and page["portal_token"] is None
+    assert (await client.put(f"/api/parties/{pid}", json={"portal_until": (now - timedelta(hours=3)).isoformat()})).status_code == 422
+
+    # Opened again by hand it gets a new end; no end at all has to be asked for.
+    reopened = (await client.post(f"/api/parties/{pid}/portal")).json()
+    assert reopened["portal"]["open"] is True and datetime.fromisoformat(reopened["portal"]["until"].replace("Z", "+00:00")) > now
+    open_ended = (await client.put(f"/api/parties/{pid}", json={"portal_until": None})).json()
+    assert open_ended["portal"]["until"] is None
+
+
+async def test_bringing_in_a_guest_list(client):
+    await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid, token = party["id"], party["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Nils", "last_name": "Ek", "coming": True})
+    out = (await client.post(f"/api/parties/{pid}/guests/import", json={"guests": [
+        {"first_name": "Saga", "last_name": "Berg", "email": "Saga@Example.com", "allergies": "Nötter"},
+        {"first_name": "Nils", "last_name": "Ek"},
+        {"first_name": "Saga B", "email": "saga@example.com"},
+    ]})).json()
+    assert out["added"] == 1 and out["skipped"] == 2
+    saga = next(g for g in out["party"]["guests"] if g["first_name"] == "Saga")
+    assert saga["pending"] is True and saga["coming"] is False and saga["email"] == "saga@example.com" and saga["updates"] is True and saga["allergies"] == "Nötter"
+    nils = next(g for g in out["party"]["guests"] if g["first_name"] == "Nils")
+    assert nils["coming"] is True  # who's already there stays as they are
+    link = (await client.post(f"/api/parties/{pid}/guests/{saga['id']}/link")).json()["link"]
+    assert (await client.get(f"/api/party/{token}?key={link.split('?key=')[1]}")).json()["mine"]["first_name"] == "Saga"
+    assert (await client.post(f"/api/parties/{pid}/guests/import", json={"guests": [{"first_name": "x", "email": "not-an-address"}]})).status_code == 422
+    assert (await client.post(f"/api/parties/{pid}/guests/import", json={"guests": []})).status_code == 422
+
+
+async def test_the_seating(client):
+    await _family(client)
+    start = datetime.now(timezone.utc) + timedelta(days=30)
+    party = (await client.post("/api/parties", json=_party(start, kind="party"))).json()
+    pid = party["id"]
+    guest = (await client.post(f"/api/parties/{pid}/guests", json={"first_name": "Saga", "coming": True})).json()["guests"][0]["id"]
+    tables = [{"id": "a", "name": "Bord 1", "seats": 8}, {"id": "b", "name": "Bord 2", "seats": 6}]
+    assert (await client.put(f"/api/parties/{pid}", json={"tables": tables})).json()["tables"] == tables
+    seat = f"/api/parties/{pid}/guests/{guest}/table"
+    assert (await client.put(seat, json={"table_id": "a"})).json()["guests"][0]["table_id"] == "a"
+    assert (await client.put(seat, json={"table_id": "nope"})).status_code == 404
+    # A table taken away: nobody sits at it any more.
+    out = (await client.put(f"/api/parties/{pid}", json={"tables": tables[1:]})).json()
+    assert out["guests"][0]["table_id"] is None
+    assert (await client.put(f"/api/parties/{pid}", json={"tables": [tables[1], tables[1]]})).status_code == 422
+    assert (await client.put(f"/api/parties/{pid}", json={"tables": [{"id": "../x", "name": "x"}]})).status_code == 422

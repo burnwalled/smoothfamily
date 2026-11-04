@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens sju trinn – her Design, som begynner med malene."
+        "caption": "Festens åtte trinn – her Design, som begynner med malene."
       },
       {
         "steps": [
@@ -384,6 +384,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Velg festens sider under Detaljer: invitasjonen med svar er alltid med, spar datoen, festportalen og takken velger dere selv. Det som ikke er valgt, vises ikke under Design eller Utsendelser, og gjestenes lenke hopper over det.",
+          "Importer gjesteliste under Gjester: Excel (.xlsx), CSV, en tekstfil eller innlimte navn. Alle blir invitert med sin egen lenke. Der finnes også bordplasseringen: legg til bordene og velg bord for hver gjest; følget sitter sammen og plassene telles.",
+          "Skriv {gjest} i en tekst på plakaten, så ser en gjest med personlig lenke sitt eget fornavn. En tekst med feltet vises ikke for dem uten navn, så det passer til en hilsen: invitasjonen og takken begynner med en.",
+          "Portalen ligger under Utsendelser: når den åpnes og når QR-koden og lenken slutter å gjelde – 3 timer etter festen om dere ikke endrer, så ingen kommer inn morgenen etter. Å skrive ut QR-koden er en oppgave under Å gjøre, på en side i festens tema. Slå på bakgrunnsgrafikk i nettleserens utskriftsvindu for å få med fargene.",
+          "Hver side har Forhåndsvis som gjest under Design, for datamaskin og mobil. Trinn 8, Festen, gir en siste sjekkliste over hva som gjenstår – så er det bare å ha det gøy!",
           "Under Gjester kopierer lenkeknappen ved hver gjest den personlige lenken til gjesten og følget, til å sende med sms eller hvordan dere vil. Den som har lenken, kan svare som gjesten, så send den bare til dem.",
           "Hver plakat kan se ulik ut på datamaskin og mobil: velg Mobil i plakateditoren, så gjelder rekkefølgen, det som vises, justeringen og størrelsen du endrer, bare på mobil. Tekster og bilder deles, så en retting vises på begge. Til du endrer noe, følger mobilen datamaskinen. Brede nettbrett regnes som datamaskin, smale som mobil.",
           "Maler (Design → Maler) setter alle plakatene og utseendet på én gang: den innebygde Gala eller deres egne – lagre hvilken som helst fest som mal. Eller lag en med egen AI: skriv ønskene, kopier prompten til valgfri AI og lim inn svaret. Dere ser malen før den brukes, bare det plakatene kjenner til kommer inn (ingen kode, ingen bilder utenfra), og alt kan endres etterpå. En mal kan også lagres som fil og åpnes av en annen familie.",

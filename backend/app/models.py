@@ -2021,6 +2021,12 @@ class Party(Base):
     thanks_published: Mapped[bool] = mapped_column(Boolean, default=False)
     # The look of all the party's pages (a theme's key); "custom" = one of the family's own themes.
     page_theme: Mapped[str] = mapped_column(String(20), default="balloons", server_default="balloons")
+    # The pages the party has, beside the invitation (save, portal, thanks); None = all of them.
+    pages: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # When the portal's link stops working, so nobody gets in with the QR code after the party.
+    portal_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The seating: [{id, name, seats}]; a guest's company sits at one (party_guests.table_id).
+    tables: Mapped[list | None] = mapped_column(JSON, nullable=True)
     page_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
     # A picture on the invitation (the storage key of a web-sized copy).
     invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -2089,6 +2095,7 @@ class PartyGuest(Base):
     key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The guest's browser keeps a key to change the reply later; only its hash is here.
     key_hash: Mapped[str] = mapped_column(String(64))
+    table_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -2107,6 +2114,8 @@ class PartyTask(Base):
     who: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0)
     reminded_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # A task the app can help with ("print_qr": the button that prints the QR code).
+    action: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class PartyExpense(Base):

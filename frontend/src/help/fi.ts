@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Juhlien seitsemän vaihetta – tässä Ulkoasu, joka alkaa malleista."
+        "caption": "Juhlien kahdeksan vaihetta – tässä Ulkoasu, joka alkaa malleista."
       },
       {
         "steps": [
@@ -384,6 +384,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Valitkaa juhlien sivut kohdassa Tiedot: kutsu ja vastaus ovat aina mukana, merkitse päivä, juhlaportaali ja kiitos ovat valinnaisia. Valitsematon ei näy kohdissa Ulkoasu tai Lähetykset, ja vieraiden linkki ohittaa sen.",
+          "Tuokaa vieraslista kohdassa Vieraat: Excel (.xlsx), CSV, tekstitiedosto tai liitetyt nimet. Kaikki kutsutaan omalla linkillään. Siellä on myös istumajärjestys: lisätkää pöydät ja valitkaa pöytä kullekin vieraalle; seurue istuu yhdessä ja paikat lasketaan.",
+          "Kirjoittakaa {vieras} julisteen tekstiin, niin henkilökohtaisen linkin vieras näkee oman etunimensä. Tekstiä ei näytetä niille, joilla nimeä ei ole, joten se sopii tervehdykseen: kutsu ja kiitos alkavat sellaisella.",
+          "Portaali on kohdassa Lähetykset: milloin se avautuu ja milloin QR-koodi ja linkki lakkaavat toimimasta – 3 tuntia juhlien jälkeen, ellette muuta, joten kukaan ei pääse sisään seuraavana aamuna. QR-koodin tulostus on tehtävä kohdassa Tehtävät, juhlien teeman mukaisella sivulla. Kytkekää taustagrafiikka päälle selaimen tulostusikkunassa, jotta värit tulevat mukaan.",
+          "Jokaisella sivulla on Esikatsele vieraana kohdassa Ulkoasu, tietokoneelle ja puhelimelle. Vaihe 8, Juhlat, antaa viimeisen tarkistuslistan siitä, mitä on jäljellä – sitten vain pitämään hauskaa!",
           "Kohdassa Vieraat kunkin vieraan linkkipainike kopioi henkilökohtaisen linkin vieraalle ja seurueelle lähetettäväksi tekstiviestillä tai haluamallanne tavalla. Linkin haltija voi vastata vieraan nimissä, joten lähettäkää se vain heille.",
           "Jokainen juliste voi näyttää erilaiselta tietokoneella ja puhelimessa: valitse julisteen muokkaimessa Puhelin, niin muuttamasi järjestys, näkyvyys, tasaus ja koko koskevat vain puhelinta. Tekstit ja kuvat ovat yhteisiä, joten korjaus näkyy molemmissa. Ennen muutoksia puhelin seuraa tietokonetta. Leveät tabletit lasketaan tietokoneiksi, kapeat puhelimiksi.",
           "Mallit (Ulkoasu → Mallit) asettavat kaikki julisteet ja ulkoasun kerralla: valmis Gaala tai omanne – tallentakaa mitkä tahansa juhlat mallina. Tai tehkää malli omalla tekoälyllä: kirjoittakaa toiveet, kopioikaa kehote haluamaanne tekoälyyn ja liittäkää vastaus takaisin. Näette mallin ennen käyttöä, sisään tulee vain se, minkä julisteet tuntevat (ei koodia, ei ulkopuolisia kuvia), ja kaikkea voi muuttaa jälkeenpäin. Mallin voi myös tallentaa tiedostona ja avata toisessa perheessä.",

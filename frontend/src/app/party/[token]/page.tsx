@@ -214,6 +214,7 @@ export default function PartyInvitation() {
 
   const fonts = FONTS[theme.fonts];
   const poster: PosterData = {
+    guest: page.mine?.first_name || undefined,
     title: page.title, family: page.family_name, emoji: page.emoji, start, end, place: page.place, address: page.address, theme: page.theme,
     invitation: page.invitation, rsvp: page.rsvp_by ? new Date(`${page.rsvp_by}T12:00:00`) : null, poll, guests: page.guests, locale: dateLocale,
     inviteImage: page.invite_image ? `/api/party/${token}/picture?v=${page.invite_image}` : null,

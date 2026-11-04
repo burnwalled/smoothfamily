@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens sju steg – här Design, som börjar med mallarna."
+        "caption": "Festens åtta steg – här Design, som börjar med mallarna."
       },
       {
         "steps": [
@@ -384,6 +384,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Välj festens sidor under Detaljer: inbjudan med OSA finns alltid, spara datumet, festportalen och tacket väljer ni själva. Det som inte är valt syns inte under Design eller Utskick, och gästernas länk hoppar över det.",
+          "Importera gästlista under Gäster: Excel (.xlsx), CSV, en textfil eller inklistrade namn. Alla blir inbjudna med sin egen länk. Där finns också bordsplaceringen: lägg till borden och välj bord för varje gäst; sällskapet sitter tillsammans och platserna räknas.",
+          "Skriv {gäst} i en text på affischen, så ser en gäst med personlig länk sitt eget förnamn. En text med fältet visas inte för dem utan namn, så det passar till en hälsning: inbjudan och tacket börjar med en.",
+          "Portalen finns under Utskick: när den öppnas och när QR-koden och länken slutar gälla – 3 timmar efter festen om ni inte ändrar, så att ingen kommer in morgonen efter. Att skriva ut QR-koden är en uppgift under Att göra, på en sida i festens tema. Slå på bakgrundsgrafik i webbläsarens utskriftsfönster för att få med färgerna.",
+          "Varje sida har Förhandsvisa som gäst under Design, för dator och mobil. Steg 8, Festen, ger en sista checklista över vad som är kvar – sen är det bara att ha kul!",
           "Under Gäster kopierar länkknappen vid varje gäst den personliga länken till gästen och sällskapet, att skicka med sms eller hur ni vill. Den som har länken kan svara som gästen, så skicka den bara till dem.",
           "Varje affisch kan se olika ut på dator och mobil: välj Mobil i affischeditorn, så gäller den ordning, det som visas, den justering och storlek du ändrar bara på mobil. Texter och bilder delas, så en rättelse syns på båda. Tills du ändrar något följer mobilen datorn. Breda surfplattor räknas som dator, smala som mobil.",
           "Mallar (Design → Mallar) sätter alla affischer och utseendet på en gång: den inbyggda Gala eller era egna – spara vilken fest som helst som mall. Eller skapa en med egen AI: skriv vad ni önskar, kopiera prompten till valfri AI och klistra tillbaka svaret. Ni ser mallen innan den används, bara det affischerna känner till kommer in (ingen kod, inga bilder utifrån), och allt går att ändra efteråt. En mall kan också sparas som fil och öppnas av en annan familj.",

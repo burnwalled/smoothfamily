@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "The party's seven steps – here Design, starting with the templates."
+        "caption": "The party's eight steps – here Design, starting with the templates."
       },
       {
         "steps": [
@@ -384,6 +384,11 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Choose the party's pages under Details: the invitation with the reply is always there, the save-the-date, the party day's portal and the thank-you are up to you. What isn't chosen doesn't show under Design or Sending out, and the guests' link skips it.",
+          "Bring in a guest list under Guests: Excel (.xlsx), CSV, a text file or pasted names. Everyone becomes invited with their own link. The seating is there too: add the tables and choose one for each guest; their company sits with them and the places are counted.",
+          "Write {guest} in a text on a poster and a guest on a personal link sees their own first name. A text with it isn't shown to those without one, so it suits a greeting: the invitation and the thank-you start with one.",
+          "The portal lives under Sending out: when it opens and when its QR code and link stop working – 3 hours after the party unless you change it, so nobody gets in the morning after. Printing the QR code is a task under To do, on a page in the party's theme. In your browser's print window, turn on background graphics to get the colours.",
+          "Each page has Preview as guest under Design, for computer and phone. Step 8, The party, gives a last check of what's left – then have fun!",
           "Under Guests, the link button beside each guest copies the personal link for them and their company, to send by text or however you like. It lets whoever has it reply as that guest, so send it only to them.",
           "Each poster can differ between computers and phones: choose Phone in the poster editor, and the order, what's shown, the alignment and the size you change apply only to phones. Texts and pictures are shared, so a correction shows on both. Until you change anything, the phone follows the computer. Wide tablets count as computers, narrow ones as phones.",
           "Templates (Design → Templates) put all the posters and the look on at once: the built-in Gala, or your own – save any party as a template. Or make one with your own AI: write your wishes, copy the prompt into any AI, and paste its answer back. You see it before it's used, only what the posters know comes in (no code, no outside pictures), and it can all be changed afterwards. A template can also be saved as a file and opened by another family.",

@@ -7,7 +7,7 @@ import { CalendarPlus, Music, Navigation } from "lucide-react";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { mapLinks } from "@/lib/maps";
 import type { PartyTheme } from "@/lib/partyThemes";
-import { Block, CalendarButton, DecorItem, DetailField, Device, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily } from "@/lib/poster";
+import { Block, CalendarButton, DecorItem, DetailField, Device, PosterData, TextStyle, calendarLinks, fill, fontCaps, fontFamily, needsGuest } from "@/lib/poster";
 import { PHONE_BELOW, forDevice } from "@/lib/posterDevice";
 import { libraryUrl } from "@/lib/partyLibrary";
 import "@/app/party/[token]/party.css";
@@ -231,7 +231,7 @@ function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; the
   switch (b.type) {
     case "text": {
       const text = fill(b.text, d, pending);
-      if (!text) return null;
+      if (!text || needsGuest(b.text, d)) return null;
       const s = styled(b, theme, text, b.font?.endsWith("script") ? "script" : b.font?.endsWith("display") ? "display" : "body");
       return first ? <h1 className={s.cls} style={s.style}>{text}</h1> : <p className={`${s.cls} whitespace-pre-line`} style={s.style}>{text}</p>;
     }
@@ -290,7 +290,7 @@ function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; the
       );
     }
     case "ribbon":
-      return <div className={`flex ${JUSTIFY[b.align ?? "left"]}`}><span className="pt-ribbon">{fill(b.text, d, pending)}</span></div>;
+      return needsGuest(b.text, d) ? null : <div className={`flex ${JUSTIFY[b.align ?? "left"]}`}><span className="pt-ribbon">{fill(b.text, d, pending)}</span></div>;
     case "divider":
       return <Divider b={b} />;
     case "spacer":

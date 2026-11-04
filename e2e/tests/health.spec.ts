@@ -75,9 +75,11 @@ test("health from Home Assistant: linked by the admin, turned on by the person",
   try {
     await page.goto(`/settings/members/${me.id}`);
     const links = page.getByRole("region", { name: "Health from Home Assistant" });
-    await links.getByRole("checkbox", { name: /Home Assistant app · Anna's phone/ }).check();
+    await links.getByRole("checkbox", { name: /Home Assistant app · Anna's phone/ }).click();
+    await expect(links.getByRole("checkbox", { name: /Home Assistant app · Anna's phone/ })).toBeChecked();
     // Withings: the weight, and the workout calendar (3.4.0).
-    await links.getByRole("checkbox", { name: /Withings · Anna/ }).check();
+    await links.getByRole("checkbox", { name: /Withings · Anna/ }).click();
+    await expect(links.getByRole("checkbox", { name: /Withings · Anna/ })).toBeChecked();
     await expect(links.getByRole("combobox", { name: "Workouts" })).toHaveValue("calendar.withings_workouts");
     await expect(links.getByRole("combobox", { name: "Sleep" })).toHaveValue("sensor.anna_phone_sleep_duration");
     await expect(links.getByText(/hasn't turned fetching on yet/)).toBeVisible();
@@ -85,7 +87,8 @@ test("health from Home Assistant: linked by the admin, turned on by the person",
     await page.goto("/health");
     const mine = page.getByRole("region", { name: "Health from Home Assistant" });
     await expect(mine.getByText(/From Home Assistant app · Anna's phone/)).toBeVisible();
-    await mine.getByRole("checkbox", { name: /Fetch my health from Home Assistant/ }).check();
+    await mine.getByRole("checkbox", { name: /Fetch my health from Home Assistant/ }).click();
+    await expect(mine.getByRole("checkbox", { name: /Fetch my health from Home Assistant/ })).toBeChecked();
     await expect(mine.getByRole("status")).toContainText("new numbers");
     await expect(mine.getByText(/^Fetched /)).toBeVisible();
     // Sleep, in hours in Home Assistant, as hours and minutes here (the steps were entered by hand
