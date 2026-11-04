@@ -527,7 +527,7 @@ async def test_mail_through_exchange_online(client, monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request)
-        if "login.microsoftonline.com" in str(request.url):
+        if request.url.host == "login.microsoftonline.com":
             return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
         if "stop@" in request.content.decode():
             return httpx.Response(403, json={"error": {"code": "ErrorAccessDenied", "message": "Access is denied."}})
