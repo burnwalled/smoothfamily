@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Under Gæster kopierer linkknappen ved hver gæst det personlige link til gæsten og selskabet, som kan sendes med sms eller som I vil. Den, der har linket, kan svare som gæsten, så send det kun til dem.",
           "Hver plakat kan se forskellig ud på computer og mobil: vælg Mobil i plakateditoren, så gælder den rækkefølge, det der vises, den justering og størrelse, du ændrer, kun på mobil. Tekster og billeder deles, så en rettelse ses på begge. Indtil du ændrer noget, følger mobilen computeren. Brede tablets regnes som computer, smalle som mobil.",
           "Skabeloner (Design → Skabeloner) sætter alle plakater og udseendet på én gang: den indbyggede Gala eller jeres egne – gem enhver fest som skabelon. Eller lav en med egen AI: skriv jeres ønsker, kopiér prompten til en valgfri AI, og indsæt svaret. I ser skabelonen, før den bruges, kun det, plakaterne kender, kommer ind (ingen kode, ingen billeder udefra), og alt kan ændres bagefter. En skabelon kan også gemmes som fil og åbnes af en anden familie.",
           "Ét link hele vejen: på gem datoen registrerer gæsterne sig med navn og e-mail. Invitationsmailen giver hver af dem et personligt link at svare med. Åbner de det igen, ser de deres svar og kan ændre det. Den, der ikke har svaret, får en påmindelse af sig selv før sidste svardag (Udsendelser). Fra det tidspunkt, I sætter under Design, åbner samme link festportalen, og på det tidspunkt, I sætter under Tak, går takken ud til dem, der kom.",

@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Under Gjester kopierer lenkeknappen ved hver gjest den personlige lenken til gjesten og følget, til å sende med sms eller hvordan dere vil. Den som har lenken, kan svare som gjesten, så send den bare til dem.",
           "Hver plakat kan se ulik ut på datamaskin og mobil: velg Mobil i plakateditoren, så gjelder rekkefølgen, det som vises, justeringen og størrelsen du endrer, bare på mobil. Tekster og bilder deles, så en retting vises på begge. Til du endrer noe, følger mobilen datamaskinen. Brede nettbrett regnes som datamaskin, smale som mobil.",
           "Maler (Design → Maler) setter alle plakatene og utseendet på én gang: den innebygde Gala eller deres egne – lagre hvilken som helst fest som mal. Eller lag en med egen AI: skriv ønskene, kopier prompten til valgfri AI og lim inn svaret. Dere ser malen før den brukes, bare det plakatene kjenner til kommer inn (ingen kode, ingen bilder utenfra), og alt kan endres etterpå. En mal kan også lagres som fil og åpnes av en annen familie.",
           "Én lenke hele veien: på spar datoen registrerer gjestene seg med navn og e-post. Invitasjonsmailen gir hver av dem en personlig lenke å svare med. Åpner de den igjen, ser de svaret sitt og kan endre det. Den som ikke har svart, får en påminnelse av seg selv før siste svardag (Utsendelser). Fra tiden dere setter under Design åpner samme lenke festportalen, og på tiden dere setter under Takk går takken ut til dem som kom.",
