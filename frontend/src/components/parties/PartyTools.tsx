@@ -7,6 +7,7 @@ import { Check, Copy, ExternalLink, Link2, Mail, MessageCircle, MessageSquare, P
 import { api } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { newId } from "@/lib/poster";
+import PartyChat from "@/components/parties/PartyChat";
 import { type Change, type Detail, SaveButton, type TabProps, WhenField, localInput } from "@/components/parties/PartiesApp";
 
 // What the guests choose and read: the menu, signing up for a speech, practical information.
@@ -34,6 +35,15 @@ export function GuestOptions({ party, change }: { party: Detail; change: Change 
           <input className="input min-w-40 flex-1" value={dish} maxLength={60} placeholder={t("parties.menuHint")} aria-label={t("parties.menuAdd")} onChange={(e) => setDish(e.target.value)} />
           <button className="btn-ghost flex items-center gap-1 border border-edge" type="submit" disabled={!dish.trim() || party.menu.length >= 12}><Plus className="h-4 w-4" aria-hidden />{t("parties.menuAdd")}</button>
         </form>
+      </div>
+      <div className="space-y-2">
+        <span className="label">{t("partyChat.chats")}</span>
+        {(["guest_chat", "planner_chat"] as const).map((k) => (
+          <label key={k} className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={party[k]} onChange={(e) => { if (e.target.checked || window.confirm(t("partyChat.offConfirm"))) void change({ [k]: e.target.checked }); }} />
+            <span>{t(`partyChat.${k}`)}<span className="block text-xs text-muted">{t(`partyChat.${k}Help`)}</span></span>
+          </label>
+        ))}
       </div>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" className="mt-0.5 h-4 w-4 accent-primary-700" checked={party.speech_signup} onChange={(e) => change({ speech_signup: e.target.checked })} />
@@ -158,6 +168,12 @@ export function PlanTab({ party, run, path }: TabProps) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+      {party.planner_chat && (
+        <section className="card space-y-2 p-5" aria-label={t("partyChat.planners")}>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("partyChat.planners")}</h2>
+          <PartyChat path={`${path}/chat/planners`} remove label={t("partyChat.planners")} buttonClass="btn-primary" />
         </section>
       )}
       <section className="card space-y-3 p-5" aria-label={t("parties.tab.plan")}>

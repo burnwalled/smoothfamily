@@ -495,6 +495,10 @@ class Conversation(Base):
     name: Mapped[str] = mapped_column(String(80), default="")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # A party's chat, "guests" or "planners": people from outside write in it too, and the party
+    # decides who's in it.
+    party_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("parties.id", ondelete="CASCADE"), nullable=True, index=True)
+    party_kind: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     members: Mapped[list["ConversationMember"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
@@ -523,7 +527,9 @@ class ChatMessage(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("conversations.id"), nullable=True)
-    sender_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    # Someone from outside the family (a party's guest or helper) has no user, only a name.
+    sender_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    sender_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     body: Mapped[str] = mapped_column(Text)
     media_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("media_items.id"), nullable=True)
     gif_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -2039,6 +2045,9 @@ class Party(Base):
     mail_texts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Whom the helpers keep the planning from: the family's users by id.
     plan_hidden: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # The chats: with the guests, and among those planning (with the helpers).
+    guest_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    planner_chat: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     page_custom_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("party_themes.id", ondelete="SET NULL"), nullable=True)
     # A picture on the invitation (the storage key of a web-sized copy).
     invite_image_key: Mapped[str | None] = mapped_column(String(200), nullable=True)

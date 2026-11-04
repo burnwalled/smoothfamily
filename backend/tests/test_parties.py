@@ -1028,3 +1028,82 @@ async def test_the_shared_message_is_the_hosts_own(client):
     assert out["share_texts"]["save"] == "Boka {when}! {link}"
     assert not [m for m in out["mail_templates"] if m["kind"].startswith("share")]
     assert (await client.put(f"/api/parties/{pid}", json={"mail_texts": {"share_save": {"text": ""}}})).json()["share_texts"]["save"] == ""
+
+
+async def test_the_guests_chat_is_in_the_chat_app_too(client):
+    await _family(client)
+    pid, token, _ = await _token_party(client, title="Fyrtio")
+    key = (await client.post(f"/api/party/{token}/reply", json={"first_name": "Saga", "last_name": "Berg", "coming": True})).json()["key"]
+    # Not chosen: nothing there.
+    assert (await client.get(f"/api/party/{token}/chat?key={key}")).status_code == 404
+    assert (await client.put(f"/api/parties/{pid}", json={"guest_chat": True})).json()["guest_chat"] is True
+    assert (await client.get(f"/api/party/{token}")).json()["guest_chat"] is True
+
+    # A guest needs their own key; the link alone isn't enough.
+    assert (await client.get(f"/api/party/{token}/chat?key=fel")).status_code == 404
+    assert (await client.post(f"/api/party/{token}/chat?key={key}", json={"body": "Så taggad!"})).status_code == 201
+    assert (await client.post(f"/api/party/{token}/chat?key={key}", json={"body": "   "})).status_code == 422
+    seen = (await client.get(f"/api/party/{token}/chat?key={key}")).json()["messages"]
+    assert [(m["name"], m["body"], m["mine"], m["host"]) for m in seen] == [("Saga Berg", "Så taggad!", True, False)]
+
+    # In the family's chat app, unread, under the party's name, and the hosts answer from there.
+    conv = next(c for c in (await client.get("/api/chat/conversations")).json() if c["conversation_name"] and c["conversation_name"].startswith("Fyrtio"))
+    assert conv["unread_count"] == 1 and conv["peer_type"] == "group" and conv["is_creator"] is False and conv["last_message_snippet"] == "Så taggad!"
+    page = (await client.get(f"/api/chat/messages?peer={conv['peer_key']}")).json()["items"]
+    assert page[0]["sender_id"] is None and page[0]["sender_name"] == "Saga Berg"
+    await client.post("/api/chat/messages", json={"peer": conv["peer_key"], "body": "Välkommen!"})
+    seen = (await client.get(f"/api/party/{token}/chat?key={key}")).json()["messages"]
+    assert seen[1]["body"] == "Välkommen!" and seen[1]["host"] is True and seen[1]["mine"] is False
+    # Who's in it is the party's to say.
+    assert (await client.patch(f"/api/chat/conversations/{conv['peer_key']}", json={"member_ids": []})).status_code == 403
+
+    # In the portal during the party, under a name.
+    now = datetime.now(timezone.utc)
+    code = (await client.put(f"/api/parties/{pid}", json={"portal_at": (now - timedelta(minutes=1)).isoformat()})).json()["portal"]["link"].rsplit("/", 1)[1]
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "Hej"})).status_code == 422
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "Skål!", "name": "Nils"})).status_code == 201
+    assert [m["name"] for m in (await client.get(f"/api/party-portal/{code}/chat?me=Nils")).json()["messages"]][-1] == "Nils"
+    # The portal closed: no way in by the code.
+    await client.delete(f"/api/parties/{pid}/portal")
+    assert (await client.post(f"/api/party-portal/{code}/chat", json={"body": "x", "name": "y"})).status_code == 404
+
+    # The hosts can take a message away; not too many at once; off removes it.
+    messages = (await client.get(f"/api/parties/{pid}/chat/guests")).json()["messages"]
+    assert (await client.delete(f"/api/parties/{pid}/chat/guests/{messages[0]['id']}")).status_code == 204
+    assert len((await client.get(f"/api/parties/{pid}/chat/guests")).json()["messages"]) == len(messages) - 1
+    statuses = [(await client.post(f"/api/party/{token}/chat?key={key}", json={"body": f"{i}"})).status_code for i in range(14)]
+    assert statuses[-1] == 429
+    await client.put(f"/api/parties/{pid}", json={"guest_chat": False})
+    assert (await client.get(f"/api/party/{token}/chat?key={key}")).status_code == 404
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+
+
+async def test_the_planners_chat_with_a_toastmaster(client):
+    await _family(client)
+    me = (await client.get("/api/auth/me")).json()
+    pid, token, _ = await _token_party(client, title="Fyrtio")
+    made = (await client.post(f"/api/parties/{pid}/helpers", json={"name": "Lars"})).json()
+    assert made["party"]["planner_chat"] is True  # it comes with the first helper
+    code = (await client.post(f"/api/parties/{pid}/helpers/{made['party']['helpers'][0]['id']}/link")).json()["link"].rsplit("/", 1)[1]
+    await client.post(f"/api/parties/{pid}/chat/planners", json={"body": "Hej Lars"})
+
+    # The toastmaster, by their link: reads and writes; the family has it in the chat app.
+    await client.post(f"/api/party-help/{code}/enter")
+    helper = {"X-Party-Helper": "1"}
+    assert (await client.post(f"/api/parties/{pid}/chat/planners", json={"body": "Hej! Vilka ska tala?"}, headers=helper)).status_code == 201
+    seen = (await client.get(f"/api/parties/{pid}/chat/planners", headers=helper)).json()["messages"]
+    assert [(m["name"], m["mine"]) for m in seen] == [("Anna", False), ("Lars", True)]
+    chats = [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert len(chats) == 1 and chats[0]["conversation_name"] == "Fyrtio – planering"
+
+    # Kept from the host: they're out of the chat too, and can't read it.
+    await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": [me["id"]]}, headers=helper)
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert (await client.get(f"/api/parties/{pid}/chat/planners")).status_code == 403
+    assert (await client.get(f"/api/chat/messages?peer={chats[0]['peer_key']}")).status_code == 404
+    assert (await client.get(f"/api/parties/{pid}")).json()["planner_chat"] is False
+    # Shown again: back in. And removing the party takes the chats with it.
+    await client.put(f"/api/parties/{pid}/plan/hidden", json={"user_ids": []}, headers=helper)
+    assert [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]
+    assert (await client.delete(f"/api/parties/{pid}")).status_code == 204
+    assert not [c for c in (await client.get("/api/chat/conversations")).json() if (c["conversation_name"] or "").startswith("Fyrtio")]

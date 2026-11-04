@@ -198,7 +198,7 @@ function Divider({ b }: { b: Extract<Block, { type: "divider" }> }) {
 }
 
 // What the interactive pieces hold on the page they're on; in the editor, a picture of them.
-export type Slots = Partial<Record<"subscribe" | "upload" | "gallery" | "checkin", ReactNode>>;
+export type Slots = Partial<Record<"subscribe" | "upload" | "gallery" | "checkin" | "chat", ReactNode>>;
 
 function Section({ heading, s, theme, d, children }: { heading?: string; s: TextStyle; theme: PartyTheme; d: PosterData; children: ReactNode }) {
   const { t } = useI18n();
@@ -321,6 +321,7 @@ function BlockView({ b, d, theme, first, slots }: { b: Block; d: PosterData; the
     case "upload":
     case "gallery":
     case "checkin":
+    case "chat":
       return slots[b.type] === null ? null : <Section heading={b.heading} s={b} theme={theme} d={d}>{slots[b.type] ?? <p className="text-sm text-muted">{t(`poster.slot.${b.type}`)}</p>}</Section>;
   }
 }

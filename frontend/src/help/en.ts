@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "A party can have two chats, chosen under Details. The guests' chat is on their pages and in the portal, where they write to each other and to you before and during the party; it's also in your chat app. The planners' chat is for the family's adults and the helpers, and leaves out those the plan is kept from.",
           "The mails are HTML in the party's theme, with the guest's own button, and plain text for programs that want it. A save-the-date isn't mailed, as you don't have the addresses yet: under Sending out you get a ready message with the link, to share by text, WhatsApp, e-mail or any app. Those who sign up leave their address and get the invitation by mail.",
           "Under Guests you can put guests together, such as a couple who both registered. Each keeps their own reply and link, but nobody is counted twice, they can't also bring another +1, they sit at the same table, and one can answer for the other. The app points out when someone's +1 is already on the list, and shows how many can come at most.",
           "Bring in a toastmaster: under Details, Helpers from outside gives someone a personal link, without an account, ending 1 day, 3 days or 1 week after the party. They can do everything for that party except remove it, and see nothing else of the family's. A new step, The plan, holds speeches, serving, games and notes by the clock, and they choose whom it's kept from: for them it's greyed out.",

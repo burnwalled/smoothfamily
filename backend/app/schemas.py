@@ -573,7 +573,7 @@ class ChatConversationOut(BaseModel):
 
 class ChatMessageOut(BaseModel):
     id: uuid.UUID
-    sender_id: uuid.UUID
+    sender_id: uuid.UUID | None = None
     sender_name: str
     sender_color: str
     recipient_id: uuid.UUID | None = None

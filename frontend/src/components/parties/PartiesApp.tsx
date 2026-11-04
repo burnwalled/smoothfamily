@@ -19,6 +19,7 @@ import { CustomTheme, customTheme, kindTheme, partyTheme, themeStyle } from "@/l
 import PosterEditor from "@/components/parties/PosterEditor";
 import TemplatePicker from "@/components/parties/TemplatePicker";
 import GuestImport from "@/components/parties/GuestImport";
+import PartyChat from "@/components/parties/PartyChat";
 import { CheckinCard, GuestOptions, Helpers, MailTemplates, PlanTab, ShareMessage, Vendors } from "@/components/parties/PartyTools";
 import Poster from "@/components/parties/Poster";
 import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
@@ -41,6 +42,7 @@ export type Detail = {
   date_poll: boolean; date_options: string[]; tally: { option: string; votes: number; people: number; names: string[] }[];
   guests: Guest[]; coming: number; children: number; not_coming: number; allergies: { name: string; allergies: string }[];
   tasks: { id: string; title: string; due_date: string | null; done: boolean; who: string | null; helper_id?: string | null; action?: string | null }[];
+  guest_chat: boolean; planner_chat: boolean;
   capacity: { coming: number; waiting: number; most: number; open: boolean };
   pages: Stage[]; tables: { id: string; name: string; seats: number }[]; family_name: string;
   checkin_at: string | null; menu: { id: string; name: string }[]; menu_tally: { id: string | null; name: string; people: number }[]; speech_signup: boolean;
@@ -311,6 +313,8 @@ function withDefaults(d: Detail): Detail {
     mailings: d.mailings ?? [],
     pages: d.pages ?? STAGES.filter((st) => st !== "checkin"),
     tables: d.tables ?? [],
+    guest_chat: d.guest_chat ?? false,
+    planner_chat: d.planner_chat ?? false,
     capacity: d.capacity ?? { coming: d.coming ?? 0, waiting: 0, most: d.coming ?? 0, open: false },
     family_name: d.family_name ?? "",
     checkin_at: d.checkin_at ?? null,
@@ -377,7 +381,7 @@ export function PartyView({ id, onBack }: { id: string; onBack?: () => void }) {
 
   if (!party) return <p className="text-sm text-muted">{t("common.loading")}</p>;
   // The plan is there once someone's invited to help; those it's kept from see it greyed out.
-  const steps = TABS.filter((x) => x !== "plan" || party.helpers.length > 0 || party.you.helper);
+  const steps = TABS.filter((x) => x !== "plan" || party.helpers.length > 0 || party.you.helper || party.planner_chat);
   const open = steps.filter((x) => x !== "plan" || !party.plan_kept);
   const when = party.date_poll ? t("parties.pollOpen") : new Date(party.starts_at).toLocaleString(dateLocale, LONG);
 
@@ -1110,6 +1114,12 @@ function GuestsTab({ party, run, change, path }: TabProps & { change: Change }) 
       </div>
     </div>
     <Seating party={party} run={run} change={change} path={path} />
+    {party.guest_chat && (
+      <section className="card space-y-2 p-5" aria-label={t("partyChat.heading")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("partyChat.heading")}</h2>
+        <PartyChat path={`${path}/chat/guests`} remove label={t("partyChat.heading")} buttonClass="btn-primary" />
+      </section>
+    )}
     </div>
   );
 }

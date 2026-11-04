@@ -852,3 +852,54 @@ test("a save-the-date goes out by sharing a message", async ({ adminPage: page, 
     await adminApi.delete(`/api/parties/${party.id}`);
   }
 });
+
+// The party's chats: a guest writes on their page and the hosts read it in the chat app; those planning
+// and the toastmaster have their own.
+test("the party's chats", async ({ adminPage: page, adminApi, browser }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const title = unique("Chattfest");
+  const party = await (await adminApi.post("/api/parties", { data: { title, kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  const token: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link.split("/").pop();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const options = page.getByRole("region", { name: "For the guests" });
+    await options.getByRole("checkbox", { name: /A chat with the guests/ }).click();
+    await expect(options.getByRole("checkbox", { name: /A chat with the guests/ })).toBeChecked();
+
+    const guest = await browser.newContext();
+    const g = await guest.newPage();
+    await g.goto(`/party/${token}`);
+    await expect(g.getByText("Reply to the invitation or use your personal link")).toBeVisible();
+    const reply = g.getByRole("region", { name: "Will you come?" });
+    await reply.getByLabel("First name").fill("Saga");
+    await reply.getByRole("button", { name: "Send the reply" }).click();
+    const chat = g.getByRole("group", { name: "The party's chat" });
+    await chat.getByLabel("Your message").fill("Så taggad!");
+    await chat.getByRole("button", { name: "Send" }).click();
+    await expect(chat.getByText("Så taggad!")).toBeVisible();
+
+    // In the chat app, under the party's name.
+    await page.goto("/chat");
+    await page.getByRole("button", { name: new RegExp(title) }).first().click();
+    await expect(page.getByText("Så taggad!").last()).toBeVisible();
+    await expect(page.getByText("Saga").first()).toBeVisible();
+    await guest.close();
+
+    // The toastmaster and the planners' chat.
+    const made = await (await adminApi.post(`/api/parties/${party.id}/helpers`, { data: { name: "Lars" } })).json();
+    const { link } = await (await adminApi.post(`/api/parties/${party.id}/helpers/${made.party.helpers[0].id}/link`)).json();
+    const outside = await browser.newContext();
+    const l = await outside.newPage();
+    await l.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await l.getByRole("button", { name: /^\d\s?The plan$/ }).click();
+    const planners = l.getByRole("group", { name: "The planners' chat" });
+    await planners.getByLabel("Your message").fill("Vilka ska tala?");
+    await planners.getByRole("button", { name: "Send" }).click();
+    await expect(planners.getByText("Vilka ska tala?")).toBeVisible();
+    await outside.close();
+    await page.reload();
+    await expect(page.getByRole("button", { name: new RegExp(`${title} – planning`) }).first()).toBeVisible();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});

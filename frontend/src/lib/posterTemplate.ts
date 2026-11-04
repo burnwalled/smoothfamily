@@ -110,6 +110,7 @@ function block(r: unknown, id: string, known: Known, warnings: TemplateWarning[]
     case "gallery":
     case "practical":
     case "checkin":
+    case "chat":
       return { ...base, type: r.type, ...compact({ heading }), ...style(r) } as Block;
     case "calendar": {
       const buttons = (Array.isArray(r.buttons) ? r.buttons : []).filter((x): x is "ics" | "google" | "outlook" => ["ics", "google", "outlook"].includes(x as string));

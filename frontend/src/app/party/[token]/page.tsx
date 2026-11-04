@@ -16,7 +16,8 @@ import { CustomTheme, customTheme, partyTheme, themeStyle } from "@/lib/partyThe
 import { FONTS } from "@/lib/partyFonts";
 import PartySky from "@/components/parties/PartySky";
 import Poster from "@/components/parties/Poster";
-import { Block, PosterData, Stage, defaultPoster } from "@/lib/poster";
+import PartyChat from "@/components/parties/PartyChat";
+import { Block, PosterData, Stage, defaultPoster, withChat } from "@/lib/poster";
 
 type Companion = { first_name: string; last_name: string; child: boolean; allergies: string ; menu_choice?: string | null };
 type Reply = { first_name: string; last_name: string; coming: boolean; allergies: string; message: string; companions: Companion[]; email: string | null; updates: boolean; date_votes: string[]; pending?: boolean; wants_speech?: boolean; speech_note?: string; menu_choice?: string | null; checkin?: string | null; for_group?: boolean };
@@ -48,6 +49,7 @@ type Page = {
   mine: Reply | null;
   // Those the hosts have put together with this guest, each with their own reply.
   together: { name: string; pending: boolean }[];
+  guest_chat: boolean;
   menu: { id: string; name: string }[]; speech_signup: boolean; practical: { parking?: string; lodging?: string; travel?: string };
 };
 
@@ -277,7 +279,8 @@ export default function PartyInvitation() {
   const blocks: Block[] = stage === "save" && page.mail && !drawn.some((b) => b.type === "subscribe") ? [...drawn, { id: "subscribe", type: "subscribe", heading: t("party.subscribeHeading"), font: "theme-display", size: "l" }] : drawn;
   const replied = !!page.mine && !page.mine.pending;
   const reply = page.mine;
-  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null, checkin: <CheckIn token={token} mine={page.mine} guestKey={key()} onDone={load} /> };
+  const slots = { subscribe: page.mail ? <Subscribe token={token} mine={!!page.mine} onDone={(k) => keep("sf.party-keys", token, k)} /> : null, upload: null, gallery: null, checkin: <CheckIn token={token} mine={page.mine} guestKey={key()} onDone={load} />,
+    chat: !page.guest_chat ? null : page.mine && key() ? <PartyChat path={`/api/party/${token}/chat`} query={`?key=${encodeURIComponent(key()!)}`} label={t("partyChat.heading")} /> : <p className="text-sm text-muted">{t("partyChat.needsReply")}</p> };
 
   return (
     <main className="pt" lang={page.language} style={themeStyle(theme)}>
@@ -288,7 +291,7 @@ export default function PartyInvitation() {
         <img src={theme.header} alt="" className="relative z-10 mx-auto h-40 w-full max-w-5xl object-cover sm:h-60 sm:rounded-b-3xl" />
       )}
       <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 pb-6 sm:px-6">
-        <Poster blocks={blocks} d={poster} theme={theme} slots={slots} />
+        <Poster blocks={page.guest_chat && stage !== "save" ? withChat(blocks, t("partyChat.heading")) : blocks} d={poster} theme={theme} slots={slots} />
         {stopped && <p className="pt-card p-4 text-sm" role="status">{t("party.stopped")}</p>}
 
         {page.thanks && (
