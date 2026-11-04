@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Festens sju trinn – her designet: de fire sidene, spillelisten og portalen."
+        "caption": "Festens sju trinn – her Design, som begynner med malene."
       },
       {
         "steps": [
@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Maler (Design → Maler) setter alle plakatene og utseendet på én gang: den innebygde Gala eller deres egne – lagre hvilken som helst fest som mal. Eller lag en med egen AI: skriv ønskene, kopier prompten til valgfri AI og lim inn svaret. Dere ser malen før den brukes, bare det plakatene kjenner til kommer inn (ingen kode, ingen bilder utenfra), og alt kan endres etterpå. En mal kan også lagres som fil og åpnes av en annen familie.",
           "Én lenke hele veien: på spar datoen registrerer gjestene seg med navn og e-post. Invitasjonsmailen gir hver av dem en personlig lenke å svare med. Åpner de den igjen, ser de svaret sitt og kan endre det. Den som ikke har svart, får en påminnelse av seg selv før siste svardag (Utsendelser). Fra tiden dere setter under Design åpner samme lenke festportalen, og på tiden dere setter under Takk går takken ut til dem som kom.",
           "Én fest, fire sider i samme tema, hver med sin egen plakat (Plakat): først en sett av datoen om dere vil – gjestene lagrer datoen og legger igjen e-posten, og får en e-post når dere bytter lenken til invitasjonen – så invitasjonen, festportalen og takken. Lim inn en samarbeidsliste i Spotify, så kan gjestene ønske seg sanger. Åpne festportalen og skriv ut QR-koden til bordene: gjestene laster opp bildene sine rett til et album i hvelvet og ser dagens program.",
           "Appen har et bildebibliotek: bakgrunner og toppbilder til mange av temaene, og klistremerker – ballonger, discokule, kreps, russelue, ringer, gresskar med mer – å sette på plakaten i stedet for emoji (Plakat → en dekorasjonsrad eller emblemet → Bibliotek).",

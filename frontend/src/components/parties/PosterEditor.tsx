@@ -167,7 +167,12 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
 
   const props = (b: Block) => {
     switch (b.type) {
-      case "text": return (<>{textField(b, "text", true)}{textStyle(b, b.font?.endsWith("script") ? "script" : b.font?.endsWith("display") ? "display" : "body")}</>);
+      case "text": return (<>{textField(b, "text", true)}{textStyle(b, b.font?.endsWith("script") ? "script" : b.font?.endsWith("display") ? "display" : "body")}
+        <label className="block"><span className="label">{t("poster.tilt")}</span>
+          <select className="input" value={b.tilt ?? 0} onChange={(e) => patch(b.id, { tilt: Number(e.target.value) || undefined })}>
+            {[-6, -4, -2, 0, 2, 4, 6].map((n) => <option key={n} value={n}>{n ? `${n > 0 ? "+" : "−"}${Math.abs(n)}°` : t("poster.tiltNone")}</option>)}
+          </select>
+        </label></>);
       case "decor": return (
         <div className="space-y-2">
           {b.items.map((it, i) => itemPick(it, (n) => patch(b.id, { items: b.items.map((x, j) => (j === i ? n : x)) }), () => patch(b.id, { items: b.items.filter((_, j) => j !== i) }), i))}
@@ -198,6 +203,7 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
             </label>
           </div>
           {(b.style ?? "poster") !== "round" && (b.style ?? "poster") !== "plain" && <label className="block"><span className="label">{t("poster.tag")}</span>{textField(b, "tag")}</label>}
+          {b.source === "invite" && <div className="space-y-1"><span className="label">{t("poster.fallback")}</span>{b.fallback ? itemPick(b.fallback, (fallback) => patch(b.id, { fallback }), () => patch(b.id, { fallback: undefined })) : <button type="button" className="btn-ghost border border-edge text-xs" onClick={() => patch(b.id, { fallback: { kind: "emoji", value: "🎉" } })}>{t("poster.addItem")}</button>}</div>}
           {alignPick(b.align ?? "center", (align) => patch(b.id, { align }))}
         </div>
       );
@@ -217,8 +223,24 @@ export default function PosterEditor({ partyId, theme, data, layout, assets, sta
             <div key={f} className="flex items-center gap-2">
               <input type="checkbox" className="h-4 w-4 accent-primary-700" aria-label={T(`poster.field.${f}`)} checked={b.fields.includes(f)} onChange={(e) => patch(b.id, { fields: e.target.checked ? DETAIL_FIELDS.filter((x) => x === f || b.fields.includes(x)) : b.fields.filter((x) => x !== f) })} />
               <input className="input flex-1 py-1 text-sm" placeholder={T(`party.${f === "rsvp" ? "rsvpShort" : f === "guests" ? "guestsLabel" : f}`)} aria-label={t("poster.fieldLabel", { field: T(`poster.field.${f}`) })} value={b.labels?.[f] ?? ""} onChange={(e) => patch(b.id, { labels: { ...b.labels, [f]: e.target.value } })} />
+              <input className="input flex-1 py-1 text-sm" placeholder={t("poster.fieldSub")} aria-label={t("poster.fieldSubOf", { field: T(`poster.field.${f}`) })} value={b.subs?.[f] ?? ""} maxLength={120} onChange={(e) => patch(b.id, { subs: { ...b.subs, [f]: e.target.value } })} />
             </div>
           ))}
+          {b.variant === "ticket" && (
+            <div className="space-y-2">
+              <label className="block"><span className="label">{t("poster.ticketNote")}</span><input className="input" value={b.note ?? ""} maxLength={120} onChange={(e) => patch(b.id, { note: e.target.value })} /></label>
+              <span className="label">{t("poster.stub")}</span>
+              {(b.stub ?? []).map((x, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input className="input flex-1 py-1 text-sm" placeholder={t("poster.stubLabel")} aria-label={t("poster.stubLabel")} value={x.label} maxLength={30} onChange={(e) => patch(b.id, { stub: b.stub!.map((y, j) => (j === i ? { ...y, label: e.target.value } : y)) })} />
+                  <input className="input w-20 py-1 text-sm" placeholder={t("poster.stubValue")} aria-label={t("poster.stubValue")} value={x.value} maxLength={30} onChange={(e) => patch(b.id, { stub: b.stub!.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)) })} />
+                  <button type="button" className="text-muted hover:text-red-700" aria-label={t("common.remove")} onClick={() => patch(b.id, { stub: b.stub!.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" aria-hidden /></button>
+                </div>
+              ))}
+              <button type="button" className="btn-ghost flex items-center gap-1 border border-edge text-xs" disabled={(b.stub?.length ?? 0) >= 3} onClick={() => patch(b.id, { stub: [...(b.stub ?? []), { label: "", value: "" }] })}><Plus className="h-3.5 w-3.5" aria-hidden />{t("poster.addItem")}</button>
+              <p className="text-xs text-muted">{t("poster.stubHelp")}</p>
+            </div>
+          )}
         </div>
       );
       case "countdown": return (<><span className="label">{t("poster.heading")}</span>{textField(b, "heading")}{textStyle(b, "script")}</>);

@@ -17,6 +17,7 @@ import PageTitle, { EmptyState } from "@/components/PageTitle";
 import ThemePicker from "@/components/parties/ThemePicker";
 import { CustomTheme, customTheme, kindTheme, partyTheme } from "@/lib/partyThemes";
 import PosterEditor from "@/components/parties/PosterEditor";
+import TemplatePicker from "@/components/parties/TemplatePicker";
 import { THEMES_PATH, hostPicture } from "@/components/parties/ThemePicker";
 import { STAGES, type Block, type PosterData, type Stage } from "@/lib/poster";
 import AddressInput from "@/components/AddressInput";
@@ -484,6 +485,7 @@ function PosterTab({ party }: { party: Detail }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <TemplatePicker party={party} data={data} customId={party.page_custom_id} onApplied={keep} />
       <section className="card space-y-3 p-5" aria-label={t("parties.posters")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.posters")}</h2>
         <p className="text-xs text-muted">{t("parties.postersHelp")}</p>

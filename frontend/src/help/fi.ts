@@ -359,7 +359,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "parties",
-        "caption": "Juhlien seitsemän vaihetta – tässä ulkoasu: neljä sivua, soittolista ja portaali."
+        "caption": "Juhlien seitsemän vaihetta – tässä Ulkoasu, joka alkaa malleista."
       },
       {
         "steps": [
@@ -384,6 +384,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "tips": [
+          "Mallit (Ulkoasu → Mallit) asettavat kaikki julisteet ja ulkoasun kerralla: valmis Gaala tai omanne – tallentakaa mitkä tahansa juhlat mallina. Tai tehkää malli omalla tekoälyllä: kirjoittakaa toiveet, kopioikaa kehote haluamaanne tekoälyyn ja liittäkää vastaus takaisin. Näette mallin ennen käyttöä, sisään tulee vain se, minkä julisteet tuntevat (ei koodia, ei ulkopuolisia kuvia), ja kaikkea voi muuttaa jälkeenpäin. Mallin voi myös tallentaa tiedostona ja avata toisessa perheessä.",
           "Yksi linkki alusta loppuun: tallenna päivä -sivulla vieraat rekisteröityvät nimellä ja sähköpostilla. Kutsuviesti antaa jokaiselle henkilökohtaisen linkin, jolla vastata. Kun he avaavat sen uudelleen, he näkevät vastauksensa ja voivat muuttaa sitä. Vastaamattomat saavat muistutuksen itsestään ennen viimeistä vastauspäivää (Lähetykset). Ulkoasu-kohdassa asettamastanne ajasta sama linkki avaa juhlaportaalin, ja Kiitos-kohdassa asettamananne aikana kiitos lähtee tulleille.",
           "Yksi juhla, neljä sivua samassa teemassa, kullakin oma juliste (Juliste): ensin halutessanne merkitse päivä -sivu – vieraat tallentavat päivän ja jättävät sähköpostinsa ja saavat viestin, kun vaihdatte linkin kutsuun – sitten kutsu, juhlaportaali ja kiitos. Liitä Spotifyn yhteissoittolista, niin vieraat voivat toivoa kappaleita. Avaa juhlaportaali ja tulosta sen QR-koodi pöytiin: vieraat lataavat kuvansa suoraan Holvin albumiin ja näkevät päivän ohjelman.",
           "Sovelluksessa on kuvakirjasto: taustat ja yläkuvat moniin teemoihin sekä tarroja – ilmapallot, diskopallo, rapu, ylioppilaslakki, sormukset, kurpitsa ja muuta – julisteeseen emojien tilalle (Juliste → koristerivi tai tunnus → Kirjasto).",

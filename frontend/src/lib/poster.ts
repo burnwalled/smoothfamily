@@ -9,7 +9,7 @@ import type { TranslationKey } from "@/lib/i18n";
 export type Align = "left" | "center" | "right";
 export type Side = "full" | "left" | "right";
 export type FontChoice = "theme-display" | "theme-script" | "theme-body" | `${FontSet}-${"display" | "script" | "body"}`;
-export type TextStyle = { font?: FontChoice; size?: "s" | "m" | "l" | "xl" | "xxl"; align?: Align; color?: "ink" | "accent" | "gold" | "muted"; caps?: boolean };
+export type TextStyle = { font?: FontChoice; size?: "s" | "m" | "l" | "xl" | "xxl"; align?: Align; color?: "ink" | "accent" | "gold" | "muted"; caps?: boolean; tilt?: number };
 // An emoji, one of the library's stickers, or a picture the hosts added ("sticker").
 export type DecorItem = { kind: "emoji" | "library" | "sticker"; value: string };
 export type CalendarButton = "ics" | "google" | "outlook" | "apple";
@@ -19,9 +19,9 @@ type Base = { id: string; side?: Side };
 export type Block = Base & (
   | ({ type: "text"; text: string } & TextStyle)
   | { type: "decor"; items: DecorItem[]; align?: Align; size?: "s" | "m" | "l" }
-  | { type: "image"; source: "invite" | "asset" | "library"; asset?: string; style?: "poster" | "plain" | "round" | "polaroid"; tag?: string; align?: Align }
+  | { type: "image"; source: "invite" | "asset" | "library"; asset?: string; style?: "poster" | "plain" | "round" | "polaroid"; tag?: string; align?: Align; fallback?: DecorItem }
   | { type: "emblem"; item: DecorItem }
-  | ({ type: "details"; variant: "ticket" | "card" | "list" | "bigdate"; heading?: string; fields: DetailField[]; labels?: Partial<Record<DetailField, string>> } & TextStyle)
+  | ({ type: "details"; variant: "ticket" | "card" | "list" | "bigdate"; heading?: string; fields: DetailField[]; labels?: Partial<Record<DetailField, string>>; subs?: Partial<Record<DetailField, string>>; note?: string; stub?: { label: string; value: string }[] } & TextStyle)
   | ({ type: "countdown"; heading?: string } & TextStyle)
   | { type: "calendar"; buttons: CalendarButton[]; map?: boolean; align?: Align }
   | ({ type: "invitation"; text: string; ribbon?: string } & TextStyle)

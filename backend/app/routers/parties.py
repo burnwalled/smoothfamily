@@ -24,7 +24,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import DB, AdultUser, require_app
-from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyMailing, PartyStep, PartyTask, PartyTheme, Person, User, WishItem
+from app.models import Album, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyMailing, PartyStep, PartyTask, PartyTemplate, PartyTheme, Person, User, WishItem
 from app.services import login_throttle
 from app.services.crypto import decrypt_token, encrypt_token
 from app.services.mfa import qr_svg
@@ -404,6 +404,24 @@ class ThemeIn(BaseModel):
     effect: str = Field(default="confetti", pattern=r"^(none|confetti|bokeh|stars|bubbles|snow|leaves|embers)$")
 
 
+class LookIn(BaseModel):
+    bg: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    bg2: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    accent: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    ink: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    pattern: str = Field(default="none", pattern=rf"^({'|'.join(PATTERNS)})$")
+    decor: str = Field(default="", max_length=60)
+    font: str = Field(default="gala", pattern=r"^(gala|playful|retro|classic|sporty)$")
+    effect: str = Field(default="none", pattern=r"^(none|confetti|bokeh|stars|bubbles|snow|leaves|embers)$")
+
+
+class TemplateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    theme: str | None = Field(default=None, pattern=THEME_PATTERN)
+    look: LookIn | None = None
+    layouts: dict[str, list[dict] | None]
+
+
 class DecideIn(BaseModel):
     option: datetime
 
@@ -526,6 +544,7 @@ async def _check_refs(db: AsyncSession, user: User, data: dict) -> None:
 
 
 LAYOUT_BYTES = 60_000
+BLOCK_TYPES = {"text", "image", "emblem", "decor", "details", "countdown", "calendar", "invitation", "ribbon", "divider", "spacer", "subscribe", "playlist", "schedule", "upload", "gallery"}
 STAGES = {"save": "save_layout", "invite": "layout", "portal": "portal_layout", "thanks": "thanks_layout"}
 
 
@@ -543,8 +562,8 @@ def _clean_layout(blocks: list[dict] | None) -> list[dict] | None:
     if len(json.dumps(blocks)) > LAYOUT_BYTES:
         raise HTTPException(status_code=422, detail="The poster is too big")
     for b in blocks:
-        if not isinstance(b.get("type"), str) or not isinstance(b.get("id"), str):
-            raise HTTPException(status_code=422, detail="A block needs a type and an id")
+        if b.get("type") not in BLOCK_TYPES or not isinstance(b.get("id"), str):
+            raise HTTPException(status_code=422, detail="A block needs a known type and an id")
     return blocks
 
 
@@ -757,6 +776,44 @@ async def create_theme(payload: ThemeIn, user: AdultUser, db: DB) -> dict:
     db.add(theme)
     await db.commit()
     return _theme_out(theme)
+
+
+def _template_out(row: PartyTemplate) -> dict:
+    return {"id": row.id, "name": row.name, "theme": row.theme, "look": row.look, "layouts": row.layouts}
+
+
+@router.get("/templates")
+async def list_templates(user: AdultUser, db: DB) -> list[dict]:
+    """The family's own templates, to use again."""
+    rows = (await db.execute(select(PartyTemplate).where(PartyTemplate.family_id == user.family_id).order_by(PartyTemplate.created_at))).scalars().all()
+    return [_template_out(t) for t in rows]
+
+
+@router.post("/templates", status_code=status.HTTP_201_CREATED)
+async def create_template(payload: TemplateIn, user: AdultUser, db: DB) -> dict:
+    count = (await db.execute(select(func.count()).select_from(PartyTemplate).where(PartyTemplate.family_id == user.family_id))).scalar_one()
+    if count >= 40:
+        raise HTTPException(status_code=409, detail="Too many templates")
+    if set(payload.layouts) - set(STAGES):
+        raise HTTPException(status_code=422, detail="A template holds the party's four posters")
+    # A template in an own theme carries its look: the theme itself may go, the template stays.
+    theme = None if payload.look or payload.theme == "custom" else payload.theme
+    row = PartyTemplate(
+        family_id=user.family_id, created_by=user.id, created_at=datetime.now(timezone.utc), name=payload.name.strip(), theme=theme,
+        look=payload.look.model_dump() if payload.look else None, layouts={stage: _clean_layout(blocks) for stage, blocks in payload.layouts.items()},
+    )
+    db.add(row)
+    await db.commit()
+    return _template_out(row)
+
+
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(template_id: uuid.UUID, user: AdultUser, db: DB) -> None:
+    row = await db.get(PartyTemplate, template_id)
+    if row is None or row.family_id != user.family_id:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await db.delete(row)
+    await db.commit()
 
 
 @router.put("/themes/{theme_id}")
