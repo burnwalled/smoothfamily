@@ -189,6 +189,9 @@ export type NotificationPrefs = {
   calendar_mine: boolean;
   calendar_family: boolean;
   memories?: boolean;
+  subs_cancel?: boolean;
+  subs_quarter?: boolean;
+  subs_year?: boolean;
 };
 
 export type Member = {

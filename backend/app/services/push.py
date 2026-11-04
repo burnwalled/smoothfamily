@@ -22,6 +22,9 @@ NOTIFICATION_DEFAULTS = {
     "calendar_mine": True,
     "calendar_family": False,
     "memories": True,
+    "subs_cancel": True,
+    "subs_quarter": True,
+    "subs_year": True,
 }
 
 

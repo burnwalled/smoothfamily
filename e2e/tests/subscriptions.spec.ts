@@ -1,6 +1,36 @@
 import { test, expect, unique } from "../fixtures";
 
 // The household's subscriptions: added by hand, suggested from a bank file, with a login from the vault.
+test("subscriptions: reminders come, and each adult chooses them", async ({ adminPage: page, adminApi }, info) => {
+  test.skip(info.project.name !== "desktop" || new Date().getUTCHours() < 7);
+  test.setTimeout(150_000);
+  const name = unique("Bindning");
+  const soon = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+  await adminApi.post("/api/subscriptions", { data: { name, amount: 300, cancel_by: soon } });
+  const passed = unique("Gammalt");
+  await adminApi.post("/api/subscriptions", { data: { name: passed, amount: 10, cancel_by: "2020-01-01" } });
+  try {
+    // The server's own round, on the real database.
+    await expect.poll(async () => JSON.stringify(await (await adminApi.get("/api/notifications")).json()), { timeout: 130_000, intervals: [5_000] }).toContain(name);
+
+    await page.goto("/subscriptions");
+    await expect(page.getByRole("listitem").filter({ has: page.locator("span.font-semibold", { hasText: passed }) })).toContainText("has passed");
+    await page.getByText("Reminders", { exact: true }).click();
+    const yearly = page.getByRole("checkbox", { name: "Yearly payments, 7 days before" });
+    await expect(yearly).toBeChecked();
+    await yearly.click();
+    await expect(yearly).not.toBeChecked();
+    await page.reload();
+    await page.getByText("Reminders", { exact: true }).click();
+    await expect(yearly).not.toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "Quarterly payments, 7 days before" })).toBeChecked();
+    await yearly.click();
+    await expect(yearly).toBeChecked();
+  } finally {
+    for (const item of (await (await adminApi.get("/api/subscriptions")).json()).items) await adminApi.delete(`/api/subscriptions/${item.id}`);
+  }
+});
+
 test("subscriptions: by hand, from the bank and with a vault login", async ({ adminPage: page, adminApi }) => {
   const name = unique("Streamia");
   const merchant = unique("BAHNHOFEN").replace(/\W/g, "").toUpperCase();

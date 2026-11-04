@@ -3,7 +3,7 @@ what it comes to a month and a year. A subscription can point to a login in the 
 the vault's rules: nothing of the account is kept here. A bank file's recurring payments become suggestions."""
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import DB, AdultUser, require_app
 from app.models import Family, Subscription, SubscriptionSuggestion, User, VaultLogin
 from app.services import bank_csv
+from app.services.subscription_reminders import next_payment
 
 router = APIRouter(prefix="/api/subscriptions", tags=["subscriptions"], dependencies=[require_app("property")])
 
@@ -54,35 +55,12 @@ def _visible(row: Subscription, user: User) -> bool:
     return row.family_id == user.family_id and (not row.private or row.created_by == user.id)
 
 
-def _next(row: Subscription, today: date) -> date | None:
-    """The next payment: the date given, carried forward by the interval once it's passed."""
-    day = row.next_payment
-    if day is None:
-        return None
-    guard = 0
-    while day < today and guard < 2000:
-        guard += 1
-        if row.interval == "week":
-            day += timedelta(days=7)
-        else:
-            months = {"month": 1, "quarter": 3, "year": 12}[row.interval]
-            total = day.month - 1 + months
-            year, month = day.year + total // 12, total % 12 + 1
-            for last in (31, 30, 29, 28):
-                try:
-                    day = date(year, month, min(row.next_payment.day, last))
-                    break
-                except ValueError:
-                    continue
-    return day
-
-
 def _out(row: Subscription, today: date) -> dict:
     amount = float(row.amount)
     seen = float(row.seen_amount) if row.seen_amount is not None else None
     return {
         "id": row.id, "name": row.name, "category": row.category, "amount": amount, "interval": row.interval, "per_month": round(amount * PER_YEAR[row.interval] / 12, 2),
-        "next_payment": _next(row, today), "cancel_by": row.cancel_by, "who": row.who, "url": row.url, "login_id": row.login_id, "note": row.note, "private": row.private,
+        "next_payment": next_payment(row, today), "cancel_by": row.cancel_by, "cancel_passed": row.cancel_by is not None and row.cancel_by < today, "who": row.who, "url": row.url, "login_id": row.login_id, "note": row.note, "private": row.private,
         "ended_on": row.ended_on, "from_bank": bool(row.pattern), "seen_amount": seen, "seen_on": row.seen_on,
         # What the bank's file says against what's written here.
         "price_changed": seen is not None and row.ended_on is None and abs(seen - amount) > 0.5,

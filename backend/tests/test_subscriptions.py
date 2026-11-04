@@ -1,8 +1,13 @@
 """The household's subscriptions: the overview, vault logins and suggestions from a bank file."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy import select
+
+from app.database import SessionLocal
+from app.models import Notification, User
 from app.services import bank_csv
+from app.services.subscription_reminders import run_subscription_reminders
 from app.services.bank_csv import Txn
 
 
@@ -189,3 +194,77 @@ async def test_when_a_member_leaves(client):
     assert (await client.delete(f"/api/family/members/{ids['adult1']}")).status_code == 204
     out = (await client.get("/api/subscriptions")).json()
     assert [x["name"] for x in out["items"]] == ["Familjens"] and out["per_month"] == 100
+
+
+MORNING = datetime(2026, 11, 4, 8, 0, tzinfo=timezone.utc)
+
+
+async def _remind(now=MORNING) -> int:
+    async with SessionLocal() as db:
+        return await run_subscription_reminders(db, now)
+
+
+async def _got(username: str) -> list[tuple[str, str]]:
+    async with SessionLocal() as db:
+        user = (await db.execute(select(User).where(User.username == username))).scalar_one()
+        rows = (await db.execute(select(Notification).where(Notification.user_id == user.id, Notification.kind == "subscription"))).scalars().all()
+        return [(n.title, n.body) for n in rows]
+
+
+async def test_the_last_day_to_cancel_reminds(client):
+    await _family(client)
+    path = "/api/subscriptions"
+    await client.post(path, json={"name": "Gymmet", "amount": 300, "cancel_by": "2026-11-18"})
+    assert await _remind(MORNING - timedelta(hours=5)) == 0  # not in the night
+    assert await _remind(MORNING - timedelta(days=1)) == 0  # 15 days ahead
+    assert await _remind() == 2  # both adults, not the child
+    assert await _got("admin") == [("Gymmet: sista dag att säga upp", "Om 14 dagar")]
+    assert await _got("maja") == []
+    assert await _remind() == 0  # once
+    # The next one, and after a server that was off on the very day it still comes.
+    assert await _remind(MORNING + timedelta(days=13)) == 2
+    assert ("Gymmet: sista dag att säga upp", "Imorgon") in await _got("admin")
+    assert await _remind(MORNING + timedelta(days=15)) == 0  # passed
+    assert (await client.get(path)).json()["items"][0]["cancel_by"] == "2026-11-18"
+
+
+async def test_which_payments_remind(client):
+    await _family(client)
+    path = "/api/subscriptions"
+    for name, interval in (("Netflix", "month"), ("Veckis", "week"), ("Kvartal", "quarter"), ("Hemförsäkring", "year")):
+        await client.post(path, json={"name": name, "amount": 1200, "interval": interval, "next_payment": "2026-11-09"})
+    assert await _remind() == 4  # the quarterly and the yearly, for both adults
+    assert sorted(t for t, _ in await _got("admin")) == ["Hemförsäkring: betalning på väg", "Kvartal: betalning på väg"]
+    assert all(b.startswith("Om 5 dagar · 1200") for _, b in await _got("admin"))
+    # Carried forward: a year on both fall on the same day again, and remind again.
+    assert await _remind(datetime(2027, 11, 3, 8, 0, tzinfo=timezone.utc)) == 4
+    # Ended: quiet.
+    items = (await client.get(path)).json()["items"]
+    for item in items:
+        await client.put(f"{path}/{item['id']}", json={"ended_on": "2027-01-01"})
+    assert await _remind(datetime(2028, 11, 3, 8, 0, tzinfo=timezone.utc)) == 0
+
+
+async def test_each_adult_chooses_their_reminders(client):
+    await _family(client)
+    path = "/api/subscriptions"
+    await client.post(path, json={"name": "Årsvis", "amount": 100, "interval": "year", "next_payment": "2026-11-09"})
+    await client.post(path, json={"name": "Kvartalsvis", "amount": 100, "interval": "quarter", "next_payment": "2026-11-09"})
+    await client.post(path, json={"name": "Bindning", "amount": 100, "cancel_by": "2026-11-06"})
+    await client.post(path, json={"name": "Min egen", "amount": 100, "cancel_by": "2026-11-06", "private": True})
+    await _as(client, "adult1")
+    me = (await client.get("/api/auth/me")).json()
+    assert me["notification_prefs"]["subs_year"] is True  # on, also for someone who has never chosen
+    prefs = {**me["notification_prefs"], "subs_year": False, "subs_cancel": False}
+    assert (await client.patch("/api/auth/me", json={"notification_prefs": prefs})).status_code == 200
+    await _remind()
+    assert [t for t, _ in await _got("adult1")] == ["Kvartalsvis: betalning på väg"]
+    assert sorted(t for t, _ in await _got("admin")) == ["Bindning: sista dag att säga upp", "Kvartalsvis: betalning på väg", "Min egen: sista dag att säga upp", "Årsvis: betalning på väg"]
+
+
+async def test_a_passed_last_day_is_pointed_out(client):
+    await _family(client)
+    out = (await client.post("/api/subscriptions", json={"name": "Gymmet", "amount": 300, "cancel_by": "2020-01-01"})).json()
+    assert out["items"][0]["cancel_passed"] is True
+    out = (await client.post("/api/subscriptions", json={"name": "Nytt", "amount": 300, "cancel_by": str(date.today() + timedelta(days=30))})).json()
+    assert next(x for x in out["items"] if x["name"] == "Nytt")["cancel_passed"] is False

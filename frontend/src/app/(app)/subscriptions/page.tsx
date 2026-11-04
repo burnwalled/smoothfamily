@@ -6,10 +6,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, Copy, ExternalLink, KeyRound, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
-import { api, VaultLogin } from "@/lib/api";
+import { api, Me, NotificationPrefs, VaultLogin } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
-import { useMe } from "@/components/Shell";
+import { useMe, useSetMe } from "@/components/Shell";
 import PageTitle, { EmptyState } from "@/components/PageTitle";
 import NewLogin from "@/components/vault/NewLogin";
 import { CLEAR_AFTER_MS, fetchSecret } from "@/components/vault/Passwords";
@@ -18,9 +18,10 @@ const PATH = "/api/subscriptions";
 const CATEGORIES = ["streaming", "music", "phone", "internet", "insurance", "membership", "software", "news", "other"];
 const INTERVALS = ["week", "month", "quarter", "year"];
 const NEW_LOGIN = "new";
+const REMINDERS = ["subs_cancel", "subs_quarter", "subs_year"] as const;
 
 type Item = {
-  id: string; name: string; category: string; amount: number; interval: string; per_month: number; next_payment: string | null; cancel_by: string | null; who: string; url: string;
+  id: string; name: string; category: string; amount: number; interval: string; per_month: number; next_payment: string | null; cancel_by: string | null; cancel_passed: boolean; who: string; url: string;
   login_id: string | null; note: string; private: boolean; ended_on: string | null; from_bank: boolean; seen_amount: number | null; seen_on: string | null; price_changed: boolean; still_paid: boolean;
 };
 type Idea = { id: string; name: string; category: string; amount: number; interval: string; last_seen: string };
@@ -31,6 +32,7 @@ const blank = { name: "", category: "streaming", amount: "", interval: "month", 
 export default function SubscriptionsPage() {
   const { t, dateLocale } = useI18n();
   const me = useMe();
+  const setMe = useSetMe();
   const adult = me.role !== "child";
   const view = useApi<Overview>(adult ? PATH : null).data;
   // The vault's own rules decide which logins come back: only those this person may see.
@@ -97,6 +99,14 @@ export default function SubscriptionsPage() {
       setError(e instanceof Error ? e.message : t("common.error"));
     }
   };
+  const remind = async (key: keyof NotificationPrefs, on: boolean) => {
+    setError("");
+    try {
+      setMe(await api.patch<Me>("/api/auth/me", { notification_prefs: { ...me.notification_prefs, [key]: on } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.error"));
+    }
+  };
   const active = view?.items.filter((x) => !x.ended_on) ?? [];
   const ended = view?.items.filter((x) => x.ended_on) ?? [];
   const ideas = view?.suggestions ?? [];
@@ -110,7 +120,7 @@ export default function SubscriptionsPage() {
             <span className="font-semibold">{x.name}</span>
             {x.private && <Lock className="ml-1 inline h-3.5 w-3.5 text-muted" aria-label={t("subs.private")} />}
             <span className="block text-xs text-muted">
-              {[T(`subs.cat.${x.category}`), x.who, x.next_payment && !x.ended_on ? t("subs.next", { date: day(x.next_payment) }) : "", x.cancel_by && !x.ended_on ? t("subs.cancelBy", { date: day(x.cancel_by) }) : "", x.ended_on ? t("subs.endedOn", { date: day(x.ended_on) }) : ""].filter(Boolean).join(" · ")}
+              {[T(`subs.cat.${x.category}`), x.who, x.next_payment && !x.ended_on ? t("subs.next", { date: day(x.next_payment) }) : "", x.cancel_by && !x.ended_on && !x.cancel_passed ? t("subs.cancelBy", { date: day(x.cancel_by) }) : "", x.ended_on ? t("subs.endedOn", { date: day(x.ended_on) }) : ""].filter(Boolean).join(" · ")}
             </span>
           </span>
           <span className="text-right">
@@ -126,6 +136,7 @@ export default function SubscriptionsPage() {
           </p>
         )}
         {x.still_paid && <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"><AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />{t("subs.stillPaid", { date: x.seen_on ? day(x.seen_on) : "" })}</p>}
+        {x.cancel_by && x.cancel_passed && !x.ended_on && <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"><AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />{t("subs.cancelPassed", { date: day(x.cancel_by) })}</p>}
         {x.note && <p className="whitespace-pre-line text-xs text-muted">{x.note}</p>}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {login ? (
@@ -220,6 +231,19 @@ export default function SubscriptionsPage() {
           <ul className="divide-y divide-edge">{ended.map(row)}</ul>
         </section>
       )}
+
+      <details className="card p-5 text-sm">
+        <summary className="cursor-pointer font-semibold">{t("subs.reminders")}</summary>
+        <p className="mt-2 text-xs text-muted">{t("subs.remindersHelp")}</p>
+        <div className="mt-2 space-y-2">
+          {REMINDERS.map((key) => (
+            <label key={key} className="flex items-center gap-2">
+              <input type="checkbox" className="h-4 w-4 accent-primary-700" checked={me.notification_prefs[key] !== false} onChange={(e) => { void remind(key, e.target.checked); }} />
+              {T(`subs.remind.${key}`)}
+            </label>
+          ))}
+        </div>
+      </details>
 
       {(view?.dismissed.length ?? 0) > 0 && (
         <details className="card p-5 text-sm">
