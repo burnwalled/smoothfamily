@@ -364,7 +364,7 @@ const texts: Record<string, TopicText> = {
       {
         "steps": [
           "Kalender → Fest → Ny fest: navnet, typen, hvem festen er for, tiden og stedet – så tar festen deg gjennom sju trinn.",
-          "1 Detaljer og tema · 2 Design: sett av datoen, invitasjonen, festportalen og takken, hver med sin egen plakat · 3 Gjester: hvem som kommer, allergier, e-postadresser – og deres egen liste over inviterte.",
+          "1 Detaljer · 2 Design: maler og utseende (temaer og bilde), sett av datoen, invitasjonen, festportalen og takken, hver med sin egen plakat · 3 Gjester: hvem som kommer, allergier, e-postadresser – og deres egen liste over inviterte.",
           "4 Gjøremål – før, under og etter festen · 5 Budsjett · 6 Program, med punkter dere kan skjule for gjestene · 7 Utsendelser: e-post til sin tid (med serverens e-post), eller lenkene å dele selv."
         ]
       },

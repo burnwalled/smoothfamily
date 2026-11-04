@@ -20,9 +20,9 @@ test("a party: the invitation, a guest's reply and the planning", async ({ admin
     await expect(page.getByRole("checkbox", { name: "Share the invitation" })).toBeVisible();
 
     // The invitation page's look: the jungle.
-    await page.getByRole("button", { name: /^\d\s?Details$/ }).click();
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     await page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ }).click();
-    await expect(page.getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" }).getByRole("radio", { name: /Jungle/ })).toHaveAttribute("aria-checked", "true");
 
     // A guest, without an account.
     const guest = await browser.newContext();
@@ -121,6 +121,9 @@ test("a party in an own theme", async ({ adminPage: page, adminApi, browser }) =
   const link: string = (await (await adminApi.get(`/api/parties/${party.id}`)).json()).link;
   try {
     // The party's own category first: Disco is there.
+    // The look lives under Design, not among the party's details.
+    await expect(page.getByRole("radiogroup", { name: "The invitation page's look" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^\d\s?Design$/ }).click();
     const picker = page.getByRole("radiogroup", { name: "The invitation page's look" });
     await expect(picker.getByRole("radio", { name: /Disco/ })).toBeVisible();
     await picker.getByRole("button", { name: "Create your own theme" }).click();
@@ -383,6 +386,29 @@ test("a poster arranged differently on phones", async ({ adminPage: page, adminA
     await expect(n.getByText("Bara på datorn")).toBeVisible();
     await wide.close();
     await narrow.close();
+  } finally {
+    await adminApi.delete(`/api/parties/${party.id}`);
+  }
+});
+
+// Saving says how it went, beside the button: done, or what went wrong.
+test("saving a party's details says how it went", async ({ adminPage: page, adminApi }) => {
+  const at = Date.now() + 30 * 86_400_000;
+  const party = await (await adminApi.post("/api/parties", { data: { title: unique("Sparfest"), kind: "party", starts_at: new Date(at).toISOString(), ends_at: new Date(at + 7_200_000).toISOString() } })).json();
+  try {
+    await page.goto(`/parties?id=${party.id}`);
+    const details = page.getByRole("region", { name: "Details" });
+    const renamed = unique("Omdöpt");
+    await details.getByLabel("Name").fill(renamed);
+    await details.getByRole("button", { name: "Save" }).click();
+    await expect(details.getByRole("status")).toHaveText("Saved");
+    await expect(page.getByRole("heading", { level: 1, name: renamed })).toBeVisible();
+    await expect(details.getByRole("status")).toHaveCount(0, { timeout: 6000 });
+
+    await page.route(`**/api/parties/${party.id}`, (route) => (route.request().method() === "PUT" ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ detail: "The party can't end before it starts" }) }) : route.fallback()));
+    await details.getByRole("button", { name: "Save" }).click();
+    await expect(details.getByRole("alert")).toContainText("can't end before it starts");
+    await expect(details.getByRole("status")).toHaveCount(0);
   } finally {
     await adminApi.delete(`/api/parties/${party.id}`);
   }

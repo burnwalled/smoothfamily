@@ -6,7 +6,7 @@
 // page with the photos afterwards); for the adults the replies with the allergies gathered, a
 // checklist with reminders, the budget and the day's timeline. Adults only – the wish list's
 // reservations are here.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarHeart, Check, Copy, Eye, EyeOff, Gift, ImagePlus, ListChecks, Mail, Monitor, Palette, Plus, Printer, Share2, Smartphone, Trash2, Users, Wallet, Clock, X } from "lucide-react";
 import { api, uploadFile } from "@/lib/api";
@@ -322,8 +322,11 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
     try {
       const next = await action();
       setApiData<Detail>(path, () => next);
+      return null;
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("common.error"));
+      const message = e instanceof Error ? e.message : t("common.error");
+      setError(message);
+      return message;
     }
   }
   const change = (patch: Record<string, unknown>) => run(() => api.put<Detail>(path, patch));
@@ -368,7 +371,7 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
       {tab === "details" && <InviteTab party={party} change={change} />}
       {tab === "design" && (
         <div className="space-y-4">
-          <PosterTab party={party} />
+          <PosterTab party={party} change={change} />
           <ThanksTab party={party} change={change} />
         </div>
       )}
@@ -389,9 +392,9 @@ function PartyView({ id, onBack }: { id: string; onBack: () => void }) {
   );
 }
 
-type TabProps = { party: Detail; run: (a: () => Promise<Detail>) => Promise<void>; path: string };
+type TabProps = { party: Detail; run: (a: () => Promise<Detail>) => Promise<string | null>; path: string };
 
-function InviteTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
+function InviteTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
   const { t } = useI18n();
   const people = useApi<Person[]>("/api/birthdays/people").data ?? NONE;
   const [draft, setDraft] = useState({ title: party.title, invitation: party.invitation, place: party.place, address: party.address, theme: party.theme, starts: localInput(party.starts_at), ends: localInput(party.ends_at), rsvp: party.rsvp_by ?? "" });
@@ -413,28 +416,49 @@ function InviteTab({ party, change }: { party: Detail; change: (p: Record<string
         </div>
         <BringSelect value={party.bring} onChange={(bring) => change({ bring })} />
         <WishlistSelect people={people} value={party.wishlist && party.person_id ? party.person_id : ""} onChange={(id) => change({ person_id: id || null, wishlist: !!id })} />
-        <InvitePicture party={party} />
         <label>
           <span className="label">{t("parties.showGuests")}</span>
           <select className="input" value={party.show_guests} onChange={(e) => change({ show_guests: e.target.value })}>
             {(["none", "count", "names"] as const).map((v) => <option key={v} value={v}>{t(`parties.show.${v}` as TranslationKey)}</option>)}
           </select>
         </label>
-        <div className="sm:col-span-2">
-          <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
-        </div>
-        <div className="flex items-end">
-          <button className="btn-primary" onClick={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })}>
-            {t("common.save")}
-          </button>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+          <SaveButton className="btn-primary" onSave={() => change({ title: draft.title, invitation: draft.invitation, place: draft.place, address: draft.address, theme: draft.theme, starts_at: new Date(draft.starts).toISOString(), ends_at: new Date(draft.ends).toISOString(), rsvp_by: draft.rsvp || null })} />
         </div>
       </section>
     </div>
   );
 }
 
+// A save button that says how it went, beside itself: the error at the top of the page may be out of
+// sight. onSave gives the error's text, or nothing when it went well.
+function SaveButton({ onSave, label, className = "btn-ghost border border-edge", disabled }: { onSave: () => Promise<string | null | void> | void; label?: string; className?: string; disabled?: boolean }) {
+  const { t } = useI18n();
+  const [state, setState] = useState<{ kind: "idle" | "saving" | "saved" } | { kind: "failed"; message: string }>({ kind: "idle" });
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const save = async () => {
+    clearTimeout(timer.current);
+    setState({ kind: "saving" });
+    const failed = await onSave();
+    if (failed) {
+      setState({ kind: "failed", message: failed });
+      return;
+    }
+    setState({ kind: "saved" });
+    timer.current = setTimeout(() => setState({ kind: "idle" }), 3000);
+  };
+  return (
+    <>
+      <button type="button" className={className} disabled={disabled || state.kind === "saving"} onClick={() => { void save(); }}>{state.kind === "saving" ? t("common.saving") : label ?? t("common.save")}</button>
+      {state.kind === "saved" && <span className="flex items-center gap-1 text-sm font-semibold text-accent" role="status"><Check className="h-4 w-4" aria-hidden />{t("common.saved")}</span>}
+      {state.kind === "failed" && <span className="text-sm text-red-700" role="alert">{state.message}</span>}
+    </>
+  );
+}
+
 // A moment for the guests' link to change, or none.
-function WhenField({ label, help, value, suggest, onSave }: { label: string; help: string; value: string | null; suggest: string; onSave: (iso: string | null) => void }) {
+function WhenField({ label, help, value, suggest, onSave }: { label: string; help: string; value: string | null; suggest: string; onSave: (iso: string | null) => Promise<string | null> }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(localInput(value ?? suggest));
   useEffect(() => setDraft(localInput(value ?? suggest)), [value, suggest]);
@@ -443,7 +467,7 @@ function WhenField({ label, help, value, suggest, onSave }: { label: string; hel
       <span className="label">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         <input className="input !w-auto" type="datetime-local" aria-label={label} value={draft} onChange={(e) => setDraft(e.target.value)} />
-        <button type="button" className="btn-ghost border border-edge" disabled={!draft} onClick={() => onSave(new Date(draft).toISOString())}>{value ? t("common.save") : t("parties.setWhen")}</button>
+        <SaveButton disabled={!draft} label={value ? t("common.save") : t("parties.setWhen")} onSave={() => onSave(new Date(draft).toISOString())} />
         {value && <button type="button" className="text-xs text-muted hover:underline" onClick={() => onSave(null)}>{t("parties.clearWhen")}</button>}
       </div>
       <span className="block text-xs text-muted">{help}</span>
@@ -453,7 +477,7 @@ function WhenField({ label, help, value, suggest, onSave }: { label: string; hel
 
 // The party's posters (save the date, the invitation, the day's portal, the thank-you), what the
 // link shows, the playlist, and the portal with its QR code.
-function PosterTab({ party }: { party: Detail }) {
+function PosterTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
   const { t, dateLocale } = useI18n();
   const me = useMe();
   const own = useApi<CustomTheme[]>(party.page_theme === "custom" ? THEMES_PATH : null).data;
@@ -466,7 +490,14 @@ function PosterTab({ party }: { party: Detail }) {
   if (party.page_theme === "custom" && !own) return null;
   const theme = party.page_theme === "custom" && custom ? customTheme(custom, hostPicture(custom.id)) : partyTheme(party.page_theme);
   const keep = (r: unknown) => setApiData<Detail>(path, () => withDefaults(r as Detail));
-  const run = (p: Promise<unknown>) => { setError(""); p.then(keep).catch((e) => setError(e instanceof Error ? e.message : t("common.error"))); };
+  const run = (p: Promise<unknown>) => {
+    setError("");
+    return p.then(keep).then(() => null).catch((e) => {
+      const message: string = e instanceof Error ? e.message : t("common.error");
+      setError(message);
+      return message;
+    });
+  };
   const data: PosterData = {
     title: party.title, family: me.family_name, emoji: party.emoji, start: new Date(party.starts_at), end: new Date(party.ends_at), place: party.place, address: party.address,
     theme: party.theme, invitation: party.invitation, rsvp: party.rsvp_by ? new Date(`${party.rsvp_by}T12:00:00`) : null, poll: party.date_poll,
@@ -486,6 +517,16 @@ function PosterTab({ party }: { party: Detail }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <TemplatePicker party={party} data={data} customId={party.page_custom_id} onApplied={keep} />
+      <section className="card space-y-4 p-5 lg:col-span-2" aria-label={t("parties.look")}>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.look")}</h2>
+        <ThemePicker label={t("parties.pageTheme")} kind={party.kind} value={party.page_theme} customId={party.page_custom_id} onChange={(key, id) => change({ page_theme: key, page_custom_id: id })} />
+        <InvitePicture party={party} />
+        {/* The thank-you wears the invitation's theme until someone wants another. */}
+        <details open={!!party.thanks_theme}>
+          <summary className="cursor-pointer text-sm font-semibold">{t("parties.thanksTheme")}{!party.thanks_theme && <span className="font-normal text-muted"> · {t("parties.themeSame")}</span>}</summary>
+          <div className="mt-2"><ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} /></div>
+        </details>
+      </section>
       <section className="card space-y-3 p-5" aria-label={t("parties.posters")}>
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.posters")}</h2>
         <p className="text-xs text-muted">{t("parties.postersHelp")}</p>
@@ -510,9 +551,9 @@ function PosterTab({ party }: { party: Detail }) {
         </label>
         <form className="space-y-1" onSubmit={(e) => { e.preventDefault(); run(api.put(path, { playlist_url: playlist.trim() })); }}>
           <span className="label">{t("parties.playlist")}</span>
-          <div className="flex gap-2">
-            <input className="input flex-1" type="url" value={playlist} placeholder="https://open.spotify.com/playlist/…" aria-label={t("parties.playlist")} onChange={(e) => setPlaylist(e.target.value)} />
-            <button className="btn-ghost border border-edge" type="submit">{t("common.save")}</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="input min-w-0 flex-1" type="url" value={playlist} placeholder="https://open.spotify.com/playlist/…" aria-label={t("parties.playlist")} onChange={(e) => setPlaylist(e.target.value)} />
+            <SaveButton onSave={() => run(api.put(path, { playlist_url: playlist.trim() }))} />
           </div>
           <span className="block text-xs text-muted">{t("parties.playlistHelp")}</span>
         </form>
@@ -595,7 +636,7 @@ function InvitePicture({ party }: { party: Detail }) {
 }
 
 // A vote on the date: start one, see which dates suit how many, and choose.
-function DatePoll({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
+function DatePoll({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
   const { t, dateLocale } = useI18n();
   const initial = () => (party.date_poll ? party.date_options.map(localInput) : [localInput(party.starts_at), localInput(new Date(new Date(party.starts_at).getTime() + 7 * 86_400_000).toISOString())]);
   const [options, setOptions] = useState<string[]>(initial);
@@ -646,7 +687,7 @@ function DatePoll({ party, change }: { party: Detail; change: (p: Record<string,
         <summary className="cursor-pointer text-xs text-muted">{t("parties.addDate")}</summary>
         <div className="mt-2 space-y-2">
           <DateOptions value={options} onChange={setOptions} />
-          <button className="btn-ghost border border-edge" disabled={iso().length < 2} onClick={() => change({ date_options: iso() })}>{t("common.save")}</button>
+          <SaveButton disabled={iso().length < 2} onSave={() => change({ date_options: iso() })} />
         </div>
       </details>
     </section>
@@ -760,7 +801,7 @@ function TasksTab({ party, run, path }: TabProps) {
   );
 }
 
-function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record<string, unknown>) => Promise<void> }) {
+function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record<string, unknown>) => Promise<string | null> }) {
   const { t, dateLocale } = useI18n();
   const [form, setForm] = useState({ title: "", amount: "" });
   const [budget, setBudget] = useState(party.budget?.toString() ?? "");
@@ -770,7 +811,7 @@ function BudgetTab({ party, run, path, change }: TabProps & { change: (p: Record
     <section className="card space-y-3 p-5" aria-label={t("parties.tab.budget")}>
       <div className="flex flex-wrap items-end gap-2">
         <label><span className="label">{t("parties.budget")}</span><input className="input !w-40" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} /></label>
-        <button className="btn-ghost border border-edge" onClick={() => change({ budget: budget ? Number(budget.replace(",", ".")) : null })}>{t("common.save")}</button>
+        <SaveButton onSave={() => change({ budget: budget ? Number(budget.replace(",", ".")) : null })} />
       </div>
       <p className="text-sm">
         {t("parties.spent", { spent: money(party.spent) })}
@@ -947,7 +988,7 @@ function MailingsTab({ party, run, path, newLink }: TabProps & { newLink: () => 
   );
 }
 
-function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<void> }) {
+function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string, unknown>) => Promise<string | null> }) {
   const { t } = useI18n();
   const albums = useApi<Album[]>("/api/albums").data ?? NONE;
   const [text, setText] = useState(party.thanks_text);
@@ -956,7 +997,6 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
       <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("parties.thanksSection")}</h2>
       <p className="text-xs text-muted">{t("parties.thanksHelp")}</p>
       <label className="block"><span className="label">{t("parties.thanksText")}</span><textarea className="input min-h-24" value={text} maxLength={4000} placeholder={t("parties.thanksPh")} onChange={(e) => setText(e.target.value)} /></label>
-      <ThemePicker label={t("parties.thanksTheme")} kind={party.kind} allowSame value={party.thanks_theme} customId={party.thanks_custom_id} onChange={(key, id) => change({ thanks_theme: key, thanks_custom_id: id })} />
       <label className="block">
         <span className="label">{t("parties.album")}</span>
         <select className="input" value={party.thanks_album_id ?? ""} onChange={(e) => change({ thanks_album_id: e.target.value || null })}>
@@ -966,7 +1006,7 @@ function ThanksTab({ party, change }: { party: Detail; change: (p: Record<string
       </label>
       <WhenField label={t("parties.thanksAt")} help={t("parties.thanksAtHelp")} value={party.thanks_at} suggest={new Date(new Date(party.ends_at).getTime() + 86_400_000).toISOString()} onSave={(at) => change({ thanks_text: text, thanks_at: at })} />
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-ghost border border-edge" onClick={() => change({ thanks_text: text })}>{t("common.save")}</button>
+        <SaveButton onSave={() => change({ thanks_text: text })} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary-700" checked={party.thanks_published} onChange={(e) => change({ thanks_text: text, thanks_published: e.target.checked })} />{t("parties.publishThanks")}</label>
         {party.thanks_published && <span className="flex items-center gap-1 text-xs text-accent"><Check className="h-3.5 w-3.5" aria-hidden />{t("parties.thanksLive")}</span>}
       </div>
