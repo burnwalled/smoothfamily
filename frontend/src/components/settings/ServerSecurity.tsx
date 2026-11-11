@@ -9,7 +9,7 @@ import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 
 type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required"; password_min_adult: number; password_min_child: number };
-type Event = { id: string; kind: string; username: string; name: string | null; ip: string; detail: string; created_at: string };
+type Event = { id: string; kind: string; username: string; name: string | null; family: string | null; ip: string; detail: string; created_at: string };
 type Overview = { day: Record<string, number>; week: Record<string, number>; events: Event[] };
 const SUMMARY = ["login_failed", "throttled", "link_invalid", "new_device"] as const;
 
@@ -40,6 +40,7 @@ export function SecurityLog() {
               <span className="w-28 shrink-0 text-muted">{new Date(e.created_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
               <span className="font-semibold">{kind(e.kind)}</span>
               {(e.name || e.username) && <span>{e.name ? `${e.name} (${e.username})` : e.username}</span>}
+              {e.family && <span className="rounded-full border border-edge px-2 text-muted">{e.family}</span>}
               {e.ip && <span className="text-muted">{e.ip}</span>}
               {e.detail && <span className="text-muted">{e.detail}</span>}
             </li>
