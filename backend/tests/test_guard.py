@@ -24,7 +24,8 @@ def test_a_write_from_another_site_is_refused(monkeypatch):
     assert cross_site_write(_scope(host="family.example.com")) is False
     assert cross_site_write(_scope(method="GET", host="family.example.com", origin="https://evil.example")) is False
     assert cross_site_write(_scope(path="/api/csp-report", host="family.example.com", origin="https://evil.example")) is False
-    assert "https://family.example.com" in allowed_origins(_scope(host="family.example.com"))
+    # The configured address is one of the request's own origins (a set, so this is membership, not a substring).
+    assert allowed_origins(_scope(host="family.example.com")) >= {"https://family.example.com"}
 
 
 async def test_the_middleware_answers_403_and_marks_links_no_store(client):
