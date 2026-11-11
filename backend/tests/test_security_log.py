@@ -33,6 +33,25 @@ async def _told(db, username: str, kind: str = "security") -> list[tuple[str, st
     return [(n.title, n.body) for n in rows]
 
 
+async def test_every_sign_in_is_noted_with_the_device(client, db_session):
+    """Who got in, from where and on what – in the log only: no notice, not in the summary."""
+    await _family(client)
+    ok = await client.post("/api/auth/login", json={"username": "eva", "password": "pass1234"}, headers={"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"})
+    assert ok.status_code == 200
+    await client.post("/api/auth/login", json={"username": "admin", "password": "secret123"})
+    view = await _events(client)
+    noted = [(e["kind"], e["username"], e["family"], e["detail"]) for e in view["events"] if e["kind"] == "signed_in"]
+    assert ("signed_in", "eva", "Lind", "Chrome – Windows") in noted
+    assert len(noted) == 2  # Eva's and the admin's: the setup itself isn't a sign-in
+    assert all(e["ip"] for e in view["events"])
+    assert "signed_in" not in security_log.SUMMARY_KINDS
+    morning = datetime.now(timezone.utc) + timedelta(days=1) - timedelta(minutes=1)
+    if morning.hour < 7:
+        morning = morning.replace(hour=7, minute=0)
+    assert await security_log.run_security_summary(db_session, morning) == 0
+    assert await _told(db_session, "eva") == []
+
+
 async def test_failed_sign_ins_and_the_brake_are_noted_and_the_admin_told(client, db_session):
     await _family(client)
     for _ in range(3):

@@ -1339,7 +1339,7 @@ const texts: Record<string, TopicText> = {
         "h": "Turvallisuusloki"
       },
       {
-        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä näkee viimeisten 30 päivän epäonnistuneet kirjautumiset, liian monet yritykset pysäyttävän jarrun, olemattomat linkit, jäsenten uudet laitteet ja vaihdetut salasanat – palvelimen kaikista perheistä, kunkin lähdeosoitteineen. Jarrusta ilmoitetaan heti, ja vuorokauden yhteenveto tulee aamulla, kun jotain on tapahtunut. Jokainen jäsen saa tiedon omalle tililleen tulleesta uudesta laitteesta ja vaihdetusta salasanasta: eikö se ollut sinä? Uusi salasana kirjaa muut ulos. Kukin valitsee kohdassa Oma profiili → Ilmoitukset, lähetetäänkö nämä push-ilmoituksina."
+        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä näkee viimeisten 30 päivän kirjautumiset (kuka, mistä, millä laitteella), epäonnistuneet kirjautumiset, liian monet yritykset pysäyttävän jarrun, olemattomat linkit, jäsenten uudet laitteet ja vaihdetut salasanat – palvelimen kaikista perheistä, kunkin lähdeosoitteineen. Jarrusta ilmoitetaan heti, ja vuorokauden yhteenveto tulee aamulla, kun jotain on tapahtunut. Jokainen jäsen saa tiedon omalle tililleen tulleesta uudesta laitteesta ja vaihdetusta salasanasta: eikö se ollut sinä? Uusi salasana kirjaa muut ulos. Kukin valitsee kohdassa Oma profiili → Ilmoitukset, lähetetäänkö nämä push-ilmoituksina."
       },
       {
         "h": "Mistä kirjautumiset tulevat"
