@@ -12,6 +12,7 @@ from app.deps import DB
 from app.models import SmarthomeConnection
 from app.models import User
 from app.services import gateway, gateway_release, login_throttle
+from app.services import geo
 from app.services.notify import notify
 
 router = APIRouter(prefix="/api/gateway", tags=["gateway"])
@@ -32,7 +33,7 @@ async def pair(payload: PairIn, request: Request, db: DB) -> PairOut:
     """The code shown in Smart home settings, once: the gateway gets its own key (kept only as a hash
     here). Guessing is throttled like a sign-in."""
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     code = gateway.normalise_code(payload.code)
     conn = (await db.execute(select(SmarthomeConnection).where(SmarthomeConnection.gateway_code_hash == gateway.digest(code)))).scalar_one_or_none()

@@ -1340,6 +1340,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä näkee viimeisten 30 päivän epäonnistuneet kirjautumiset, liian monet yritykset pysäyttävän jarrun, olemattomat linkit, jäsenten uudet laitteet ja vaihdetut salasanat – palvelimen kaikista perheistä, kunkin lähdeosoitteineen. Jarrusta ilmoitetaan heti, ja vuorokauden yhteenveto tulee aamulla, kun jotain on tapahtunut. Jokainen jäsen saa tiedon omalle tililleen tulleesta uudesta laitteesta ja vaihdetusta salasanasta: eikö se ollut sinä? Uusi salasana kirjaa muut ulos. Kukin valitsee kohdassa Oma profiili → Ilmoitukset, lähetetäänkö nämä push-ilmoituksina."
+      },
+      {
+        "h": "Mistä kirjautumiset tulevat"
+      },
+      {
+        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä voi hakea maataulukon (IP Geolocation by DB-IP), joka on palvelimella, jotta mitään osoitetta ei koskaan lähetetä pois selvitettäväksi. Sen avulla turvallisuusloki näyttää lipun jokaisessa tapahtumassa ja aamun yhteenveto kertoo, mistä asiat tulivat. Kirjautumiset voi sitten rajata valittuihin maihin: muista maista ne evätään ja jarru on tiukempi, kolme yritystä kahdeksan sijaan, laskettuna tunnin ajalta. Sääntö koskee vain kirjautumista – vieraslinkkejä, keittiönäyttöä, kalenteritilauksia ja kotiverkkoa ei koskaan rajata. Matkalla oleva jäsen päästetään sisään mistä tahansa jäsenen sivulla asetettuun päivään asti."
       }
     ]
   },

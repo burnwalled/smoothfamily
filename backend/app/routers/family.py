@@ -143,7 +143,7 @@ async def patch_member(member_id: uuid.UUID, payload: MemberPatch, admin: AdminU
     if data.get("language") is None:
         data.pop("language", None)
     for field, value in data.items():
-        if value is not None or field != "can_manage_family":
+        if value is not None or field in ("can_manage_family", "travel_until"):
             setattr(member, field, value)
     if member.role != "adult":
         member.can_manage_family = False

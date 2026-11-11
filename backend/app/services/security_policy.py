@@ -13,7 +13,8 @@ KEY = "security_policy"
 # Passwords (2.9.0): 12 characters for adults – the first admin and invited families' admins too –
 # unless the server admin chooses fewer. Children keep 4; they mostly sign in on the family's devices.
 ADULT_MIN = 12
-DEFAULTS = {"passkeys_enabled": True, "totp_policy": "optional", "password_min_adult": ADULT_MIN, "password_min_child": 4}
+# signin_countries (3.4.1): two-letter countries sign-ins are allowed from; empty = from anywhere.
+DEFAULTS = {"passkeys_enabled": True, "totp_policy": "optional", "password_min_adult": ADULT_MIN, "password_min_child": 4, "signin_countries": []}
 
 
 async def get_policy(db: AsyncSession) -> dict:
@@ -29,6 +30,7 @@ async def get_policy(db: AsyncSession) -> dict:
 
 async def set_policy(db: AsyncSession, policy: dict) -> dict:
     current = {**await get_policy(db), **{k: v for k, v in policy.items() if k in DEFAULTS}}
+    current["signin_countries"] = sorted({c.upper() for c in current.get("signin_countries") or [] if isinstance(c, str) and len(c) == 2 and c.isalpha()})
     row = await db.get(AppSetting, KEY)
     if row is None:
         db.add(AppSetting(key=KEY, value=json.dumps(current)))
@@ -39,6 +41,9 @@ async def set_policy(db: AsyncSession, policy: dict) -> dict:
         update(Family).where(Family.kind != "demo").values(passkeys_enabled=current["passkeys_enabled"], totp_policy=current["totp_policy"])
     )
     await db.commit()
+    from app.services import geo
+
+    geo.forget_policy()
     return current
 
 
