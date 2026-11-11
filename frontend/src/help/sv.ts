@@ -1340,6 +1340,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Under Säkerhet ser serverns admin de senaste 30 dagarnas misslyckade inloggningar, bromsen som stoppar för många försök, länkar som inte finns, medlemmarnas nya enheter och bytta lösenord – från alla familjer på servern, med adressen varje kom från. Bromsen meddelas direkt, och en sammanfattning av dygnet kommer på morgonen när något hänt. Varje medlem får veta om en ny enhet på sitt eget konto och om ett bytt lösenord: inte de? Ett nytt lösenord loggar ut de andra. Var och en väljer under Min profil → Notiser om dessa ska pushas."
+      },
+      {
+        "h": "Varifrån inloggningar kommer"
+      },
+      {
+        "p": "Under Säkerhet kan serverns admin hämta en landstabell (IP Geolocation by DB-IP), som ligger på servern så att ingen adress någonsin skickas iväg för att slås upp. Med den visar säkerhetsloggen en flagga på varje händelse och morgonens sammanfattning säger varifrån saker kom. Inloggningar kan sedan begränsas till valda länder: från andra länder nekas de och bromsen är hårdare, tre försök i stället för åtta, räknade över en timme. Regeln gäller bara inloggning – gästlänkar, köksskärmen, kalenderprenumerationer och hemmanätet begränsas aldrig. En medlem på resa släpps in varifrån som helst till den dag som anges på medlemmens sida."
       }
     ]
   },

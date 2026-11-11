@@ -22,6 +22,8 @@ from app.deps import AdminUser, CurrentUser, DB, ServerAdmin
 from app.models import AppSetting, CalendarFeed, DashboardWidget, Family, HomeProfile, ListModel, Recipe, RecipeIngredient, Room, Task, User
 from app.schemas import ExternalUrlIn, ExternalUrlOut, GiphySettingIn, GiphySettingOut, TransitKeyIn, TransitKeyOut
 from app.services import file_limit, giphy, mailer, places, public_url, recipe_search, security_policy, transit
+from app.services import families as fam
+from app.services import geo
 from app.services.crypto import encrypt_token
 from app.config import get_settings
 
@@ -662,6 +664,25 @@ class SecurityPolicy(BaseModel):
     totp_policy: str = Field(pattern=r"^(off|optional|required)$")
     password_min_adult: int = Field(ge=4, le=64)
     password_min_child: int = Field(ge=4, le=64)
+    # Where sign-ins are allowed from (3.4.1): two-letter countries; empty = anywhere.
+    signin_countries: list[str] = Field(default=[], max_length=250)
+
+
+@router.get("/geo")
+async def geo_status(admin: ServerAdmin, db: DB) -> dict:
+    """The country table: whether there is one, and from when."""
+    return await geo.status(db)
+
+
+@router.post("/geo/download")
+async def geo_download(admin: ServerAdmin, db: DB) -> dict:
+    """Fetch this month's table from DB-IP (the only thing sent is the request for the file)."""
+    try:
+        out = await geo.download(db)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"The table couldn't be fetched: {exc}")
+    await fam.log(db, admin, "geo_table", None, out.get("month") or "")
+    return out
 
 
 @router.get("/security-policy", response_model=SecurityPolicy)

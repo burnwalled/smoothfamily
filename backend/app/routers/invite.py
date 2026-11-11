@@ -21,6 +21,7 @@ from app.schemas import SUPPORTED_LANGUAGES, Email, MeOut, Username
 from app.security import clear_session_cookie, create_token, hash_password, set_session_cookie
 from app.services import families as fam
 from app.services import login_throttle
+from app.services import geo
 from app.services import security_log
 from app.services.demo import create_demo_family
 
@@ -68,7 +69,7 @@ class SwitchIn(BaseModel):
 async def _open_invitation(db, token: str, request: Request) -> Invitation:
     """The invitation behind a token, if it can still be used; a neutral 404 otherwise."""
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     inv = (await db.execute(select(Invitation).where(Invitation.token_hash == token_hash(token)))).scalar_one_or_none()
     if inv is None or _state(inv, datetime.now(timezone.utc)) != "open":

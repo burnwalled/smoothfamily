@@ -18,6 +18,7 @@ from app.services.public_url import public_base
 from app.deps import DB, CurrentUser, require_app
 from app.models import Family, Person, User, WishItem, WishShare
 from app.services import login_throttle
+from app.services import geo
 from app.services import security_log
 
 router = APIRouter(prefix="/api", tags=["wish-share"])
@@ -121,7 +122,7 @@ async def revoke_share(share_id: uuid.UUID, user: CurrentUser, db: DB) -> WishSh
 
 async def _open(db, token: str, request: Request) -> tuple[WishShare, Person]:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     share = (await db.execute(select(WishShare).where(WishShare.token_hash == _hash(token)))).scalar_one_or_none()
     now = datetime.now(timezone.utc)

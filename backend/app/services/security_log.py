@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AppSetting, Family, SecurityEvent, User
+from app.services import geo
 from app.services.notify import notify
 from app.services.push import user_pref_enabled
 
@@ -65,7 +66,7 @@ def _lang(user: User) -> str:
 
 async def record(db: AsyncSession, kind: str, *, ip: str = "", user: User | None = None, family_id: uuid.UUID | None = None, username: str = "", detail: str = "") -> None:
     db.add(SecurityEvent(
-        kind=kind[:24], ip=ip[:45], user_id=user.id if user else None, family_id=family_id or (user.family_id if user else None),
+        kind=kind[:24], ip=ip[:45], country=geo.country_of(ip), user_id=user.id if user else None, family_id=family_id or (user.family_id if user else None),
         username=(username or (user.username if user else ""))[:60], detail=detail[:200],
     ))
     await db.commit()
@@ -124,18 +125,18 @@ async def run_security_summary(db: AsyncSession, now: datetime | None = None) ->
         row.value = today
     await db.commit()
     since = now - timedelta(days=1)
-    rows = (await db.execute(select(SecurityEvent.kind, SecurityEvent.ip, SecurityEvent.family_id).where(SecurityEvent.created_at >= since, SecurityEvent.kind.in_(SUMMARY_KINDS)))).all()
+    rows = (await db.execute(select(SecurityEvent.kind, SecurityEvent.ip, SecurityEvent.family_id, SecurityEvent.country).where(SecurityEvent.created_at >= since, SecurityEvent.kind.in_(SUMMARY_KINDS)))).all()
     if not rows:
         return 0
-    counts = Counter(kind for kind, _, _ in rows)
-    counts["throttled"] = len({ip for kind, ip, _ in rows if kind == "throttled"})
+    counts = Counter(kind for kind, _, _, _ in rows)
+    counts["throttled"] = len({ip for kind, ip, _, _ in rows if kind == "throttled"})
     names = dict((await db.execute(select(Family.id, Family.name))).all())
     sent = 0
     for admin in await _server_admins(db):
         if not user_pref_enabled(admin, "security"):
             continue
         title, texts = _SUMMARY[_lang(admin)]
-        body = ", ".join(texts[k].format(n=counts[k]) + _families(rows, k, names) for k in SUMMARY_KINDS if counts.get(k))
+        body = ", ".join(texts[k].format(n=counts[k]) + _families(rows, k, names) + _countries(rows, k) for k in SUMMARY_KINDS if counts.get(k))
         await notify(db, admin, {"title": title, "body": body, "route": "/server?tab=security", "kind": "security"})
         sent += 1
     return sent
@@ -144,12 +145,22 @@ async def run_security_summary(db: AsyncSession, now: datetime | None = None) ->
 def _families(rows, kind: str, names: dict) -> str:
     """Which families a kind's events concerned: " – Lind" or " – Lind 2, Berg 1". Events of nobody's
     (an unknown name, a link that doesn't exist) say nothing."""
-    per = Counter(names[fid] for k, _, fid in rows if k == kind and fid in names)
+    per = Counter(names[fid] for k, _, fid, _ in rows if k == kind and fid in names)
     if not per:
         return ""
     if len(per) == 1:
         return f" – {next(iter(per))}"
     return " – " + ", ".join(f"{name} {n}" for name, n in per.most_common())
+
+
+def _countries(rows, kind: str) -> str:
+    """Where a kind's events came from, as flags: " 🇸🇪" or " 🇷🇺 3 · 🇸🇪 1" – only with a country table."""
+    per = Counter(country for k, _, _, country in rows if k == kind and country)
+    if not per:
+        return ""
+    if len(per) == 1:
+        return f" {geo.flag(next(iter(per)))}"
+    return " " + " · ".join(f"{geo.flag(code)} {n}" for code, n in per.most_common())
 
 
 async def prune(db: AsyncSession, now: datetime | None = None) -> None:
@@ -169,7 +180,7 @@ async def overview(db: AsyncSession, now: datetime | None = None, limit: int = 3
         "day": dict(Counter(r.kind for r in rows if stamp(r) >= day)),
         "week": dict(Counter(r.kind for r in rows if stamp(r) >= week)),
         "events": [
-            {"id": r.id, "kind": r.kind, "username": r.username, "name": names.get(r.user_id), "family": families.get(r.family_id), "ip": r.ip, "detail": r.detail, "created_at": stamp(r)}
+            {"id": r.id, "kind": r.kind, "username": r.username, "name": names.get(r.user_id), "family": families.get(r.family_id), "ip": r.ip, "country": r.country, "detail": r.detail, "created_at": stamp(r)}
             for r in rows[:limit]
         ],
     }

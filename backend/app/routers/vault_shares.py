@@ -24,6 +24,7 @@ from app.routers.albums import _can_view
 from app.routers.vault import PREVIEWABLE, _may_edit as may_edit_login, may_see_file, read_file
 from app.services.safe_files import headers_for
 from app.services import login_throttle
+from app.services import geo
 from app.services import security_log
 from app.services.storage import get_storage
 from app.services.vault import family_fernet
@@ -209,7 +210,7 @@ async def close_share(share_id: uuid.UUID, user: AdultUser, db: DB) -> ShareOut:
 
 async def _open(db, token: str, request: Request) -> tuple[VaultShare, tuple]:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     share = (await db.execute(select(VaultShare).where(VaultShare.token_hash == _hash(token)))).scalar_one_or_none()
     found = await _target(db, share.family_id, share.kind, share.target_id) if share else None

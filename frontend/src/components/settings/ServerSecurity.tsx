@@ -5,11 +5,88 @@
 import { useState } from "react";
 import { CircleCheck } from "lucide-react";
 import { api } from "@/lib/api";
+import { COUNTRY_CODES, countryName, flagOf } from "@/lib/countries";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { setApiData, useApi } from "@/lib/query";
 
-type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required"; password_min_adult: number; password_min_child: number };
-type Event = { id: string; kind: string; username: string; name: string | null; family: string | null; ip: string; detail: string; created_at: string };
+type Policy = { passkeys_enabled: boolean; totp_policy: "off" | "optional" | "required"; password_min_adult: number; password_min_child: number; signin_countries: string[] };
+type Event = { id: string; kind: string; username: string; name: string | null; family: string | null; ip: string; country: string | null; detail: string; created_at: string };
+type Geo = { loaded: boolean; fetched_at: string | null; month: string | null; size: number; attribution: string; attribution_url: string };
+
+// Where sign-ins come from (3.4.1): the country table kept on the server, and the countries sign-ins
+// are allowed from – a rule for signing in, never for guests' links.
+export function SigninCountries({ policy, save }: { policy: Policy; save: (next: Policy) => Promise<void> }) {
+  const { t, locale, dateLocale } = useI18n();
+  const geo = useApi<Geo>("/api/admin/geo").data;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [pick, setPick] = useState("");
+  const chosen = policy.signin_countries ?? [];
+  const names = Object.fromEntries(COUNTRY_CODES.map((c) => [countryName(c, locale), c]));
+  const fetchTable = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      setApiData<Geo>("/api/admin/geo", () => undefined);
+      const next = await api.post<Geo>("/api/admin/geo/download");
+      setApiData<Geo>("/api/admin/geo", () => next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const add = (name: string) => {
+    const code = names[name] ?? (COUNTRY_CODES.includes(name.toUpperCase()) ? name.toUpperCase() : null);
+    if (!code || chosen.includes(code)) return;
+    setPick("");
+    void save({ ...policy, signin_countries: [...chosen, code].sort() });
+  };
+  return (
+    <section className="card mt-4 space-y-3 p-5" aria-label={t("server.geo.title")}>
+      <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{t("server.geo.title")}</h2>
+      <p className="text-sm text-muted">{t("server.geo.intro")}</p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="min-w-0 flex-1">
+          {geo?.loaded
+            ? t("server.geo.loaded", { month: geo.month ?? "", date: geo.fetched_at ? new Date(geo.fetched_at).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }) : "" })
+            : t("server.geo.none")}
+        </span>
+        <button className="btn-ghost border border-edge" disabled={busy} onClick={() => { void fetchTable(); }}>
+          {busy ? t("common.loading") : geo?.loaded ? t("server.geo.update") : t("server.geo.download")}
+        </button>
+      </div>
+      {geo && <a className="text-xs text-muted underline" href={geo.attribution_url} target="_blank" rel="noreferrer">{geo.attribution}</a>}
+      {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+      <div>
+        <span className="label">{t("server.geo.countries")}</span>
+        <p className="text-xs text-muted">{t("server.geo.countriesHelp")}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {chosen.length === 0 && <span className="text-sm text-muted">{t("server.geo.anywhere")}</span>}
+          {chosen.map((code) => (
+            <span key={code} className="flex items-center gap-1 rounded-full border border-edge px-2 py-0.5 text-sm">
+              <span aria-hidden>{flagOf(code)}</span>
+              {countryName(code, locale)}
+              <button className="text-muted hover:text-red-700" aria-label={t("server.geo.remove", { name: countryName(code, locale) })} onClick={() => { void save({ ...policy, signin_countries: chosen.filter((c) => c !== code) }); }}>×</button>
+            </span>
+          ))}
+        </div>
+        <input
+          className="input mt-2 max-w-xs"
+          list="signin-countries"
+          placeholder={t("server.geo.addCountry")}
+          aria-label={t("server.geo.addCountry")}
+          value={pick}
+          onChange={(e) => { setPick(e.target.value); if (names[e.target.value]) add(e.target.value); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(pick); } }}
+        />
+        <datalist id="signin-countries">
+          {COUNTRY_CODES.filter((c) => !chosen.includes(c)).map((c) => <option key={c} value={countryName(c, locale)} />)}
+        </datalist>
+      </div>
+    </section>
+  );
+}
 type Overview = { day: Record<string, number>; week: Record<string, number>; events: Event[] };
 const SUMMARY = ["login_failed", "throttled", "link_invalid", "new_device"] as const;
 
@@ -41,7 +118,7 @@ export function SecurityLog() {
               <span className="font-semibold">{kind(e.kind)}</span>
               {(e.name || e.username) && <span>{e.name ? `${e.name} (${e.username})` : e.username}</span>}
               {e.family && <span className="rounded-full border border-edge px-2 text-muted">{e.family}</span>}
-              {e.ip && <span className="text-muted">{e.ip}</span>}
+              {e.ip && <span className="text-muted">{e.country && <span aria-label={e.country} title={e.country}>{flagOf(e.country)} </span>}{e.ip}</span>}
               {e.detail && <span className="text-muted">{e.detail}</span>}
             </li>
           ))}
@@ -84,6 +161,7 @@ export default function ServerSecurity() {
     </label>
   );
   return (
+    <>
     <section className="card mt-4 space-y-4 p-5" aria-label={t("server.tab.security")}>
       <p className="text-sm text-muted">{t("server.securityIntro")}</p>
       <label className="flex items-start gap-2 text-sm">
@@ -115,5 +193,7 @@ export default function ServerSecurity() {
       )}
       {error && <p className="text-sm text-red-700">{error}</p>}
     </section>
+    <SigninCountries policy={policy} save={save} />
+    </>
   );
 }

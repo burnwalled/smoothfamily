@@ -1340,6 +1340,12 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Under Sikkerhed ser serverens admin de seneste 30 dages mislykkede logins, bremsen, der stopper for mange forsøg, links, der ikke findes, medlemmernes nye enheder og skiftede adgangskoder – fra alle familier på serveren, med adressen, hver kom fra. Bremsen meddeles straks, og en opsummering af døgnet kommer om morgenen, når der er sket noget. Hvert medlem får besked om en ny enhed på sin egen konto og om en skiftet adgangskode: ikke dem? En ny adgangskode logger de andre ud. Hver vælger under Min profil → Notifikationer, om disse skal pushes."
+      },
+      {
+        "h": "Hvor logins kommer fra"
+      },
+      {
+        "p": "Under Sikkerhed kan serverens admin hente en landetabel (IP Geolocation by DB-IP), som ligger på serveren, så ingen adresse nogensinde sendes væk for at blive slået op. Med den viser sikkerhedsloggen et flag på hver hændelse, og morgenens opsummering siger, hvor tingene kom fra. Logins kan så begrænses til valgte lande: fra andre lande afvises de, og bremsen er strengere, tre forsøg i stedet for otte, talt over en time. Reglen gælder kun login – gæstelinks, køkkenskærmen, kalenderabonnementer og hjemmenetværket begrænses aldrig. Et medlem på rejse lukkes ind hvor som helst fra indtil den dag, der er sat på medlemmets side."
       }
     ]
   },

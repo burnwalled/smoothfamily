@@ -84,6 +84,8 @@ class User(Base):
     # Every session carries this number; a new password (or "sign out everywhere") raises it, and
     # the old sessions end.
     session_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    # Travelling until this day: may sign in from any country, whatever the server's rule says.
+    travel_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     color: Mapped[str] = mapped_column(String(20), default="#4F7A5B")
     # Per-user preferences: display language (en|sv|nb|da|fi) and UI theme.
     language: Mapped[str] = mapped_column(String(5), default="en")
@@ -1220,6 +1222,8 @@ class SecurityEvent(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     username: Mapped[str] = mapped_column(String(60), default="", server_default="")
     ip: Mapped[str] = mapped_column(String(45), default="", server_default="")
+    # Where the address is, when the server has a country table.
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     detail: Mapped[str] = mapped_column(String(200), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 

@@ -37,6 +37,7 @@ from app.services import electricity as el
 from app.services import health, holidays, school_ha
 from app.services import flows as flow_engine
 from app.services import login_throttle, rotation
+from app.services import geo
 from app.services import security_log
 from app.services import pantry_scan as scan
 from app.services.birthdays import birthdays_between
@@ -290,7 +291,7 @@ async def new_link(screen_id: uuid.UUID, request: Request, admin: FamilyManager,
 
 async def _open(db, token: str, request: Request) -> tuple[KioskScreen, Family]:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     screen = (await db.execute(select(KioskScreen).where(KioskScreen.token_hash == _hash(token)))).scalar_one_or_none()
     family = await db.get(Family, screen.family_id) if screen else None

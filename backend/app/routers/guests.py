@@ -21,6 +21,7 @@ from app.models import Family, GuestAccess, GuestVisit, ListItem, ListModel
 from app.routers.emergency import EmergencyOut, emergency_cards
 from app.schemas import EventOut
 from app.services import login_throttle
+from app.services import geo
 from app.services import security_log
 from app.services.calendar_view import events_between
 from app.services.events import publish_family
@@ -190,7 +191,7 @@ async def revoke_guest(guest_id: uuid.UUID, user: AdultUser, db: DB) -> GuestOut
 
 async def _open(db, token: str, request: Request) -> GuestAccess:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     guest = (await db.execute(select(GuestAccess).where(GuestAccess.token_hash == _hash(token)))).scalar_one_or_none()
     now = datetime.now(timezone.utc)
