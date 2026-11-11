@@ -30,7 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.deps import DB, AdultUser, get_current_user
 from app.models import Album, ChatMessage, Conversation, ConversationMember, Family, FamilyEvent, MediaItem, Party, PartyExpense, PartyGuest, PartyHelper, PartyMailing, PartyPlanItem, PartyStep, PartyTask, PartyTemplate, PartyTheme, PartyVendor, Person, User, WishItem
-from app.services import login_throttle, party_mail
+from app.services import login_throttle, party_mail, security_log
+from app.services import geo
 from app.services.images import open_image
 from app.services.uploads import limit_body, read_upload
 
@@ -2205,12 +2206,13 @@ def _clean_guest(payload: GuestIn, party: Party) -> dict:
 async def helper_enter(token: str, request: Request, response: Response, db: DB) -> dict:
     """A helper's personal link: this browser may plan that party until the link ends."""
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     helper = (await db.execute(select(PartyHelper).where(PartyHelper.token_hash == _hash(token)))).scalar_one_or_none()
     party = await db.get(Party, helper.party_id) if helper else None
     if helper is None or party is None or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="party-help")
         raise HTTPException(status_code=404, detail="This link isn't valid")
     ends = _helper_ends(helper, party)
     now = datetime.now(timezone.utc)
@@ -2228,11 +2230,12 @@ async def helper_enter(token: str, request: Request, response: Response, db: DB)
 
 async def _open(db: AsyncSession, token: str, request: Request) -> Party:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     party = (await db.execute(select(Party).where(Party.token_hash == _hash(token)))).scalar_one_or_none()
     if party is None or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="party")
         raise HTTPException(status_code=404, detail="This link isn't valid")
     if datetime.now(timezone.utc) > _utc(party.ends_at) + INVITATION_LINGERS:
         raise HTTPException(status_code=410, detail="This link has ended")
@@ -2687,11 +2690,12 @@ def _portal_upload_allowed(ip: str, now: float | None = None) -> bool:
 
 async def _portal(db: AsyncSession, token: str, request: Request) -> Party:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     party = (await db.execute(select(Party).where(Party.portal_token_hash == _hash(token)))).scalar_one_or_none()
     if party is None or not _portal_live(party) or not await _family_active(db, party):
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="party-portal")
         raise HTTPException(status_code=404, detail="This link isn't valid")
     return party
 

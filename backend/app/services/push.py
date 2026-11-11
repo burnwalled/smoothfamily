@@ -26,6 +26,8 @@ NOTIFICATION_DEFAULTS = {
     "subs_cancel": True,
     "subs_quarter": True,
     "subs_year": True,
+    # The security log's word: a new device, a changed password; for the server's admin the brake and the summary.
+    "security": True,
 }
 
 

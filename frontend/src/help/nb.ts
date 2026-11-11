@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "Skjermspareren"
       },
       {
-        "p": "Etter minuttene du velger, kommer skjermspareren: familiens bilder, en klaffeklokke, en rolig klokke med været, en mørk skjerm – eller reven, som viser været ute. Den leser når det er grått, flyr drage når skyene drar forbi, holder paraplyen i regnet, bygger snømann når det snør og sover om natten, og dagens oppgaver vises over vannet. Et trykk vekker skjermen."
+        "p": "Etter minuttene du velger, kommer skjermspareren: familiens bilder, en klaffeklokke, en rolig klokke med været, en mørk skjerm – eller reven, som viser været ute. Den leser når det er grått, flyr drage når skyene drar forbi, holder paraplyen i regnet, bygger snømann når det snør og sover om natten, og dagens oppgaver vises over vannet. Om natten, i timene som er satt for skjermen, blir hver skjermsparer en mørk skjerm med bare klokken. Et trykk vekker skjermen."
       },
       {
         "p": "Med noen minutters mellomrom gjør reven noe lite som passer været – hopper, plasker i en vannpytt, kaster snøball, ser et stjerneskudd – og av og til hopper en hare forbi eller en fisk hopper i vannet. Den kler seg ut til halloween, jul, nyttår, påske og sankthans, og på en bursdag (personene under Bursdager) får den ballonger, festhatt og et banner med navnet. Høytidene følger familiens land; utkledningen slås av per skjerm under skjermspareren. Med redusert bevegelse på nettbrettet står reven stille."
@@ -1334,6 +1334,18 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Sikkerhet setter reglene for passkeys, totrinnskoder og hvor lange passord skal være. Adresse og tjenester har serverens adresse på internett, søket og tjenestene for alle familier. Serverens kom i gang-veiledning kan åpnes igjen øverst."
+      },
+      {
+        "h": "Sikkerhetsloggen"
+      },
+      {
+        "p": "Under Sikkerhet ser serverens admin de siste 30 dagenes pålogginger (hvem, hvorfra, på hvilken enhet), mislykkede pålogginger, bremsen som stopper for mange forsøk, lenker som ikke finnes, medlemmenes nye enheter og byttede passord – fra alle familier på serveren, med adressen hver kom fra. Bremsen varsles med en gang, og en oppsummering av døgnet kommer om morgenen når noe har skjedd. Hvert medlem får vite om en ny enhet på sin egen konto og om et byttet passord: ikke dem? Et nytt passord logger ut de andre. Hver velger under Min profil → Varsler om disse skal pushes."
+      },
+      {
+        "h": "Hvor påloggingene kommer fra"
+      },
+      {
+        "p": "Under Sikkerhet kan serverens admin hente en landtabell (IP Geolocation by DB-IP), som ligger på serveren så ingen adresse noen gang sendes bort for å slås opp. Med den viser sikkerhetsloggen et flagg på hver hendelse, og morgenens oppsummering sier hvor ting kom fra. Pålogginger kan så begrenses til valgte land: fra andre land nektes de, og bremsen er strengere, tre forsøk i stedet for åtte, telt over en time. Regelen gjelder bare pålogging – gjestelenker, kjøkkenskjermen, kalenderabonnementer og hjemmenettet begrenses aldri. Et medlem på reise slippes inn hvor som helst fra til den dagen som er satt på medlemmets side."
       }
     ]
   },

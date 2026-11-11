@@ -13,6 +13,10 @@ from fastapi import Request
 WINDOW_SECONDS = 15 * 60
 MAX_FAILURES_PER_USER = 8
 MAX_FAILURES_PER_IP = 25
+# From outside the countries sign-ins are allowed from (3.4.1): fewer tries, and they count longer.
+STRICT_WINDOW_SECONDS = 60 * 60
+STRICT_FAILURES_PER_USER = 3
+STRICT_FAILURES_PER_IP = 10
 
 _failures: dict[str, deque[float]] = defaultdict(deque)
 
@@ -26,31 +30,37 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _recent(key: str, now: float) -> deque[float]:
+def _recent(key: str, now: float, window: int = WINDOW_SECONDS) -> deque[float]:
     attempts = _failures[key]
-    while attempts and attempts[0] <= now - WINDOW_SECONDS:
+    # The longest window keeps the attempts; a shorter one just looks at the recent ones.
+    while attempts and attempts[0] <= now - STRICT_WINDOW_SECONDS:
         attempts.popleft()
-    return attempts
+    since = now - window
+    return deque(t for t in attempts if t > since)
 
 
-def retry_after(username: str, ip: str) -> int:
-    """Seconds until a new attempt is allowed (0 = allowed now)."""
-    now = time.monotonic()
-    waits = []
-    for key, limit in ((f"user:{username}", MAX_FAILURES_PER_USER), (f"ip:{ip}", MAX_FAILURES_PER_IP)):
-        attempts = _recent(key, now)
-        if len(attempts) >= limit:
-            waits.append(int(attempts[0] + WINDOW_SECONDS - now) + 1)
-    return max(waits, default=0)
-
-
-def ip_retry_after(ip: str) -> int:
-    """Like retry_after, for attempts that aren't tied to a username (passkeys)."""
-    now = time.monotonic()
-    attempts = _recent(f"ip:{ip}", now)
-    if len(attempts) >= MAX_FAILURES_PER_IP:
-        return int(attempts[0] + WINDOW_SECONDS - now) + 1
+def _wait(attempts: deque[float], limit: int, window: int, now: float) -> int:
+    if len(attempts) >= limit:
+        return int(attempts[0] + window - now) + 1
     return 0
+
+
+def retry_after(username: str, ip: str, strict: bool = False) -> int:
+    """Seconds until a new attempt is allowed (0 = allowed now). Strict: from outside the allowed
+    countries – three tries per name, ten per address, counted over an hour."""
+    now = time.monotonic()
+    window = STRICT_WINDOW_SECONDS if strict else WINDOW_SECONDS
+    per_user = STRICT_FAILURES_PER_USER if strict else MAX_FAILURES_PER_USER
+    per_ip = STRICT_FAILURES_PER_IP if strict else MAX_FAILURES_PER_IP
+    waits = [_wait(_recent(f"user:{username}", now, window), per_user, window, now), _wait(_recent(f"ip:{ip}", now, window), per_ip, window, now)]
+    return max(waits)
+
+
+def ip_retry_after(ip: str, strict: bool = False) -> int:
+    """Like retry_after, for attempts that aren't tied to a username (passkeys, links)."""
+    now = time.monotonic()
+    window = STRICT_WINDOW_SECONDS if strict else WINDOW_SECONDS
+    return _wait(_recent(f"ip:{ip}", now, window), STRICT_FAILURES_PER_IP if strict else MAX_FAILURES_PER_IP, window, now)
 
 
 def record_ip_failure(ip: str) -> None:

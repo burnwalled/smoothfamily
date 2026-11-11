@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from app.deps import DB, AdminUser, ServerAdmin
 from app.models import ChatMessage, Family, Invitation, ListItem, ServerLog, TaskCompletion, User
 from app.services import families as fam
-from app.services import family_backups, quota
+from app.services import family_backups, quota, security_log
 from app.services.public_url import public_base
 
 router = APIRouter(prefix="/api/server", tags=["server"])
@@ -303,6 +303,12 @@ async def revoke_invitation(invitation_id: uuid.UUID, admin: ServerAdmin, db: DB
 @router.get("/log", response_model=list[LogRow])
 async def server_log(admin: ServerAdmin, db: DB) -> list[LogRow]:
     return await _log_rows(db, None)
+
+
+@router.get("/security")
+async def security_overview(admin: ServerAdmin, db: DB) -> dict:
+    """The security log: the last day and week in numbers, and the events of the last 30 days."""
+    return await security_log.overview(db)
 
 
 async def _log_rows(db, family_id: uuid.UUID | None) -> list[LogRow]:

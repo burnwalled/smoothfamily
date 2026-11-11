@@ -333,6 +333,53 @@
   to { transform: translate(8px, -14px); }
 }
 
+/* More to do (3.4.1): a bobber, a fire, steam, water and sparks */
+.fx-bob {
+  animation: fx-bob 3s ease-in-out infinite;
+}
+@keyframes fx-bob {
+  0%, 100% { transform: translate(258px, 56px); }
+  50% { transform: translate(258px, 61px); }
+}
+.fx-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fx-flame 0.9s ease-in-out infinite alternate;
+}
+@keyframes fx-flame {
+  from { transform: scaleY(1) skewX(-3deg); }
+  to { transform: scaleY(0.86) skewX(4deg); }
+}
+.fx-spark {
+  animation: fx-spark 2.4s ease-out infinite;
+}
+.fx-spark.fx-late {
+  animation-delay: 1.2s;
+}
+@keyframes fx-spark {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-70px); opacity: 0; }
+}
+.fx-steam {
+  animation: fx-steam 3.2s ease-out infinite;
+}
+.fx-steam.fx-late {
+  animation-delay: 1.6s;
+}
+@keyframes fx-steam {
+  0% { transform: translateY(0); opacity: 0; }
+  30% { opacity: 0.8; }
+  100% { transform: translateY(-26px); opacity: 0; }
+}
+.fx-pour {
+  animation: fx-pour 1.1s linear infinite;
+}
+@keyframes fx-pour {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate(22px, 96px); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .foxscene * {
     animation: none !important;

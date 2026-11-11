@@ -26,10 +26,11 @@ from webauthn.helpers.structs import (
 from app.services import security_policy
 from app.deps import DB, CurrentUser, ServerAdmin
 from app.models import Family, User, WebAuthnCredential
-from app.routers.auth import _me
+from app.routers.auth import _me, country_gate
 from app.schemas import MeOut
 from app.security import create_token, read_mfa_token, set_session_cookie, verify_password
-from app.services import login_throttle, mfa, public_url
+from app.services import login_throttle, mfa, public_url, security_log
+from app.services import geo
 
 router = APIRouter(prefix="/api/auth", tags=["mfa"])
 
@@ -99,8 +100,9 @@ class PasskeyLoginIn(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _finish_login(user: User, response: Response, db: DB) -> MeOut:
+async def _finish_login(user: User, request: Request, response: Response, db: DB) -> MeOut:
     login_throttle.record_success(user.username)
+    await security_log.signed_in(db, user, request)
     set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, await db.get(Family, user.family_id))
 
@@ -110,7 +112,7 @@ async def _user_from_mfa_token(token: str, request: Request, db: DB) -> tuple[Us
     if user is None:
         raise HTTPException(status_code=401, detail="Sign-in expired, start again")
     ip = login_throttle.client_ip(request)
-    wait = login_throttle.retry_after(user.username, ip)
+    wait = login_throttle.retry_after(user.username, ip, strict=await geo.outside(db, ip))
     if wait:
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.", headers={"Retry-After": str(wait)})
     return user, await db.get(Family, user.family_id), ip
@@ -138,9 +140,10 @@ async def login_with_code(payload: MfaCode, request: Request, response: Response
         raise HTTPException(status_code=400, detail="No authenticator configured")
     if not _accept_code(user, mfa.decrypt_secret(user.totp_secret_encrypted), payload.code):
         login_throttle.record_failure(user.username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, detail="code")
         raise HTTPException(status_code=401, detail="Wrong code")
     await db.commit()
-    return await _finish_login(user, response, db)
+    return await _finish_login(user, request, response, db)
 
 
 @router.post("/login/totp/setup", response_model=TotpSetupOut)
@@ -165,7 +168,7 @@ async def login_totp_enable(payload: MfaCode, request: Request, response: Respon
         raise HTTPException(status_code=401, detail="Wrong code")
     user.totp_secret_encrypted, user.totp_pending_encrypted = user.totp_pending_encrypted, None
     await db.commit()
-    return await _finish_login(user, response, db)
+    return await _finish_login(user, request, response, db)
 
 
 # ── Passkey sign-in ───────────────────────────────────────────────────────────
@@ -185,7 +188,7 @@ async def passkey_login_options(request: Request, db: DB) -> ChallengeOut:
 @router.post("/passkeys/login/verify", response_model=MeOut)
 async def passkey_login_verify(payload: PasskeyLoginIn, request: Request, response: Response, db: DB) -> MeOut:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.")
     challenge = mfa.pop_challenge(payload.challenge_id, None)
     try:
@@ -213,13 +216,15 @@ async def passkey_login_verify(payload: PasskeyLoginIn, request: Request, respon
         )
     except (InvalidAuthenticationResponse, InvalidJSONStructure) as exc:
         login_throttle.record_failure(user.username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, detail="passkey")
         raise HTTPException(status_code=401, detail="Passkey could not be verified") from exc
 
     cred.sign_count = verified.new_sign_count
     cred.last_used_at = datetime.now(timezone.utc)
     await db.commit()
     # A passkey is already two factors (device + biometrics/PIN), so no TOTP step.
-    return await _finish_login(user, response, db)
+    await country_gate(db, user, ip)
+    return await _finish_login(user, request, response, db)
 
 
 # ── Own security settings (signed in) ─────────────────────────────────────────
@@ -281,6 +286,7 @@ async def totp_disable(payload: TotpDisable, request: Request, user: CurrentUser
     user.totp_secret_encrypted = None
     user.totp_last_step = None
     await db.commit()
+    await security_log.record(db, "mfa_off", ip=ip, user=user)
 
 
 @router.post("/passkeys/register/options", response_model=ChallengeOut)

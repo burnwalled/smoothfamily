@@ -22,3 +22,4 @@ qrcode==8.2
 webauthn==3.0.1
 pyotp==2.10.0
 pypdf==6.21.4
+maxminddb==3.2.0

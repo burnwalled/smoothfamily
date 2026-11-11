@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "Skärmsläckaren"
       },
       {
-        "p": "Efter de minuter du väljer kommer skärmsläckaren: familjens foton, en flip-klocka, en lugn klocka med vädret, en mörk skärm – eller räven, som visar vädret ute. Den läser när det är grått, flyger drake när molnen drar förbi, håller paraplyet i regnet, bygger snögubbe när det snöar och sover på natten, och dagens uppgifter syns över sjön. Ett tryck väcker skärmen."
+        "p": "Efter de minuter du väljer kommer skärmsläckaren: familjens foton, en flip-klocka, en lugn klocka med vädret, en mörk skärm – eller räven, som visar vädret ute. Den läser när det är grått, flyger drake när molnen drar förbi, håller paraplyet i regnet, bygger snögubbe när det snöar och sover på natten, och dagens uppgifter syns över sjön. På natten, de timmar som är satta för skärmen, blir varje skärmsläckare en mörk skärm med bara klockan. Ett tryck väcker skärmen."
       },
       {
         "p": "Med några minuters mellanrum gör räven något litet som passar vädret – skuttar, plaskar i en vattenpöl, kastar snöboll, tittar på ett stjärnfall – och ibland skuttar en hare förbi eller en fisk hoppar i sjön. Den klär ut sig till halloween, jul, nyår, påsk och midsommar, och på en födelsedag (personerna under Födelsedagar) får den ballonger, partyhatt och en banderoll med namnet. Högtiderna följer familjens land; utklädnaden stängs av per skärm under skärmsläckaren. Med minskade rörelser på surfplattan står räven still."
@@ -1334,6 +1334,18 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Säkerhet sätter reglerna för passkeys, tvåstegskoder och hur långa lösenord ska vara. Adress och tjänster har serverns adress på internet, sökningen och tjänsterna för alla familjer. Serverns kom igång-guide kan öppnas igen högst upp."
+      },
+      {
+        "h": "Säkerhetsloggen"
+      },
+      {
+        "p": "Under Säkerhet ser serverns admin de senaste 30 dagarnas inloggningar (vem, varifrån, på vilken enhet), misslyckade inloggningar, bromsen som stoppar för många försök, länkar som inte finns, medlemmarnas nya enheter och bytta lösenord – från alla familjer på servern, med adressen varje kom från. Bromsen meddelas direkt, och en sammanfattning av dygnet kommer på morgonen när något hänt. Varje medlem får veta om en ny enhet på sitt eget konto och om ett bytt lösenord: inte de? Ett nytt lösenord loggar ut de andra. Var och en väljer under Min profil → Notiser om dessa ska pushas."
+      },
+      {
+        "h": "Varifrån inloggningar kommer"
+      },
+      {
+        "p": "Under Säkerhet kan serverns admin hämta en landstabell (IP Geolocation by DB-IP), som ligger på servern så att ingen adress någonsin skickas iväg för att slås upp. Med den visar säkerhetsloggen en flagga på varje händelse och morgonens sammanfattning säger varifrån saker kom. Inloggningar kan sedan begränsas till valda länder: från andra länder nekas de och bromsen är hårdare, tre försök i stället för åtta, räknade över en timme. Regeln gäller bara inloggning – gästlänkar, köksskärmen, kalenderprenumerationer och hemmanätet begränsas aldrig. En medlem på resa släpps in varifrån som helst till den dag som anges på medlemmens sida."
       }
     ]
   },

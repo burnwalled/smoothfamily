@@ -12,7 +12,7 @@ import { createContext, useContext, useEffect, useId, useRef, useState } from "r
 import type { WeatherKind } from "@/lib/api";
 import { isNight } from "./FlipClock";
 import "./fox.css";
-import { FoxActivity, FoxMoment, GREY, Season, WET, momentsOf } from "./foxMoments";
+import { FoxActivity, FoxMoment, GREY, Season, WET, activitiesFor, momentsOf, pickActivity } from "./foxMoments";
 
 export type { FoxActivity, FoxMoment };
 
@@ -46,14 +46,8 @@ export function seasonOf(now: Date): Season {
   return m <= 1 || m === 11 ? "winter" : m <= 4 ? "spring" : m <= 7 ? "summer" : "autumn";
 }
 
-export function activityOf(kind: WeatherKind, night: boolean): FoxActivity {
-  if (night) return "sleep";
-  if (kind === "thunder") return "thunder";
-  if (kind === "rain" || kind === "sleet") return "umbrella";
-  if (kind === "snow") return "snowman";
-  if (kind === "fog") return "lantern";
-  if (kind === "cloudy") return "book";
-  return kind === "partly" ? "kite" : "butterfly";
+export function activityOf(kind: WeatherKind, now: Date, temp: number, windy: boolean, snowy: boolean, frozen: boolean): FoxActivity {
+  return pickActivity(activitiesFor({ kind, phase: phaseOf(now), season: seasonOf(now), temp, windy, snowy, frozen }), now);
 }
 
 // Fixed "random" numbers, so the drops don't jump about on each render.
@@ -70,7 +64,7 @@ const SKY: Record<Phase, { clear: [string, string]; grey: [string, string] }> = 
 };
 
 export default function FoxScene({
-  now, kind, temp, wind, dress = "", lively = true,
+  now, kind, temp, wind, dress = "", lively = true, doing,
 }: {
   now: Date;
   kind: WeatherKind;
@@ -79,6 +73,8 @@ export default function FoxScene({
   dress?: FoxDress;
   // false: no moments (the small preview in the settings).
   lively?: boolean;
+  // A given thing to do, instead of the day's pick (previews).
+  doing?: FoxActivity;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [moment, setMoment] = useState<FoxMoment | null>(null);
@@ -87,12 +83,12 @@ export default function FoxScene({
   const phase = phaseOf(now);
   const night = phase === "night";
   const season = seasonOf(now);
-  const activity = activityOf(kind, night);
   const t = temp ?? 10;
   const grey = GREY.includes(kind);
   const snowy = kind === "snow" || (season === "winter" && t <= 1);
   const frozen = season === "winter" && t <= -2;
   const windy = (wind ?? 0) >= 8;
+  const activity = doing ?? activityOf(kind, now, t, windy, snowy, frozen);
   const choices = momentsOf(activity, kind, season, frozen).join(",");
   const hat: Hat | undefined = dress === "birthday" || dress === "newyear" ? "party" : dress === "christmas" ? "santa" : dress === "midsummer" ? "wreath" : activity === "snowman" ? "beanie" : undefined;
   const fireworks = dress === "newyear" && ((now.getMonth() === 11 && now.getHours() >= 17) || (now.getMonth() === 0 && now.getHours() < 2));
@@ -424,14 +420,24 @@ function Ground({ season, snowy, night }: { season: Season; snowy: boolean; nigh
 
 function Fox({ activity, scarf, shades, wet, hat, cape }: { activity: FoxActivity; scarf: boolean; shades: boolean; wet: boolean; hat?: Hat; cape: boolean }) {
   if (activity === "sleep") return <SleepingFox umbrella={wet} hat={hat === "beanie" ? undefined : hat} />;
-  const eyes = activity === "book" ? "down" : activity === "snowman" ? "up" : activity === "thunder" ? "wide" : "open";
-  const tilt = activity === "book" ? 7 : activity === "snowman" ? -8 : 0;
+  const eyes = activity === "book" || activity === "guitar" || activity === "rake" || activity === "mug" ? "down" : activity === "snowman" || activity === "telescope" || activity === "binoculars" ? "up" : activity === "thunder" ? "wide" : "open";
+  const tilt = activity === "book" || activity === "guitar" ? 7 : activity === "snowman" || activity === "telescope" ? -8 : 0;
   // Where the paws go for each thing it holds.
-  const hands: [number, number][] =
-    activity === "book" ? [[-30, -82], [30, -82]] : activity === "kite" ? [[62, -150]] : activity === "lantern" ? [[62, -78]] : activity === "umbrella" || activity === "thunder" ? [[34, -150]] : [];
+  const HANDS: Partial<Record<FoxActivity, [number, number][]>> = {
+    book: [[-30, -82], [30, -82]], kite: [[62, -150]], lantern: [[62, -78]], umbrella: [[34, -150]], thunder: [[34, -150]],
+    fishing: [[62, -140]], picnic: [[-30, -82], [30, -82]], rake: [[62, -120]], campfire: [[40, -84]], telescope: [[62, -110]], sled: [[-62, -100]],
+    mug: [[-26, -84], [26, -84]], guitar: [[-44, -104], [30, -70]], watering: [[62, -110]], icecream: [[62, -120]], binoculars: [[-26, -128], [26, -128]],
+  };
+  const hands: [number, number][] = HANDS[activity] ?? [];
   return (
     <g>
       {activity === "snowman" && <Snowman x={190} />}
+      {activity === "picnic" && <Picnic />}
+      {activity === "rake" && <LeafPile x={200} />}
+      {activity === "campfire" && <Campfire x={190} />}
+      {activity === "telescope" && <Telescope x={160} />}
+      {activity === "sled" && <Sled x={-200} />}
+      {activity === "watering" && <FlowerBed x={215} />}
       {wet && (
         <g transform="translate(70 8)">
           <ellipse rx="110" ry="14" fill="#9fb6c4" opacity="0.6" />
@@ -463,6 +469,15 @@ function Fox({ activity, scarf, shades, wet, hat, cape }: { activity: FoxActivit
       {activity === "book" && <Book />}
       {activity === "lantern" && <Lantern x={62} y={-78} />}
       {activity === "kite" && <Kite hand={[62, -150]} />}
+      {activity === "fishing" && <Rod hand={[62, -140]} />}
+      {activity === "picnic" && <Sandwich />}
+      {activity === "rake" && <Rake hand={[62, -120]} />}
+      {activity === "campfire" && <Stick hand={[40, -84]} />}
+      {activity === "mug" && <Mug />}
+      {activity === "guitar" && <Guitar />}
+      {activity === "watering" && <WateringCan hand={[62, -110]} />}
+      {activity === "icecream" && <IceCream hand={[62, -120]} />}
+      {activity === "binoculars" && <Bird />}
       {(activity === "umbrella" || activity === "thunder") && <Umbrella hand={[34, -150]} />}
       {hands.map(([x, y], i) => (
         <g key={i}>
@@ -474,6 +489,7 @@ function Fox({ activity, scarf, shades, wet, hat, cape }: { activity: FoxActivit
         <Head y={-140} eyes={eyes} earsDown={activity === "thunder"} hat={hat} shades={shades} />
       </g>
       {activity === "butterfly" && <Butterfly />}
+      {activity === "binoculars" && <Binoculars />}
     </g>
   );
 }
@@ -678,6 +694,218 @@ function Butterfly() {
         <ellipse cx="7" cy="10" rx="7" ry="9" fill="#e85d75" />
       </g>
       <rect x="-2" y="-12" width="4" height="26" rx="2" fill={DARK} />
+      </g>
+    </g>
+  );
+}
+
+// --- More to do (3.4.1) ---------------------------------------------------------------------------
+
+function Rod({ hand }: { hand: [number, number] }) {
+  const [hx, hy] = hand;
+  return (
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values={`-1.5 ${hx} ${hy};1.5 ${hx} ${hy};-1.5 ${hx} ${hy}`} dur="6s" repeatCount="indefinite" />
+      <path d={`M${hx - 10} ${hy + 10} L250 -236`} stroke="#5b4636" strokeWidth="5" strokeLinecap="round" />
+      <path d="M250 -236 Q 262 -80 258 56" stroke="#dde6ec" strokeWidth="1.5" fill="none" />
+      <g className="fx-bob" transform="translate(258 56)">
+        <circle r="7" fill="#c8372d" />
+        <path d="M-7 0 A7 7 0 0 0 7 0 Z" fill="#fff" />
+      </g>
+    </g>
+  );
+}
+
+function Picnic() {
+  return (
+    <g>
+      <path d="M-250 10 L-80 -8 L-60 30 L-240 48 Z" fill="#c8372d" />
+      <path d="M-250 10 L-80 -8 M-245 22 L-75 4 M-241 36 L-71 18 M-210 6 L-200 44 M-170 2 L-160 40 M-130 -2 L-120 36" stroke="#fff" strokeWidth="2.5" opacity="0.7" />
+      <path d="M-200 -2 L-192 -34 L-140 -38 L-132 -6 Z" fill="#b57a3c" />
+      <path d="M-200 -2 L-132 -6 M-190 -12 L-137 -16 M-186 -24 L-140 -27" stroke="#8c5a2b" strokeWidth="2" />
+      <path d="M-180 -36 Q-166 -58 -152 -36" stroke="#8c5a2b" strokeWidth="4" fill="none" />
+      <circle cx="-110" cy="-14" r="9" fill="#e85d75" />
+      <path d="M-110 -23 L-108 -30" stroke="#4f7f4a" strokeWidth="2" />
+    </g>
+  );
+}
+
+function Sandwich() {
+  return (
+    <g transform="translate(0 -86)">
+      <path d="M-34 -6 L34 -6 L30 8 L-30 8 Z" fill="#e8b33c" />
+      <path d="M-32 -8 L32 -8 L30 -2 L-30 -2 Z" fill="#4f8f45" />
+      <path d="M-30 2 L30 2 L28 6 L-28 6 Z" fill="#e85d75" />
+    </g>
+  );
+}
+
+function Rake({ hand }: { hand: [number, number] }) {
+  const [hx, hy] = hand;
+  return (
+    <g>
+      <path d={`M${hx - 8} ${hy + 8} L178 -4`} stroke="#5b4636" strokeWidth="5" strokeLinecap="round" />
+      <path d="M150 -10 L206 2 M152 -12 L142 10 M165 -9 L158 12 M178 -6 L173 14 M191 -3 L188 16 M204 0 L204 18" stroke="#8c5a2b" strokeWidth="4" strokeLinecap="round" />
+    </g>
+  );
+}
+
+function LeafPile({ x }: { x: number }) {
+  const leaves: [number, number, number][] = [[-40, -8, 20], [-14, -22, -30], [12, -12, 60], [36, -6, 10], [0, -34, -50], [26, -28, 35], [-26, -32, 80], [48, -18, -20]];
+  return (
+    <g transform={`translate(${x} 0)`}>
+      <path d="M-70 4 Q0 -56 76 4 Z" fill="#c9572b" />
+      {leaves.map(([lx, ly, r], i) => (
+        <ellipse key={i} cx={lx} cy={ly} rx="12" ry="7" fill={["#e0902f", "#e8b33c", "#c9572b"][i % 3]} transform={`rotate(${r} ${lx} ${ly})`} />
+      ))}
+    </g>
+  );
+}
+
+function Campfire({ x }: { x: number }) {
+  const { glow } = useContext(Ids);
+  return (
+    <g transform={`translate(${x} 0)`}>
+      <circle className="fx-glowpulse" cy="-40" r="150" fill={`url(#${glow})`} opacity="0.7" />
+      <path d="M-50 -2 L50 -22 M-50 -22 L50 -2" stroke="#5b4636" strokeWidth="14" strokeLinecap="round" />
+      <g className="fx-flame">
+        <path d="M-30 -8 Q-36 -60 0 -96 Q36 -60 30 -8 Z" fill="#f08a2c" />
+        <path d="M-16 -8 Q-18 -46 0 -66 Q18 -46 16 -8 Z" fill="#ffd56b" />
+      </g>
+      <circle className="fx-spark" cx="-8" cy="-70" r="3" fill="#ffd56b" />
+      <circle className="fx-spark fx-late" cx="12" cy="-80" r="2.5" fill="#f08a2c" />
+    </g>
+  );
+}
+
+function Stick({ hand }: { hand: [number, number] }) {
+  const [hx, hy] = hand;
+  return (
+    <g>
+      <path d={`M${hx - 6} ${hy + 4} L150 -60`} stroke="#5b4636" strokeWidth="4" strokeLinecap="round" />
+      <ellipse cx="156" cy="-62" rx="11" ry="8" fill="#fff4e8" stroke="#e8b33c" strokeWidth="2" />
+    </g>
+  );
+}
+
+function Telescope({ x }: { x: number }) {
+  return (
+    <g transform={`translate(${x} 0)`}>
+      <path d="M0 -120 L-40 0 M0 -120 L40 0 M0 -120 L6 0" stroke="#5b4636" strokeWidth="5" strokeLinecap="round" />
+      <g transform="rotate(-35 0 -122)">
+        <rect x="-50" y="-134" width="110" height="24" rx="10" fill="#3f6fb5" />
+        <rect x="52" y="-138" width="30" height="32" rx="8" fill="#2f5a94" />
+        <rect x="-58" y="-130" width="16" height="16" rx="6" fill="#2f5a94" />
+      </g>
+    </g>
+  );
+}
+
+function Sled({ x }: { x: number }) {
+  return (
+    <g transform={`translate(${x} 0)`}>
+      <path d="M-60 2 Q-74 2 -72 -14 L60 -14 Q78 -14 70 2 Z" fill="#c8372d" />
+      <path d="M-52 -14 L-52 -34 L52 -34 L52 -14 M-10 -14 L-10 -34 M30 -14 L30 -34" stroke="#8c5a2b" strokeWidth="6" strokeLinecap="round" />
+      <path d="M-72 -10 Q-96 -16 -90 -44" stroke="#8c5a2b" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <path d="M-90 -44 Q-10 -120 138 -100" stroke="#dde6ec" strokeWidth="2.5" fill="none" />
+    </g>
+  );
+}
+
+function Mug() {
+  return (
+    <g transform="translate(0 -86)">
+      <rect x="-24" y="-22" width="48" height="40" rx="7" fill="#3f6fb5" />
+      <path d="M24 -10 q22 0 22 14 q0 14 -22 14" stroke="#3f6fb5" strokeWidth="7" fill="none" />
+      <ellipse cy="-22" rx="24" ry="6" fill="#8c5a2b" />
+      {[-10, 0, 10].map((sx, i) => (
+        <path key={sx} className={`fx-steam${i === 1 ? " fx-late" : ""}`} d={`M${sx} -30 q-6 -10 0 -20 q6 -10 0 -20`} stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.8" />
+      ))}
+    </g>
+  );
+}
+
+function Guitar() {
+  return (
+    <g transform="translate(-6 -88) rotate(-28)">
+      <path d="M-10 -8 Q-50 -36 -50 0 Q-50 42 -10 36 Q14 50 46 36 Q74 16 46 -20 Q14 -46 -10 -8 Z" fill="#b57a3c" />
+      <circle cx="4" cy="4" r="12" fill="#3b2418" />
+      <path d="M8 -10 L120 -36" stroke="#5b4636" strokeWidth="9" strokeLinecap="round" />
+      <path d="M8 -4 L118 -30 M8 2 L120 -24 M8 8 L122 -18" stroke="#f1ece2" strokeWidth="1.2" />
+      <rect x="112" y="-46" width="20" height="18" rx="4" fill="#3b2418" />
+    </g>
+  );
+}
+
+function WateringCan({ hand }: { hand: [number, number] }) {
+  const [hx, hy] = hand;
+  return (
+    <g>
+      <g transform={`translate(${hx + 30} ${hy - 10}) rotate(24)`}>
+        <rect x="-26" y="-18" width="52" height="40" rx="8" fill="#4f8f45" />
+        <path d="M26 -8 L70 -36" stroke="#4f8f45" strokeWidth="9" strokeLinecap="round" />
+        <circle cx="72" cy="-38" r="8" fill="#2f6b33" />
+        <path d="M-26 -8 q-18 -2 -18 14" stroke="#4f8f45" strokeWidth="7" fill="none" />
+      </g>
+      {[0, 1, 2].map((i) => (
+        <circle key={i} className={`fx-pour${i ? " fx-late" : ""}`} cx={160 + i * 8} cy={-120} r="3" fill="#8fc8e8" style={{ animationDelay: `${i * 0.35}s` }} />
+      ))}
+    </g>
+  );
+}
+
+function FlowerBed({ x }: { x: number }) {
+  return (
+    <g transform={`translate(${x} 0)`}>
+      {[[-30, "#f28fb1"], [0, "#f6d55c"], [30, "#b39ddb"]].map(([fx, color], i) => (
+        <g key={i} transform={`translate(${fx} 0)`}>
+          <g className="fx-sway">
+            <path d="M0 0 L0 -30" stroke="#4f7f4a" strokeWidth="4" />
+            <path d="M0 -14 q-14 -6 -12 -18 q10 4 12 18" fill="#4f8f45" />
+            <circle cy="-36" r="11" fill={color as string} />
+            <circle cy="-36" r="4" fill="#e8a33c" />
+          </g>
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function IceCream({ hand }: { hand: [number, number] }) {
+  const [hx, hy] = hand;
+  return (
+    <g transform={`translate(${hx} ${hy - 12})`}>
+      <path d="M-14 0 L14 0 L0 44 Z" fill="#e8b33c" />
+      <path d="M-14 0 L14 0 M-10 12 L10 12 M-6 24 L6 24 M-8 0 L0 30 M8 0 L0 30" stroke="#c98a2b" strokeWidth="1.5" />
+      <circle cy="-10" r="16" fill="#f28fb1" />
+      <circle cx="-6" cy="-30" r="14" fill="#fff4e8" />
+      <circle cx="8" cy="-32" r="12" fill="#8c5a2b" />
+    </g>
+  );
+}
+
+function Binoculars() {
+  return (
+    <g transform="translate(0 -150)">
+      <rect x="-40" y="-14" width="30" height="30" rx="7" fill="#2d2d2d" />
+      <rect x="10" y="-14" width="30" height="30" rx="7" fill="#2d2d2d" />
+      <rect x="-12" y="-6" width="24" height="12" rx="4" fill="#3b3b3b" />
+      <circle cx="-25" cy="1" r="9" fill="#3f6fb5" opacity="0.8" />
+      <circle cx="25" cy="1" r="9" fill="#3f6fb5" opacity="0.8" />
+    </g>
+  );
+}
+
+function Bird() {
+  return (
+    <g transform="translate(250 -250)">
+      <g className="fx-sway">
+        <path d="M-40 60 Q0 20 40 60" stroke="#5b4636" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <ellipse cy="12" rx="16" ry="11" fill="#3f6fb5" />
+        <circle cx="12" cy="0" r="8" fill="#3f6fb5" />
+        <path d="M19 0 L28 2 L19 4 Z" fill="#f08a2c" />
+        <circle cx="14" cy="-2" r="1.8" fill="#fff" />
+        <path d="M-16 8 Q-4 -2 8 10" fill="#2f5a94" />
       </g>
     </g>
   );

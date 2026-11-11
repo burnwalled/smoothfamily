@@ -255,6 +255,18 @@ export default function MemberPage() {
 
       )}
 
+      {/* Travelling (3.4.1): may sign in from any country until then */}
+      <Section title={t("member.travelTitle")}>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block">
+            <span className="label">{t("member.travelUntil")}</span>
+            <input type="date" className="input w-auto" value={member.travel_until ?? ""} min={new Date().toISOString().slice(0, 10)} onChange={(e) => { void patch({ travel_until: e.target.value || null }); }} />
+          </label>
+          {member.travel_until && <button className="btn-ghost border border-edge" onClick={() => { void patch({ travel_until: null }); }}>{t("member.travelClear")}</button>}
+        </div>
+        <p className="mt-1 text-xs text-muted">{t("member.travelHint")}</p>
+      </Section>
+
       {/* A child: birthday, the little ones' mode, allowance, two homes */}
       {child && (
         <Section title={t("member.childTitle")}>

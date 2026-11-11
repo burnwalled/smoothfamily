@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "Näytönsäästäjä"
       },
       {
-        "p": "Valitsemiesi minuuttien jälkeen tulee näytönsäästäjä: perheen kuvat, läppäkello, rauhallinen kello ja sää, pimeä näyttö – tai kettu, joka näyttää ulkona olevan sään. Se lukee harmaina päivinä, lennättää leijaa pilvien ohittaessa, pitää sateenvarjoa sateessa, rakentaa lumiukon lumisateessa ja nukkuu yöllä, ja päivän avoimet tehtävät näkyvät järven yllä. Napautus herättää näytön."
+        "p": "Valitsemiesi minuuttien jälkeen tulee näytönsäästäjä: perheen kuvat, läppäkello, rauhallinen kello ja sää, pimeä näyttö – tai kettu, joka näyttää ulkona olevan sään. Se lukee harmaina päivinä, lennättää leijaa pilvien ohittaessa, pitää sateenvarjoa sateessa, rakentaa lumiukon lumisateessa ja nukkuu yöllä, ja päivän avoimet tehtävät näkyvät järven yllä. Yöllä, näytölle asetettuina tunteina, jokaisesta näytönsäästäjästä tulee pimeä näyttö, jossa on vain kello. Napautus herättää näytön."
       },
       {
         "p": "Muutaman minuutin välein kettu tekee jotain pientä säähän sopivaa – hyppää, loiskii lätäkössä, heittää lumipallon, katsoo tähdenlentoa – ja joskus jänis loikkii ohi tai kala hyppää järvessä. Se pukeutuu halloweeniksi, jouluksi, uudeksivuodeksi, pääsiäiseksi ja juhannukseksi, ja syntymäpäivänä (Syntymäpäivät-kohdan henkilöt) se saa ilmapalloja, juhlahatun ja banderollin nimellä. Juhlapyhät seuraavat perheen maata; asun voi kytkeä pois näyttökohtaisesti näytönsäästäjän alta. Kun tabletissa on vähennetty liike, kettu pysyy paikallaan."
@@ -1334,6 +1334,18 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Turvallisuus asettaa säännöt pääsyavaimille, kaksivaiheisille koodeille ja salasanojen pituudelle. Osoite ja palvelut sisältää palvelimen internet-osoitteen, haun ja kaikkien perheiden palvelut. Palvelimen aloitusoppaan voi avata uudelleen yläreunasta."
+      },
+      {
+        "h": "Turvallisuusloki"
+      },
+      {
+        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä näkee viimeisten 30 päivän kirjautumiset (kuka, mistä, millä laitteella), epäonnistuneet kirjautumiset, liian monet yritykset pysäyttävän jarrun, olemattomat linkit, jäsenten uudet laitteet ja vaihdetut salasanat – palvelimen kaikista perheistä, kunkin lähdeosoitteineen. Jarrusta ilmoitetaan heti, ja vuorokauden yhteenveto tulee aamulla, kun jotain on tapahtunut. Jokainen jäsen saa tiedon omalle tililleen tulleesta uudesta laitteesta ja vaihdetusta salasanasta: eikö se ollut sinä? Uusi salasana kirjaa muut ulos. Kukin valitsee kohdassa Oma profiili → Ilmoitukset, lähetetäänkö nämä push-ilmoituksina."
+      },
+      {
+        "h": "Mistä kirjautumiset tulevat"
+      },
+      {
+        "p": "Kohdassa Turvallisuus palvelimen ylläpitäjä voi hakea maataulukon (IP Geolocation by DB-IP), joka on palvelimella, jotta mitään osoitetta ei koskaan lähetetä pois selvitettäväksi. Sen avulla turvallisuusloki näyttää lipun jokaisessa tapahtumassa ja aamun yhteenveto kertoo, mistä asiat tulivat. Kirjautumiset voi sitten rajata valittuihin maihin: muista maista ne evätään ja jarru on tiukempi, kolme yritystä kahdeksan sijaan, laskettuna tunnin ajalta. Sääntö koskee vain kirjautumista – vieraslinkkejä, keittiönäyttöä, kalenteritilauksia ja kotiverkkoa ei koskaan rajata. Matkalla oleva jäsen päästetään sisään mistä tahansa jäsenen sivulla asetettuun päivään asti."
       }
     ]
   },

@@ -20,7 +20,8 @@ from app.deps import DB, AdultUser, FamilyManager
 from app.models import CoParent, CoParentMessage, CustodySchedule, Family, ListItem, User
 from app.routers.guests import GuestListItem, GuestView, TickIn, build_view
 from app.security import hash_password, verify_password
-from app.services import login_throttle, security_policy
+from app.services import login_throttle, security_log, security_policy
+from app.services import geo
 from app.services.events import publish_family
 from app.services.notify import notify
 
@@ -205,7 +206,7 @@ class LoginIn(BaseModel):
 
 async def _invite(db, token: str, request: Request) -> CoParent:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     row = (await db.execute(select(CoParent).where(CoParent.invite_token_hash == _hash(token)))).scalar_one_or_none()
     if row is None or row.revoked_at is not None or _aware(row.invite_expires_at) <= datetime.now(timezone.utc):
@@ -241,11 +242,13 @@ async def accept(token: str, payload: JoinIn, request: Request, response: Respon
 async def login(payload: LoginIn, request: Request, response: Response, db: DB) -> None:
     ip = login_throttle.client_ip(request)
     username = payload.username.strip().lower()
-    if login_throttle.retry_after(f"coparent:{username}", ip):
+    if login_throttle.retry_after(f"coparent:{username}", ip, strict=await geo.outside(db, ip)):
+        await security_log.throttled(db, ip, username)
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     row = (await db.execute(select(CoParent).where(CoParent.username == username))).scalar_one_or_none()
     if row is None or row.revoked_at is not None or not row.password_hash or not verify_password(payload.password, row.password_hash):
         login_throttle.record_failure(f"coparent:{username}", ip)
+        await security_log.record(db, "login_failed", ip=ip, username=username, family_id=row.family_id if row else None, detail="coparent")
         raise HTTPException(status_code=401, detail="Wrong username or password")
     login_throttle.record_success(f"coparent:{username}")
     _set_cookie(response, row.id)

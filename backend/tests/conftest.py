@@ -32,10 +32,12 @@ def short_passwords(monkeypatch):
 
 @pytest.fixture
 async def client():
-    from app.services import login_throttle, mfa
+    from app.services import geo, login_throttle, mfa, security_log
 
     login_throttle.reset()
     mfa.reset_challenges()
+    security_log.reset()
+    geo.forget_policy()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)

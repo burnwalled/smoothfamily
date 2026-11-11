@@ -37,6 +37,8 @@ from app.services import electricity as el
 from app.services import health, holidays, school_ha
 from app.services import flows as flow_engine
 from app.services import login_throttle, rotation
+from app.services import geo
+from app.services import security_log
 from app.services import pantry_scan as scan
 from app.services.birthdays import birthdays_between
 from app.services.calendar_view import events_between, utc
@@ -289,12 +291,13 @@ async def new_link(screen_id: uuid.UUID, request: Request, admin: FamilyManager,
 
 async def _open(db, token: str, request: Request) -> tuple[KioskScreen, Family]:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     screen = (await db.execute(select(KioskScreen).where(KioskScreen.token_hash == _hash(token)))).scalar_one_or_none()
     family = await db.get(Family, screen.family_id) if screen else None
     if screen is None or screen.revoked_at is not None or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="kiosk")
         raise HTTPException(status_code=404, detail="This screen isn't connected any more")
     screen.last_seen_at = datetime.now(timezone.utc)
     await db.commit()

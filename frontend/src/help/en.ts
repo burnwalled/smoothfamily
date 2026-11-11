@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "The screensaver"
       },
       {
-        "p": "After the minutes you choose, the screensaver comes on: the family's photos, a flip clock, a calm clock with the weather, a dark screen – or the fox, who plays out the weather outside. It reads on grey days, flies a kite when clouds pass, holds its umbrella in the rain, builds a snowman when it snows and sleeps at night, and the day's open tasks show over the lake. A tap wakes the screen."
+        "p": "After the minutes you choose, the screensaver comes on: the family's photos, a flip clock, a calm clock with the weather, a dark screen – or the fox, who plays out the weather outside. It reads on grey days, flies a kite when clouds pass, holds its umbrella in the rain, builds a snowman when it snows and sleeps at night, and the day's open tasks show over the lake. At night, in the hours set for the screen, every screensaver becomes a dark screen with just the clock. A tap wakes the screen."
       },
       {
         "p": "Every few minutes the fox does something small that fits the weather – hops, splashes in a puddle, throws a snowball, watches a shooting star – and now and then a hare runs by or a fish jumps in the lake. It dresses up for Halloween, Christmas, New Year, Easter and Midsummer, and on a birthday (the people under Birthdays) it gets balloons, a party hat and a banner with the name. The holidays follow the family's country; turn the dressing up off per screen under the screensaver. With reduced motion on the tablet, the fox keeps still."
@@ -1334,6 +1334,18 @@ const texts: Record<string, TopicText> = {
       },
       {
         "p": "Security sets the rules for passkeys, two-step codes and how long passwords must be. Services holds the server's address on the internet, the search and the services for every family. The server's setup guide can be opened again at the top."
+      },
+      {
+        "h": "The security log"
+      },
+      {
+        "p": "Under Security the server's admin sees the last 30 days of sign-ins (who, from where, on what device), failed sign-ins, the brake that stops too many tries, links that don't exist, members' new devices and changed passwords – from every family on the server, with the address each came from. The brake is told at once, and a summary of the day comes in the morning when there was anything. Each member is told of a new device on their own account and of a changed password: not them? A new password signs the others out. Each chooses under My profile → Notifications whether these are pushed."
+      },
+      {
+        "h": "Where sign-ins come from"
+      },
+      {
+        "p": "Under Security the server's admin can fetch a country table (IP Geolocation by DB-IP), kept on the server so no address is ever sent away to be looked up. With it the security log shows a flag on each event and the morning summary says where things came from. Sign-ins can then be limited to chosen countries: from elsewhere they're refused and the brake is stricter, three tries instead of eight, counted over an hour. The rule is about signing in only – guests' links, the kitchen display, calendar subscriptions and the home network are never limited. A member travelling is let in from anywhere until the day set on their page."
       }
     ]
   },

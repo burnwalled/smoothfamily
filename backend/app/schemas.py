@@ -77,6 +77,8 @@ class MemberPatch(BaseModel):
     can_manage_family: bool | None = None
     # The app's language (3.0.4): a parent chooses it for a child.
     language: str | None = Field(default=None, pattern=SUPPORTED_LANGUAGES)
+    # Travelling until (3.4.1): may sign in from any country until then; null ends it.
+    travel_until: date | None = None
 
 
 class MemberPasswordReset(BaseModel):
@@ -98,6 +100,7 @@ class MemberOut(ORMModel):
     # Changes the family's settings (the admin always does).
     can_manage_family: bool = False
     language: str = "en"
+    travel_until: date | None = None
     # "preset:<name>" or an uploaded picture's key (3.0.4: a parent sets a child's).
     avatar_key: str | None = None
 
@@ -118,6 +121,7 @@ class NotificationPrefs(BaseModel):
     subs_cancel: bool = True
     subs_quarter: bool = True
     subs_year: bool = True
+    security: bool = True
 
 
 class MeOut(MemberOut):

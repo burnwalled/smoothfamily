@@ -14,7 +14,8 @@ from app.config import get_settings
 from app.deps import DB, CurrentUser
 from app.models import Family, User
 from app.schemas import LoginRequest, MeOut, MfaChallengeOut, PasswordChange, PreferencesUpdate, SetupRequest, SetupStatus
-from app.services import login_throttle, mfa
+from app.services import login_throttle, mfa, security_log
+from app.services import geo
 from app.services.images import open_image
 from app.services.uploads import read_upload
 from app.services.storage import get_storage
@@ -45,10 +46,11 @@ async def first_run_setup(payload: SetupRequest, request: Request, response: Res
         raise HTTPException(status_code=409, detail="Setup has already been completed")
     expected = get_settings().setup_code
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     if expected and not secrets.compare_digest((payload.setup_code or "").encode(), expected.encode()):
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "setup_code", ip=ip)
         raise HTTPException(status_code=403, detail="Wrong setup code")
     if (await db.execute(select(User.id).where(User.username == payload.username.lower()))).first():
         raise HTTPException(status_code=409, detail="Username is already taken")
@@ -88,8 +90,9 @@ async def first_run_setup(payload: SetupRequest, request: Request, response: Res
 async def login(payload: LoginRequest, request: Request, response: Response, db: DB) -> MeOut | MfaChallengeOut:
     username = payload.username.strip().lower()
     ip = login_throttle.client_ip(request)
-    wait = login_throttle.retry_after(username, ip)
+    wait = login_throttle.retry_after(username, ip, strict=await geo.outside(db, ip))
     if wait:
+        await security_log.throttled(db, ip, username)
         raise HTTPException(
             status_code=429,
             detail="Too many failed attempts. Try again later.",
@@ -99,10 +102,12 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
     # An unknown name takes as long as a wrong password, so the answer's timing says nothing.
     if user is None or not verify_password(payload.password, user.password_hash if user else _NOBODY):
         login_throttle.record_failure(username, ip)
+        await security_log.record(db, "login_failed", ip=ip, user=user, username=username)
         raise HTTPException(status_code=401, detail="Wrong username or password")
     family = await db.get(Family, user.family_id)
     if family.status != "active":
         raise HTTPException(status_code=403, detail="This family's access is paused – contact the server's admin")
+    await country_gate(db, user, ip)
 
     # Second factor: an enrolled authenticator, or forced enrolment when the
     # family requires one. No session cookie until that step is done.
@@ -112,6 +117,7 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
         return MfaChallengeOut(totp_setup_required=True, mfa_token=create_mfa_token(user.id))
 
     login_throttle.record_success(username)
+    await security_log.signed_in(db, user, request)
     set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, family)
 
@@ -128,6 +134,7 @@ async def logout(request: Request, response: Response, db: DB, everywhere: bool 
         if user is not None:
             user.session_version = (user.session_version or 1) + 1
             await db.commit()
+            await security_log.record(db, "sessions_ended", ip=login_throttle.client_ip(request), user=user)
     clear_session_cookie(response)
 
 
@@ -181,7 +188,7 @@ async def update_preferences(payload: PreferencesUpdate, user: CurrentUser, db: 
 
 
 @router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(payload: PasswordChange, response: Response, user: CurrentUser, db: DB) -> None:
+async def change_password(payload: PasswordChange, request: Request, response: Response, user: CurrentUser, db: DB) -> None:
     """Change your own password; requires the current one."""
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is wrong")
@@ -191,6 +198,17 @@ async def change_password(payload: PasswordChange, response: Response, user: Cur
     user.session_version = (user.session_version or 1) + 1
     await db.commit()
     set_session_cookie(response, create_token(user.id, user.session_version))
+    await security_log.password_changed(db, user, login_throttle.client_ip(request))
+
+
+async def country_gate(db: DB, user: User, ip: str) -> None:
+    """The server's rule on where sign-ins come from (3.4.1): from outside the allowed countries only
+    a member who's travelling gets in. Noted when it stops someone."""
+    country = geo.country_of(ip)
+    if geo.allowed(country, await geo.countries(db), user.travel_until):
+        return
+    await security_log.record(db, "country_blocked", ip=ip, user=user)
+    raise HTTPException(status_code=403, detail="Sign-in isn't allowed from where you are – ask the family's admin")
 
 
 # What an unknown username's password is checked against – so that the time taken is the same.

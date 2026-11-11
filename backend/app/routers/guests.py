@@ -21,6 +21,8 @@ from app.models import Family, GuestAccess, GuestVisit, ListItem, ListModel
 from app.routers.emergency import EmergencyOut, emergency_cards
 from app.schemas import EventOut
 from app.services import login_throttle
+from app.services import geo
+from app.services import security_log
 from app.services.calendar_view import events_between
 from app.services.events import publish_family
 from app.services.mfa import qr_svg
@@ -189,13 +191,14 @@ async def revoke_guest(guest_id: uuid.UUID, user: AdultUser, db: DB) -> GuestOut
 
 async def _open(db, token: str, request: Request) -> GuestAccess:
     ip = login_throttle.client_ip(request)
-    if login_throttle.ip_retry_after(ip):
+    if login_throttle.ip_retry_after(ip, await geo.outside(db, ip)):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
     guest = (await db.execute(select(GuestAccess).where(GuestAccess.token_hash == _hash(token)))).scalar_one_or_none()
     now = datetime.now(timezone.utc)
     family = await db.get(Family, guest.family_id) if guest else None
     if guest is None or guest.revoked_at is not None or _aware(guest.expires_at) <= now or family is None or family.status != "active":
         login_throttle.record_ip_failure(ip)
+        await security_log.record(db, "link_invalid", ip=ip, detail="guest")
         raise HTTPException(status_code=404, detail="This link isn't valid any more")
     if guest.last_seen_at is None or now - _aware(guest.last_seen_at) >= VISIT_EVERY:
         db.add(GuestVisit(family_id=guest.family_id, guest_id=guest.id, at=now, user_agent=(request.headers.get("user-agent") or "")[:200]))

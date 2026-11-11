@@ -38,7 +38,7 @@ async def test_the_server_admin_sets_the_security_rules(client):
         json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123", "totp_policy": "optional"},
     )
     rules = (await client.get("/api/admin/security-policy")).json()
-    assert rules == {"passkeys_enabled": True, "totp_policy": "optional", "password_min_adult": 4, "password_min_child": 4}
+    assert rules == {"passkeys_enabled": True, "totp_policy": "optional", "password_min_adult": 4, "password_min_child": 4, "signin_countries": []}
     changed = await client.put("/api/admin/security-policy", json={"passkeys_enabled": False, "totp_policy": "required", "password_min_adult": 10, "password_min_child": 6})
     assert changed.status_code == 200
     # Every family follows; the family sees it.

@@ -18,10 +18,13 @@ const SLIDE_MS = 8_000;
 const FOX_TASKS = 3;
 
 export default function Screensaver({
-  theme, now, token, slides, weather, next, tasks = [], foxTheme = "", birthdays = [], onWake,
+  theme, now, token, slides, weather, next, tasks = [], foxTheme = "", birthdays = [], night = false, onWake,
 }: {
   theme: ScreensaverTheme;
   now: Date;
+  // The screen's own night (3.4.1): a dark screen with just the clock, whatever the theme – the flip
+  // clock keeps its dim red night look.
+  night?: boolean;
   token: string;
   slides: string[];
   weather: (Weather & { place: string | null }) | null;
@@ -37,8 +40,9 @@ export default function Screensaver({
   const [slide, setSlide] = useState(0);
   const time = now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" });
   const date = now.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long" });
-  // Photos at night would light up the kitchen: the calm clock, dimmed, instead. No photos: the same.
-  const shown: ScreensaverTheme = theme === "photos" && (!slides.length || isNight(now)) ? "calm" : theme;
+  // Photos without photos: the calm clock instead. At night (the screen's hours) everything but the
+  // flip clock becomes the dark screen with the clock, so the kitchen stays dark.
+  const shown: ScreensaverTheme = night && theme !== "flipclock" ? "dark" : theme === "photos" && !slides.length ? "calm" : theme;
 
   useEffect(() => {
     if (shown !== "photos" || !slides.length) return;
@@ -81,7 +85,17 @@ export default function Screensaver({
         )}
       </button>
     );
-  if (shown === "dark") return <button className="fixed inset-0 z-[45] cursor-none bg-black" onClick={onWake} aria-label={wake} />;
+  if (shown === "dark")
+    return (
+      <button className="fixed inset-0 z-[45] cursor-none bg-black" onClick={onWake} aria-label={wake} data-night={night || undefined}>
+        {night && (
+          <span className="absolute bottom-[4vh] left-[4vw] block text-left text-white/35">
+            <span className="block text-[min(12vw,16vh)] font-light leading-none tabular-nums tracking-tight">{time}</span>
+            <span className="block text-[min(2.6vw,3.4vh)] capitalize">{date}</span>
+          </span>
+        )}
+      </button>
+    );
   if (shown === "photos")
     return (
       <button className="fixed inset-0 z-[45] bg-black" onClick={onWake} aria-label={wake}>
@@ -95,7 +109,7 @@ export default function Screensaver({
     );
   // Calm: a big clock on a sky that follows the time of day, the weather and what's next.
   const hour = now.getHours();
-  const sky = isNight(now)
+  const sky = night || isNight(now)
     ? "from-[#05070d] to-[#0d1424] text-white/70"
     : hour < 10
       ? "from-[#fde2c8] to-[#f7f1e3] text-[#3a2a1c]"

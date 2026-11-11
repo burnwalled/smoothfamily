@@ -10,6 +10,7 @@ from app.routers import subscriptions
 from app.routers import achievements, admin, ai, bank, custody, easy, albums, allowance, auth, backups, birthdays, invite, documents, emergency, flows, guests, kiosk, health, medicine, parties, places, school, pantry, pets, presence, server, trips, week, wish_share, calendar, chat, coparent, dashboard, events, family, feedback, home, lists, meals, mfa, notifications, property, push, rewards, shop, smarthome, tasks, transit, vault, vault_shares, vehicles, web_search, receipts, gateway, economy, csp, updates, guide, devices
 from app.database import SessionLocal
 from app.services import access_log
+from app.services.guard import RequestGuard
 from app.services.ai import ai_worker
 from app.services.ha_live import ha_live_worker
 from app.services.live_writes import LiveWritesMiddleware
@@ -17,8 +18,19 @@ from app.services.notifications import notification_worker
 from app.services.push import ensure_vapid_keys
 
 
+PLACEHOLDER_SECRET = "change-me-in-.env"
+
+
+def check_secret(secret_key: str) -> None:
+    """Sessions, every encrypted column and the backups' passphrases derive from SECRET_KEY: with the
+    placeholder, anyone who has read the code could forge a session."""
+    if secret_key == PLACEHOLDER_SECRET or len(secret_key) < 16:
+        raise RuntimeError("SECRET_KEY is not set: put a long random value in .env (install.sh makes one) before starting")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    check_secret(get_settings().secret_key)
     stop = asyncio.Event()
     async with SessionLocal() as db:
         await ensure_vapid_keys(db)
@@ -39,6 +51,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=get_settings().app_name, version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 access_log.install()
 app.add_middleware(LiveWritesMiddleware)
+# Outermost: cross-site writes refused and the links' answers marked no-store (services/guard.py).
+app.add_middleware(RequestGuard)
 
 app.include_router(auth.router)
 app.include_router(mfa.router)

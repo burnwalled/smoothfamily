@@ -192,6 +192,7 @@ export type NotificationPrefs = {
   subs_cancel?: boolean;
   subs_quarter?: boolean;
   subs_year?: boolean;
+  security?: boolean;
 };
 
 export type Member = {
@@ -206,6 +207,8 @@ export type Member = {
   can_manage_family?: boolean;
   // The app's language; a parent chooses it for a child (3.0.4).
   language?: string;
+  // Travelling until (3.4.1): may sign in from any country until then.
+  travel_until?: string | null;
   // "preset:<name>" or an uploaded picture (a parent sets a child's, 3.0.4).
   avatar_key?: string | null;
 };

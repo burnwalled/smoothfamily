@@ -18,7 +18,7 @@ import { ServerAiPanel } from "@/components/LocalAi";
 import DiskUsage from "@/components/settings/DiskUsage";
 import FileLimit from "@/components/settings/FileLimit";
 import ServerAddress from "@/components/settings/ServerAddress";
-import ServerSecurity from "@/components/settings/ServerSecurity";
+import ServerSecurity, { SecurityLog } from "@/components/settings/ServerSecurity";
 import ServerUpdates from "@/components/settings/ServerUpdates";
 import ServerServices from "@/components/settings/ServerServices";
 import ServerReports from "@/components/settings/ServerReports";
@@ -39,6 +39,9 @@ function size(bytes: number): string {
 }
 
 const SERVER_TABS = ["families", "devices", "reports", "security", "data", "updates", "ai", "services", "log"] as const;
+
+// The words the server log keeps as details, shown in the reader's language ("now", "window", "on", "off").
+const DETAILS = ["now", "window", "on", "off"];
 
 export default function ServerPage() {
   const { t, dateLocale } = useI18n();
@@ -307,7 +310,12 @@ export default function ServerPage() {
         </>
       )}
 
-      {tab === "security" && <ServerSecurity />}
+      {tab === "security" && (
+        <>
+          <ServerSecurity />
+          <SecurityLog />
+        </>
+      )}
 
       {tab === "ai" && <ServerAiPanel />}
 
@@ -345,7 +353,7 @@ export default function ServerPage() {
                 <span className="w-24 shrink-0 text-muted">{new Date(r.created_at).toLocaleString(dateLocale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                 <span className="flex-1">
                   {t(`server.action.${r.action}` as Parameters<typeof t>[0])}
-                  {r.detail ? ` – ${r.detail}` : ""}
+                  {r.detail ? ` – ${DETAILS.includes(r.detail) ? t(`server.detail.${r.detail}` as Parameters<typeof t>[0]) : r.detail}` : ""}
                   {r.actor_name ? <span className="text-muted"> · {r.actor_name}</span> : null}
                 </span>
               </li>
