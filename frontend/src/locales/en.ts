@@ -4184,7 +4184,7 @@ const en = {
   "kiosk.saver.startsAfter": "Starts after",
   "kiosk.night.title": "Night",
   "kiosk.night.dim": "Dim the screen at night",
-  "kiosk.night.help": "So it doesn't light up the kitchen. A tap still shows everything.",
+  "kiosk.night.help": "So it doesn't light up the kitchen: the page is dimmed, and the screensaver becomes a dark screen with just the clock (the flip clock keeps its dim red night look). A tap still shows everything.",
   "kiosk.night.from": "From",
   "kiosk.night.to": "until",
   "kiosk.features": "The screen may",

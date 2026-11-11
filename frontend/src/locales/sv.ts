@@ -4174,7 +4174,7 @@ const sv: Dictionary = {
   "kiosk.saver.startsAfter": "Startar efter",
   "kiosk.night.title": "Natt",
   "kiosk.night.dim": "Dämpa skärmen på natten",
-  "kiosk.night.help": "Så att den inte lyser upp köket. Ett tryck visar fortfarande allt.",
+  "kiosk.night.help": "Så att den inte lyser upp köket: sidan dämpas, och skärmsläckaren blir en mörk skärm med bara klockan (flip-klockan behåller sitt dämpade röda nattläge). Ett tryck visar fortfarande allt.",
   "kiosk.night.from": "Från",
   "kiosk.night.to": "till",
   "kiosk.features": "Skärmen får",

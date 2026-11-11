@@ -4170,7 +4170,7 @@ const fi: Dictionary = {
   "kiosk.saver.startsAfter": "Käynnistyy, kun koskematta",
   "kiosk.night.title": "Yö",
   "kiosk.night.dim": "Himmennä näyttö yöllä",
-  "kiosk.night.help": "Ettei se valaise keittiötä. Napautus näyttää silti kaiken.",
+  "kiosk.night.help": "Ettei se valaise keittiötä: sivu himmennetään ja näytönsäästäjästä tulee pimeä näyttö, jossa on vain kello (läppäkello säilyttää himmeän punaisen yöasunsa). Napautus näyttää silti kaiken.",
   "kiosk.night.from": "Alkaen",
   "kiosk.night.to": "asti",
   "kiosk.features": "Näyttö saa",

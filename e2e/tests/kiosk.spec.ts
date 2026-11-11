@@ -94,6 +94,18 @@ test("the kitchen display's tasks, dinner and screensaver", async ({ adminApi, b
     await expect(screen.locator("svg.foxscene")).toBeVisible();
     await screen.getByRole("button", { name: /Tap to wake the screen/ }).click();
     await expect(screen.locator("svg.foxscene")).toHaveCount(0);
+
+    // At night (3.4.1: the screen's own hours) the fox gives way to a dark screen with just the clock.
+    // The screen's own clock (the browser's time zone, moved on by the fake clock), with room on both sides.
+    const hour: number = await screen.evaluate(() => new Date().getHours());
+    await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { night_dim: true, night_from: (hour + 23) % 24, night_to: (hour + 4) % 24 } });
+    await screen.reload();
+    await screen.clock.fastForward("01:10");
+    const dark = screen.getByRole("button", { name: /Tap to wake the screen/ });
+    await expect(dark).toHaveAttribute("data-night", "true");
+    await expect(dark).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    await expect(dark).toContainText(/\d{1,2}[:.]\d{2}/);
+    await expect(screen.locator("svg.foxscene")).toHaveCount(0);
   } finally {
     await context.close();
     await adminApi.delete(`/api/kiosks/${screenRow.id}`);

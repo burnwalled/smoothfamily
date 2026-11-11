@@ -4170,7 +4170,7 @@ const nb: Dictionary = {
   "kiosk.saver.startsAfter": "Starter etter",
   "kiosk.night.title": "Natt",
   "kiosk.night.dim": "Demp skjermen om natten",
-  "kiosk.night.help": "Så den ikke lyser opp kjøkkenet. Et trykk viser fortsatt alt.",
+  "kiosk.night.help": "Så den ikke lyser opp kjøkkenet: siden dempes, og skjermspareren blir en mørk skjerm med bare klokken (klaffeklokken beholder sitt dempede røde nattmodus). Et trykk viser fortsatt alt.",
   "kiosk.night.from": "Fra",
   "kiosk.night.to": "til",
   "kiosk.features": "Skjermen kan",
