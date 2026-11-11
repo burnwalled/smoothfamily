@@ -52,7 +52,7 @@ async def test_failed_sign_ins_and_the_brake_are_noted_and_the_admin_told(client
     view = await _events(client)
     assert view["day"]["throttled"] == 2
     told = await _told(db_session, "admin")
-    assert len(told) == 1 and told[0][0] == "Inloggningsbromsen" and "(eva)" in told[0][1]
+    assert len(told) == 1 and told[0][0] == "Inloggningsbromsen" and "(eva, Lind)" in told[0][1]
 
     # With the preference off, the admin isn't told – the log still has it.
     me = (await client.get("/api/auth/me")).json()
@@ -110,7 +110,9 @@ async def test_the_days_summary_comes_once_when_there_was_something(client, db_s
     assert await security_log.run_security_summary(db_session, tomorrow) == 1
     assert await security_log.run_security_summary(db_session, tomorrow + timedelta(hours=2)) == 0
     told = await _told(db_session, "admin")
-    assert told[-1] == ("Säkerhet, senaste dygnet", "1 misslyckade inloggningar, 1 försök med länkar som inte finns")
+    # Each kind says which families it concerned; a link that doesn't exist is nobody's.
+    assert told[-1] == ("Säkerhet, senaste dygnet", "1 misslyckade inloggningar – Lind, 1 försök med länkar som inte finns")
+    assert [e["family"] for e in (await _events(client))["events"] if e["kind"] == "login_failed"] == ["Lind"]
 
     # Only the server's admin reads the log; old entries go after 30 days.
     other = _other()

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AppSetting, SecurityEvent, User
+from app.models import AppSetting, Family, SecurityEvent, User
 from app.services.notify import notify
 from app.services.push import user_pref_enabled
 
@@ -77,16 +77,19 @@ async def _server_admins(db: AsyncSession) -> list[User]:
 
 async def throttled(db: AsyncSession, ip: str, username: str = "", now: float | None = None) -> None:
     """The brake stopped someone: noted, and the server's admins told – once an hour per address."""
-    await record(db, "throttled", ip=ip, username=username)
+    user = (await db.execute(select(User).where(User.username == username))).scalar_one_or_none() if username else None
+    family = await db.get(Family, user.family_id) if user else None
+    await record(db, "throttled", ip=ip, user=user, username=username)
     now = now or time.monotonic()
     if _told.get(ip, -TOLD_EVERY) > now - TOLD_EVERY:
         return
     _told[ip] = now
+    who = ", ".join(x for x in (username, family.name if family else "") if x)
     for admin in await _server_admins(db):
         if not user_pref_enabled(admin, "security"):
             continue
         title, body = _THROTTLED[_lang(admin)]
-        await notify(db, admin, {"title": title, "body": body.format(ip=ip or "?", who=f" ({username})" if username else ""), "route": "/server?tab=security", "kind": "security"})
+        await notify(db, admin, {"title": title, "body": body.format(ip=ip or "?", who=f" ({who})" if who else ""), "route": "/server?tab=security", "kind": "security"})
 
 
 async def new_device(db: AsyncSession, user: User, what: str, ip: str, first: bool) -> None:
@@ -121,20 +124,32 @@ async def run_security_summary(db: AsyncSession, now: datetime | None = None) ->
         row.value = today
     await db.commit()
     since = now - timedelta(days=1)
-    rows = (await db.execute(select(SecurityEvent.kind, SecurityEvent.ip).where(SecurityEvent.created_at >= since, SecurityEvent.kind.in_(SUMMARY_KINDS)))).all()
+    rows = (await db.execute(select(SecurityEvent.kind, SecurityEvent.ip, SecurityEvent.family_id).where(SecurityEvent.created_at >= since, SecurityEvent.kind.in_(SUMMARY_KINDS)))).all()
     if not rows:
         return 0
-    counts = Counter(kind for kind, _ in rows)
-    counts["throttled"] = len({ip for kind, ip in rows if kind == "throttled"})
+    counts = Counter(kind for kind, _, _ in rows)
+    counts["throttled"] = len({ip for kind, ip, _ in rows if kind == "throttled"})
+    names = dict((await db.execute(select(Family.id, Family.name))).all())
     sent = 0
     for admin in await _server_admins(db):
         if not user_pref_enabled(admin, "security"):
             continue
         title, texts = _SUMMARY[_lang(admin)]
-        body = ", ".join(texts[k].format(n=counts[k]) for k in SUMMARY_KINDS if counts.get(k))
+        body = ", ".join(texts[k].format(n=counts[k]) + _families(rows, k, names) for k in SUMMARY_KINDS if counts.get(k))
         await notify(db, admin, {"title": title, "body": body, "route": "/server?tab=security", "kind": "security"})
         sent += 1
     return sent
+
+
+def _families(rows, kind: str, names: dict) -> str:
+    """Which families a kind's events concerned: " – Lind" or " – Lind 2, Berg 1". Events of nobody's
+    (an unknown name, a link that doesn't exist) say nothing."""
+    per = Counter(names[fid] for k, _, fid in rows if k == kind and fid in names)
+    if not per:
+        return ""
+    if len(per) == 1:
+        return f" – {next(iter(per))}"
+    return " – " + ", ".join(f"{name} {n}" for name, n in per.most_common())
 
 
 async def prune(db: AsyncSession, now: datetime | None = None) -> None:
@@ -147,13 +162,14 @@ async def overview(db: AsyncSession, now: datetime | None = None, limit: int = 3
     now = now or datetime.now(timezone.utc)
     rows = (await db.execute(select(SecurityEvent).where(SecurityEvent.created_at >= now - timedelta(days=KEEP_DAYS)).order_by(SecurityEvent.created_at.desc()))).scalars().all()
     names = {u.id: u.display_name for u in (await db.execute(select(User))).scalars().all()} if rows else {}
+    families = dict((await db.execute(select(Family.id, Family.name))).all()) if rows else {}
     day, week = now - timedelta(days=1), now - timedelta(days=7)
     stamp = lambda r: r.created_at if r.created_at.tzinfo else r.created_at.replace(tzinfo=timezone.utc)  # noqa: E731
     return {
         "day": dict(Counter(r.kind for r in rows if stamp(r) >= day)),
         "week": dict(Counter(r.kind for r in rows if stamp(r) >= week)),
         "events": [
-            {"id": r.id, "kind": r.kind, "username": r.username, "name": names.get(r.user_id), "ip": r.ip, "detail": r.detail, "created_at": stamp(r)}
+            {"id": r.id, "kind": r.kind, "username": r.username, "name": names.get(r.user_id), "family": families.get(r.family_id), "ip": r.ip, "detail": r.detail, "created_at": stamp(r)}
             for r in rows[:limit]
         ],
     }
