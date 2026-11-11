@@ -1,5 +1,6 @@
 """The security log (3.4.1): what's worth knowing about who tried to get in – failed sign-ins, the brake
-that stops them, links that didn't exist, a member's new device, passwords and authenticators changed.
+that stops them, links that didn't exist, a member's new device, passwords and authenticators changed –
+and who did get in: every sign-in, with the device, so the admin can see where the family signs in from.
 Kept 30 days, shown to the server's admin, and told: at once when the brake stops someone, and once a
 day as a summary when anything happened. Only what's needed is kept: the name that was typed, the
 address it came from, the kind, a short detail."""
@@ -8,11 +9,12 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Request
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AppSetting, Family, SecurityEvent, User
-from app.services import geo
+from app.services import geo, login_throttle, useragent
 from app.services.notify import notify
 from app.services.push import user_pref_enabled
 
@@ -91,6 +93,13 @@ async def throttled(db: AsyncSession, ip: str, username: str = "", now: float | 
             continue
         title, body = _THROTTLED[_lang(admin)]
         await notify(db, admin, {"title": title, "body": body.format(ip=ip or "?", who=f" ({who})" if who else ""), "route": "/server?tab=security", "kind": "security"})
+
+
+async def signed_in(db: AsyncSession, user: User, request: Request) -> None:
+    """Someone got in: noted with the device, told to nobody, never in the summary – just the log."""
+    about = useragent.describe(request.headers.get("user-agent"))
+    what = " ".join(x for x in (about["browser"], "–", about["os"]) if x).strip(" –") or about["kind"]
+    await record(db, "signed_in", ip=login_throttle.client_ip(request), user=user, detail=what)
 
 
 async def new_device(db: AsyncSession, user: User, what: str, ip: str, first: bool) -> None:

@@ -1339,7 +1339,7 @@ const texts: Record<string, TopicText> = {
         "h": "Säkerhetsloggen"
       },
       {
-        "p": "Under Säkerhet ser serverns admin de senaste 30 dagarnas misslyckade inloggningar, bromsen som stoppar för många försök, länkar som inte finns, medlemmarnas nya enheter och bytta lösenord – från alla familjer på servern, med adressen varje kom från. Bromsen meddelas direkt, och en sammanfattning av dygnet kommer på morgonen när något hänt. Varje medlem får veta om en ny enhet på sitt eget konto och om ett bytt lösenord: inte de? Ett nytt lösenord loggar ut de andra. Var och en väljer under Min profil → Notiser om dessa ska pushas."
+        "p": "Under Säkerhet ser serverns admin de senaste 30 dagarnas inloggningar (vem, varifrån, på vilken enhet), misslyckade inloggningar, bromsen som stoppar för många försök, länkar som inte finns, medlemmarnas nya enheter och bytta lösenord – från alla familjer på servern, med adressen varje kom från. Bromsen meddelas direkt, och en sammanfattning av dygnet kommer på morgonen när något hänt. Varje medlem får veta om en ny enhet på sitt eget konto och om ett bytt lösenord: inte de? Ett nytt lösenord loggar ut de andra. Var och en väljer under Min profil → Notiser om dessa ska pushas."
       },
       {
         "h": "Varifrån inloggningar kommer"

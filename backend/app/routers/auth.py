@@ -117,6 +117,7 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
         return MfaChallengeOut(totp_setup_required=True, mfa_token=create_mfa_token(user.id))
 
     login_throttle.record_success(username)
+    await security_log.signed_in(db, user, request)
     set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, family)
 

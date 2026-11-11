@@ -100,8 +100,9 @@ class PasskeyLoginIn(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _finish_login(user: User, response: Response, db: DB) -> MeOut:
+async def _finish_login(user: User, request: Request, response: Response, db: DB) -> MeOut:
     login_throttle.record_success(user.username)
+    await security_log.signed_in(db, user, request)
     set_session_cookie(response, create_token(user.id, user.session_version))
     return _me(user, await db.get(Family, user.family_id))
 
@@ -142,7 +143,7 @@ async def login_with_code(payload: MfaCode, request: Request, response: Response
         await security_log.record(db, "login_failed", ip=ip, user=user, detail="code")
         raise HTTPException(status_code=401, detail="Wrong code")
     await db.commit()
-    return await _finish_login(user, response, db)
+    return await _finish_login(user, request, response, db)
 
 
 @router.post("/login/totp/setup", response_model=TotpSetupOut)
@@ -167,7 +168,7 @@ async def login_totp_enable(payload: MfaCode, request: Request, response: Respon
         raise HTTPException(status_code=401, detail="Wrong code")
     user.totp_secret_encrypted, user.totp_pending_encrypted = user.totp_pending_encrypted, None
     await db.commit()
-    return await _finish_login(user, response, db)
+    return await _finish_login(user, request, response, db)
 
 
 # ── Passkey sign-in ───────────────────────────────────────────────────────────
@@ -223,7 +224,7 @@ async def passkey_login_verify(payload: PasskeyLoginIn, request: Request, respon
     await db.commit()
     # A passkey is already two factors (device + biometrics/PIN), so no TOTP step.
     await country_gate(db, user, ip)
-    return await _finish_login(user, response, db)
+    return await _finish_login(user, request, response, db)
 
 
 # ── Own security settings (signed in) ─────────────────────────────────────────

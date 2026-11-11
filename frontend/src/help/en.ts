@@ -1339,7 +1339,7 @@ const texts: Record<string, TopicText> = {
         "h": "The security log"
       },
       {
-        "p": "Under Security the server's admin sees the last 30 days of failed sign-ins, the brake that stops too many tries, links that don't exist, members' new devices and changed passwords – from every family on the server, with the address each came from. The brake is told at once, and a summary of the day comes in the morning when there was anything. Each member is told of a new device on their own account and of a changed password: not them? A new password signs the others out. Each chooses under My profile → Notifications whether these are pushed."
+        "p": "Under Security the server's admin sees the last 30 days of sign-ins (who, from where, on what device), failed sign-ins, the brake that stops too many tries, links that don't exist, members' new devices and changed passwords – from every family on the server, with the address each came from. The brake is told at once, and a summary of the day comes in the morning when there was anything. Each member is told of a new device on their own account and of a changed password: not them? A new password signs the others out. Each chooses under My profile → Notifications whether these are pushed."
       },
       {
         "h": "Where sign-ins come from"
