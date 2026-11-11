@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "The screensaver"
       },
       {
-        "p": "After the minutes you choose, the screensaver comes on: the family's photos, a flip clock, a calm clock with the weather, a dark screen – or the fox, who plays out the weather outside. It reads on grey days, flies a kite when clouds pass, holds its umbrella in the rain, builds a snowman when it snows and sleeps at night, and the day's open tasks show over the lake. A tap wakes the screen."
+        "p": "After the minutes you choose, the screensaver comes on: the family's photos, a flip clock, a calm clock with the weather, a dark screen – or the fox, who plays out the weather outside. It reads on grey days, flies a kite when clouds pass, holds its umbrella in the rain, builds a snowman when it snows and sleeps at night, and the day's open tasks show over the lake. At night, in the hours set for the screen, every screensaver becomes a dark screen with just the clock. A tap wakes the screen."
       },
       {
         "p": "Every few minutes the fox does something small that fits the weather – hops, splashes in a puddle, throws a snowball, watches a shooting star – and now and then a hare runs by or a fish jumps in the lake. It dresses up for Halloween, Christmas, New Year, Easter and Midsummer, and on a birthday (the people under Birthdays) it gets balloons, a party hat and a banner with the name. The holidays follow the family's country; turn the dressing up off per screen under the screensaver. With reduced motion on the tablet, the fox keeps still."

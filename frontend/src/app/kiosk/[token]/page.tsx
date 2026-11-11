@@ -546,6 +546,7 @@ export default function KioskPage() {
       {saver && !busy && (
         <Screensaver
           theme={view.screensaver ?? "photos"}
+          night={night}
           now={now}
           token={token}
           slides={slides}

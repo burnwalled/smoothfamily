@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "Pauseskærmen"
       },
       {
-        "p": "Efter de minutter, du vælger, kommer pauseskærmen: familiens billeder, et flip-ur, et roligt ur med vejret, en mørk skærm – eller ræven, der viser vejret udenfor. Den læser, når det er gråt, flyver med drage, når skyerne driver forbi, holder paraplyen i regnen, bygger snemand, når det sner, og sover om natten, og dagens opgaver vises over søen. Et tryk vækker skærmen."
+        "p": "Efter de minutter, du vælger, kommer pauseskærmen: familiens billeder, et flip-ur, et roligt ur med vejret, en mørk skærm – eller ræven, der viser vejret udenfor. Den læser, når det er gråt, flyver med drage, når skyerne driver forbi, holder paraplyen i regnen, bygger snemand, når det sner, og sover om natten, og dagens opgaver vises over søen. Om natten, i de timer, der er sat for skærmen, bliver hver pauseskærm en mørk skærm med kun uret. Et tryk vækker skærmen."
       },
       {
         "p": "Med nogle minutters mellemrum gør ræven noget lille, der passer til vejret – hopper, plasker i en vandpyt, kaster snebold, ser et stjerneskud – og nu og da hopper en hare forbi, eller en fisk springer i søen. Den klæder sig ud til halloween, jul, nytår, påske og sankthans, og på en fødselsdag (personerne under Fødselsdage) får den balloner, festhat og et banner med navnet. Højtiderne følger familiens land; udklædningen slås fra pr. skærm under pauseskærmen. Med reduceret bevægelse på tabletten står ræven stille."
