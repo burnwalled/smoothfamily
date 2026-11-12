@@ -112,7 +112,7 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
       {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
 
       {form && (
-        <section className="card mt-4 space-y-3 p-5">
+        <section className="card mt-4 space-y-3 p-5" aria-label={form.id ? `${t("common.edit")}: ${form.forName}` : t("medicine.add")}>
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <label className="label" htmlFor="med-owner">{t("medicine.forWhom")}</label>

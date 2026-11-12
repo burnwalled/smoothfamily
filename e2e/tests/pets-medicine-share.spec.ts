@@ -47,7 +47,7 @@ test("a child's medicine dose is ticked off", async ({ adminPage: page, adminApi
   await card.getByRole("button", { name: `Edit: ${name}` }).click();
   await expect(page.getByLabel("For", { exact: true })).toHaveValue(KID.name);
   await page.getByLabel("Points per dose").fill("2");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("region", { name: `Edit: ${KID.name}` }).getByRole("button", { name: "Save", exact: true }).click();
   await expect(card.getByText("a task, 2 points")).toBeVisible();
 
   // Each dose is a task for the child (2.9.0); an adult may give it, and the dose is taken.

@@ -87,8 +87,10 @@ test("the kitchen display's tasks, dinner and screensaver", async ({ adminApi, b
     await saver.click();
     await expect(saver).toHaveCount(0);
 
-    // The fox (3.0.4) after the same minute, once the screen has been switched over.
-    await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { screensaver: "fox" } });
+    // The fox (3.0.4) after the same minute, once the screen has been switched over. By day: the
+    // screen's night (22–06 unless changed) is moved away from the hour it is, whenever CI runs.
+    const hour: number = await screen.evaluate(() => new Date().getHours());
+    await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { screensaver: "fox", night_from: (hour + 2) % 24, night_to: (hour + 3) % 24 } });
     await screen.reload();
     await screen.clock.fastForward("01:10");
     await expect(screen.locator("svg.foxscene")).toBeVisible();
@@ -97,7 +99,6 @@ test("the kitchen display's tasks, dinner and screensaver", async ({ adminApi, b
 
     // At night (3.4.1: the screen's own hours) the fox gives way to a dark screen with just the clock.
     // The screen's own clock (the browser's time zone, moved on by the fake clock), with room on both sides.
-    const hour: number = await screen.evaluate(() => new Date().getHours());
     await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { night_dim: true, night_from: (hour + 23) % 24, night_to: (hour + 4) % 24 } });
     await screen.reload();
     await screen.clock.fastForward("01:10");
@@ -126,7 +127,9 @@ test("the kitchen display's week, recipes, colours and the fox's tasks", async (
     headers: { "Content-Type": "text/plain" },
   });
   const screenRow = await (await adminApi.post("/api/kiosks", { data: { name: unique("Kitchen"), screensaver: "fox", idle_minutes: 1, theme: "ocean" } })).json();
-  await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { widgets: ["tasks", "week", "recipes"] } });
+  // By day, whenever CI runs: the screen's night is moved away from the hour it is (see above).
+  const hour = new Date().getHours();
+  await adminApi.put(`/api/kiosks/${screenRow.id}`, { data: { widgets: ["tasks", "week", "recipes"], night_from: (hour + 2) % 24, night_to: (hour + 3) % 24 } });
   const context = await browser.newContext({ ...info.project.use, storageState: undefined });
   try {
     const screen = await context.newPage();
