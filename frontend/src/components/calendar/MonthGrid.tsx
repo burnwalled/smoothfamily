@@ -2,13 +2,14 @@
 
 // The month (2.7.0): what is on each day, written out – the week number at the side, events over
 // several days as one bar across them, timed ones with their time, and "+2" when a day is full.
+// Every event is a filled bar in its colour, and a tap on one shows it under the grid (3.5.1).
 import { CalendarEvent } from "@/lib/api";
 import { toLocalDateKey } from "@/lib/dateKey";
 import { useI18n } from "@/lib/i18n";
 import { getIsoWeek } from "@/lib/week";
 import { Bar, isLong, weekBars } from "@/lib/calendarLayout";
 
-const LANES = 4;
+const LANES = 5;
 
 export function barLabel(event: CalendarEvent, dateLocale: string, busy: string): string {
   const title = event.busy ? busy : event.title ?? "";
@@ -23,15 +24,14 @@ export function EventBar({ bar, dateLocale, busy, onClick, firstRow = 2 }: { bar
   const label = barLabel(bar.event, dateLocale, busy);
   return (
     <button
-      className={`relative z-10 mx-0.5 flex min-w-0 items-center gap-1 overflow-hidden px-1.5 text-left text-[11px] leading-5 ${
-        long ? `font-semibold text-white ${bar.fromBefore ? "rounded-l-none" : "rounded-l-md"} ${bar.goesOn ? "rounded-r-none" : "rounded-r-md"}` : "rounded-md hover:bg-base"
+      className={`relative z-10 mx-0.5 flex min-w-0 items-center overflow-hidden px-1.5 text-left text-[11px] font-semibold leading-5 text-white hover:brightness-110 ${
+        long ? `${bar.fromBefore ? "rounded-l-none" : "rounded-l-md"} ${bar.goesOn ? "rounded-r-none" : "rounded-r-md"}` : "rounded-md"
       }`}
-      style={{ gridColumn: `${bar.col + 2} / span ${bar.span}`, gridRow: bar.lane + firstRow, ...(long ? { background: bar.event.color } : {}) }}
+      style={{ gridColumn: `${bar.col + 2} / span ${bar.span}`, gridRow: bar.lane + firstRow, background: bar.event.color }}
       onClick={onClick}
       title={label}
       aria-label={label}
     >
-      {!long && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: bar.event.color }} aria-hidden />}
       {long ? (
         <span className="truncate">{label}</span>
       ) : (
@@ -52,6 +52,7 @@ export default function MonthGrid({
   todayKey,
   selectedDay,
   onSelectDay,
+  onSelectEvent,
 }: {
   days: Date[];
   month: number;
@@ -59,6 +60,7 @@ export default function MonthGrid({
   todayKey: string;
   selectedDay: string | null;
   onSelectDay: (dayKey: string) => void;
+  onSelectEvent: (event: CalendarEvent, dayKey: string) => void;
 }) {
   const { t, dateLocale } = useI18n();
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, w) => days.slice(w * 7, w * 7 + 7));
@@ -106,7 +108,7 @@ export default function MonthGrid({
               );
             })}
             {bars.map((bar) => (
-              <EventBar key={`${bar.event.event_id ?? bar.event.feed_id}-${bar.event.start}-${bar.col}`} bar={bar} dateLocale={dateLocale} busy={t("calendar.busy")} onClick={() => onSelectDay(keys[bar.col])} />
+              <EventBar key={`${bar.event.event_id ?? bar.event.feed_id}-${bar.event.start}-${bar.col}`} bar={bar} dateLocale={dateLocale} busy={t("calendar.busy")} onClick={() => onSelectEvent(bar.event, keys[bar.col])} />
             ))}
             {more.map((n, i) =>
               n > 0 ? (

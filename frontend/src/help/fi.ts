@@ -159,7 +159,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Perheen kalenteri koulun ja seurojen kalentereineen, kuka ajaa ja mitä pakataan.",
     "blocks": [
       {
-        "p": "Kalenteri näyttää perheen omat tapahtumat yhdessä tilattujen kalenterien kanssa – koulu, urheiluseura, työ. Vaihda tunneittaisen viikon, kuukauden ja listan välillä. Usean päivän tapahtumat ovat palkki niiden yli, ja viikkonumero on reunassa."
+        "p": "Kalenteri näyttää perheen omat tapahtumat yhdessä tilattujen kalenterien kanssa – koulu, urheiluseura, työ. Vaihda tunneittaisen viikon, kuukauden ja listan välillä. Usean päivän tapahtumat ovat palkki niiden yli, ja viikkonumero on reunassa. Napauta tapahtumaa, niin se näytetään ruudukon alla."
       },
       {
         "shot": "calendar",
@@ -179,7 +179,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "calendar-month",
-        "caption": "Kuukausi kirjoittaa auki, mitä kunakin päivänä tapahtuu."
+        "caption": "Kuukausi kirjoittaa auki, mitä kunakin päivänä tapahtuu – napauta tapahtumaa avataksesi sen."
       },
       {
         "h": "Tilaa kalenteri"
@@ -922,7 +922,7 @@ const texts: Record<string, TopicText> = {
         "h": "Lääkkeet"
       },
       {
-        "p": "Lisää lääke annoksineen, aikoineen ja kuurin päättymispäivineen. Lapsen ja lemmikin annoksista tulee tehtäviä pisteineen; aikuisille ilmoitetaan, jos annosta ei kuitata. Aikuisen omat lääkkeet ovat yksityisiä – ne lisätään kohdassa Oma profiili eivätkä ne anna pisteitä."
+        "p": "Lisää lääke annoksineen, aikoineen ja kuurin päättymispäivineen, ja muokkaa sitä myöhemmin kynästä – myös pisteitä. Lapsen ja lemmikin annoksista tulee tehtäviä pisteineen; aikuisille ilmoitetaan, jos annosta ei kuitata. Aikuisen omat lääkkeet ovat yksityisiä – ne lisätään kohdassa Oma profiili eivätkä ne anna pisteitä."
       }
     ]
   },
