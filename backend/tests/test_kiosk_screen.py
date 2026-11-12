@@ -32,6 +32,29 @@ async def test_the_screens_theme_and_its_new_widgets_are_chosen(client):
     assert (await client.get(f"/api/kiosk/{token}/recipes")).status_code == 404
 
 
+async def test_the_fox_gets_the_weather_even_with_the_widget_off(client, monkeypatch):
+    """3.5.1: the screensavers that play out the weather need the family's place, not the widget."""
+    from app.routers import dashboard as dashboard_router
+    from app.routers import kiosk as kiosk_router
+
+    screen, token = await _setup(client)
+    await client.put(f"/api/kiosks/{screen['id']}", json={"widgets": ["calendar"], "screensaver": "fox"})
+
+    async def fake_forecast(lat, lon):
+        return [{"time": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "temp": 6.0, "kind": "rain", "precip": 0.4, "wind": 5.0}]
+
+    monkeypatch.setattr(kiosk_router, "forecast", fake_forecast)
+    monkeypatch.setattr(dashboard_router, "forecast", fake_forecast)  # saving the place checks SMHI too
+    # No place: nothing, whatever the screensaver.
+    assert (await client.get(f"/api/kiosk/{token}")).json()["weather"] is None
+    assert (await client.put("/api/dashboard/sources/weather", json={"lat": 59.33, "lon": 18.06, "place": "Home"})).status_code == 200
+    view = (await client.get(f"/api/kiosk/{token}")).json()
+    assert view["weather"]["now"]["kind"] == "rain" and "weather" not in view["widgets"]
+    # A screen with photos and no widget doesn't read it.
+    await client.put(f"/api/kiosks/{screen['id']}", json={"screensaver": "photos"})
+    assert (await client.get(f"/api/kiosk/{token}")).json()["weather"] is None
+
+
 async def test_the_weeks_meals_and_the_recipe_book_in_the_cooking_mode(client):
     screen, token = await _setup(client)
     await client.put(f"/api/kiosks/{screen['id']}", json={"widgets": ["calendar", "week", "recipes"]})

@@ -550,7 +550,7 @@ export default function KioskPage() {
           now={now}
           token={token}
           slides={slides}
-          weather={shows("weather") ? view.weather : null}
+          weather={view.weather}
           next={upcoming[0] ?? null}
           tasks={shows("tasks") ? view.tasks.filter((x) => !x.done) : []}
           foxTheme={view.fox_theme ?? ""}

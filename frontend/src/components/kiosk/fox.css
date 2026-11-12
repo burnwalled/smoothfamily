@@ -341,6 +341,22 @@
   0%, 100% { transform: translate(258px, 56px); }
   50% { transform: translate(258px, 61px); }
 }
+/* The bird (3.5.1): a slow drift across the sky, and wings that beat */
+.fx-hover {
+  animation: fx-hover 7s ease-in-out infinite alternate;
+}
+@keyframes fx-hover {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-90px, -30px); }
+}
+.fx-flap {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: fx-flap 0.28s ease-in-out infinite alternate;
+}
+@keyframes fx-flap {
+  to { transform: scaleY(0.2); }
+}
 .fx-flame {
   transform-box: fill-box;
   transform-origin: 50% 100%;
