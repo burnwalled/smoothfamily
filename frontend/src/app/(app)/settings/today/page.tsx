@@ -117,13 +117,14 @@ export default function TodayCardsSettingsPage() {
             {t("weather.place")}
             <input className="input mt-1 w-full" value={place.name} onChange={(e) => setPlace({ ...place, name: e.target.value })} placeholder={t("weather.placePh")} />
           </label>
+          {/* The example coordinates: Alberget 4A on Djurgården – a place, not anybody's home. */}
           <label className="w-24 text-xs text-muted">
             {t("weather.lat")}
-            <input className="input mt-1 w-full" inputMode="decimal" value={place.lat} onChange={(e) => setPlace({ ...place, lat: e.target.value })} />
+            <input className="input mt-1 w-full" inputMode="decimal" value={place.lat} onChange={(e) => setPlace({ ...place, lat: e.target.value })} placeholder="59.32" />
           </label>
           <label className="w-24 text-xs text-muted">
             {t("weather.lon")}
-            <input className="input mt-1 w-full" inputMode="decimal" value={place.lon} onChange={(e) => setPlace({ ...place, lon: e.target.value })} />
+            <input className="input mt-1 w-full" inputMode="decimal" value={place.lon} onChange={(e) => setPlace({ ...place, lon: e.target.value })} placeholder="18.11" />
           </label>
           <button className="btn-ghost flex shrink-0 items-center gap-1.5 border border-edge" onClick={locate} disabled={locating}>
             <LocateFixed className="h-4 w-4" strokeWidth={2} aria-hidden />
