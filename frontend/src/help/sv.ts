@@ -159,7 +159,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Familjens kalender med skolans och föreningarnas, vem som kör och vad som ska packas.",
     "blocks": [
       {
-        "p": "Kalendern visar familjens egna händelser tillsammans med kalendrar ni prenumererar på – skolan, idrottsföreningen, jobbet. Växla mellan veckan timme för timme, månaden och listan. Händelser över flera dagar är en stapel över dem, och veckonumret står i kanten."
+        "p": "Kalendern visar familjens egna händelser tillsammans med kalendrar ni prenumererar på – skolan, idrottsföreningen, jobbet. Växla mellan veckan timme för timme, månaden och listan. Händelser över flera dagar är en stapel över dem, och veckonumret står i kanten. Tryck på en händelse så visas den under rutnätet."
       },
       {
         "shot": "calendar",
@@ -179,7 +179,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "calendar-month",
-        "caption": "Månaden skriver ut vad som händer varje dag."
+        "caption": "Månaden skriver ut vad som händer varje dag – tryck på en händelse så öppnas den."
       },
       {
         "h": "Prenumerera på en kalender"
@@ -922,7 +922,7 @@ const texts: Record<string, TopicText> = {
         "h": "Mediciner"
       },
       {
-        "p": "Lägg till en medicin med dos, tider och ett slutdatum för en kur. Ett barns och ett husdjurs doser blir uppgifter med poäng; de vuxna får veta om en dos inte bockas av. En vuxens egna mediciner är privata – de läggs in under Min profil och ger inga poäng."
+        "p": "Lägg till en medicin med dos, tider och ett slutdatum för en kur, och ändra den i efterhand med pennan – poängen också. Ett barns och ett husdjurs doser blir uppgifter med poäng; de vuxna får veta om en dos inte bockas av. En vuxens egna mediciner är privata – de läggs in under Min profil och ger inga poäng."
       }
     ]
   },

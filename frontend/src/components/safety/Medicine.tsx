@@ -3,16 +3,17 @@
 // Medicine: what each member (or pet) takes and when, today's doses to tick off, and courses with
 // an end date. Private by design: an adult's own medicines are only shown to that adult. The
 // children's and the pets' are set up in the family's settings (Safety); in the app each member adds
-// their own and ticks off the doses.
+// their own and ticks off the doses. The pencil changes one afterwards – dose, times, the points (3.5.1).
 import { useState } from "react";
-import { Check, Pill, Plus, Trash2 } from "lucide-react";
+import { Check, Pencil, Pill, Plus, Trash2 } from "lucide-react";
 import { api, Medication, Member, Pet } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
 import SettingsLink from "@/components/SettingsLink";
 
-type Form = { owner: string; name: string; dose: string; times: string; end: string; alert: boolean; points: number };
+// `id` and `forName`: changing a medicine that exists (who takes it doesn't change).
+type Form = { id?: string; forName?: string; owner: string; name: string; dose: string; times: string; end: string; alert: boolean; points: number };
 const EMPTY: Form = { owner: "", name: "", dose: "", times: "08:00", end: "", alert: true, points: 5 };
 
 /** `manage`: the family's settings (the children's and the pets'); `mine`: my own, in the profile. */
@@ -53,19 +54,32 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
   async function save() {
     if (!form) return;
     const [kind, id] = (form.owner || owners[0].value).split(":");
-    const ok = await run(() =>
-      api.post("/api/medicine", {
-        user_id: kind === "user" ? id : null,
-        pet_id: kind === "pet" ? id : null,
-        name: form.name.trim(),
-        dose: form.dose.trim(),
-        times: form.times.split(/[\s,]+/).filter(Boolean),
-        end_date: form.end || null,
-        alert_adults: form.alert,
-        points: form.points,
-      })
-    );
+    const body = {
+      user_id: kind === "user" ? id : null,
+      pet_id: kind === "pet" ? id : null,
+      name: form.name.trim(),
+      dose: form.dose.trim(),
+      times: form.times.split(/[\s,]+/).filter(Boolean),
+      end_date: form.end || null,
+      alert_adults: form.alert,
+      points: form.points,
+    };
+    const ok = await run(() => (form.id ? api.put(`/api/medicine/${form.id}`, body) : api.post("/api/medicine", body)));
     if (ok) setForm(null);
+  }
+
+  function editForm(m: Medication): Form {
+    return {
+      id: m.id,
+      forName: m.for_name,
+      owner: m.pet_id ? `pet:${m.pet_id}` : `user:${m.user_id}`,
+      name: m.name,
+      dose: m.dose,
+      times: m.times.join(", "),
+      end: m.end_date ?? "",
+      alert: m.alert_adults,
+      points: m.points,
+    };
   }
 
   const fmt = (iso: string) => new Date(iso).toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" });
@@ -102,9 +116,13 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <label className="label" htmlFor="med-owner">{t("medicine.forWhom")}</label>
-              <select id="med-owner" className="input" value={form.owner || owners[0].value} onChange={(e) => setForm({ ...form, owner: e.target.value })}>
-                {owners.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              {form.id ? (
+                <input id="med-owner" className="input" value={form.forName} readOnly disabled />
+              ) : (
+                <select id="med-owner" className="input" value={form.owner || owners[0].value} onChange={(e) => setForm({ ...form, owner: e.target.value })}>
+                  {owners.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="label" htmlFor="med-name">{t("medicine.name")}</label>
@@ -136,7 +154,7 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
             )}
           </div>
           <div className="flex gap-2">
-            <button className="btn-primary" onClick={save} disabled={!form.name.trim() || !form.times.trim()}>{t("common.add")}</button>
+            <button className="btn-primary" onClick={save} disabled={!form.name.trim() || !form.times.trim()}>{form.id ? t("common.save") : t("common.add")}</button>
             <button className="btn-ghost" onClick={() => setForm(null)}>{t("common.cancel")}</button>
           </div>
         </section>
@@ -161,6 +179,9 @@ export default function Medicine({ manage = false, mine = false, only, pets: pet
                   </div>
                   {m.can_edit && (
                     <span className="flex gap-1">
+                      <button className="rounded px-2 py-1 text-muted hover:bg-base hover:text-ink" onClick={() => { setForm(editForm(m)); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label={`${t("common.edit")}: ${m.name}`} title={t("common.edit")}>
+                        <Pencil className="h-4 w-4" strokeWidth={1.75} />
+                      </button>
                       <button className="btn-ghost px-2 py-1 text-xs" onClick={() => run(() => api.post(`/api/medicine/${m.id}/stop`))}>
                         {m.active ? t("medicine.pause") : t("medicine.resume")}
                       </button>

@@ -1,7 +1,8 @@
 "use client";
 
 // The week (2.7.0): the days side by side over the hours, all-day events in a row of their own at
-// the top, events that clash next to each other, and a line at the time it is now.
+// the top, events that clash next to each other, and a line at the time it is now. A tap on an event
+// shows it under the grid (3.5.1).
 import { useEffect, useRef, useState } from "react";
 import { CalendarEvent } from "@/lib/api";
 import { toLocalDateKey, eventDayKeys } from "@/lib/dateKey";
@@ -19,12 +20,14 @@ export default function WeekGrid({
   todayKey,
   selectedDay,
   onSelectDay,
+  onSelectEvent,
 }: {
   days: Date[];
   events: CalendarEvent[];
   todayKey: string;
   selectedDay: string | null;
   onSelectDay: (dayKey: string) => void;
+  onSelectEvent: (event: CalendarEvent, dayKey: string) => void;
 }) {
   const { t, dateLocale } = useI18n();
   const [now, setNow] = useState(() => new Date());
@@ -69,7 +72,7 @@ export default function WeekGrid({
         <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))] border-b border-edge py-1" style={{ gridTemplateRows: `repeat(${lanes}, 1.375rem)${more.some(Boolean) ? " 1.25rem" : ""}` }}>
           <div className="sticky left-0 z-10 flex items-center justify-center bg-surface text-[10px] text-muted" style={{ gridRow: "1 / -1", gridColumn: 1 }}>{t("calendar.allDay")}</div>
           {bars.map((bar) => (
-            <EventBar key={`${bar.event.event_id ?? bar.event.feed_id}-${bar.event.start}`} bar={bar} firstRow={1} dateLocale={dateLocale} busy={t("calendar.busy")} onClick={() => onSelectDay(keys[bar.col])} />
+            <EventBar key={`${bar.event.event_id ?? bar.event.feed_id}-${bar.event.start}`} bar={bar} firstRow={1} dateLocale={dateLocale} busy={t("calendar.busy")} onClick={() => onSelectEvent(bar.event, keys[bar.col])} />
           ))}
           {more.map((n, i) => (n > 0 ? <span key={i} className="px-1.5 text-[11px] font-semibold text-muted" style={{ gridColumn: i + 2, gridRow: lanes + 1 }}>{t("calendar.more", { n })}</span> : null))}
         </div>
@@ -112,7 +115,7 @@ export default function WeekGrid({
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSelectDay(keys[i]);
+                        onSelectEvent(p.event, keys[i]);
                       }}
                       title={`${time} ${barLabel(p.event, dateLocale, t("calendar.busy"))}`}
                     >

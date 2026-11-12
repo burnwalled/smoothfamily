@@ -159,7 +159,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Familiens kalender med skolens og lagenes, hvem som kjører og hva som skal pakkes.",
     "blocks": [
       {
-        "p": "Kalenderen viser familiens egne hendelser sammen med kalendere dere abonnerer på – skolen, idrettslaget, jobben. Bytt mellom uken time for time, måneden og listen. Hendelser over flere dager er en stripe over dem, og ukenummeret står i kanten."
+        "p": "Kalenderen viser familiens egne hendelser sammen med kalendere dere abonnerer på – skolen, idrettslaget, jobben. Bytt mellom uken time for time, måneden og listen. Hendelser over flere dager er en stripe over dem, og ukenummeret står i kanten. Trykk på en hendelse, så vises den under rutenettet."
       },
       {
         "shot": "calendar",
@@ -179,7 +179,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "calendar-month",
-        "caption": "Måneden skriver ut hva som skjer hver dag."
+        "caption": "Måneden skriver ut hva som skjer hver dag – trykk på en hendelse for å åpne den."
       },
       {
         "h": "Abonner på en kalender"
@@ -922,7 +922,7 @@ const texts: Record<string, TopicText> = {
         "h": "Medisiner"
       },
       {
-        "p": "Legg til en medisin med dose, tider og en sluttdato for en kur. Et barns og et kjæledyrs doser blir oppgaver med poeng; de voksne får beskjed hvis en dose ikke krysses av. En voksens egne medisiner er private – de legges inn under Min profil og gir ingen poeng."
+        "p": "Legg til en medisin med dose, tider og en sluttdato for en kur, og endre den senere med blyanten – poengene også. Et barns og et kjæledyrs doser blir oppgaver med poeng; de voksne får beskjed hvis en dose ikke krysses av. En voksens egne medisiner er private – de legges inn under Min profil og gir ingen poeng."
       }
     ]
   },

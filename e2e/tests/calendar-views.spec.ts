@@ -33,8 +33,11 @@ test("the calendar's month, week and agenda", async ({ adminPage: page, adminApi
     await expect(dinnerInMonth).toBeVisible();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/month-${info.project.name}.png`, fullPage: true });
     // Tapping it shows the day with the event to open.
+    // A tap on the event shows it under the grid, marked (3.5.1).
     await dinnerInMonth.click();
-    await expect(page.getByRole("button", { name: `Rides and packing list: ${dinner}` })).toBeVisible();
+    const ridesButton = page.getByRole("button", { name: `Rides and packing list: ${dinner}` });
+    await expect(ridesButton).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ has: ridesButton })).toHaveClass(/ring-accent/);
 
     // The agenda: a card per day.
     await page.getByRole("button", { name: "Agenda", exact: true }).click();

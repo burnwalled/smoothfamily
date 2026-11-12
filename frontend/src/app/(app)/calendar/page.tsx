@@ -3,7 +3,7 @@
 // The family's calendar: iCal subscriptions and events created in the app. The week over the hours,
 // the month with what is on each day written out, and the agenda – a card per day (2.7.0).
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import EventLine from "@/components/calendar/EventLine";
 import FamilyEventForm from "@/components/FamilyEventForm";
@@ -27,6 +27,9 @@ function startOfMonthGrid(d: Date): Date {
   return startOfIsoWeek(first);
 }
 
+// One event's key: an app event by its id, a feed's by feed and start.
+const eventKey = (e: CalendarEvent) => `${e.event_id ?? e.feed_id}-${e.start}`;
+
 function groupByDay(events: CalendarEvent[]): Record<string, CalendarEvent[]> {
   return events.reduce<Record<string, CalendarEvent[]>>((acc, e) => {
     for (const key of eventDayKeys(e)) {
@@ -46,6 +49,12 @@ export default function CalendarPage() {
   });
   const [weekStart, setWeekStart] = useState(() => startOfIsoWeek(new Date()));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Tapped in the month or the week: shown under the grid, marked, and scrolled into view (3.5.1).
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const dayPanel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (selectedEvent) dayPanel.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedEvent, selectedDay]);
   const me = useMe();
   const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   // Two homes: without a schedule, a quiet link for the adults to set one up.
@@ -87,7 +96,17 @@ export default function CalendarPage() {
       next.setDate(weekStart.getDate() + delta * 7);
     }
     setWeekStart(next);
-    setSelectedDay(null);
+    selectDay(null);
+  }
+
+  function selectDay(key: string | null) {
+    setSelectedDay(key);
+    setSelectedEvent(null);
+  }
+
+  function selectEvent(event: CalendarEvent, dayKey: string) {
+    setSelectedDay(dayKey);
+    setSelectedEvent(eventKey(event));
   }
 
   // Back to a week view from the month: the week of the first of the month (or of today).
@@ -159,7 +178,7 @@ export default function CalendarPage() {
             ))}
           </div>
           <button className="btn-ghost px-2" onClick={() => shiftWeek(-1)} aria-label={t("calendar.prev")}><span aria-hidden className="sm:hidden">←</span><span className="hidden sm:inline">{t("calendar.prev")}</span></button>
-          <button className="btn-ghost px-2" onClick={() => { setWeekStart(view === "month" ? new Date(new Date().getFullYear(), new Date().getMonth(), 1) : startOfIsoWeek(new Date())); setSelectedDay(null); }}>{t("calendar.today")}</button>
+          <button className="btn-ghost px-2" onClick={() => { setWeekStart(view === "month" ? new Date(new Date().getFullYear(), new Date().getMonth(), 1) : startOfIsoWeek(new Date())); selectDay(null); }}>{t("calendar.today")}</button>
           <button className="btn-ghost px-2" onClick={() => shiftWeek(1)} aria-label={t("calendar.next")}><span aria-hidden className="sm:hidden">→</span><span className="hidden sm:inline">{t("calendar.next")}</span></button>
         </div>
       </div>
@@ -175,20 +194,20 @@ export default function CalendarPage() {
       )}
       {view === "week" && (
         <div className="mt-4">
-          <WeekGrid days={weekDays} events={events} todayKey={todayKey} selectedDay={selectedDay} onSelectDay={(key) => setSelectedDay(key === selectedDay ? null : key)} />
+          <WeekGrid days={weekDays} events={events} todayKey={todayKey} selectedDay={selectedDay} onSelectDay={(key) => selectDay(key === selectedDay ? null : key)} onSelectEvent={selectEvent} />
         </div>
       )}
 
       {view === "month" && (
         <div className="mt-4">
-          <MonthGrid days={monthDays} month={weekStart.getMonth()} events={events} todayKey={todayKey} selectedDay={selectedDay} onSelectDay={(key) => setSelectedDay(key === selectedDay ? null : key)} />
+          <MonthGrid days={monthDays} month={weekStart.getMonth()} events={events} todayKey={todayKey} selectedDay={selectedDay} onSelectDay={(key) => selectDay(key === selectedDay ? null : key)} onSelectEvent={selectEvent} />
         </div>
       )}
 
       {view !== "agenda" && (
         <div>
           {selectedDay && (
-            <section className="card mt-4 p-4">
+            <section ref={dayPanel} className="card mt-4 p-4">
               <h2 className="mb-2 text-sm font-bold capitalize">
                 {new Date(`${selectedDay}T12:00:00`).toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "short" })}
               </h2>
@@ -197,7 +216,7 @@ export default function CalendarPage() {
               ) : (
                 <ul className="space-y-1">
                   {selectedDayEvents.map((event, i) => (
-                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} onEdit={editHandler(event)} />
+                    <EventLine key={`${selectedDay}-${i}`} event={event} members={members} onEdit={editHandler(event)} highlight={eventKey(event) === selectedEvent} />
                   ))}
                 </ul>
               )}

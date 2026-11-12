@@ -2,7 +2,8 @@
 
 // One event in a list (the calendar's agenda and day, the Sunday check-in): the time, the title and
 // who it is for, then two buttons of the same size – rides and packing, and edit. The row itself is
-// not a button, so a tap on the title doesn't open the editor by mistake (3.2.0).
+// not a button, so a tap on the title doesn't open the editor by mistake (3.2.0). `highlight`: the one
+// just tapped in the month or the week (3.5.1).
 import { useState } from "react";
 import { Car, Pencil } from "lucide-react";
 import EventPlanPanel, { EventPlanBadges } from "@/components/EventPlanPanel";
@@ -18,13 +19,13 @@ function initials(name: string): string {
     .join("");
 }
 
-export default function EventLine({ event, members, onEdit }: { event: CalendarEvent; members: Member[]; onEdit?: (event: CalendarEvent) => void }) {
+export default function EventLine({ event, members, onEdit, highlight = false }: { event: CalendarEvent; members: Member[]; onEdit?: (event: CalendarEvent) => void; highlight?: boolean }) {
   const { t, dateLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const tagged = members.filter((m) => event.member_ids?.includes(m.id));
   const button = "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold";
   return (
-    <li>
+    <li className={highlight ? "-mx-2 rounded-lg px-2 py-1 ring-2 ring-accent" : ""}>
       <div className="flex items-center gap-1.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: event.color }} />

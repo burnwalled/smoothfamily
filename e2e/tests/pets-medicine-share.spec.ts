@@ -43,10 +43,17 @@ test("a child's medicine dose is ticked off", async ({ adminPage: page, adminApi
   const card = page.getByRole("listitem").filter({ hasText: name });
   await expect(card.getByText("a task, 5 points")).toBeVisible();
 
+  // Changed afterwards with the pencil – the points too (3.5.1).
+  await card.getByRole("button", { name: `Edit: ${name}` }).click();
+  await expect(page.getByLabel("For", { exact: true })).toHaveValue(KID.name);
+  await page.getByLabel("Points per dose").fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(card.getByText("a task, 2 points")).toBeVisible();
+
   // Each dose is a task for the child (2.9.0); an adult may give it, and the dose is taken.
   await page.goto("/tasks");
   const dose = page.getByRole("listitem").filter({ hasText: `${name} · 08:00` });
-  await dose.getByRole("button", { name: "Done +5" }).click();
+  await dose.getByRole("button", { name: "Done +2" }).click();
   await expect(dose.getByText(`Done – ${KID.name}`)).toBeVisible();
   await page.goto(`/settings/members/${kid.id}`);
   await expect(card.getByRole("button", { name: /08:00/ })).toHaveAttribute("aria-pressed", "true");

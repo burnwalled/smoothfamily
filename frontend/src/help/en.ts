@@ -159,7 +159,7 @@ const texts: Record<string, TopicText> = {
     "summary": "The family's calendar with the school's and the clubs', who drives and what to pack.",
     "blocks": [
       {
-        "p": "The calendar shows the family's own events together with calendars you subscribe to – the school, the sports club, work. Switch between the week by the hour, the month and the agenda. Events over several days are a bar across them, and the week number is at the side."
+        "p": "The calendar shows the family's own events together with calendars you subscribe to – the school, the sports club, work. Switch between the week by the hour, the month and the agenda. Events over several days are a bar across them, and the week number is at the side. Tap an event and it's shown below the grid."
       },
       {
         "shot": "calendar",
@@ -179,7 +179,7 @@ const texts: Record<string, TopicText> = {
       },
       {
         "shot": "calendar-month",
-        "caption": "The month writes out what's on each day."
+        "caption": "The month writes out what's on each day – tap an event to open it."
       },
       {
         "h": "Subscribe to a calendar"
@@ -922,7 +922,7 @@ const texts: Record<string, TopicText> = {
         "h": "Medicines"
       },
       {
-        "p": "Add a medicine with dose, times and an end date for a course. A child's and a pet's doses become tasks with points; the adults are told if a dose isn't ticked off. An adult's own medicines are private – they're set up under My profile and give no points."
+        "p": "Add a medicine with dose, times and an end date for a course, and change it later with the pencil – the points too. A child's and a pet's doses become tasks with points; the adults are told if a dose isn't ticked off. An adult's own medicines are private – they're set up under My profile and give no points."
       }
     ]
   },
