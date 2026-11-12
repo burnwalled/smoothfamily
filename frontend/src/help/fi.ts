@@ -1199,7 +1199,7 @@ const texts: Record<string, TopicText> = {
         "h": "Näytönsäästäjä"
       },
       {
-        "p": "Valitsemiesi minuuttien jälkeen tulee näytönsäästäjä: perheen kuvat, läppäkello, rauhallinen kello ja sää, pimeä näyttö – tai kettu, joka näyttää ulkona olevan sään. Se lukee harmaina päivinä, lennättää leijaa pilvien ohittaessa, pitää sateenvarjoa sateessa, rakentaa lumiukon lumisateessa ja nukkuu yöllä, ja päivän avoimet tehtävät näkyvät järven yllä. Yöllä, näytölle asetettuina tunteina, jokaisesta näytönsäästäjästä tulee pimeä näyttö, jossa on vain kello. Napautus herättää näytön."
+        "p": "Valitsemiesi minuuttien jälkeen tulee näytönsäästäjä: perheen kuvat, läppäkello, rauhallinen kello ja sää, pimeä näyttö – tai kettu, joka näyttää ulkona olevan sään (perheen paikka kohdassa Asetukset → Tänään-kortit riittää – sää-widgetin ei tarvitse olla päällä). Se lukee harmaina päivinä, lennättää leijaa pilvien ohittaessa, pitää sateenvarjoa sateessa, rakentaa lumiukon lumisateessa ja nukkuu yöllä, ja päivän avoimet tehtävät näkyvät järven yllä. Yöllä, näytölle asetettuina tunteina, jokaisesta näytönsäästäjästä tulee pimeä näyttö, jossa on vain kello. Napautus herättää näytön."
       },
       {
         "p": "Muutaman minuutin välein kettu tekee jotain pientä säähän sopivaa – hyppää, loiskii lätäkössä, heittää lumipallon, katsoo tähdenlentoa – ja joskus jänis loikkii ohi tai kala hyppää järvessä. Se pukeutuu halloweeniksi, jouluksi, uudeksivuodeksi, pääsiäiseksi ja juhannukseksi, ja syntymäpäivänä (Syntymäpäivät-kohdan henkilöt) se saa ilmapalloja, juhlahatun ja banderollin nimellä. Juhlapyhät seuraavat perheen maata; asun voi kytkeä pois näyttökohtaisesti näytönsäästäjän alta. Kun tabletissa on vähennetty liike, kettu pysyy paikallaan."

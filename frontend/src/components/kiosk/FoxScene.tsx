@@ -896,16 +896,19 @@ function Binoculars() {
   );
 }
 
+// The bird the fox follows with the binoculars: in the air, wings beating, drifting a little.
 function Bird() {
   return (
-    <g transform="translate(250 -250)">
-      <g className="fx-sway">
-        <path d="M-40 60 Q0 20 40 60" stroke="#5b4636" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <ellipse cy="12" rx="16" ry="11" fill="#3f6fb5" />
-        <circle cx="12" cy="0" r="8" fill="#3f6fb5" />
-        <path d="M19 0 L28 2 L19 4 Z" fill="#f08a2c" />
-        <circle cx="14" cy="-2" r="1.8" fill="#fff" />
-        <path d="M-16 8 Q-4 -2 8 10" fill="#2f5a94" />
+    <g className="fx-hover">
+      <g transform="translate(260 -290)">
+        <g className="fx-flap">
+          <ellipse cx="-4" cy="-8" rx="16" ry="6" fill="#2f5a94" transform="rotate(-18)" />
+        </g>
+        <ellipse cy="4" rx="17" ry="10" fill="#3f6fb5" />
+        <path d="M-17 4 L-30 -4 L-28 10 Z" fill="#2f5a94" />
+        <circle cx="14" cy="-5" r="8" fill="#3f6fb5" />
+        <path d="M21 -5 L31 -3 L21 -1 Z" fill="#f08a2c" />
+        <circle cx="16" cy="-7" r="1.8" fill="#fff" />
       </g>
     </g>
   );

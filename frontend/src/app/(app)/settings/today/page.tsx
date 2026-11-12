@@ -17,6 +17,10 @@ export default function TodayCardsSettingsPage() {
   const [rule, setRule] = useState({ title: "", date: "", weeks: "2", from: "", to: "" });
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
+  // The weather card says its own things by its buttons (3.5.1): reading the location can be
+  // refused by the phone, and the page's foot is far below.
+  const [placeError, setPlaceError] = useState("");
+  const [locating, setLocating] = useState(false);
 
   // The saved sources from the cache; the fields start from them and follow when they are saved.
   const saved_ = useApi<TodaySources>("/api/dashboard/sources").data;
@@ -41,18 +45,27 @@ export default function TodayCardsSettingsPage() {
   }
 
   function locate() {
-    setError("");
-    if (!navigator.geolocation) return setError(t("weather.noLocation"));
+    setPlaceError("");
+    if (!navigator.geolocation) return setPlaceError(t("weather.noLocation"));
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => setPlace((p) => ({ ...p, lat: pos.coords.latitude.toFixed(2), lon: pos.coords.longitude.toFixed(2) })),
-      () => setError(t("weather.noLocation"))
+      (pos) => {
+        setLocating(false);
+        setPlace((p) => ({ ...p, lat: pos.coords.latitude.toFixed(2), lon: pos.coords.longitude.toFixed(2) }));
+      },
+      () => {
+        setLocating(false);
+        setPlaceError(t("weather.noLocation"));
+      },
+      { timeout: 15000, maximumAge: 600000 }
     );
   }
 
   function saveWeather(clear = false) {
     const lat = clear ? null : Number(place.lat.replace(",", "."));
     const lon = clear ? null : Number(place.lon.replace(",", "."));
-    if (!clear && (!Number.isFinite(lat) || !Number.isFinite(lon) || !place.lat || !place.lon)) return setError(t("weather.needPlace"));
+    setPlaceError("");
+    if (!clear && (!Number.isFinite(lat) || !Number.isFinite(lon) || !place.lat || !place.lon)) return setPlaceError(t("weather.needPlace"));
     return run(() => api.put<TodaySources>("/api/dashboard/sources/weather", { lat, lon, place: place.name.trim() || null }), t("home.saved")).then(() => {
       if (clear) setPlace({ name: "", lat: "", lon: "" });
     });
@@ -106,17 +119,19 @@ export default function TodayCardsSettingsPage() {
           </label>
           <label className="w-24 text-xs text-muted">
             {t("weather.lat")}
-            <input className="input mt-1 w-full" inputMode="decimal" value={place.lat} onChange={(e) => setPlace({ ...place, lat: e.target.value })} placeholder="59.33" />
+            <input className="input mt-1 w-full" inputMode="decimal" value={place.lat} onChange={(e) => setPlace({ ...place, lat: e.target.value })} />
           </label>
           <label className="w-24 text-xs text-muted">
             {t("weather.lon")}
-            <input className="input mt-1 w-full" inputMode="decimal" value={place.lon} onChange={(e) => setPlace({ ...place, lon: e.target.value })} placeholder="18.06" />
+            <input className="input mt-1 w-full" inputMode="decimal" value={place.lon} onChange={(e) => setPlace({ ...place, lon: e.target.value })} />
           </label>
-          <button className="btn-ghost flex shrink-0 items-center gap-1.5 border border-edge" onClick={locate}>
+          <button className="btn-ghost flex shrink-0 items-center gap-1.5 border border-edge" onClick={locate} disabled={locating}>
             <LocateFixed className="h-4 w-4" strokeWidth={2} aria-hidden />
-            {t("weather.locate")}
+            {locating ? t("weather.locating") : t("weather.locate")}
           </button>
         </div>
+        {sources.weather_lat === null && !place.lat && <p className="mt-2 text-xs text-muted">{t("weather.empty")}</p>}
+        {placeError && <p className="mt-2 text-sm text-red-700" role="alert">{placeError}</p>}
         <div className="mt-3 flex gap-2">
           <button className="btn-primary" onClick={() => saveWeather()}>{t("profile.save")}</button>
           {sources.weather_lat !== null && (

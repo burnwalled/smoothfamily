@@ -359,8 +359,10 @@ async def kiosk_view(token: str, request: Request, db: DB) -> KioskView:
         except Exception:
             presence = []
 
+    # The weather: for the widget, and for the screensavers that play it out (the fox, the calm clock)
+    # even when the widget is off – the family's place is what's needed.
     weather = None
-    if "weather" in on and family.weather_lat is not None and family.weather_lon is not None:
+    if ("weather" in on or screen.screensaver in ("fox", "calm")) and family.weather_lat is not None and family.weather_lon is not None:
         try:
             info = summary(await forecast(family.weather_lat, family.weather_lon))
             weather = {"place": family.weather_place, **info}
