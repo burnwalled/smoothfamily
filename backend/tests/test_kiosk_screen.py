@@ -34,6 +34,7 @@ async def test_the_screens_theme_and_its_new_widgets_are_chosen(client):
 
 async def test_the_fox_gets_the_weather_even_with_the_widget_off(client, monkeypatch):
     """3.5.1: the screensavers that play out the weather need the family's place, not the widget."""
+    from app.routers import dashboard as dashboard_router
     from app.routers import kiosk as kiosk_router
 
     screen, token = await _setup(client)
@@ -43,6 +44,7 @@ async def test_the_fox_gets_the_weather_even_with_the_widget_off(client, monkeyp
         return [{"time": __import__("datetime").datetime.now(__import__("datetime").timezone.utc), "temp": 6.0, "kind": "rain", "precip": 0.4, "wind": 5.0}]
 
     monkeypatch.setattr(kiosk_router, "forecast", fake_forecast)
+    monkeypatch.setattr(dashboard_router, "forecast", fake_forecast)  # saving the place checks SMHI too
     # No place: nothing, whatever the screensaver.
     assert (await client.get(f"/api/kiosk/{token}")).json()["weather"] is None
     assert (await client.put("/api/dashboard/sources/weather", json={"lat": 59.33, "lon": 18.06, "place": "Home"})).status_code == 200
