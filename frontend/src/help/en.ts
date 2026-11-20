@@ -634,6 +634,7 @@ const texts: Record<string, TopicText> = {
       {
         "tips": [
           "Six weeks before a birthday the birthday person is reminded to fill in their list, and a month before the others are reminded to plan.",
+          "From six weeks before Christmas Eve, anyone who hasn't started this year's Christmas wish list is reminded – once.",
           "Birthdays: a member's on their page under Family members; relatives and friends under Family members → Other people."
         ]
       }

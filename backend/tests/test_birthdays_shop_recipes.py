@@ -325,6 +325,44 @@ async def test_wish_list_six_weeks_and_planning_a_month_before(client, db_sessio
     assert (await client.post("/api/birthdays/people", json={"name": "Friend"})).status_code == 403
 
 
+async def test_christmas_list_reminder_to_those_who_have_not_started(client, db_session):
+    from app.services.birthdays import run_christmas_reminders
+
+    await _family(client)
+    await _login(client, "kid1")
+    mine = (await client.post("/api/birthdays/people/me")).json()
+    await client.post(f"/api/birthdays/people/{mine['id']}/wishes", json={"title": "Sled", "occasion": "christmas"})
+    await client.post("/api/birthdays/people/me")  # kid2 below has no lists at all
+    year = date.today().year
+
+    def at(month, day, hour=12):
+        return datetime(year, month, day, hour, tzinfo=timezone.utc)
+
+    # Not before six weeks ahead, not at night, and not on Christmas Eve itself.
+    assert await run_christmas_reminders(db_session, at(11, 11)) == 0
+    assert await run_christmas_reminders(db_session, at(11, 20, hour=3)) == 0
+    assert await run_christmas_reminders(db_session, at(12, 24)) == 0
+    # In between: everyone but the child who has started – once.
+    assert await run_christmas_reminders(db_session, at(11, 20)) == 3
+    assert await run_christmas_reminders(db_session, at(11, 21)) == 0
+    assert [n for n in (await client.get("/api/notifications")).json() if n["kind"] == "christmas_wish_list"] == []
+    await _login(client, "kid2")
+    note = next(n for n in (await client.get("/api/notifications")).json() if n["kind"] == "christmas_wish_list")
+    assert note["route"] == "/lists" and "34" in note["body"]
+    # Someone with lists but no Christmas wish is sent straight to the Christmas list.
+    await _login(client, "adult1")
+    own = (await client.post("/api/birthdays/people/me")).json()
+    await _login(client, "admin", "secret123")
+    from app.models import AppSetting
+
+    await db_session.delete(await db_session.get(AppSetting, f"christmas.sent:{own['user_id']}:{year}"))
+    await db_session.commit()
+    assert await run_christmas_reminders(db_session, at(12, 1)) == 1
+    await _login(client, "adult1")
+    notes = [n for n in (await client.get("/api/notifications")).json() if n["kind"] == "christmas_wish_list"]
+    assert f"/lists?wish={own['id']}&occasion=christmas" in [n["route"] for n in notes]
+
+
 async def test_recipe_search_through_the_servers_searxng(client, monkeypatch):
     import httpx
 

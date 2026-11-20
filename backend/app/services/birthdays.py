@@ -3,13 +3,16 @@ fill in their wish list; a month before the others to share it with relatives an
 a week before and on the day everyone (2.8.2).
 
 Only the day itself reaches the person themself (besides the wish list), so a surprise stays a surprise.
+
+Christmas: from six weeks before Christmas Eve, a member who hasn't started this year's Christmas
+wish list is asked to – once.
 """
 from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AppSetting, Person, User
+from app.models import AppSetting, Person, User, WishItem
 from app.routers.birthdays import next_birthday
 from app.services.notify import notify
 
@@ -44,6 +47,13 @@ _PLAN = {
     "nb": ("Bursdag om en måned", "{title} – del ønskelisten med familie og venner og begynn å planlegge gavene"),
     "da": ("Fødselsdag om en måned", "{title} – del ønskelisten med familie og venner og begynd at planlægge gaverne"),
     "fi": ("Syntymäpäivä kuukauden päästä", "{title} – jaa toivelista suvulle ja ystäville ja aloita lahjojen suunnittelu"),
+}
+_CHRISTMAS = {
+    "en": ("Christmas is coming", "Christmas Eve in {n} days – fill in your Christmas wish list"),
+    "sv": ("Snart är det jul", "Julafton om {n} dagar – fyll i din julönskelista"),
+    "nb": ("Snart er det jul", "Julaften om {n} dager – fyll ut juleønskelisten din"),
+    "da": ("Snart er det jul", "Juleaften om {n} dage – udfyld din juleønskeliste"),
+    "fi": ("Joulu lähestyy", "Jouluaattoon {n} päivää – täytä joulutoivelistasi"),
 }
 _TODAY = {
     "en": "Birthday today",
@@ -122,6 +132,50 @@ async def run_birthday_reminders(db: AsyncSession, now: datetime | None = None) 
             sent += 1
         db.add(AppSetting(key=key, value=now.isoformat()))
         await db.commit()
+    return sent
+
+
+async def run_christmas_reminders(db: AsyncSession, now: datetime | None = None) -> int:
+    """From six weeks before Christmas Eve until the day before it: each member who has no wish on
+    this year's Christmas list is asked to start it, once a year. Not on one day only, so a member
+    who joins later, or a server that was off that day, is still reached."""
+    now = now or datetime.now(timezone.utc)
+    if now.hour < 7:  # not in the middle of the night (UTC ≈ 8–9 in Sweden)
+        return 0
+    today = now.date()
+    days = (date(today.year, 12, 24) - today).days
+    if not 0 < days <= WISH_LIST_DAYS_BEFORE:
+        return 0
+    sent = 0
+    members = (await db.execute(select(User))).scalars().all()
+    for member in members:
+        if "birthdays" not in member.apps:
+            continue
+        key = f"christmas.sent:{member.id}:{today.year}"
+        if await db.get(AppSetting, key) is not None:
+            continue
+        person = (
+            await db.execute(select(Person).where(Person.family_id == member.family_id, Person.user_id == member.id).order_by(Person.created_at))
+        ).scalars().first()
+        if person is not None:
+            # A wish left from last Christmas doesn't count: the list is started when one is added this year.
+            started = (
+                await db.execute(
+                    select(WishItem.id)
+                    .where(WishItem.person_id == person.id, WishItem.kind == "wish", WishItem.occasion == "christmas")
+                    .where(WishItem.created_at >= datetime(today.year, 1, 1, tzinfo=timezone.utc))
+                    .limit(1)
+                )
+            ).first()
+            if started is not None:
+                continue
+        head, body = _CHRISTMAS.get(member.language or "en", _CHRISTMAS["en"])
+        # Without lists of their own yet, Lists has the button that starts them.
+        route = f"/lists?wish={person.id}&occasion=christmas" if person is not None else "/lists"
+        await notify(db, member, {"title": head, "body": body.format(n=days), "route": route, "kind": "christmas_wish_list"}, pref="calendar_mine")
+        db.add(AppSetting(key=key, value=now.isoformat()))
+        await db.commit()
+        sent += 1
     return sent
 
 
