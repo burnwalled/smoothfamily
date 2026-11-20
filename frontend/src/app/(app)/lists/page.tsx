@@ -3,8 +3,8 @@
 import SendToHa from "@/components/lists/SendToHa";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CloudOff, Gift, Pencil, Lock } from "lucide-react";
-import { api, FamilyList, ListCategory, ListItem, Member, PantryPlace, Person } from "@/lib/api";
+import { CloudOff, Gift, Pencil, Lock, Plus } from "lucide-react";
+import { api, FamilyList, ListCategory, ListItem, Member, PantryPlace, Person, WishOccasion } from "@/lib/api";
 import { GiftPlan, WishList } from "@/components/birthdays/Gifts";
 import { when } from "@/components/birthdays/People";
 import { useI18n } from "@/lib/i18n";
@@ -38,8 +38,10 @@ function Lists() {
   const { t } = useI18n();
   const me = useMe();
   // Wish lists and the gift planning (2.8.2): a person's, opened instead of a family list. A
-  // reminder opens one with ?wish=<person> or ?plan=<person>.
+  // reminder opens one with ?wish=<person> or ?plan=<person>; &occasion=christmas opens the
+  // Christmas list rather than the birthday one.
   const params = useSearchParams();
+  const occasion: WishOccasion = params.get("occasion") === "christmas" ? "christmas" : "birthday";
   const [gift, setGift] = useState<{ kind: "wish" | "plan"; id: string } | null>(() => {
     const wish = params.get("wish");
     const plan = params.get("plan");
@@ -49,7 +51,10 @@ function Lists() {
   const adult = me.role !== "child";
   // From the cache: the writes below invalidate the lists, and a live event from elsewhere in the
   // family does too – nothing is reloaded by hand.
-  const people = useApi<Person[]>(gifts ? "/api/birthdays/people" : null).data ?? NONE;
+  const peopleQuery = useApi<Person[]>(gifts ? "/api/birthdays/people" : null);
+  const people = peopleQuery.data ?? NONE;
+  // A member no birthday was given for has no wish lists yet: they start them here themself.
+  const noListOfMine = gifts && peopleQuery.data !== undefined && !people.some((p) => p.user_id === me.id);
   const giftPerson = gift ? people.find((p) => p.id === gift.id) ?? null : null;
   const members = useApi<Member[]>("/api/family/members").data ?? NONE;
   const listsQuery = useApi<FamilyList[]>("/api/lists");
@@ -153,6 +158,17 @@ function Lists() {
     await api.del(`/api/lists/${listId}`);
   }
 
+  async function startMyWishList() {
+    setError("");
+    try {
+      const mine = await api.post<Person>("/api/birthdays/people/me");
+      await refreshApi("/api/birthdays/people");
+      setGift({ kind: "wish", id: mine.id });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common.error"));
+    }
+  }
+
   const [toHa, setToHa] = useState(false);
 
   async function copyAsText() {
@@ -191,7 +207,7 @@ function Lists() {
             ))}
           </ul>
 
-          {gifts && people.length > 0 && (
+          {gifts && (people.length > 0 || noListOfMine) && (
             <>
               <h2 className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
                 <Gift className="h-3.5 w-3.5" aria-hidden />
@@ -205,11 +221,17 @@ function Lists() {
                       onClick={() => setGift({ kind: "wish", id: p.id })}
                     >
                       <div className="font-semibold">{t("lists.wishListOf", { name: p.name })}</div>
-                      <div className="text-xs text-muted">{t("lists.wishCount", { n: p.wish_count })} · {when(p, t)}</div>
+                      <div className="text-xs text-muted">{t("lists.wishCount", { n: p.wish_count + p.christmas_count })} · {when(p, t)}</div>
                     </button>
                   </li>
                 ))}
               </ul>
+              {noListOfMine && (
+                <button className="btn-ghost mt-2 w-full border border-edge text-sm" onClick={startMyWishList}>
+                  <Plus className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  {t("wishes.startMine")}
+                </button>
+              )}
               {adult && people.some((p) => p.user_id !== me.id) && (
                 <>
                   <h2 className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -265,7 +287,7 @@ function Lists() {
 
         <section className="card p-4">
           {gift && giftPerson ? (
-            gift.kind === "wish" ? <WishList key={giftPerson.id} person={giftPerson} /> : <GiftPlan key={giftPerson.id} person={giftPerson} />
+            gift.kind === "wish" ? <WishList key={giftPerson.id} person={giftPerson} initial={occasion} /> : <GiftPlan key={giftPerson.id} person={giftPerson} initial={occasion} />
           ) : !selectedList ? (
             <p className="text-sm text-muted">{t("lists.empty")}</p>
           ) : (

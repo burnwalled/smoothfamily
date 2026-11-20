@@ -18,6 +18,16 @@ test("wish list reservations stay a surprise", async ({ adminApi, adminPage, kid
   await expect(kidPage.getByText(wish)).toBeVisible();
   // The child has no gift planning of their own birthday.
   await expect(kidPage.getByRole("button", { name: `Gifts for ${name}` })).toHaveCount(0);
+  // The Christmas list is a list of its own, beside the birthday one.
+  const sled = unique("Sled");
+  await kidPage.getByRole("button", { name: "Christmas", exact: true }).click();
+  await expect(kidPage.getByRole("heading", { name: `${name}'s Christmas wish list` })).toBeVisible();
+  await expect(kidPage.getByText(wish)).toHaveCount(0);
+  await kidPage.getByPlaceholder("Wish", { exact: true }).fill(sled);
+  await kidPage.getByPlaceholder("Wish", { exact: true }).press("Enter");
+  await expect(kidPage.getByText(sled)).toBeVisible();
+  await kidPage.getByRole("button", { name: "Birthday", exact: true }).click();
+  await expect(kidPage.getByText(sled)).toHaveCount(0);
 
   await adminPage.goto(`/lists?wish=${person.id}`);
   await adminPage.getByRole("listitem").filter({ hasText: wish }).getByRole("button", { name: "I'm buying this" }).click();

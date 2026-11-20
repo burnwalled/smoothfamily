@@ -66,6 +66,51 @@ async def test_wishes_hide_reservations_and_ideas_from_the_person(client):
     assert own[0]["title"] == "LEGO"
 
 
+async def test_a_child_starts_a_christmas_list_of_their_own(client):
+    from app.main import app
+    from httpx import ASGITransport, AsyncClient
+
+    await _family(client)
+    # No birthday was given, so the child has no lists yet: they start them themself.
+    await _login(client, "kid1")
+    assert (await client.get("/api/birthdays/people")).json() == []
+    mine = (await client.post("/api/birthdays/people/me")).json()
+    assert mine["name"] == "Kid1" and mine["next_birthday"] is None
+    assert (await client.post("/api/birthdays/people/me")).json()["id"] == mine["id"]  # once only
+    wishes = f"/api/birthdays/people/{mine['id']}/wishes"
+
+    sled = (await client.post(wishes, json={"title": "Sled", "occasion": "christmas"})).json()
+    assert sled["occasion"] == "christmas"
+    await client.post(wishes, json={"title": "Bike"})
+    assert (await client.post(wishes, json={"title": "x", "occasion": "easter"})).status_code == 422
+    # Two lists, each with its own wishes.
+    assert [w["title"] for w in (await client.get(f"{wishes}?occasion=christmas")).json()] == ["Sled"]
+    assert [w["title"] for w in (await client.get(wishes)).json()] == ["Bike"]
+    person = (await client.get("/api/birthdays/people")).json()[0]
+    assert (person["wish_count"], person["christmas_count"]) == (1, 1)
+
+    # Someone else can't add to it, but buys from it – still hidden from the child.
+    await _login(client, "kid2")
+    assert (await client.post(wishes, json={"title": "Socks", "occasion": "christmas"})).status_code == 403
+    assert (await client.post(f"/api/birthdays/wishes/{sled['id']}/reserve")).json()["reserved_by_me"] is True
+    await _login(client, "kid1")
+    assert (await client.get(f"{wishes}?occasion=christmas")).json()[0]["reserved"] is None
+
+    # A share link is for one of the lists; the adults' Christmas ideas stay out of the birthday plan.
+    await _login(client, "adult1")
+    await client.post(wishes, json={"kind": "idea", "title": "Skates", "occasion": "christmas"})
+    assert [w["title"] for w in (await client.get(wishes)).json()] == ["Bike"]
+    share = (await client.post(f"/api/birthdays/people/{mine['id']}/shares", json={"days": 30, "occasion": "christmas"})).json()
+    assert [s["id"] for s in (await client.get(f"/api/birthdays/people/{mine['id']}/shares?occasion=christmas")).json()] == [share["id"]]
+    assert (await client.get(f"/api/birthdays/people/{mine['id']}/shares")).json() == []
+    token = share["url"].rsplit("/", 1)[1]
+    bike = (await client.get(wishes)).json()[0]
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as gran:
+        listing = (await gran.get(f"/api/wishes/{token}")).json()
+        assert listing["occasion"] == "christmas" and [w["title"] for w in listing["wishes"]] == ["Sled"]
+        assert (await gran.post(f"/api/wishes/{token}/{bike['id']}/reserve", json={"name": "Grandma"})).status_code == 404
+
+
 async def test_birthdays_in_the_calendar_and_reminders(client, db_session):
     from app.services.birthdays import run_birthday_reminders
 

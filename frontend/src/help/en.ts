@@ -619,7 +619,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Everyone's wish list, secret gift planning and a link for the grandparents.",
     "blocks": [
       {
-        "p": "Everyone in the family has a wish list. Add a wish with a link and a price – or search the web for it. The others plan presents in secret: the birthday person never sees who buys what."
+        "p": "Everyone in the family has a wish list. Add a wish with a link and a price – or search the web for it. The others plan presents in secret: the birthday person never sees who buys what. Each person has two lists, one for the birthday and one for Christmas – switch with the tabs above the list. Someone without a list starts their own with Start my wish list, a child too."
       },
       {
         "shot": "wishes",
