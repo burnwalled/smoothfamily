@@ -634,6 +634,7 @@ const texts: Record<string, TopicText> = {
       {
         "tips": [
           "Seks uger før en fødselsdag bliver fødselaren mindet om at udfylde sin liste, og en måned før bliver de andre mindet om at planlægge.",
+          "Fra seks uger før juleaften bliver den, der ikke er begyndt på årets juleønskeliste, mindet om det – én gang.",
           "Fødselsdage: et medlems på medlemmets side under Familiemedlemmer; familie og venner under Familiemedlemmer → Andre personer."
         ]
       }

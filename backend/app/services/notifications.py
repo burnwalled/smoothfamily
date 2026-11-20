@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import AppSetting, CalendarFeed, FamilyEvent, User
 from app.services.ical import fetch_ical_raw, parse_events
-from app.services.birthdays import run_birthday_reminders
+from app.services.birthdays import run_birthday_reminders, run_christmas_reminders
 from app.services.backups import run_scheduled_backup
 from app.services.families import remove_stale_demos
 from app.services.medicine import run_medicine_reminders
@@ -162,6 +162,7 @@ async def notification_worker(stop_event: asyncio.Event) -> None:
                 async with SessionLocal() as db:
                     await run_calendar_reminders(db)
                     await run_birthday_reminders(db)
+                    await run_christmas_reminders(db)
                     await run_waste_reminders(db)
                     await run_scheduled_backup(db)
                     await remove_stale_demos(db)

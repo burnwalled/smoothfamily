@@ -634,6 +634,7 @@ const texts: Record<string, TopicText> = {
       {
         "tips": [
           "Kuusi viikkoa ennen syntymäpäivää päivänsankaria muistutetaan täyttämään listansa, ja kuukautta ennen muita muistutetaan suunnittelemaan.",
+          "Kuusi viikkoa ennen jouluaattoa alkaen muistutetaan kerran sitä, joka ei ole aloittanut tämän vuoden joulutoivelistaa.",
           "Syntymäpäivät: jäsenen omalla sivulla kohdassa Perheenjäsenet; sukulaiset ja ystävät kohdassa Perheenjäsenet → Muut ihmiset."
         ]
       }
