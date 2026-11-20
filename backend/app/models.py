@@ -1025,6 +1025,8 @@ class WishItem(Base):
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     person_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("people.id", ondelete="CASCADE"), index=True)
     kind: Mapped[str] = mapped_column(String(10), default="wish")  # wish | idea
+    # Which list it is on: the person's birthday list or their Christmas list.
+    occasion: Mapped[str] = mapped_column(String(12), default="birthday", server_default="birthday")  # birthday | christmas
     title: Mapped[str] = mapped_column(String(200))
     url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -1045,6 +1047,7 @@ class WishShare(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
     person_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("people.id", ondelete="CASCADE"), index=True)
+    occasion: Mapped[str] = mapped_column(String(12), default="birthday", server_default="birthday")  # birthday | christmas
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

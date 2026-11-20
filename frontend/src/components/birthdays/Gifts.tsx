@@ -3,10 +3,11 @@
 // A person's wish list and the gift planning (2.8.2, in Lists): the wish list is filled in by the
 // person (or an adult for them) and others mark "I'm buying this" – never shown to the person; it
 // can be shared with relatives through a link. The gift planning is the adults' secret: ideas and
-// who is buying what, never shown to the person it is for.
+// who is buying what, never shown to the person it is for. Each person has two of each – for the
+// birthday and for Christmas – chosen with the tabs above the list.
 import { useEffect, useState } from "react";
-import { Copy, ExternalLink, Lightbulb, Link2, Plus, Search, Trash2 } from "lucide-react";
-import { api, Person, Wish, WishShare } from "@/lib/api";
+import { Cake, Copy, ExternalLink, Lightbulb, Link2, Plus, Search, Trash2, TreePine } from "lucide-react";
+import { api, Person, Wish, WishOccasion, WishShare } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { NONE, refreshApi, useApi } from "@/lib/query";
 import { useMe } from "@/components/Shell";
@@ -14,8 +15,8 @@ import { when } from "@/components/birthdays/People";
 import WebSearch, { shortTitle, useWebSearch } from "@/components/WebSearch";
 
 // A person's wishes from the cache; a change to them (here or elsewhere) refreshes it by itself.
-function useWishes(personId: string) {
-  const path = `/api/birthdays/people/${personId}/wishes`;
+function useWishes(personId: string, occasion: WishOccasion) {
+  const path = `/api/birthdays/people/${personId}/wishes?occasion=${occasion}`;
   const wishes = useApi<Wish[]>(path).data ?? NONE;
   return [wishes, () => void refreshApi(path)] as const;
 }
@@ -33,25 +34,64 @@ function useRun(setError: (e: string) => void, reload: () => void) {
   };
 }
 
-function Heading({ person, title }: { person: Person; title: string }) {
+// Days left to Christmas Eve, as the birthday list says how long it is to the birthday.
+function daysToChristmas(): number {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let eve = new Date(today.getFullYear(), 11, 24);
+  if (eve < today) eve = new Date(today.getFullYear() + 1, 11, 24);
+  return Math.round((eve.getTime() - today.getTime()) / 86_400_000);
+}
+
+function christmasWhen(t: ReturnType<typeof useI18n>["t"]): string {
+  const days = daysToChristmas();
+  return days === 0 ? t("wishes.christmasToday") : t("wishes.christmasIn", { n: days });
+}
+
+// Birthday or Christmas: which of the person's two lists is open.
+function Occasions({ value, onChange }: { value: WishOccasion; onChange: (o: WishOccasion) => void }) {
+  const { t } = useI18n();
+  const tabs: [WishOccasion, string, typeof Cake][] = [
+    ["birthday", t("wishes.birthday"), Cake],
+    ["christmas", t("wishes.christmas"), TreePine],
+  ];
+  return (
+    <div className="mb-3 flex gap-1 border-b border-edge" role="group" aria-label={t("wishes.occasion")}>
+      {tabs.map(([key, label, Icon]) => (
+        <button
+          key={key}
+          aria-pressed={value === key}
+          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${value === key ? "border-accent font-semibold text-ink" : "border-transparent text-muted hover:text-ink"}`}
+          onClick={() => onChange(key)}
+        >
+          <Icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Heading({ person, title, occasion }: { person: Person; title: string; occasion: WishOccasion }) {
   const { t } = useI18n();
   return (
     <div>
       <h2 className="text-lg font-bold">{title}</h2>
       <p className="text-xs text-muted">
-        {when(person, t)}
-        {person.turns !== null ? ` · ${t("birthdays.turns", { n: person.turns })}` : ""}
+        {occasion === "christmas" ? christmasWhen(t) : when(person, t)}
+        {occasion === "birthday" && person.turns !== null ? ` · ${t("birthdays.turns", { n: person.turns })}` : ""}
       </p>
     </div>
   );
 }
 
-export function WishList({ person }: { person: Person }) {
+export function WishList({ person, initial = "birthday" }: { person: Person; initial?: WishOccasion }) {
   const { t } = useI18n();
   const me = useMe();
   const isAdult = me.role !== "child";
   const isOwner = person.user_id === me.id;
-  const [wishes, loadWishes] = useWishes(person.id);
+  const [occasion, setOccasion] = useState<WishOccasion>(initial);
+  const [wishes, loadWishes] = useWishes(person.id, occasion);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
@@ -61,7 +101,7 @@ export function WishList({ person }: { person: Person }) {
 
   async function add() {
     if (!title.trim()) return;
-    await run(() => api.post(`/api/birthdays/people/${person.id}/wishes`, { kind: "wish", title: title.trim(), url: url.trim() || null }));
+    await run(() => api.post(`/api/birthdays/people/${person.id}/wishes`, { kind: "wish", occasion, title: title.trim(), url: url.trim() || null }));
     setTitle("");
     setUrl("");
     setSearching(false);
@@ -70,7 +110,8 @@ export function WishList({ person }: { person: Person }) {
   const own = wishes.filter((w) => w.kind === "wish");
   return (
     <>
-      <Heading person={person} title={t("lists.wishListOf", { name: person.name })} />
+      <Occasions value={occasion} onChange={setOccasion} />
+      <Heading person={person} occasion={occasion} title={t(occasion === "christmas" ? "wishes.christmasListOf" : "lists.wishListOf", { name: person.name })} />
       {isOwner && <p className="mt-1 text-xs text-muted">{t("birthdays.ownHint")}</p>}
       {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
       {own.length === 0 ? (
@@ -136,14 +177,15 @@ export function WishList({ person }: { person: Person }) {
           }}
         />
       )}
-      {isAdult && <ShareLinks personId={person.id} name={person.name} />}
+      {isAdult && <ShareLinks key={occasion} personId={person.id} name={person.name} occasion={occasion} />}
     </>
   );
 }
 
-export function GiftPlan({ person }: { person: Person }) {
+export function GiftPlan({ person, initial = "birthday" }: { person: Person; initial?: WishOccasion }) {
   const { t } = useI18n();
-  const [wishes, loadWishes] = useWishes(person.id);
+  const [occasion, setOccasion] = useState<WishOccasion>(initial);
+  const [wishes, loadWishes] = useWishes(person.id, occasion);
   const [idea, setIdea] = useState("");
   const [ideaUrl, setIdeaUrl] = useState("");
   const [error, setError] = useState("");
@@ -153,7 +195,7 @@ export function GiftPlan({ person }: { person: Person }) {
 
   async function add() {
     if (!idea.trim()) return;
-    await run(() => api.post(`/api/birthdays/people/${person.id}/wishes`, { kind: "idea", title: idea.trim(), url: ideaUrl.trim() || null }));
+    await run(() => api.post(`/api/birthdays/people/${person.id}/wishes`, { kind: "idea", occasion, title: idea.trim(), url: ideaUrl.trim() || null }));
     setIdea("");
     setIdeaUrl("");
     setSearching(false);
@@ -163,7 +205,8 @@ export function GiftPlan({ person }: { person: Person }) {
   const bought = wishes.filter((w) => w.kind === "wish" && w.reserved);
   return (
     <>
-      <Heading person={person} title={t("lists.giftPlanOf", { name: person.name })} />
+      <Occasions value={occasion} onChange={setOccasion} />
+      <Heading person={person} occasion={occasion} title={t(occasion === "christmas" ? "wishes.christmasGiftsFor" : "lists.giftPlanOf", { name: person.name })} />
       <p className="mt-1 text-xs text-muted">{t("lists.giftPlanHint", { name: person.name })}</p>
       {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
 
@@ -235,9 +278,9 @@ export function GiftPlan({ person }: { person: Person }) {
 }
 
 // Adults: share the wish list with relatives outside the app (grandparents …) through a link.
-export function ShareLinks({ personId, name }: { personId: string; name: string }) {
+export function ShareLinks({ personId, name, occasion = "birthday" }: { personId: string; name: string; occasion?: WishOccasion }) {
   const { t, dateLocale } = useI18n();
-  const shares = useApi<WishShare[]>(`/api/birthdays/people/${personId}/shares`).data ?? NONE;
+  const shares = useApi<WishShare[]>(`/api/birthdays/people/${personId}/shares?occasion=${occasion}`).data ?? NONE;
   const [days, setDays] = useState(90);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -261,7 +304,7 @@ export function ShareLinks({ personId, name }: { personId: string; name: string 
         <button
           className="btn-ghost border border-edge"
           onClick={async () => {
-            const created = await api.post<WishShare & { url: string }>(`/api/birthdays/people/${personId}/shares`, { days });
+            const created = await api.post<WishShare & { url: string }>(`/api/birthdays/people/${personId}/shares`, { days, occasion });
             setLink(created.url.startsWith("http") ? created.url : `${window.location.origin}${created.url}`);
             setCopied(false);
           }}

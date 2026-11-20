@@ -1057,7 +1057,7 @@ async def _detail(db: AsyncSession, party: Party, request: Request | None) -> di
     if party.person_id:
         wishes = [
             {"id": w.id, "title": w.title, "reserved": bool(w.reserved_by or w.reserved_by_guest), "reserved_by": w.reserved_by_guest}
-            for w in (await db.execute(select(WishItem).where(WishItem.person_id == party.person_id, WishItem.kind == "wish").order_by(WishItem.created_at))).scalars()
+            for w in (await db.execute(select(WishItem).where(WishItem.person_id == party.person_id, WishItem.kind == "wish", WishItem.occasion == "birthday").order_by(WishItem.created_at))).scalars()
         ]
     spent = round(sum(float(e.amount) for e in expenses), 2)
     return {
@@ -2277,7 +2277,7 @@ async def invitation(token: str, request: Request, response: Response, db: DB, k
         mine_wish = _hash(wish_key) if wish_key else None
         wishes = [
             {"id": w.id, "title": w.title, "url": w.url, "note": w.note, "reserved": bool(w.reserved_by or w.reserved_by_guest), "reserved_by_you": mine_wish is not None and w.guest_key_hash == mine_wish}
-            for w in (await db.execute(select(WishItem).where(WishItem.person_id == party.person_id, WishItem.kind == "wish").order_by(WishItem.created_at))).scalars()
+            for w in (await db.execute(select(WishItem).where(WishItem.person_id == party.person_id, WishItem.kind == "wish", WishItem.occasion == "birthday").order_by(WishItem.created_at))).scalars()
         ]
     thanks = None
     if party.thanks_published:
@@ -2530,7 +2530,7 @@ async def reserve(token: str, wish_id: uuid.UUID, payload: WishReserveIn, reques
     """"I'll buy this" – hidden from the one it's for, as on the wish list's own link."""
     party = await _open(db, token, request)
     wish = await db.get(WishItem, wish_id)
-    if not party.wishlist or wish is None or wish.person_id != party.person_id or wish.kind != "wish":
+    if not party.wishlist or wish is None or wish.person_id != party.person_id or wish.kind != "wish" or wish.occasion != "birthday":
         raise HTTPException(status_code=404, detail="Wish not found")
     if wish.reserved_by is not None or wish.reserved_by_guest is not None:
         raise HTTPException(status_code=409, detail="Someone is already buying this")

@@ -1092,12 +1092,17 @@ export type Person = {
   next_birthday: string | null;
   days_until: number | null;
   turns: number | null;
-  wish_count: number;
+  wish_count: number; // on the birthday list
+  christmas_count: number;
 };
+
+// Each person has two wish lists: one for the birthday and one for Christmas.
+export type WishOccasion = "birthday" | "christmas";
 
 export type Wish = {
   id: string;
   kind: "wish" | "idea";
+  occasion: WishOccasion;
   title: string;
   url: string | null;
   note: string | null;
@@ -1547,4 +1552,4 @@ export type Pet = {
   chores: { id: string; title: string; recurrence: string; assignee_id: string | null; rotation_user_ids: string[] }[];
 };
 
-export type WishShare = { id: string; created_at: string; expires_at: string; revoked_at: string | null };
+export type WishShare = { id: string; occasion: WishOccasion; created_at: string; expires_at: string; revoked_at: string | null };

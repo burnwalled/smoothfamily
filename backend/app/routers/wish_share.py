@@ -1,6 +1,6 @@
 """Share a wish list with relatives outside the app.
 
-Adults make a link for one person's wish list (valid 30, 90 or 365 days, revocable). Whoever has
+Adults make a link for one of a person's wish lists – the birthday's or Christmas's (valid 30, 90 or 365 days, revocable). Whoever has
 the link sees the wishes – never the gift ideas – and can reserve one with their name. The
 person the list is for never sees reservations, as in the app. A guest can undo their own
 reservation with the key their browser got when reserving.
@@ -10,7 +10,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -30,12 +30,17 @@ def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+OCCASION = r"^(birthday|christmas)$"
+
+
 class ShareIn(BaseModel):
     days: int = 90
+    occasion: str = Field(default="birthday", pattern=OCCASION)
 
 
 class ShareOut(BaseModel):
     id: uuid.UUID
+    occasion: str
     created_at: datetime
     expires_at: datetime
     revoked_at: datetime | None
@@ -57,6 +62,7 @@ class GuestWish(BaseModel):
 class GuestList(BaseModel):
     name: str
     family_name: str
+    occasion: str
     wishes: list[GuestWish]
 
 
@@ -84,10 +90,10 @@ async def _person(db, user: User, person_id: uuid.UUID) -> Person:
 
 
 @router.get("/birthdays/people/{person_id}/shares", response_model=list[ShareOut], dependencies=[require_app("birthdays")])
-async def list_shares(person_id: uuid.UUID, user: CurrentUser, db: DB) -> list[WishShare]:
+async def list_shares(person_id: uuid.UUID, user: CurrentUser, db: DB, occasion: str = Query("birthday", pattern=OCCASION)) -> list[WishShare]:
     _adult(user)
     person = await _person(db, user, person_id)
-    return list((await db.execute(select(WishShare).where(WishShare.person_id == person.id).order_by(WishShare.created_at.desc()))).scalars().all())
+    return list((await db.execute(select(WishShare).where(WishShare.person_id == person.id, WishShare.occasion == occasion).order_by(WishShare.created_at.desc()))).scalars().all())
 
 
 @router.post("/birthdays/people/{person_id}/shares", response_model=ShareCreated, status_code=status.HTTP_201_CREATED, dependencies=[require_app("birthdays")])
@@ -98,12 +104,12 @@ async def create_share(person_id: uuid.UUID, payload: ShareIn, user: CurrentUser
     person = await _person(db, user, person_id)
     token = secrets.token_urlsafe(18)
     now = datetime.now(timezone.utc)
-    share = WishShare(family_id=person.family_id, person_id=person.id, token_hash=_hash(token), created_by=user.id, created_at=now, expires_at=now + timedelta(days=payload.days))
+    share = WishShare(family_id=person.family_id, person_id=person.id, occasion=payload.occasion, token_hash=_hash(token), created_by=user.id, created_at=now, expires_at=now + timedelta(days=payload.days))
     db.add(share)
     await db.commit()
     await db.refresh(share)
     base = await public_base(db)
-    return ShareCreated(id=share.id, created_at=share.created_at, expires_at=share.expires_at, revoked_at=None, url=f"{base}/wishes/{token}")
+    return ShareCreated(id=share.id, occasion=share.occasion, created_at=share.created_at, expires_at=share.expires_at, revoked_at=None, url=f"{base}/wishes/{token}")
 
 
 @router.delete("/birthdays/shares/{share_id}", response_model=ShareOut, dependencies=[require_app("birthdays")])
@@ -144,12 +150,13 @@ async def guest_list(token: str, request: Request, db: DB, key: str | None = Non
     share, person = await _open(db, token, request)
     family = await db.get(Family, share.family_id)
     wishes = (
-        await db.execute(select(WishItem).where(WishItem.person_id == person.id, WishItem.kind == "wish").order_by(WishItem.created_at))
+        await db.execute(select(WishItem).where(WishItem.person_id == person.id, WishItem.kind == "wish", WishItem.occasion == share.occasion).order_by(WishItem.created_at))
     ).scalars().all()
     mine = _hash(key) if key else None
     return GuestList(
         name=person.name,
         family_name=family.name,
+        occasion=share.occasion,
         wishes=[
             GuestWish(
                 id=w.id,
@@ -168,7 +175,7 @@ async def guest_list(token: str, request: Request, db: DB, key: str | None = Non
 async def guest_reserve(token: str, wish_id: uuid.UUID, payload: ReserveIn, request: Request, db: DB) -> ReserveOut:
     share, person = await _open(db, token, request)
     wish = await db.get(WishItem, wish_id)
-    if wish is None or wish.person_id != person.id or wish.kind != "wish":
+    if wish is None or wish.person_id != person.id or wish.kind != "wish" or wish.occasion != share.occasion:
         raise HTTPException(status_code=404, detail="Wish not found")
     if wish.reserved_by is not None or wish.reserved_by_guest is not None:
         raise HTTPException(status_code=409, detail="Someone is already buying this")

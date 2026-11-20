@@ -619,7 +619,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Kaikkien toivelistat, salainen lahjasuunnittelu ja linkki isovanhemmille.",
     "blocks": [
       {
-        "p": "Jokaisella perheessä on toivelista. Lisää toive linkin ja hinnan kera – tai hae se verkosta. Muut suunnittelevat lahjat salaa: päivänsankari ei koskaan näe, kuka ostaa mitä."
+        "p": "Jokaisella perheessä on toivelista. Lisää toive linkin ja hinnan kera – tai hae se verkosta. Muut suunnittelevat lahjat salaa: päivänsankari ei koskaan näe, kuka ostaa mitä. Jokaisella on kaksi listaa, yksi syntymäpäivää ja yksi joulua varten – vaihda listan yläpuolen välilehdillä. Jolla ei ole listaa, aloittaa omansa painikkeella Aloita oma toivelistani, myös lapsi."
       },
       {
         "shot": "wishes",

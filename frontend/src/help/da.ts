@@ -619,7 +619,7 @@ const texts: Record<string, TopicText> = {
     "summary": "Alles ønskelister, hemmelig gaveplanlægning og et link til bedsteforældrene.",
     "blocks": [
       {
-        "p": "Alle i familien har en ønskeliste. Tilføj et ønske med link og pris – eller søg det frem på nettet. De andre planlægger gaver i hemmelighed: fødselaren ser aldrig, hvem der køber hvad."
+        "p": "Alle i familien har en ønskeliste. Tilføj et ønske med link og pris – eller søg det frem på nettet. De andre planlægger gaver i hemmelighed: fødselaren ser aldrig, hvem der køber hvad. Hver person har to lister, én til fødselsdagen og én til jul – skift med fanerne over listen. Den, der mangler en liste, opretter sin egen med Opret min ønskeliste, også et barn."
       },
       {
         "shot": "wishes",

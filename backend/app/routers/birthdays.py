@@ -3,12 +3,13 @@
 People: family members (linked with user_id) and others (grandparents, friends). Adults manage
 the people. Wishes: the person themself or an adult adds them; anyone else can reserve one
 ("I'm buying this") – hidden from the person the wish is for. Gift ideas (kind "idea") are
-notes only adults see, never the person themself.
+notes only adults see, never the person themself. Each person has two lists, one for the birthday
+and one for Christmas (occasion); a member without a list of their own can start it themself.
 """
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select
 
@@ -16,6 +17,9 @@ from app.deps import CurrentUser, DB, FamilyManager, require_app
 from app.models import Person, User, WishItem
 
 router = APIRouter(prefix="/api/birthdays", tags=["birthdays"], dependencies=[require_app("birthdays")])
+
+
+OCCASION = r"^(birthday|christmas)$"
 
 
 def next_birthday(month: int, day: int, today: date) -> date:
@@ -59,11 +63,13 @@ class PersonOut(BaseModel):
     next_birthday: date | None
     days_until: int | None
     turns: int | None  # the age on the next birthday, when the year is known
-    wish_count: int
+    wish_count: int  # on the birthday list
+    christmas_count: int
 
 
 class WishIn(BaseModel):
     kind: str = Field(default="wish", pattern=r"^(wish|idea)$")
+    occasion: str = Field(default="birthday", pattern=OCCASION)  # set when the wish is added, not changed after
     title: str = Field(min_length=1, max_length=200)
     url: str | None = Field(default=None, max_length=1000, pattern=r"^$|^https?://")
     note: str | None = Field(default=None, max_length=2000)
@@ -72,6 +78,7 @@ class WishIn(BaseModel):
 class WishOut(BaseModel):
     id: uuid.UUID
     kind: str
+    occasion: str
     title: str
     url: str | None
     note: str | None
@@ -86,7 +93,7 @@ def _is_adult(user: User) -> bool:
     return user.role in {"admin", "adult"}
 
 
-def _person_out(person: Person, today: date, wish_count: int) -> PersonOut:
+def _person_out(person: Person, today: date, counts: dict[str, int]) -> PersonOut:
     when = turns = days = None
     if person.birth_month and person.birth_day:
         when = next_birthday(person.birth_month, person.birth_day, today)
@@ -102,8 +109,24 @@ def _person_out(person: Person, today: date, wish_count: int) -> PersonOut:
         next_birthday=when,
         days_until=days,
         turns=turns,
-        wish_count=wish_count,
+        wish_count=counts.get("birthday", 0),
+        christmas_count=counts.get("christmas", 0),
     )
+
+
+async def _wish_counts(db, *where) -> dict[uuid.UUID, dict[str, int]]:
+    """The number of wishes (not gift ideas) per person and occasion."""
+    rows = (
+        await db.execute(
+            select(WishItem.person_id, WishItem.occasion, func.count(WishItem.id))
+            .where(WishItem.kind == "wish", *where)
+            .group_by(WishItem.person_id, WishItem.occasion)
+        )
+    ).all()
+    out: dict[uuid.UUID, dict[str, int]] = {}
+    for person_id, occasion, n in rows:
+        out.setdefault(person_id, {})[occasion] = n
+    return out
 
 
 async def _person(db, user: User, person_id: uuid.UUID) -> Person:
@@ -130,16 +153,8 @@ async def _check_member(db, user: User, user_id: uuid.UUID | None) -> None:
 async def list_people(user: CurrentUser, db: DB) -> list[PersonOut]:
     today = date.today()
     people = (await db.execute(select(Person).where(Person.family_id == user.family_id))).scalars().all()
-    counts = dict(
-        (
-            await db.execute(
-                select(WishItem.person_id, func.count(WishItem.id))
-                .where(WishItem.family_id == user.family_id, WishItem.kind == "wish")
-                .group_by(WishItem.person_id)
-            )
-        ).all()
-    )
-    out = [_person_out(p, today, counts.get(p.id, 0)) for p in people]
+    counts = await _wish_counts(db, WishItem.family_id == user.family_id)
+    out = [_person_out(p, today, counts.get(p.id, {})) for p in people]
     # Soonest birthday first; people without a date last.
     return sorted(out, key=lambda p: (p.days_until is None, p.days_until or 0, p.name.lower()))
 
@@ -152,7 +167,22 @@ async def create_person(payload: PersonIn, user: FamilyManager, db: DB) -> Perso
     db.add(person)
     await db.commit()
     await db.refresh(person)
-    return _person_out(person, date.today(), 0)
+    return _person_out(person, date.today(), {})
+
+
+@router.post("/people/me", response_model=PersonOut)
+async def start_own_list(user: CurrentUser, db: DB) -> PersonOut:
+    """A member without wish lists of their own (no birthday was given) starts them themself –
+    a child too, so nobody waits for an adult before Christmas. An adult adds the birthday later."""
+    person = (
+        await db.execute(select(Person).where(Person.family_id == user.family_id, Person.user_id == user.id).order_by(Person.created_at))
+    ).scalars().first()
+    if person is None:
+        person = Person(family_id=user.family_id, user_id=user.id, name=user.display_name, created_by=user.id)
+        db.add(person)
+        await db.commit()
+        await db.refresh(person)
+    return _person_out(person, date.today(), (await _wish_counts(db, WishItem.person_id == person.id)).get(person.id, {}))
 
 
 @router.patch("/people/{person_id}", response_model=PersonOut)
@@ -164,10 +194,7 @@ async def update_person(person_id: uuid.UUID, payload: PersonIn, user: FamilyMan
         setattr(person, field, value)
     await db.commit()
     await db.refresh(person)
-    count = (
-        await db.execute(select(func.count(WishItem.id)).where(WishItem.person_id == person.id, WishItem.kind == "wish"))
-    ).scalar_one()
-    return _person_out(person, date.today(), count)
+    return _person_out(person, date.today(), (await _wish_counts(db, WishItem.person_id == person.id)).get(person.id, {}))
 
 
 @router.delete("/people/{person_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -188,6 +215,7 @@ def _wish_out(wish: WishItem, person: Person, user: User, names: dict[uuid.UUID,
     return WishOut(
         id=wish.id,
         kind=wish.kind,
+        occasion=wish.occasion,
         title=wish.title,
         url=wish.url,
         note=wish.note,
@@ -205,10 +233,10 @@ def _may_see(wish: WishItem, person: Person, user: User) -> bool:
 
 
 @router.get("/people/{person_id}/wishes", response_model=list[WishOut])
-async def list_wishes(person_id: uuid.UUID, user: CurrentUser, db: DB) -> list[WishOut]:
+async def list_wishes(person_id: uuid.UUID, user: CurrentUser, db: DB, occasion: str = Query("birthday", pattern=OCCASION)) -> list[WishOut]:
     person = await _person(db, user, person_id)
     wishes = (
-        await db.execute(select(WishItem).where(WishItem.person_id == person.id).order_by(WishItem.created_at))
+        await db.execute(select(WishItem).where(WishItem.person_id == person.id, WishItem.occasion == occasion).order_by(WishItem.created_at))
     ).scalars().all()
     names = dict((await db.execute(select(User.id, User.display_name).where(User.family_id == user.family_id))).all())
     return [_wish_out(w, person, user, names) for w in wishes if _may_see(w, person, user)]
@@ -226,6 +254,7 @@ async def add_wish(person_id: uuid.UUID, payload: WishIn, user: CurrentUser, db:
         family_id=user.family_id,
         person_id=person.id,
         kind=payload.kind,
+        occasion=payload.occasion,
         title=payload.title.strip(),
         url=payload.url or None,
         note=payload.note or None,

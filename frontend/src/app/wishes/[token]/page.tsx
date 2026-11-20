@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 type GuestList = {
   name: string;
   family_name: string;
+  occasion: "birthday" | "christmas";
   wishes: { id: string; title: string; url: string | null; note: string | null; reserved: boolean; reserved_by_you: boolean }[];
 };
 
@@ -91,9 +92,9 @@ export default function SharedWishList() {
           <div className="card p-6">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <Gift className="h-5 w-5 text-accent" strokeWidth={2} aria-hidden />
-              {t("share.title", { name: list.name })}
+              {t(list.occasion === "christmas" ? "share.christmasTitle" : "share.title", { name: list.name })}
             </h2>
-            <p className="mt-1 text-sm text-muted">{t("share.intro", { family: list.family_name, name: list.name })}</p>
+            <p className="mt-1 text-sm text-muted">{t(list.occasion === "christmas" ? "share.christmasIntro" : "share.intro", { family: list.family_name, name: list.name })}</p>
             <label className="label mt-4" htmlFor="guest-name">{t("share.yourName")}</label>
             <input id="guest-name" className="input" value={guest} onChange={(e) => setGuest(e.target.value)} placeholder={t("share.yourNamePh")} />
             {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
