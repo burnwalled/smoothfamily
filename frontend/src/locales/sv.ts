@@ -2826,6 +2826,8 @@ const sv: Dictionary = {
   "flows.mediaId": "Eller klistra in vad som ska spelas",
   "flows.mediaType": "Typ",
   "flows.mediaIdHint": "Klistra in en delningslänk från Spotify – den görs om till rätt format (spotify:playlist:…) – eller en radiokanal från Home Assistant.",
+  "flows.mediaNoLibrary": "Den här högtalaren visar inget eget bibliotek just nu, så det här är Home Assistants mediekällor. Ett Spotify-konto går bara att bläddra i medan något spelas på det – starta en låt och försök igen, eller klistra in en delningslänk nedan.",
+  "flows.mediaRetry": "Försök igen",
   "flows.runIn": "Körs i",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (som en automation)",

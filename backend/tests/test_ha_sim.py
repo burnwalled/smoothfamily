@@ -67,3 +67,29 @@ async def test_simulated_home(client):
     assert (await client.get("/api/presence")).json()["members"][0]["state"] == "travel"
     await _settle()
     ha_sim.reset()
+
+
+async def test_a_speaker_that_cannot_be_browsed_says_so(client, monkeypatch):
+    """A speaker without a library of its own (a Spotify account with nothing playing) gets Home
+    Assistant's media sources instead, marked so the picker can say why."""
+    from app.services import homeassistant as ha
+
+    await client.post(
+        "/api/auth/setup",
+        json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"},
+    )
+    await client.post("/api/smarthome/connection/simulated")
+    devices = {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}
+    speaker = devices["media_player.kitchen_sonos"]["id"]
+    assert {i["source"] for i in (await client.get(f"/api/smarthome/media/browse?device_id={speaker}")).json()} == {"speaker"}
+
+    real = ha.ws_call
+
+    async def no_library(base_url, token, message):
+        if message["type"] == "media_player/browse_media":
+            raise ha.HomeAssistantError("Player does not support browsing media")
+        return await real(base_url, token, message)
+
+    monkeypatch.setattr(ha, "ws_call", no_library)
+    items = (await client.get(f"/api/smarthome/media/browse?device_id={speaker}")).json()
+    assert items and {i["source"] for i in items} == {"home_assistant"}

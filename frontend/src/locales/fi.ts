@@ -2822,6 +2822,8 @@ const fi: Dictionary = {
   "flows.mediaId": "Tai liitä soitettava",
   "flows.mediaType": "Tyyppi",
   "flows.mediaIdHint": "Liitä Spotifyn jakolinkki – se muutetaan oikeaan muotoon (spotify:playlist:…) – tai radiokanava Home Assistantista.",
+  "flows.mediaNoLibrary": "Tämä kaiutin ei juuri nyt näytä omaa kirjastoaan, joten nämä ovat Home Assistantin medialähteet. Spotify-tiliä voi selata vain, kun sillä soi jotain – käynnistä kappale ja yritä uudelleen, tai liitä jakolinkki alle.",
+  "flows.mediaRetry": "Yritä uudelleen",
   "flows.runIn": "Ajetaan",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (automaationa)",

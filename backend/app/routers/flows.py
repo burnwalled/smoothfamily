@@ -47,6 +47,8 @@ class MediaItem(BaseModel):
     can_play: bool
     can_expand: bool
     thumbnail: str | None = None
+    # Listed by the speaker itself, or – when it can't be browsed – by Home Assistant's media sources.
+    source: str = "speaker"
 
 
 def _adult(user: User) -> bool:
@@ -273,6 +275,7 @@ async def browse_media(user: CurrentUser, db: DB, device_id: uuid.UUID, content_
         MediaItem(
             title=c.get("title") or "", media_content_id=c.get("media_content_id") or "", media_content_type=c.get("media_content_type") or "",
             can_play=bool(c.get("can_play")), can_expand=bool(c.get("can_expand")), thumbnail=c.get("thumbnail"),
+            source="home_assistant" if in_sources else "speaker",
         )
         for c in (result or {}).get("children") or []
     ]

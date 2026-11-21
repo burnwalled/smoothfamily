@@ -2822,6 +2822,8 @@ const nb: Dictionary = {
   "flows.mediaId": "Eller lim inn hva som skal spilles",
   "flows.mediaType": "Type",
   "flows.mediaIdHint": "Lim inn en delingslenke fra Spotify – den gjøres om til riktig format (spotify:playlist:…) – eller en radiokanal fra Home Assistant.",
+  "flows.mediaNoLibrary": "Denne høyttaleren viser ikke noe eget bibliotek akkurat nå, så dette er Home Assistants mediekilder. En Spotify-konto kan bare blas i mens noe spilles på den – start en låt og prøv igjen, eller lim inn en delingslenke nedenfor.",
+  "flows.mediaRetry": "Prøv igjen",
   "flows.runIn": "Kjøres i",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (som en automasjon)",

@@ -58,7 +58,7 @@ function needsApp(flow: Pick<Flow, "trigger" | "conditions" | "actions">): boole
   return APP_ONLY.triggers.includes(flow.trigger.type) || flow.conditions.some((c) => APP_ONLY.conditions.includes(c.type)) || flow.actions.some((a) => APP_ONLY.actions.includes(a.type));
 }
 
-type MediaItem = { title: string; media_content_id: string; media_content_type: string; can_play: boolean; can_expand: boolean };
+type MediaItem = { title: string; media_content_id: string; media_content_type: string; can_play: boolean; can_expand: boolean; source?: "speaker" | "home_assistant" };
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 // What a device of each kind can be told to do in a flow (with a value for the last ones).
@@ -106,6 +106,7 @@ function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: Medi
   const [path, setPath] = useState<MediaItem[]>([]);
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setItems(null);
@@ -116,7 +117,7 @@ function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: Medi
       .get<MediaItem[]>(`/api/smarthome/media/browse?device_id=${speaker}${query}`)
       .then(setItems)
       .catch((e) => setError(e instanceof Error ? e.message : t("common.error")));
-  }, [speaker, path, t]);
+  }, [speaker, path, attempt, t]);
 
   const [manual, setManual] = useState({ id: "", type: "music" });
 
@@ -132,6 +133,13 @@ function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: Medi
         ))}
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
+      {/* The speaker would not show its own library, so these are Home Assistant's media sources. */}
+      {path.length === 0 && items?.[0]?.source === "home_assistant" && (
+        <p className="mb-1 rounded-md bg-accent-soft px-2 py-1 text-xs">
+          {t("flows.mediaNoLibrary")}{" "}
+          <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setAttempt(attempt + 1)}>{t("flows.mediaRetry")}</button>
+        </p>
+      )}
       {!items && !error && <p className="text-xs text-muted">{t("common.loading")}</p>}
       <ul className="max-h-56 overflow-y-auto">
         {items?.map((item) => (
