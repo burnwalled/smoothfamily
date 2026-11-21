@@ -2821,7 +2821,7 @@ const fi: Dictionary = {
   "offline.notSynced": "Ei vielä lähetetty",
   "flows.mediaId": "Tai liitä soitettava",
   "flows.mediaType": "Tyyppi",
-  "flows.mediaIdHint": "Esim. Spotify-linkin tunnus (spotify:playlist:…) tai radiokanava Home Assistantista.",
+  "flows.mediaIdHint": "Liitä Spotifyn jakolinkki – se muutetaan oikeaan muotoon (spotify:playlist:…) – tai radiokanava Home Assistantista.",
   "flows.runIn": "Ajetaan",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (automaationa)",

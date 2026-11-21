@@ -2821,7 +2821,7 @@ const nb: Dictionary = {
   "offline.notSynced": "Ikke sendt ennå",
   "flows.mediaId": "Eller lim inn hva som skal spilles",
   "flows.mediaType": "Type",
-  "flows.mediaIdHint": "F.eks. id-en fra en Spotify-lenke (spotify:playlist:…) eller en radiokanal fra Home Assistant.",
+  "flows.mediaIdHint": "Lim inn en delingslenke fra Spotify – den gjøres om til riktig format (spotify:playlist:…) – eller en radiokanal fra Home Assistant.",
   "flows.runIn": "Kjøres i",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (som en automasjon)",

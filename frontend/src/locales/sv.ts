@@ -2825,7 +2825,7 @@ const sv: Dictionary = {
   "offline.notSynced": "Inte skickad än",
   "flows.mediaId": "Eller klistra in vad som ska spelas",
   "flows.mediaType": "Typ",
-  "flows.mediaIdHint": "T.ex. id:t från en Spotify-länk (spotify:playlist:…) eller en radiokanal från Home Assistant.",
+  "flows.mediaIdHint": "Klistra in en delningslänk från Spotify – den görs om till rätt format (spotify:playlist:…) – eller en radiokanal från Home Assistant.",
   "flows.runIn": "Körs i",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (som en automation)",

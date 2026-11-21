@@ -58,3 +58,39 @@ test("a simulated home with a flow and presence", async ({ adminPage: page, admi
     await adminApi.delete("/api/smarthome/connection");
   }
 });
+
+// A music step: the speaker's own library is browsed, and a pasted Spotify share link becomes
+// the URI Home Assistant plays.
+test("a music step from the speaker's library or a pasted Spotify link", async ({ adminPage: page, adminApi }) => {
+  await adminApi.post("/api/smarthome/connection/simulated");
+  try {
+    await page.goto("/smarthome");
+    await page.getByRole("tab", { name: "Flows" }).click();
+    await page.getByRole("button", { name: "New flow" }).click();
+    const editor = page.getByLabel("Build a flow");
+    await editor.getByLabel("Name").fill("Morning music");
+    await editor.getByLabel("When", { exact: true }).selectOption("button");
+    await editor.getByLabel("Add a step").selectOption("media");
+    await editor.getByRole("button", { name: "Choose from the speaker" }).click();
+
+    // The speaker's library, one level at a time.
+    await editor.locator("li", { hasText: /^Spotify playlistsOpen$/ }).getByRole("button", { name: "Open" }).click();
+    await expect(editor.getByText("Dinner jazz")).toBeVisible();
+
+    // A share link, as Spotify copies it.
+    const pasted = editor.getByLabel("Or paste what to play");
+    await pasted.fill("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc123");
+    await expect(pasted).toHaveValue("spotify:playlist:37i9dQZF1DXcBWIGoYBM5M");
+    await expect(editor.getByLabel("Kind")).toHaveValue("playlist");
+    await editor.getByRole("button", { name: "Choose", exact: true }).last().click();
+    await editor.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Morning music").first()).toBeVisible();
+
+    const flows = await (await adminApi.get("/api/smarthome/flows")).json();
+    expect(flows[0].actions[0]).toMatchObject({ media_content_id: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", media_content_type: "playlist" });
+  } finally {
+    const flows = await (await adminApi.get("/api/smarthome/flows")).json();
+    for (const flow of flows) await adminApi.delete(`/api/smarthome/flows/${flow.id}`);
+    await adminApi.delete("/api/smarthome/connection");
+  }
+});
