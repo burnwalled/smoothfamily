@@ -20,7 +20,7 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Annotated, Literal, Union
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,6 +126,14 @@ class MediaAction(BaseModel):
     media_content_type: str = Field(min_length=1, max_length=80)
     title: str = Field(default="", max_length=200)
     volume: int | None = Field(default=None, ge=0, le=100)
+    # A music account (Spotify) is not a speaker: it plays on one of its own devices, named here.
+    output: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _one_account(self):
+        if self.output and len(self.device_ids) != 1:
+            raise ValueError("An account plays on one of its own devices, not together with other speakers")
+        return self
 
 
 class NotifyAction(BaseModel):
@@ -266,6 +274,19 @@ async def _do(db: AsyncSession, flow: SmarthomeFlow, owner: User, action, base_u
     elif isinstance(action, MediaAction):
         speakers = [await _device(db, owner, d) for d in action.device_ids]
         leader = speakers[0].entity_id
+        if action.output:
+            # The account is told where to play first; it takes the volume only once it plays.
+            await ha.call_service(base_url, token, "media_player", "select_source", leader, {"source": action.output})
+            await ha.call_service(
+                base_url, token, "media_player", "play_media", leader,
+                {"media_content_id": action.media_content_id, "media_content_type": action.media_content_type},
+            )
+            if action.volume is not None:
+                try:
+                    await ha.call_service(base_url, token, "media_player", "volume_set", leader, {"volume_level": action.volume / 100})
+                except Exception:
+                    log.info("Flow %s: %s took no volume", flow.id, leader)
+            return
         if len(speakers) > 1:
             await ha.call_service(base_url, token, "media_player", "join", leader, {"group_members": [s.entity_id for s in speakers[1:]]})
         if action.volume is not None:

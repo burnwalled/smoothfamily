@@ -93,3 +93,34 @@ async def test_a_speaker_that_cannot_be_browsed_says_so(client, monkeypatch):
     monkeypatch.setattr(ha, "ws_call", no_library)
     items = (await client.get(f"/api/smarthome/media/browse?device_id={speaker}")).json()
     assert items and {i["source"] for i in items} == {"home_assistant"}
+
+
+async def test_a_music_account_plays_on_one_of_its_own_devices(client):
+    """A Spotify account among the speakers: the step says which of its devices to play on, and it
+    is not grouped with other speakers."""
+    await client.post(
+        "/api/auth/setup",
+        json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"},
+    )
+    await client.post("/api/smarthome/connection/simulated")
+    devices = {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}
+    account, kitchen = devices["media_player.spotify_anna"]["id"], devices["media_player.kitchen_sonos"]["id"]
+
+    accounts = (await client.get("/api/smarthome/media/accounts")).json()
+    assert [a["device_id"] for a in accounts] == [account] and "Living room TV" in accounts[0]["outputs"]
+    # Nothing is playing, so the account has no library to show – Home Assistant's sources instead.
+    assert {i["source"] for i in (await client.get(f"/api/smarthome/media/browse?device_id={account}")).json()} == {"home_assistant"}
+
+    step = {"type": "media", "media_content_id": "spotify:playlist:sim-jazz", "media_content_type": "playlist", "title": "Dinner jazz", "volume": 30, "output": "Living room TV"}
+    both = await client.post("/api/smarthome/flows", json={"name": "Both", "trigger": {"type": "button"}, "actions": [step | {"device_ids": [account, kitchen]}]})
+    assert both.status_code == 422
+
+    created = (await client.post("/api/smarthome/flows", json={"name": "Jazz", "trigger": {"type": "button"}, "actions": [step | {"device_ids": [account]}]})).json()
+    assert created["actions"][0]["output"] == "Living room TV"
+    await client.post(f"/api/smarthome/flows/{created['id']}/run")
+    state = await ha_state(client, "media_player.spotify_anna")
+    assert state["state"] == "playing" and state["attributes"]["media_title"] == "Dinner jazz"
+
+
+async def ha_state(client, entity_id):
+    return {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}[entity_id]

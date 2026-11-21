@@ -1054,6 +1054,7 @@ const texts: Record<string, TopicText> = {
       {
         "tips": [
           "Strømprisen: et kort på I dag med dagens timer, og flyter som kjøres de billigste timene.",
+          "Musikk i en flyt: lim inn en delingslenke fra Spotify. En Spotify-konto spiller på en av sine egne enheter – velg hvilken under Spill på.",
           "Ingen Home Assistant? Prøv alt med det simulerte hjemmet."
         ]
       }

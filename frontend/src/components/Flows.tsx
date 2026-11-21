@@ -26,7 +26,7 @@ type Condition =
   | { type: "cheapest_hours"; hours: number };
 type Action =
   | { type: "device"; device_id: string; action: string; value: number | null }
-  | { type: "media"; device_ids: string[]; media_content_id: string; media_content_type: string; title: string; volume: number | null }
+  | { type: "media"; device_ids: string[]; media_content_id: string; media_content_type: string; title: string; volume: number | null; output?: string | null }
   | { type: "notify"; to: "me" | "family"; text: string }
   | { type: "wait"; minutes: number };
 
@@ -58,6 +58,8 @@ function needsApp(flow: Pick<Flow, "trigger" | "conditions" | "actions">): boole
   return APP_ONLY.triggers.includes(flow.trigger.type) || flow.conditions.some((c) => APP_ONLY.conditions.includes(c.type)) || flow.actions.some((a) => APP_ONLY.actions.includes(a.type));
 }
 
+// A music account among the speakers (Spotify): it plays on one of its own devices.
+type MediaAccount = { device_id: string; outputs: string[]; current: string | null };
 type MediaItem = { title: string; media_content_id: string; media_content_type: string; can_play: boolean; can_expand: boolean; source?: "speaker" | "home_assistant" };
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -190,6 +192,15 @@ function Editor({ draft, devices, members, haAvailable, onSaved, onCancel }: { d
   const [picking, setPicking] = useState<number | null>(null);
   const [error, setError] = useState("");
   const speakers = devices.filter((d) => d.domain === "media_player");
+  const accounts = useApi<MediaAccount[]>("/api/smarthome/media/accounts").data ?? NONE;
+  const accountOf = (id: string | undefined) => accounts.find((x) => x.device_id === id);
+  // An account plays alone, on one of its own devices; speakers can be several, grouped.
+  function toggleSpeaker(a: Extract<Action, { type: "media" }>, id: string): Action {
+    if (a.device_ids.includes(id)) return { ...a, device_ids: a.device_ids.filter((x) => x !== id), output: null };
+    const account = accountOf(id);
+    if (account) return { ...a, device_ids: [id], output: account.current ?? account.outputs[0] ?? null };
+    return { ...a, device_ids: [...a.device_ids.filter((x) => !accountOf(x)), id], output: null };
+  }
   const first = devices[0]?.id ?? "";
   const adult = me.role === "admin" || me.role === "adult";
 
@@ -400,12 +411,30 @@ function Editor({ draft, devices, members, haAvailable, onSaved, onCancel }: { d
                               type="button"
                               aria-pressed={a.device_ids.includes(s.id)}
                               className={`rounded-full border px-2.5 py-1 text-xs ${a.device_ids.includes(s.id) ? "border-primary-700 bg-accent-soft font-semibold" : "border-edge"}`}
-                              onClick={() => setAction(i, { ...a, device_ids: a.device_ids.includes(s.id) ? a.device_ids.filter((x) => x !== s.id) : [...a.device_ids, s.id] })}
+                              onClick={() => setAction(i, toggleSpeaker(a, s.id))}
                             >
                               {s.display_name}
                             </button>
                           ))}
                         </div>
+                        {(() => {
+                          const account = accountOf(a.device_ids[0]);
+                          if (!account) return null;
+                          // The saved device stays choosable even when it is switched off right now.
+                          const outputs = [...new Set([...account.outputs, ...(a.output ? [a.output] : [])])];
+                          return (
+                            <div className="space-y-1">
+                              <label className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                                {t("flows.playOn")}
+                                <select className="input w-auto text-xs" value={a.output ?? ""} onChange={(e) => setAction(i, { ...a, output: e.target.value || null })}>
+                                  <option value="">{t("flows.playOnActive")}</option>
+                                  {outputs.map((o) => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              </label>
+                              <p className="text-[11px] text-muted">{t("flows.accountHint")}</p>
+                            </div>
+                          );
+                        })()}
                         <div className="flex flex-wrap items-center gap-2">
                           <Music className="h-4 w-4 text-accent" aria-hidden />
                           <span className={a.title ? "font-semibold" : "text-muted"}>{a.title || t("flows.noMedia")}</span>
@@ -420,6 +449,7 @@ function Editor({ draft, devices, members, haAvailable, onSaved, onCancel }: { d
                         </div>
                         {picking === i && a.device_ids[0] && (
                           <MediaPicker
+                            key={a.device_ids[0]}
                             speaker={a.device_ids[0]}
                             onPick={(item) => {
                               setAction(i, { ...a, media_content_id: item.media_content_id, media_content_type: item.media_content_type, title: item.title });
@@ -505,7 +535,7 @@ function useSummary(devices: SmarthomeDeviceState[], members: Member[]) {
     const does = flow.actions
       .map((a) =>
         a.type === "device" ? `${t(`flows.do.${a.action}` as TranslationKey)} ${device(a.device_id)}${a.value !== null ? ` ${a.value}` : ""}`
-        : a.type === "media" ? t("flows.summary.media", { what: a.title || "?", where: a.device_ids.map(device).join(", ") })
+        : a.type === "media" ? t("flows.summary.media", { what: a.title || "?", where: a.output ? `${a.output} (${a.device_ids.map(device).join(", ")})` : a.device_ids.map(device).join(", ") })
         : a.type === "notify" ? t("flows.summary.notify", { text: a.text })
         : t("flows.summary.wait", { n: a.minutes })
       )

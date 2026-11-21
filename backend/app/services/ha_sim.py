@@ -35,6 +35,8 @@ _HOME: dict[str, tuple[str, str, dict]] = {
     "scene.good_night": ("Good night", "scening", {}),
     "media_player.kitchen_sonos": ("Kitchen Sonos", "idle", {"volume_level": 0.25}),
     "media_player.bathroom_sonos": ("Bathroom Sonos", "idle", {"volume_level": 0.2}),
+    # A music account, as Home Assistant's Spotify integration shows it: it plays on one of its own devices.
+    "media_player.spotify_anna": ("Spotify Anna", "idle", {"source_list": ["Kitchen Sonos", "Living room TV", "Anna's phone"]}),
     **{f"person.{p}": (p.title(), "home", {}) for p in PEOPLE},
     **{f"sensor.home_{p}_direction_of_travel": (f"{p.title()} direction of travel", "stationary", {}) for p in PEOPLE},
     # Health (3.4.0): steps and sleep from each person's phone, a scale and a watch.
@@ -95,7 +97,7 @@ DEMO_DEVICES = [
     ("light.kitchen", True), ("light.living_room", True), ("light.hall", True), ("light.kids_room", True),
     ("switch.coffee_machine", False), ("cover.living_room_blinds", True), ("climate.living_room", False),
     ("vacuum.robot", False), ("scene.movie_night", True), ("scene.good_night", True),
-    ("media_player.kitchen_sonos", True), ("media_player.bathroom_sonos", True),
+    ("media_player.kitchen_sonos", True), ("media_player.bathroom_sonos", True), ("media_player.spotify_anna", False),
 ]
 
 _homes: dict[str, dict[str, dict]] = {}
@@ -292,6 +294,8 @@ def _apply(home: dict, domain: str, service: str, entity_id: str, data: dict, ch
     elif domain == "media_player":
         if service == "volume_set":
             _set(home, entity_id, None, changed, volume_level=data["volume_level"])
+        elif service == "select_source":
+            _set(home, entity_id, None, changed, source=data["source"])
         elif service == "join":
             for member in data.get("group_members", []):
                 if member in home:
@@ -360,7 +364,16 @@ async def _after_change(family_id: uuid.UUID, changed: list[tuple[str, str, str]
         log.exception("Simulated Home Assistant: could not pass on a change")
 
 
-async def browse(message: dict) -> dict:
+async def ws(base_url: str, message: dict) -> dict:
+    """A request over the websocket: which integration an entity comes from, or a media library."""
+    from app.services.homeassistant import HomeAssistantError
+
+    entity = message.get("entity_id") or ""
+    if message.get("type") == "config/entity_registry/get":
+        return {"entity_id": entity, "platform": "spotify" if entity.startswith("media_player.spotify_") else "sonos"}
+    # Like the real integration: the account shows its library only while something plays.
+    if message.get("type") == "media_player/browse_media" and entity.startswith("media_player.spotify_") and _home(base_url)[entity]["state"] != "playing":
+        raise HomeAssistantError("Player does not support browsing media")
     key = message.get("media_content_id") or ""
     if message.get("type") == "media_source/browse_media":
         key = {"": "radio", "media-source://radio_browser": "radio"}.get(key, key)

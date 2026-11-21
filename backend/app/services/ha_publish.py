@@ -104,11 +104,19 @@ async def to_automation(db: AsyncSession, flow: SmarthomeFlow) -> dict:
             actions.append({"action": f"{device.domain}.{service}", "target": {"entity_id": device.entity_id}, "data": data})
         elif a["type"] == "media":
             speakers = [await _entity(db, d) for d in a["device_ids"]]
+            play = {"action": "media_player.play_media", "target": {"entity_id": speakers[0]}, "data": {"media_content_id": a["media_content_id"], "media_content_type": a["media_content_type"]}}
+            if a.get("output"):
+                # A music account: where to play first, the volume only once it plays.
+                actions.append({"action": "media_player.select_source", "target": {"entity_id": speakers[0]}, "data": {"source": a["output"]}})
+                actions.append(play)
+                if a.get("volume") is not None:
+                    actions.append({"action": "media_player.volume_set", "target": {"entity_id": speakers[0]}, "data": {"volume_level": a["volume"] / 100}, "continue_on_error": True})
+                continue
             if len(speakers) > 1:
                 actions.append({"action": "media_player.join", "target": {"entity_id": speakers[0]}, "data": {"group_members": speakers[1:]}})
             if a.get("volume") is not None:
                 actions.append({"action": "media_player.volume_set", "target": {"entity_id": speakers}, "data": {"volume_level": a["volume"] / 100}})
-            actions.append({"action": "media_player.play_media", "target": {"entity_id": speakers[0]}, "data": {"media_content_id": a["media_content_id"], "media_content_type": a["media_content_type"]}})
+            actions.append(play)
         elif a["type"] == "wait":
             actions.append({"delay": {"minutes": a["minutes"]}})
     return {

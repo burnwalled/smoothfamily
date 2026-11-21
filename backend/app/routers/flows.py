@@ -51,6 +51,13 @@ class MediaItem(BaseModel):
     source: str = "speaker"
 
 
+class MediaAccount(BaseModel):
+    """A music account among the speakers (Spotify): it plays on one of its own devices."""
+    device_id: uuid.UUID
+    outputs: list[str]
+    current: str | None = None
+
+
 def _adult(user: User) -> bool:
     return user.role in {"admin", "adult"}
 
@@ -238,6 +245,35 @@ async def run_now(flow_id: uuid.UUID, user: CurrentUser, db: DB) -> FlowOut:
     await engine.start(db, flow, check=False)
     await db.refresh(flow)
     return await _out(db, user, flow)
+
+
+# Integrations whose media player is an account that plays on its own devices, not a speaker.
+ACCOUNT_PLATFORMS = {"spotify"}
+
+
+@router.get("/media/accounts", response_model=list[MediaAccount])
+async def media_accounts(user: CurrentUser, db: DB) -> list[MediaAccount]:
+    """The music accounts among the speakers the member may use, with the devices each can play on
+    right now. Empty when Home Assistant can't be asked (through the gateway) – then they are
+    treated as plain speakers, as before."""
+    conn = await smarthome_conn.primary(db, user.family_id)
+    if conn is None:
+        return []
+    token = decrypt_token(conn.token_encrypted)
+    players = (await db.execute(select(ExposedDevice).where(ExposedDevice.connection_id == conn.id, ExposedDevice.domain == "media_player"))).scalars().all()
+    out: list[MediaAccount] = []
+    for device in players:
+        if not engine._allowed(device, user):
+            continue
+        try:
+            entry = await ha.ws_call(conn.base_url, token, {"type": "config/entity_registry/get", "entity_id": device.entity_id})
+            if (entry or {}).get("platform") not in ACCOUNT_PLATFORMS:
+                continue
+            attributes = (await ha.get_state(conn.base_url, token, device.entity_id)).get("attributes") or {}
+        except Exception:
+            continue
+        out.append(MediaAccount(device_id=device.id, outputs=[str(s) for s in attributes.get("source_list") or []], current=attributes.get("source")))
+    return out
 
 
 @router.get("/media/browse", response_model=list[MediaItem])
