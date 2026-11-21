@@ -1604,6 +1604,22 @@ class GuestVisit(Base):
     user_agent: Mapped[str] = mapped_column(String(200), default="")
 
 
+class MediaLibraryPage(Base):
+    """One level of a speaker's library as it was last shown, kept for when the speaker can't be
+    asked: a Spotify account only shows its library while something is playing."""
+
+    __tablename__ = "media_library_pages"
+    __table_args__ = (UniqueConstraint("device_id", "content_key", name="uq_media_library_device_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("families.id"), index=True)
+    device_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("exposed_devices.id", ondelete="CASCADE"), index=True)
+    # "" for the top level, otherwise "<content type>|<content id>".
+    content_key: Mapped[str] = mapped_column(String(700))
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class SmarthomeFlow(Base):
     """A member's own automation (#44): When → If → Do, run by Smooth Family through the family's
     Home Assistant connection. Only devices the owner may control can be used."""

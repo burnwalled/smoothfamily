@@ -2838,6 +2838,7 @@ const en = {
   "flows.mediaIdHint": "Paste a share link from Spotify – it is turned into the right format (spotify:playlist:…) – or a radio station from Home Assistant.",
   "flows.mediaNoLibrary": "This speaker is not showing a library of its own right now, so these are Home Assistant's media sources. A Spotify account can only be browsed while something is playing on it – start a song and try again, or paste a share link below.",
   "flows.mediaRetry": "Try again",
+  "flows.mediaSaved": "This is the library as it was on {when} – it can't be fetched right now. It is updated the next time something plays on the account.",
   "flows.playOn": "Play on",
   "flows.playOnActive": "Where it is playing already",
   "flows.accountHint": "A Spotify account plays on one of its own devices, so it can't be combined with other speakers. Only devices that are on right now are listed.",
