@@ -70,8 +70,8 @@ async def test_simulated_home(client):
 
 
 async def test_a_speaker_that_cannot_be_browsed_says_so(client, monkeypatch):
-    """A speaker without a library of its own (a Spotify account with nothing playing) gets Home
-    Assistant's media sources instead, marked so the picker can say why."""
+    """A speaker that can't be asked shows its library as it was last shown – or, when it never
+    was, Home Assistant's media sources. Both are marked, so the picker can say why."""
     from app.services import homeassistant as ha
 
     await client.post(
@@ -92,6 +92,10 @@ async def test_a_speaker_that_cannot_be_browsed_says_so(client, monkeypatch):
 
     monkeypatch.setattr(ha, "ws_call", no_library)
     items = (await client.get(f"/api/smarthome/media/browse?device_id={speaker}")).json()
+    assert items[0]["title"] == "Sonos favourites" and {i["source"] for i in items} == {"saved"}
+    # A speaker that was never browsed has nothing remembered.
+    other = devices["media_player.bathroom_sonos"]["id"]
+    items = (await client.get(f"/api/smarthome/media/browse?device_id={other}")).json()
     assert items and {i["source"] for i in items} == {"home_assistant"}
 
 
@@ -124,3 +128,32 @@ async def test_a_music_account_plays_on_one_of_its_own_devices(client):
 
 async def ha_state(client, entity_id):
     return {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}[entity_id]
+
+
+async def test_an_accounts_library_is_remembered_from_when_it_played(client):
+    """A Spotify account shows its library only while something plays. It is fetched then, and
+    shown from memory afterwards."""
+    await client.post(
+        "/api/auth/setup",
+        json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"},
+    )
+    await client.post("/api/smarthome/connection/simulated")
+    devices = {d["entity_id"]: d for d in (await client.get("/api/smarthome/my-devices")).json()}
+    account = devices["media_player.spotify_anna"]["id"]
+    browse = f"/api/smarthome/media/browse?device_id={account}"
+    assert {i["source"] for i in (await client.get(browse)).json()} == {"home_assistant"}
+
+    # It starts playing: the library is fetched, folders and what is in them.
+    step = {"type": "media", "device_ids": [account], "media_content_id": "spotify:playlist:sim-jazz", "media_content_type": "playlist", "title": "Dinner jazz", "volume": None, "output": "Living room TV"}
+    flow = (await client.post("/api/smarthome/flows", json={"name": "Jazz", "trigger": {"type": "button"}, "actions": [step]})).json()
+    await client.post(f"/api/smarthome/flows/{flow['id']}/run")
+    await _settle()
+    assert {i["source"] for i in (await client.get(browse)).json()} == {"speaker"}
+
+    # Idle again: the same library, from memory, one level down too.
+    await client.post(f"/api/smarthome/devices/{account}/action", json={"action": "pause"})
+    top = (await client.get(browse)).json()
+    assert {i["source"] for i in top} == {"saved"} and top[0]["saved_at"]
+    assert "Spotify playlists" in [i["title"] for i in top]
+    playlists = (await client.get(f"{browse}&content_id=spotify:playlists&content_type=spotify")).json()
+    assert [i["title"] for i in playlists][:2] == ["Morning coffee", "Dinner jazz"] and playlists[0]["source"] == "saved"

@@ -360,6 +360,10 @@ async def _after_change(family_id: uuid.UUID, changed: list[tuple[str, str, str]
         await publish_family(family_id, ["smarthome", "presence"])
         for entity_id, old, new in changed:
             await _flows_on_change(family_id, entity_id, old, new)
+            if new == "playing" and entity_id.startswith("media_player."):
+                from app.services import media_library
+
+                await media_library.refresh_on_playing(family_id, entity_id)
     except Exception:
         log.exception("Simulated Home Assistant: could not pass on a change")
 

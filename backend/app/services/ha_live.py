@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models import ExposedDevice, Family, SmarthomeConnection, User
+from app.services import media_library
 from app.services.crypto import decrypt_token
 from app.services.events import publish_family
 
@@ -83,6 +84,9 @@ async def _listen(family_id: uuid.UUID, base_url: str, token: str, stop: asyncio
                         if old != new:
                             # Flows that start on this change run beside the listener.
                             asyncio.create_task(_flows_on_change(family_id, entity, old, new))
+                            if new == "playing" and entity.startswith("media_player."):
+                                # A music account can be browsed only while it plays: fetch its library now.
+                                asyncio.create_task(media_library.refresh_on_playing(family_id, entity))
             if loop.time() > next_entities_check:
                 entities = await _entities(family_id)
                 next_entities_check = loop.time() + REFRESH_SECONDS

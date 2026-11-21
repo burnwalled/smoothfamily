@@ -60,7 +60,7 @@ function needsApp(flow: Pick<Flow, "trigger" | "conditions" | "actions">): boole
 
 // A music account among the speakers (Spotify): it plays on one of its own devices.
 type MediaAccount = { device_id: string; outputs: string[]; current: string | null };
-type MediaItem = { title: string; media_content_id: string; media_content_type: string; can_play: boolean; can_expand: boolean; source?: "speaker" | "home_assistant" };
+type MediaItem = { title: string; media_content_id: string; media_content_type: string; can_play: boolean; can_expand: boolean; source?: "speaker" | "saved" | "home_assistant"; saved_at?: string | null };
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 // What a device of each kind can be told to do in a flow (with a value for the last ones).
@@ -104,7 +104,7 @@ function DayPicker({ days, onChange }: { days: number[]; onChange: (days: number
 }
 
 function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: MediaItem) => void }) {
-  const { t } = useI18n();
+  const { t, dateLocale } = useI18n();
   const [path, setPath] = useState<MediaItem[]>([]);
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [error, setError] = useState("");
@@ -135,6 +135,13 @@ function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: Medi
         ))}
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
+      {/* The speaker can't be asked right now: this is its library as it was last shown. */}
+      {items?.[0]?.source === "saved" && (
+        <p className="mb-1 rounded-md bg-accent-soft px-2 py-1 text-xs">
+          {t("flows.mediaSaved", { when: items[0].saved_at ? new Date(items[0].saved_at).toLocaleDateString(dateLocale, { day: "numeric", month: "long" }) : "" })}{" "}
+          <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setAttempt(attempt + 1)}>{t("flows.mediaRetry")}</button>
+        </p>
+      )}
       {/* The speaker would not show its own library, so these are Home Assistant's media sources. */}
       {path.length === 0 && items?.[0]?.source === "home_assistant" && (
         <p className="mb-1 rounded-md bg-accent-soft px-2 py-1 text-xs">

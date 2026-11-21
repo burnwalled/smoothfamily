@@ -258,7 +258,8 @@ async def ws_call(base_url: str, token: str, message: dict) -> Any:
 
     from app.services.ha_live import websocket_url
 
-    async with websockets.connect(websocket_url(base_url), open_timeout=HA_TIMEOUT) as ws:
+    # A big library (hundreds of playlists with pictures) is more than the default 1 MiB.
+    async with websockets.connect(websocket_url(base_url), open_timeout=HA_TIMEOUT, max_size=16 * 1024 * 1024) as ws:
         await ws.recv()  # auth_required
         await ws.send(json.dumps({"type": "auth", "access_token": token}))
         if json.loads(await ws.recv()).get("type") != "auth_ok":

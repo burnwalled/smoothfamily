@@ -11,6 +11,7 @@ from app.services import smarthome_conn
 from app.models import ExposedDevice, SmarthomeConnection, SmarthomeFlow, User
 from app.services import flows as engine
 from app.services import ha_publish
+from app.services import media_library
 from app.services import homeassistant as ha
 from app.services.crypto import decrypt_token
 
@@ -47,8 +48,10 @@ class MediaItem(BaseModel):
     can_play: bool
     can_expand: bool
     thumbnail: str | None = None
-    # Listed by the speaker itself, or – when it can't be browsed – by Home Assistant's media sources.
+    # Listed by the speaker itself (speaker), remembered from the last time it was (saved), or –
+    # when there is neither – by Home Assistant's media sources (home_assistant).
     source: str = "speaker"
+    saved_at: str | None = None
 
 
 class MediaAccount(BaseModel):
@@ -247,10 +250,6 @@ async def run_now(flow_id: uuid.UUID, user: CurrentUser, db: DB) -> FlowOut:
     return await _out(db, user, flow)
 
 
-# Integrations whose media player is an account that plays on its own devices, not a speaker.
-ACCOUNT_PLATFORMS = {"spotify"}
-
-
 @router.get("/media/accounts", response_model=list[MediaAccount])
 async def media_accounts(user: CurrentUser, db: DB) -> list[MediaAccount]:
     """The music accounts among the speakers the member may use, with the devices each can play on
@@ -266,8 +265,7 @@ async def media_accounts(user: CurrentUser, db: DB) -> list[MediaAccount]:
         if not engine._allowed(device, user):
             continue
         try:
-            entry = await ha.ws_call(conn.base_url, token, {"type": "config/entity_registry/get", "entity_id": device.entity_id})
-            if (entry or {}).get("platform") not in ACCOUNT_PLATFORMS:
+            if not await media_library.is_account(conn.base_url, token, device.entity_id):
                 continue
             attributes = (await ha.get_state(conn.base_url, token, device.entity_id)).get("attributes") or {}
         except Exception:
@@ -289,13 +287,20 @@ async def browse_media(user: CurrentUser, db: DB, device_id: uuid.UUID, content_
     # Inside Home Assistant's own media sources (radio, my media …) – or the speaker can't browse.
     in_sources = bool(content_id and content_id.startswith("media-source://"))
     result = None
+    key = media_library.page_key(content_id, content_type)
     if not in_sources:
         message = {"type": "media_player/browse_media", "entity_id": device.entity_id}
         if content_id and content_type:
             message |= {"media_content_id": content_id, "media_content_type": content_type}
         try:
             result = await ha.ws_call(conn.base_url, token, message)
+            # Remembered for when the speaker can't be asked.
+            await media_library.remember(db, device, key, media_library.children(result))
+            await db.commit()
         except Exception as exc:
+            page = await media_library.saved(db, device, key)
+            if page is not None:
+                return [MediaItem(**item, source="saved", saved_at=page.fetched_at.isoformat()) for item in page.items]
             if content_id:
                 raise HTTPException(status_code=502, detail=f"Home Assistant: {exc}")
             # Some speakers (e.g. through a bridge) can't browse: offer Home Assistant's media
