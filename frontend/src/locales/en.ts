@@ -2835,7 +2835,7 @@ const en = {
   "offline.notSynced": "Not sent yet",
   "flows.mediaId": "Or paste what to play",
   "flows.mediaType": "Kind",
-  "flows.mediaIdHint": "E.g. a Spotify link's id (spotify:playlist:…) or a radio station from Home Assistant.",
+  "flows.mediaIdHint": "Paste a share link from Spotify – it is turned into the right format (spotify:playlist:…) – or a radio station from Home Assistant.",
   "flows.runIn": "Runs in",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (as an automation)",

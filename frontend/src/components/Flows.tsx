@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, ChevronRight, Music, Pause, Play, Plus, Star, Trash
 import { api, Member, SmarthomeDeviceState } from "@/lib/api";
 import { TranslationKey, useI18n } from "@/lib/i18n";
 import { NONE, useApi } from "@/lib/query";
+import { fromSpotifyLink } from "@/lib/spotifyLink";
 import { useMe } from "@/components/Shell";
 
 type Trigger =
@@ -149,12 +150,16 @@ function MediaPicker({ speaker, onPick }: { speaker: string; onPick: (item: Medi
         <input
           className="input min-w-40 flex-1 text-xs"
           value={manual.id}
-          onChange={(e) => setManual({ ...manual, id: e.target.value })}
-          placeholder="spotify:playlist:… / media-source://…"
+          onChange={(e) => {
+            // A pasted share link becomes the URI, and the type follows what it links to.
+            const spotify = fromSpotifyLink(e.target.value);
+            setManual(spotify ?? { ...manual, id: e.target.value });
+          }}
+          placeholder="https://open.spotify.com/playlist/… / media-source://…"
           aria-label={t("flows.mediaId")}
         />
         <select className="input w-auto text-xs" value={manual.type} onChange={(e) => setManual({ ...manual, type: e.target.value })} aria-label={t("flows.mediaType")}>
-          {["music", "playlist", "album", "url"].map((k) => <option key={k} value={k}>{k}</option>)}
+          {[...new Set(["music", "playlist", "album", "url", manual.type])].map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
         <button
           type="button"

@@ -2821,7 +2821,7 @@ const da: Dictionary = {
   "offline.notSynced": "Ikke sendt endnu",
   "flows.mediaId": "Eller indsæt, hvad der skal spilles",
   "flows.mediaType": "Type",
-  "flows.mediaIdHint": "F.eks. id'et fra et Spotify-link (spotify:playlist:…) eller en radiokanal fra Home Assistant.",
+  "flows.mediaIdHint": "Indsæt et delingslink fra Spotify – det laves om til det rigtige format (spotify:playlist:…) – eller en radiokanal fra Home Assistant.",
   "flows.runIn": "Køres i",
   "flows.runInApp": "Smooth Family",
   "flows.runInHa": "Home Assistant (som en automatisering)",
