@@ -66,7 +66,7 @@ async def test_invitation_demo_then_own_family(client):
     assert (await guest.get("/api/lists")).json()[0]["name"] == "Inköpslista"
     assert len((await guest.get("/api/shop/purchases")).json()) == 1
     devices = (await guest.get("/api/smarthome/my-devices")).json()
-    assert len(devices) == 12 and next(d for d in devices if d["entity_id"] == "light.kitchen")["display_name"] == "Köket tak"
+    assert len(devices) == 13 and next(d for d in devices if d["entity_id"] == "light.kitchen")["display_name"] == "Köket tak"
     assert (await guest.get("/api/smarthome/connection")).json()["simulated"] is True
     flows = (await guest.get("/api/smarthome/flows")).json()
     assert [f["name"] for f in flows] == ["Morgonmusik", "Filmkväll", "Allt av när vi går", "Nattlampa"]

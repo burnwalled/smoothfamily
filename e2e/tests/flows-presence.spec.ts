@@ -59,8 +59,8 @@ test("a simulated home with a flow and presence", async ({ adminPage: page, admi
   }
 });
 
-// A music step: the speaker's own library is browsed, and a pasted Spotify share link becomes
-// the URI Home Assistant plays.
+// A music step: the speaker's own library is browsed, a Spotify account plays on one of its own
+// devices, and a pasted Spotify share link becomes the URI Home Assistant plays.
 test("a music step from the speaker's library or a pasted Spotify link", async ({ adminPage: page, adminApi }) => {
   await adminApi.post("/api/smarthome/connection/simulated");
   try {
@@ -77,6 +77,13 @@ test("a music step from the speaker's library or a pasted Spotify link", async (
     await editor.locator("li", { hasText: /^Spotify playlistsOpen$/ }).getByRole("button", { name: "Open" }).click();
     await expect(editor.getByText("Dinner jazz")).toBeVisible();
 
+    // A Spotify account takes the speaker's place: it plays alone, on a device of its own, and
+    // has no library to show while nothing is playing.
+    await editor.getByRole("button", { name: "Spotify Anna" }).click();
+    await expect(editor.getByRole("button", { name: "Kitchen Sonos" })).toHaveAttribute("aria-pressed", "false");
+    await editor.getByLabel("Play on").selectOption("Living room TV");
+    await expect(editor.getByText(/not showing a library of its own/)).toBeVisible();
+
     // A share link, as Spotify copies it.
     const pasted = editor.getByLabel("Or paste what to play");
     await pasted.fill("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc123");
@@ -87,7 +94,8 @@ test("a music step from the speaker's library or a pasted Spotify link", async (
     await expect(page.getByText("Morning music").first()).toBeVisible();
 
     const flows = await (await adminApi.get("/api/smarthome/flows")).json();
-    expect(flows[0].actions[0]).toMatchObject({ media_content_id: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", media_content_type: "playlist" });
+    expect(flows[0].actions[0]).toMatchObject({ media_content_id: "spotify:playlist:37i9dQZF1DXcBWIGoYBM5M", media_content_type: "playlist", output: "Living room TV" });
+    expect(flows[0].actions[0].device_ids).toHaveLength(1);
   } finally {
     const flows = await (await adminApi.get("/api/smarthome/flows")).json();
     for (const flow of flows) await adminApi.delete(`/api/smarthome/flows/${flow.id}`);

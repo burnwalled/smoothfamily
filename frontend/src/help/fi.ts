@@ -1054,6 +1054,7 @@ const texts: Record<string, TopicText> = {
       {
         "tips": [
           "Sähkön hinta: kortti Tänään-sivulla päivän tunneista ja työnkulut, jotka toimivat halvimpina tunteina.",
+          "Musiikki työnkulussa: liitä Spotifyn jakolinkki. Spotify-tili soittaa jollakin omista laitteistaan – valitse laite kohdasta Toista laitteella.",
           "Ei Home Assistantia? Kokeile kaikkea simuloidulla kodilla."
         ]
       }

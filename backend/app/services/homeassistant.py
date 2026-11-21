@@ -249,7 +249,7 @@ async def delete_automation(base_url: str, token: str, automation_id: str) -> No
 async def ws_call(base_url: str, token: str, message: dict) -> Any:
     """One request over Home Assistant's WebSocket API (e.g. browsing a speaker's media)."""
     if ha_sim.is_sim(base_url):
-        return await ha_sim.browse(message)
+        return await ha_sim.ws(base_url, message)
     if gateway.is_gateway(base_url):
         raise HomeAssistantError("Not available through the gateway")
     import json
