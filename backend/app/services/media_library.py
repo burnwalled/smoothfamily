@@ -21,7 +21,8 @@ from app.services.crypto import decrypt_token
 log = logging.getLogger(__name__)
 
 # Integrations whose media player is an account that plays on its own devices, not a speaker.
-ACCOUNT_PLATFORMS = {"spotify"}
+# SpotifyPlus (HACS) is the Spotify integration that also finds the Connect devices on the home network.
+ACCOUNT_PLATFORMS = {"spotify", "spotifyplus"}
 # How often an account's library is fetched again when it starts playing.
 REFRESH_AFTER = timedelta(hours=1)
 # One level never holds more than this, and no more folders than this are opened in one go.
