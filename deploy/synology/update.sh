@@ -19,6 +19,13 @@
 # replaces whatever is there rather than writing through it. Everything this script keeps for itself
 # – the versions in use (pins), the database as it was – is in DATA_DIR/updates-root, which only root
 # reads. The versions in use are written as docker-compose.override.yml, which compose reads by itself.
+#
+# Nor is the app's word taken for what may be put in (3.5.1). Smooth Family's own build comes with its
+# signed manifest, and the signature is checked here – in a container of its own, made from the image
+# that runs now, with no network and nothing to write to: the two images must be the ones the manifest
+# names, and the build newer than any put in before. To take only stable releases whatever the app
+# asks for, set UPDATE_CHANNEL_LOCK=stable in .env. The other services stay in their major version
+# and never go back to an older one.
 set -u
 cd "$(dirname "$0")"
 # Synology installs docker/docker-compose in /usr/local/bin, which the task's PATH may lack.
@@ -35,7 +42,7 @@ U="${UPDATES_DIR:-$DATA_DIR/updates}"
 R="${UPDATES_ROOT_DIR:-$DATA_DIR/updates-root}"
 OVERRIDE="${OVERRIDE_FILE:-docker-compose.override.yml}"
 # What this script can do, for the app to say when it is older than the app expects.
-SCRIPT=2
+SCRIPT=3
 mkdir -p "$U" "$R"
 chown root:root "$R" 2> /dev/null
 chmod 700 "$R"
@@ -72,6 +79,7 @@ fi
 rm -f "$U/pins" "$U/pins.tmp" "$U/pins.before" "$U/state.json.tmp" "$U/db-before-update.dump"
 
 # --- 1. What runs now: each service's image and its version variable (nothing else of its env) ---
+: > "$R/running"
 {
 	printf '{"checked_at": "%s", "script": %s, "services": {' "$(now)" "$SCRIPT"
 	first=1
@@ -87,6 +95,9 @@ rm -f "$U/pins" "$U/pins.tmp" "$U/pins.before" "$U/state.json.tmp" "$U/db-before
 		esac
 		env=$(echo "$vars" | grep -E '^(PG_VERSION|REDIS_VERSION|CADDY_VERSION|__SEARXNG_VERSION)=[A-Za-z0-9.+_-]+$' |
 			sed 's/.*/"&"/' | paste -sd, -)
+		# Kept for this script too: a planned version is compared with it.
+		ver=$(echo "$vars" | grep -E '^(PG_VERSION|REDIS_VERSION|CADDY_VERSION|__SEARXNG_VERSION)=v?[0-9]' | head -1 | cut -d= -f2 | sed 's/^v//; s/[^0-9.].*//; s/\.$//')
+		[ -z "$ver" ] || echo "$svc=$ver" >> "$R/running"
 		[ $first -eq 1 ] || printf ','
 		first=0
 		printf '"%s": {"image": "%s", "env": [%s]}' "$svc" "$image" "$env"
@@ -101,6 +112,7 @@ head -c 4096 "$U/plan.env" > "$R/plan.env"
 RUN_ID=$(sed -n 's/^RUN_ID=\([0-9a-f]\{12\}\)$/\1/p' "$R/plan.env" | head -1)
 NOT_BEFORE=$(sed -n 's/^NOT_BEFORE=\([0-9]\{1,12\}\)$/\1/p' "$R/plan.env" | head -1)
 PULL=$(sed -n 's/^PULL="\(.*\)"$/\1/p' "$R/plan.env" | head -1)
+CHANNEL=$(sed -n -e 's/^CHANNEL=\(stable\)$/\1/p' -e 's/^CHANNEL=\(beta\)$/\1/p' "$R/plan.env" | head -1)
 rm -f "$R/plan.env"
 if [ -z "$RUN_ID" ] || [ -z "$NOT_BEFORE" ] || [ -z "$PULL" ]; then
 	echo "plan.env is not valid – ignored"
@@ -115,7 +127,8 @@ result() {
 	printf 'RUN_ID=%s\nOK=%s\nAT=%s\nMESSAGE=%s\n' "$RUN_ID" "$1" "$(now)" "$2" > "$R/result.env"
 	publish result.env
 	echo "$RUN_ID" > "$R/done"
-	rm -f "$U/plan.env" "$U/plan.override.yml"
+	rm -f "$U/plan.env" "$U/plan.override.yml" "$U/manifest.json" "$U/manifest.sig"
+	rm -rf "$R/verify"
 	echo "$2"
 }
 
@@ -159,6 +172,83 @@ for image in $PULL; do
 		exit 1
 	fi
 done
+
+# The numbers a version starts with: 16.11-alpine → 16.11, v2.10.2 → 2.10.2.
+numbers() { echo "$1" | sed -n 's/^v\{0,1\}\([0-9][0-9.]*\).*/\1/p' | sed 's/\.$//'; }
+# Is version $1 older than $2? Number by number.
+older() {
+	a="$1." b="$2."
+	while [ -n "$a" ] || [ -n "$b" ]; do
+		x=${a%%.*} y=${b%%.*}
+		a=${a#*.} b=${b#*.}
+		[ "${x:-0}" -lt "${y:-0}" ] && return 0
+		[ "${x:-0}" -gt "${y:-0}" ] && return 1
+	done
+	return 1
+}
+
+# The other services: the same major version as now (SearXNG's versions are dates), and never older.
+APP=""
+for image in $PULL; do
+	svc=$(service_of "$image")
+	case "$svc" in
+		backend | frontend) APP="$APP $image" ; continue ;;
+	esac
+	have=$(sed -n "s/^$svc=//p" "$R/running" | head -1)
+	[ -n "$have" ] || continue
+	new=$(numbers "${image#*:}")
+	if [ -z "$new" ] || older "$new" "$have" || { [ "$svc" != searxng ] && [ "${new%%.*}" != "${have%%.*}" ]; }; then
+		result 0 "The plan has an older version, or another major version, of $svc – nothing was changed"
+		exit 1
+	fi
+done
+
+# Smooth Family itself: only what the signed manifest names, checked here and not by the app.
+APP_INSTALLED=""
+if [ -n "$APP" ]; then
+	refuse() {
+		result 0 "Smooth Family's own update was not put in: $1"
+		exit 1
+	}
+	[ -n "$CHANNEL" ] || refuse "the plan came without its signed manifest (the app is older than this script)"
+	LOCK=$(sed -n 's/^UPDATE_CHANNEL_LOCK=\([a-z]\{1,12\}\)$/\1/p' .env | head -1)
+	[ -z "$LOCK" ] || [ "$LOCK" = "$CHANNEL" ] || refuse "this server only takes the $LOCK channel (UPDATE_CHANNEL_LOCK in .env)"
+	{ plain "$U/manifest.json" && plain "$U/manifest.sig"; } || refuse "the plan came without its signed manifest"
+	V="$R/verify"
+	rm -rf "$V"
+	mkdir -p "$V"
+	head -c 65536 "$U/manifest.json" > "$V/manifest.json"
+	head -c 65536 "$U/manifest.sig" > "$V/manifest.sig"
+	chmod 755 "$V"
+	chmod 644 "$V/manifest.json" "$V/manifest.sig"
+	FLOOR=$(sed -n 's/^\([0-9][0-9A-Za-z.-]\{0,40\}:[0-9]\{1,12\}\)$/\1/p' "$R/app-installed" 2> /dev/null | head -1)
+	# The image that runs now, by its id: what is in it can't have been changed by the running app.
+	id=$($COMPOSE ps -q backend 2> /dev/null | head -1)
+	img=""
+	[ -z "$id" ] || img=$(docker inspect --format '{{.Image}}' "$id" 2> /dev/null)
+	[ -n "$img" ] || refuse "the backend isn't running, so the signature can't be checked"
+	if ! out=$(docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+		--user 65534:65534 --memory 256m --entrypoint python -v "$V:/verify:ro" "$img" \
+		-m app.verify_manifest /verify/manifest.json /verify/manifest.sig "$CHANNEL" "${FLOOR:--}" 2> "$R/verify.err"); then
+		# Why, in the checker's own words (it is this server's own image) – letters and digits only.
+		why=$(head -c 300 "$R/verify.err" | tail -n 1 | tr -cd 'A-Za-z0-9 .,_-' | cut -c1-140)
+		rm -f "$R/verify.err"
+		refuse "the signature didn't check out (${why:-no reason given})"
+	fi
+	rm -f "$R/verify.err"
+	M_BACKEND=$(echo "$out" | sed -n 's/^backend=\(ghcr\.io\/burnwalled\/smoothfamily-backend@sha256:[0-9a-f]\{64\}\)$/\1/p' | head -1)
+	M_FRONTEND=$(echo "$out" | sed -n 's/^frontend=\(ghcr\.io\/burnwalled\/smoothfamily-frontend@sha256:[0-9a-f]\{64\}\)$/\1/p' | head -1)
+	M_VERSION=$(echo "$out" | sed -n 's/^version=\([0-9][0-9A-Za-z.-]\{0,40\}\)$/\1/p' | head -1)
+	M_BUILD=$(echo "$out" | sed -n 's/^build=\([0-9]\{1,12\}\)$/\1/p' | head -1)
+	if [ -z "$M_BACKEND" ] || [ -z "$M_FRONTEND" ] || [ -z "$M_VERSION" ] || [ -z "$M_BUILD" ]; then
+		refuse "the signature check gave no answer"
+	fi
+	if [ "$(printf '%s\n' $APP | sort)" != "$(printf '%s\n%s\n' "$M_BACKEND" "$M_FRONTEND" | sort)" ]; then
+		refuse "the plan's images are not the ones the signed manifest names"
+	fi
+	APP_INSTALLED="$M_VERSION:$M_BUILD"
+fi
+
 for image in $PULL; do
 	svc=$(service_of "$image")
 	if ! docker pull -q "$image" > /dev/null; then
@@ -241,4 +331,6 @@ until healthy; do
 	sleep 3
 done
 [ -z "$DB_BEFORE" ] || rm -f "$DB_BEFORE"
+# The highest build put in: nothing older is taken after it, however well signed.
+[ -z "$APP_INSTALLED" ] || echo "$APP_INSTALLED" > "$R/app-installed"
 result 1 "Updated: $PULL"

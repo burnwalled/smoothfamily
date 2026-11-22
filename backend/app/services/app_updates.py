@@ -107,6 +107,12 @@ async def fetch(channel: str) -> tuple[bytes, bytes]:
 
 async def available(channel: str, get=None) -> dict | None:
     """The build to update to on this channel, or None when this server runs it (or something newer)."""
+    found = await available_signed(channel, get)
+    return found[0] if found else None
+
+
+async def available_signed(channel: str, get=None) -> tuple[dict, str, str] | None:
+    """The same, with the manifest and its signature as they came – update.sh checks them itself."""
     if channel not in ("stable", "beta"):
         return None
     if channel == "beta" and not BETA_PUBLIC_KEY:
@@ -119,4 +125,8 @@ async def available(channel: str, get=None) -> dict | None:
     me = running()
     if m["commit"] == me["commit"] or version_key(m["version"]) < version_key(me["version"]):
         return None
-    return {"version": m["version"], "build": m.get("build"), "commit": m["commit"], "built_at": m.get("built_at"), **m["images"]}
+    try:
+        signed = manifest.decode("utf-8"), sig.decode("utf-8")
+    except UnicodeDecodeError:
+        raise AppUpdateError("The manifest can't be read")
+    return {"version": m["version"], "build": m.get("build"), "commit": m["commit"], "built_at": m.get("built_at"), **m["images"]}, *signed
