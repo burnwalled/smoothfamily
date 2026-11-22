@@ -14,7 +14,7 @@
 # a time and image names are read from plan.env, each checked against a strict pattern, and only
 # these four services' official images, and Smooth Family's own two by digest, can be chosen.
 #
-# DATA_DIR/updates is the app's folder, so here it is only a letterbox (3.6.0): plan.env is taken in
+# DATA_DIR/updates is the app's folder, so here it is only a letterbox (3.5.1): plan.env is taken in
 # once, and only as a plain file; state.json and result.env are made elsewhere and moved in, which
 # replaces whatever is there rather than writing through it. Everything this script keeps for itself
 # – the versions in use (pins), the database as it was – is in DATA_DIR/updates-root, which only root
@@ -60,7 +60,7 @@ publish() {
 # A pins line the override may carry: one of the stack's services, with its own official image.
 PIN_RE='^(db=postgres|redis=redis|caddy=caddy|searxng=searxng/searxng):[A-Za-z0-9._-]{1,64}$|^(backend|frontend)=ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64}$'
 
-# Before 3.6.0 the pins were in the app's folder: the lines that fit are taken over once, and what
+# Before 3.5.1 the pins were in the app's folder: the lines that fit are taken over once, and what
 # this script used to leave there is cleared away.
 if [ ! -f "$R/pins" ]; then
 	if plain "$U/pins"; then

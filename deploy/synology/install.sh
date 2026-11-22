@@ -133,7 +133,7 @@ mkdir -p "$DATA_DIR/updates"
 chown -hR 10001:10001 "$DATA_DIR/media" "$DATA_DIR/backup" "$DATA_DIR/updates"
 # Redis runs as its own user (999) since 3.0.0.
 chown -hR 999:999 "$DATA_DIR/redis"
-# What update.sh keeps for itself (3.6.0) – the versions in use, the database as it was – is root's
+# What update.sh keeps for itself (3.5.1) – the versions in use, the database as it was – is root's
 # alone: the updates folder is the app's, and root writes nothing of its own there.
 mkdir -p "$DATA_DIR/updates-root"
 chown -R root:root "$DATA_DIR/updates-root"
@@ -175,7 +175,7 @@ fi
 # A release installed by hand replaces Smooth Family's own images pinned by an earlier update from
 # the app (update.sh); the other services keep theirs.
 PINS="$DATA_DIR/updates-root/pins"
-# Pins from before 3.6.0 were in the app's folder: taken over once, and only as a plain file.
+# Pins from before 3.5.1 were in the app's folder: taken over once, and only as a plain file.
 OLD_PINS="$DATA_DIR/updates/pins"
 if [ ! -f "$PINS" ] && [ -f "$OLD_PINS" ] && [ ! -L "$OLD_PINS" ]; then
 	head -c 4096 "$OLD_PINS" > "$PINS"

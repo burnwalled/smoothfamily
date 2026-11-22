@@ -8,7 +8,7 @@ touches Docker – the two talk through files in the updates folder (DATA_DIR/up
     result.env        written by update.sh: how the run went
 
 The folder is the app's, so update.sh – which runs as root – only takes plan.env from it and moves its
-two files in; what it keeps for itself is in a folder of its own (3.6.0).
+two files in; what it keeps for itself is in a folder of its own (3.5.1).
 
 Only patches and minor versions within the same major (Postgres 16.x, Redis 7.x, Caddy 2.x); a new
 major version of Postgres needs a dump and restore and is never done here. A version must have been
@@ -39,7 +39,7 @@ STATUS = "updates_status"
 # Sunday 04:00, asked first; Smooth Family itself only when a channel is chosen (an outgoing call).
 DEFAULTS = {"mode": "approve", "day": 6, "hour": 4, "channel": "off"}
 MIN_AGE = timedelta(days=7)
-# What this version expects of the server's update.sh (it says its own in state.json; before 3.6.0
+# What this version expects of the server's update.sh (it says its own in state.json; before 3.5.1
 # it said nothing). 2: it keeps its own files where the app can't reach them.
 SCRIPT = 2
 CHECK_EVERY = timedelta(hours=6)
