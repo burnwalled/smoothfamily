@@ -129,9 +129,15 @@ DATA_DIR=$(grep '^DATA_DIR=' .env | cut -d= -f2-)
 mkdir -p "$DATA_DIR/pgdata" "$DATA_DIR/media" "$DATA_DIR/redis" "$DATA_DIR/caddy/data" "$DATA_DIR/caddy/config" "$DATA_DIR/backup"
 # Since 2.9.0 the backend runs as user 10001, not root: it owns the media and the backups.
 mkdir -p "$DATA_DIR/updates"
-chown -R 10001:10001 "$DATA_DIR/media" "$DATA_DIR/backup" "$DATA_DIR/updates"
+# -h: a link the app has made there changes hands itself, not the file it points at.
+chown -hR 10001:10001 "$DATA_DIR/media" "$DATA_DIR/backup" "$DATA_DIR/updates"
 # Redis runs as its own user (999) since 3.0.0.
-chown -R 999:999 "$DATA_DIR/redis"
+chown -hR 999:999 "$DATA_DIR/redis"
+# What update.sh keeps for itself (3.6.0) – the versions in use, the database as it was – is root's
+# alone: the updates folder is the app's, and root writes nothing of its own there.
+mkdir -p "$DATA_DIR/updates-root"
+chown -R root:root "$DATA_DIR/updates-root"
+chmod 700 "$DATA_DIR/updates-root"
 
 # Nobody else on the NAS reads the data or changes the scripts that run as root (2.9.0). A shared
 # folder's Synology ACL lets every user read and the administrators group – where package users
@@ -168,11 +174,17 @@ fi
 
 # A release installed by hand replaces Smooth Family's own images pinned by an earlier update from
 # the app (update.sh); the other services keep theirs.
-PINS="$DATA_DIR/updates/pins"
+PINS="$DATA_DIR/updates-root/pins"
+# Pins from before 3.6.0 were in the app's folder: taken over once, and only as a plain file.
+OLD_PINS="$DATA_DIR/updates/pins"
+if [ ! -f "$PINS" ] && [ -f "$OLD_PINS" ] && [ ! -L "$OLD_PINS" ]; then
+	head -c 4096 "$OLD_PINS" > "$PINS"
+fi
+rm -f "$OLD_PINS" "$OLD_PINS.tmp" "$OLD_PINS.before"
 if [ -f "$PINS" ] && grep -Eq '^(backend|frontend)=' "$PINS"; then
 	grep -Ev '^(backend|frontend)=' "$PINS" > "$PINS.tmp" || true
 	mv "$PINS.tmp" "$PINS"
-	# Only lines that fit (the folder is the app's): the same rule as update.sh.
+	# Only lines that fit: the same rule as update.sh.
 	grep -E '^(db=postgres|redis=redis|caddy=caddy|searxng=searxng/searxng):[A-Za-z0-9._-]{1,64}$|^(backend|frontend)=ghcr\.io/burnwalled/smoothfamily-(backend|frontend)@sha256:[0-9a-f]{64}$' "$PINS" > "$PINS.tmp" 2> /dev/null || true
 	mv "$PINS.tmp" "$PINS"
 	{

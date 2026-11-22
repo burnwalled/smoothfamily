@@ -1739,6 +1739,7 @@ const fi: Dictionary = {
   "updates.why": "Tietokanta (PostgreSQL), Redis, verkkopalvelin (Caddy) ja hakukone (SearXNG) saavat tietoturvakorjauksia Smooth Familyn julkaisujen välillä. Vain saman pääversion korjaukset asennetaan, ja vain versiot, jotka ovat olleet saatavilla viikon. Ensin tehdään varmuuskopio, ja jos uudet versiot eivät käynnisty, vanhat palautetaan itsestään.",
   "updates.appVersion": "Smooth Family {version}",
   "updates.notConnected": "Palvelimen update.sh ei ole vielä ajettu. Ajasta se tunneittain DSM:ssä (Ohjauspaneeli → Tehtävien ajoitus, käyttäjä root): sh /volumeN/docker/smooth-family/update.sh – katso asennusohje.",
+  "updates.scriptOutdated": "Palvelimen update.sh on vanhempi kuin tämä versio. Päivitykset toimivat edelleen, mutta uusi on turvallisempi: korvaa palvelimen kansion update.sh uusimman julkaisun versiolla – katso asennusohje, Updates of the server's software.",
   "updates.software": "Ohjelmisto",
   "updates.running": "Käytössä",
   "updates.newer": "Uudempi",

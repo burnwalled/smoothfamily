@@ -166,6 +166,18 @@ versions in use are kept in `docker-compose.override.yml` next to the compose
 file (compose reads it by itself). The app never gets access to Docker: it only
 writes which versions it wants, and `update.sh` checks every value.
 
+`update.sh` runs as root, and the `updates` folder it shares with the app belongs
+to the app. So it treats that folder as a letterbox: it takes the plan from it
+once, as a plain file, and moves its own two files in. What it keeps for itself –
+the versions in use, the database as it was before an update – is in
+`data/updates-root`, which only root reads (3.5.1).
+
+`update.sh` itself is not updated by the app: it is a file on the NAS. When a
+release changes it, Server settings → Updates says that the server's script is
+older. Replace it with the new one (from the release's files, or
+`deploy/synology/update.sh` in the repository) – nothing else needs to be done,
+and `.env` and `data/` are kept.
+
 ## 5. Upgrading
 
 With a channel chosen under Server settings → Updates, the server does it itself.

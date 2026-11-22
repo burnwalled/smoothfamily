@@ -19,6 +19,7 @@ type Overview = {
   // Why no build of Smooth Family could be found on the chosen channel.
   app_error: string | null;
   connected: boolean;
+  script_outdated?: boolean;
   state_at: string | null;
   checked_at: string | null;
   running: Record<string, string>;
@@ -80,6 +81,12 @@ export default function ServerUpdates() {
         <p className="text-sm text-muted">{t("updates.why")}</p>
         {view.app_version && <p className="mt-2 text-sm">{t("updates.appVersion", { version: view.app_version })}</p>}
 
+        {view.connected && view.script_outdated && (
+          <p className="mt-3 flex items-start gap-2 rounded bg-amber-50 p-3 text-sm text-amber-900">
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            {t("updates.scriptOutdated")}
+          </p>
+        )}
         {!view.connected ? (
           <p className="mt-3 flex items-start gap-2 rounded bg-amber-50 p-3 text-sm text-amber-900">
             <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
