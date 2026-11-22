@@ -3,8 +3,10 @@ import { test, expect, unique, KID } from "../fixtures";
 // #53: an adult takes the drive and the family packs from a list that every practice shares.
 test("who drives and the packing list on an event", async ({ adminPage: page, adminApi }) => {
   const title = unique("Football practice");
+  // Noon in UTC: the same day here and in the browser (Europe/Stockholm). At 23:00 it was already
+  // Monday there on a Sunday night – next week, which the calendar doesn't show.
   const start = new Date();
-  start.setHours(23, 0, 0, 0);
+  start.setUTCHours(12, 0, 0, 0);
   const end = new Date(start.getTime() + 30 * 60 * 1000);
   const event = await (await adminApi.post("/api/calendar/family-events", { data: { title, start: start.toISOString(), end: end.toISOString() } })).json();
   try {
