@@ -1060,6 +1060,50 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "music": {
+    "title": "Musik og Spotify i flows",
+    "summary": "Afspil musik på hjemmets højttalere fra et flow – og hvordan Spotify forbindes, så det fungerer godt.",
+    "blocks": [
+      {
+        "p": "Trinnet Afspil musik i et flow starter en playliste, et album eller en radiokanal på en højttaler – et musikvækkeur på et børneværelse, eller køkkenradioen når nogen kommer hjem. Vælg højttaler, og vælg derefter fra dens bibliotek eller indsæt et delingslink fra Spotify."
+      },
+      {
+        "h": "To måder at forbinde Spotify på"
+      },
+      {
+        "p": "Home Assistants egen Spotify-integration fungerer, med begrænsninger: biblioteket kan kun gennemses, mens noget afspilles på kontoen, og kun de enheder, Spotify selv rapporterer, kan vælges – Sonos-højttalere mangler som regel. Smooth Family husker biblioteket fra sidst, der blev afspillet, og et indsat delingslink fungerer altid."
+      },
+      {
+        "p": "SpotifyPlus, en integration til Home Assistant, som installeres via HACS, er den, vi anbefaler: biblioteket kan gennemses når som helst, og den finder selv hjemmets Spotify Connect-enheder – højttalere, tv og Chromecast."
+      },
+      {
+        "h": "Sæt SpotifyPlus op"
+      },
+      {
+        "steps": [
+          "På developer.spotify.com, logget ind med Spotify-kontoen: opret en app med redirect-URI https://my.home-assistant.io/redirect/oauth, og kopiér dens Client ID og Client secret.",
+          "I Home Assistant: HACS → søg efter SpotifyPlus → Download, og genstart derefter Home Assistant.",
+          "Indstillinger → Enheder og tjenester → Tilføj integration → SpotifyPlus. Udfyld Client ID og Client secret, log ind på Spotify og godkend.",
+          "I Smooth Family: Familieindstillinger → Forbindelser → Smart hjem, og tilføj SpotifyPlus-afspilleren blandt enhederne.",
+          "I et flow: tilføj trinnet Afspil musik, vælg SpotifyPlus-afspilleren, vælg fra biblioteket, og vælg højttaler under Afspil på."
+        ]
+      },
+      {
+        "h": "Flere i familien"
+      },
+      {
+        "p": "En Spotify-konto afspiller én ting ad gangen. Til to musikvækkeure på samme tid skal hver have sin egen konto i SpotifyPlus: opret en app på developer.spotify.com med den konto, læg dens Client ID og secret ind under Application credentials i Home Assistant, og vælg Tilføj tjeneste på SpotifyPlus – logget ind på Spotify som den person. Hver konto bliver sin egen afspiller; tilføj den i Smooth Family, og brug den i den persons flows."
+      },
+      {
+        "tips": [
+          "Under Afspil på vises kun enheder, der er tændt lige nu. Den, du har gemt, forbliver valgt, også når den er slukket.",
+          "En Spotify-konto kan ikke kombineres med andre højttalere i samme trin – den afspiller på en af sine egne enheder.",
+          "Sonos-højttalere kan kræve et ekstra trin i SpotifyPlus – se dens egen vejledning, hvis de mangler under Afspil på.",
+          "At indsætte fungerer uden alt dette: et delingslink fra Spotify laves om til det rigtige format af sig selv."
+        ]
+      }
+    ]
+  },
   "homeassistant": {
     "title": "Forbind Home Assistant",
     "summary": "Hjemmets Home Assistant direkte – og andre hjem via gatewayen.",

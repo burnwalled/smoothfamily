@@ -1060,6 +1060,50 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "music": {
+    "title": "Musiikki ja Spotify työnkuluissa",
+    "summary": "Soita musiikkia kodin kaiuttimista työnkulusta – ja miten Spotify yhdistetään niin, että se toimii hyvin.",
+    "blocks": [
+      {
+        "p": "Työnkulun vaihe Soita musiikkia käynnistää soittolistan, albumin tai radiokanavan kaiuttimessa – musiikkiherätyksen lastenhuoneessa tai keittiön radion, kun joku tulee kotiin. Valitse kaiutin ja valitse sitten sen kirjastosta tai liitä jakolinkki Spotifysta."
+      },
+      {
+        "h": "Kaksi tapaa yhdistää Spotify"
+      },
+      {
+        "p": "Home Assistantin oma Spotify-integraatio toimii, mutta rajoituksin: kirjastoa voi selata vain, kun tilillä soi jotain, ja valita voi vain ne laitteet, jotka Spotify itse ilmoittaa – Sonos-kaiuttimet puuttuvat yleensä. Smooth Family muistaa kirjaston siltä kerralta, kun viimeksi soi, ja liitetty jakolinkki toimii aina."
+      },
+      {
+        "p": "SpotifyPlus, HACSin kautta asennettava Home Assistant -integraatio, on se, jota suosittelemme: kirjastoa voi selata milloin tahansa, ja se löytää itse kodin Spotify Connect -laitteet – kaiuttimet, televisiot ja Chromecastin."
+      },
+      {
+        "h": "Ota SpotifyPlus käyttöön"
+      },
+      {
+        "steps": [
+          "Osoitteessa developer.spotify.com, Spotify-tilillä kirjautuneena: luo sovellus, jonka redirect URI on https://my.home-assistant.io/redirect/oauth, ja kopioi sen Client ID ja Client secret.",
+          "Home Assistantissa: HACS → hae SpotifyPlus → Lataa, ja käynnistä sitten Home Assistant uudelleen.",
+          "Asetukset → Laitteet ja palvelut → Lisää integraatio → SpotifyPlus. Anna Client ID ja Client secret, kirjaudu Spotifyhin ja hyväksy.",
+          "Smooth Familyssa: Perheen asetukset → Yhteydet → Älykoti, ja lisää SpotifyPlus-soitin laitteiden joukkoon.",
+          "Työnkulussa: lisää vaihe Soita musiikkia, valitse SpotifyPlus-soitin, valitse kirjastosta ja valitse kaiutin kohdasta Toista laitteella."
+        ]
+      },
+      {
+        "h": "Useampi perheenjäsen"
+      },
+      {
+        "p": "Spotify-tili soittaa yhtä asiaa kerrallaan. Kahta samanaikaista musiikkiherätystä varten kumpikin tarvitsee oman tilinsä SpotifyPlusiin: luo sovellus osoitteessa developer.spotify.com sillä tilillä, lisää sen Client ID ja secret Home Assistantin kohtaan Application credentials ja valitse SpotifyPlusissa Lisää palvelu – kirjautuneena Spotifyhin kyseisenä henkilönä. Jokaisesta tilistä tulee oma soittimensa; lisää se Smooth Familyyn ja käytä sitä kyseisen henkilön työnkuluissa."
+      },
+      {
+        "tips": [
+          "Kohdassa Toista laitteella näkyvät vain laitteet, jotka ovat päällä juuri nyt. Tallentamasi laite pysyy valittuna, vaikka se olisi pois päältä.",
+          "Spotify-tiliä ei voi yhdistää muihin kaiuttimiin samassa vaiheessa – se soittaa yhdellä omista laitteistaan.",
+          "Sonos-kaiuttimet voivat vaatia lisävaiheen SpotifyPlusissa – katso sen omaa ohjetta, jos ne puuttuvat kohdasta Toista laitteella.",
+          "Liittäminen toimii ilman tätä kaikkea: Spotifyn jakolinkki muuttuu oikeaan muotoon itsestään."
+        ]
+      }
+    ]
+  },
   "homeassistant": {
     "title": "Home Assistantin yhdistäminen",
     "summary": "Kodin Home Assistant suoraan – ja muut kodit yhdyskäytävän kautta.",
