@@ -97,3 +97,12 @@ def test_the_next_window_is_in_the_servers_time():
     when = updates.next_window({"day": 6, "hour": 4}, NOW)
     assert when.astimezone(updates.ZoneInfo("Europe/Stockholm")).strftime("%a %H:%M") == "Sun 04:00"
     assert when > NOW
+
+
+def test_an_older_update_script_is_noticed():
+    """update.sh is a file on the server, copied in by hand: it says which one it is (3.5.1)."""
+    assert updates.script_outdated(None) is False  # it hasn't run at all – said another way
+    assert updates.script_outdated({"services": {}}) is True
+    assert updates.script_outdated({"script": 1}) is True
+    assert updates.script_outdated({"script": "x"}) is True
+    assert updates.script_outdated({"script": updates.SCRIPT}) is False

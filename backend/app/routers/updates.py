@@ -58,6 +58,7 @@ async def _overview(db) -> dict:
         "app_error": status.get("app_error"),
         # update.sh has run (it writes the state); without it nothing can be updated.
         "connected": bool(status.get("seen")),
+        "script_outdated": updates.script_outdated(updates.read_state()),
         "state_at": status.get("state_at"),
         "checked_at": status.get("checked_at"),
         "running": status.get("running") or {},

@@ -1753,6 +1753,7 @@ const en = {
   "updates.why": "The database (PostgreSQL), Redis, the web server (Caddy) and the search engine (SearXNG) get security fixes between Smooth Family's releases. Only fixes within the same major version are put in, and only versions that have been out for a week. A backup is made first, and if the new versions don't come up the old ones are put back by themselves.",
   "updates.appVersion": "Smooth Family {version}",
   "updates.notConnected": "The server's update.sh hasn't run yet. Schedule it every hour in DSM (Control Panel → Task Scheduler, user root): sh /volumeN/docker/smooth-family/update.sh – see the install guide.",
+  "updates.scriptOutdated": "The server's update.sh is older than this version. Updates still work, but the new one is safer: replace update.sh in the server's folder with the one from the latest release – see the install guide, Updates of the server's software.",
   "updates.software": "Software",
   "updates.running": "Running",
   "updates.newer": "Newer",

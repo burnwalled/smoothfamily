@@ -1739,6 +1739,7 @@ const nb: Dictionary = {
   "updates.why": "Databasen (PostgreSQL), Redis, webserveren (Caddy) og søkemotoren (SearXNG) får sikkerhetsrettinger mellom Smooth Familys utgivelser. Bare rettinger innen samme hovedversjon legges inn, og bare versjoner som har vært ute i en uke. En sikkerhetskopi tas først, og kommer ikke de nye versjonene opp, settes de gamle tilbake av seg selv.",
   "updates.appVersion": "Smooth Family {version}",
   "updates.notConnected": "Serverens update.sh har ikke kjørt ennå. Planlegg den hver time i DSM (Kontrollpanel → Oppgaveplanlegger, bruker root): sh /volumeN/docker/smooth-family/update.sh – se installasjonsveiledningen.",
+  "updates.scriptOutdated": "Serverens update.sh er eldre enn denne versjonen. Oppdateringer fungerer fortsatt, men den nye er sikrere: bytt ut update.sh i serverens mappe med den fra den nyeste utgivelsen – se installasjonsveiledningen, Updates of the server's software.",
   "updates.software": "Programvare",
   "updates.running": "Kjører nå",
   "updates.newer": "Nyere",
