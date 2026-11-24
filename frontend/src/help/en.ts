@@ -1060,6 +1060,50 @@ const texts: Record<string, TopicText> = {
       }
     ]
   },
+  "music": {
+    "title": "Music and Spotify in flows",
+    "summary": "Play music on the home's speakers from a flow – and how to connect Spotify so it works well.",
+    "blocks": [
+      {
+        "p": "A flow's Play music step starts a playlist, an album or a radio station on a speaker – a music alarm in a child's room, or the kitchen radio when someone comes home. Choose the speaker, then choose from its library or paste a share link from Spotify."
+      },
+      {
+        "h": "Two ways to connect Spotify"
+      },
+      {
+        "p": "Home Assistant's own Spotify integration works, with limits: the library can only be browsed while something is playing on the account, and only the devices Spotify itself reports can be chosen – Sonos speakers are usually missing. Smooth Family remembers the library from the last time it played, and a pasted share link always works."
+      },
+      {
+        "p": "SpotifyPlus, an integration for Home Assistant installed through HACS, is the one we recommend: its library can be browsed at any time, and it finds the home's Spotify Connect devices itself – speakers, TVs and Chromecast."
+      },
+      {
+        "h": "Set up SpotifyPlus"
+      },
+      {
+        "steps": [
+          "At developer.spotify.com, signed in with the Spotify account: create an app with the redirect URI https://my.home-assistant.io/redirect/oauth, and copy its Client ID and Client secret.",
+          "In Home Assistant: HACS → search for SpotifyPlus → Download, then restart Home Assistant.",
+          "Settings → Devices & services → Add integration → SpotifyPlus. Enter the Client ID and Client secret, sign in to Spotify and approve.",
+          "In Smooth Family: Family settings → Connections → Smart home, and add the SpotifyPlus player among the devices.",
+          "In a flow: add the step Play music, choose the SpotifyPlus player, choose from the library, and choose the speaker under Play on."
+        ]
+      },
+      {
+        "h": "Several in the family"
+      },
+      {
+        "p": "A Spotify account plays one thing at a time. For two music alarms at the same time, each one needs their own account in SpotifyPlus: create an app at developer.spotify.com with that account, add its Client ID and secret under Application credentials in Home Assistant, and choose Add service on SpotifyPlus – signed in to Spotify as that person. Each account becomes its own player; add it in Smooth Family and use it in that person's flows."
+      },
+      {
+        "tips": [
+          "Under Play on, only devices that are on right now are listed. The one you saved stays chosen even when it is off.",
+          "A Spotify account can't be combined with other speakers in the same step – it plays on one of its own devices.",
+          "Sonos speakers can need an extra step in SpotifyPlus – see its own guide if they are missing under Play on.",
+          "Pasting works without all of this: a share link from Spotify becomes the right format by itself."
+        ]
+      }
+    ]
+  },
   "homeassistant": {
     "title": "Connecting Home Assistant",
     "summary": "The home's Home Assistant directly – and other homes through the gateway.",

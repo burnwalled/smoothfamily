@@ -121,6 +121,8 @@ first account becomes the administrator. Keep a copy of `.env` somewhere safe.
 - **Backups**: [docs/BACKUP.md](docs/BACKUP.md) – set them up on day one.
 - **Storage**: [docs/STORAGE.md](docs/STORAGE.md) – where the data lives, and moving it.
 - **Local AI**: [docs/LOCAL_AI.md](docs/LOCAL_AI.md).
+- **Music and Spotify**: [docs/MUSIC.md](docs/MUSIC.md) – speakers in flows, and connecting Spotify
+  through Home Assistant.
 
 To update: `git pull && docker compose up -d --build` – the database is migrated on start. With
 the production stack ([docs/DEPLOY_SYNOLOGY.md](docs/DEPLOY_SYNOLOGY.md) – it runs on any Linux

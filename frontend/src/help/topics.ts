@@ -2,7 +2,7 @@
 // on that app's page leads here) and what it relates to. The texts are in help/<locale>.ts.
 import {
   Baby, BookOpen, Bot, CalendarDays, Car, CircleUserRound, CloudOff, CookingPot, DatabaseBackup, FileText, Gift, HeartHandshake,
-  House, KeyRound, Lightbulb, ListChecks, Luggage, LucideIcon, MessageCircle, Monitor, Network, PawPrint, PiggyBank, Pill, Plug,
+  House, KeyRound, Lightbulb, ListChecks, Luggage, LucideIcon, MessageCircle, Monitor, Music, Network, PawPrint, PiggyBank, Pill, Plug,
   Receipt, Refrigerator, RefreshCw, Rocket, Search, Server, Settings, ShieldCheck, ShoppingCart, Star, Sun, Trophy, Users, Vault, Wallet,
   Bell, Siren, Home, Inbox, MessageSquareWarning, HeartPulse, GraduationCap, PartyPopper,
 } from "lucide-react";
@@ -72,7 +72,8 @@ export const TOPICS: Topic[] = [
   { id: "vehicles", category: "home", icon: Car, audience: "adults", apps: ["vehicles"], paths: ["/vehicles"], related: ["economy", "localai"] },
   { id: "pets", category: "home", icon: PawPrint, audience: "everyone", apps: ["pets"], paths: ["/pets"], related: ["tasks", "safety"] },
   // Smart home and Home Assistant
-  { id: "smarthome", category: "smarthome", icon: Lightbulb, audience: "everyone", apps: ["smarthome"], paths: ["/smarthome"], related: ["homeassistant", "gateway"] },
+  { id: "smarthome", category: "smarthome", icon: Lightbulb, audience: "everyone", apps: ["smarthome"], paths: ["/smarthome"], related: ["homeassistant", "gateway", "music"] },
+  { id: "music", category: "smarthome", icon: Music, audience: "adults", apps: ["smarthome"], related: ["smarthome", "homeassistant"] },
   { id: "homeassistant", category: "smarthome", icon: Plug, audience: "family", apps: ["smarthome"], paths: ["/settings/smarthome"], related: ["gateway", "smarthome", "halists"] },
   { id: "gateway", category: "smarthome", icon: Network, audience: "family", apps: ["smarthome"], related: ["homeassistant", "serverupdates"] },
   { id: "halists", category: "smarthome", icon: ShoppingCart, audience: "everyone", apps: ["lists"], related: ["lists", "homeassistant"] },
