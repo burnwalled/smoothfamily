@@ -5,6 +5,8 @@ touches Docker – the two talk through files in the updates folder (DATA_DIR/up
 
     state.json        written by update.sh: what runs now (each service's image and version)
     plan.env          written here: the run's id, not before when, and the new images
+    manifest.json     written here with a plan for Smooth Family itself: the signed manifest and
+    manifest.sig      its signature, as they came – update.sh checks them itself (3.5.1)
     result.env        written by update.sh: how the run went
 
 The folder is the app's, so update.sh – which runs as root – only takes plan.env from it and moves its
@@ -41,7 +43,8 @@ DEFAULTS = {"mode": "approve", "day": 6, "hour": 4, "channel": "off"}
 MIN_AGE = timedelta(days=7)
 # What this version expects of the server's update.sh (it says its own in state.json; before 3.5.1
 # it said nothing). 2: it keeps its own files where the app can't reach them.
-SCRIPT = 2
+# 3: it checks the signature of Smooth Family's own build itself.
+SCRIPT = 3
 CHECK_EVERY = timedelta(hours=6)
 
 
@@ -209,14 +212,17 @@ async def check(db: AsyncSession, now: datetime | None = None, fetch=hub_tags) -
     # Smooth Family itself, on the chosen channel.
     channel = (await get_settings_(db)).get("channel", "off")
     status.pop("app_error", None)
+    status.pop("app_signed", None)
     if channel != "off":
         try:
-            app = await app_updates.available(channel)
+            app = await app_updates.available_signed(channel)
         except app_updates.AppUpdateError as e:
             status["app_error"] = str(e)
         else:
             if app:
-                found["app"] = app
+                found["app"] = app[0]
+                # As they came, for update.sh to check once more (never shown in the app).
+                status["app_signed"] = {"channel": channel, "manifest": app[1], "sig": app[2]}
     status.update(seen=True, checked_at=now.isoformat(), state_at=state.get("checked_at"), running=running, available=found)
     await _put(db, STATUS, status)
     return status
@@ -233,10 +239,11 @@ def next_window(settings: dict, now: datetime) -> datetime:
     return start.astimezone(timezone.utc)
 
 
-def write_plan(available: dict, not_before: datetime) -> str:
+def write_plan(available: dict, not_before: datetime, signed: dict | None = None) -> str:
     """The plan update.sh carries out: the new images, and not before when. update.sh checks every
     value against a strict pattern and writes the compose override itself. Smooth Family's own two
-    images come by digest, as the signed manifest names them."""
+    images come by digest, as the signed manifest names them – and the manifest goes with the plan,
+    since update.sh takes the app's word for nothing: it checks the signature itself."""
     run_id = uuid.uuid4().hex[:12]
     out = folder()
     out.mkdir(parents=True, exist_ok=True)
@@ -245,6 +252,12 @@ def write_plan(available: dict, not_before: datetime) -> str:
         images["backend"] = available["app"]["backend"]
         images["frontend"] = available["app"]["frontend"]
     env = [f"RUN_ID={run_id}", f"NOT_BEFORE={int(not_before.timestamp())}", f"PULL=\"{' '.join(sorted(images.values()))}\""]
+    for name in ("manifest.json", "manifest.sig"):
+        (out / name).unlink(missing_ok=True)
+    if "app" in available and signed and signed.get("channel") in ("stable", "beta"):
+        env.append(f"CHANNEL={signed['channel']}")
+        (out / "manifest.json").write_text(signed["manifest"], encoding="utf-8", newline="")
+        (out / "manifest.sig").write_text(signed["sig"], encoding="utf-8", newline="")
     tmp = out / "plan.env.tmp"
     tmp.write_text("\n".join(env) + "\n", encoding="utf-8")
     tmp.replace(out / "plan.env")
@@ -252,7 +265,8 @@ def write_plan(available: dict, not_before: datetime) -> str:
 
 
 def cancel_plan() -> None:
-    (folder() / "plan.env").unlink(missing_ok=True)
+    for name in ("plan.env", "manifest.json", "manifest.sig"):
+        (folder() / name).unlink(missing_ok=True)
 
 
 async def adults_on_server(db: AsyncSession) -> list[User]:
@@ -296,7 +310,7 @@ async def plan(db: AsyncSession, now: datetime | None = None, at_once: bool = Fa
         return None
     settings = await get_settings_(db)
     when = now if at_once else next_window(settings, now)
-    run_id = write_plan(available, when)
+    run_id = write_plan(available, when, status.get("app_signed"))
     status.update(planned={"run_id": run_id, "at": when.isoformat(), "versions": available})
     await _put(db, STATUS, status)
     tz = ZoneInfo(get_settings().timezone)

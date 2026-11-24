@@ -112,3 +112,61 @@ async def test_off_by_default_and_errors_are_shown(client, tmp_path, monkeypatch
     await client.put("/api/admin/updates/settings", json={"mode": "approve", "day": 6, "hour": 4, "channel": "stable"})
     view = (await client.post("/api/admin/updates/check")).json()
     assert view["app_error"] == "No stable release yet"
+
+
+async def test_the_manifest_goes_with_the_plan_as_it_came(keys, client, tmp_path, monkeypatch):
+    """update.sh checks the signature itself (3.5.1), so it gets the very bytes that were signed."""
+    await client.post("/api/auth/setup", json={"email": "a@example.com", "family_name": "F", "display_name": "Anna", "username": "admin", "password": "secret123"})
+    monkeypatch.setattr(updates, "folder", lambda: tmp_path)
+    (tmp_path / "state.json").write_text(json.dumps({"checked_at": "2026-11-03T10:00:00Z", "script": updates.SCRIPT, "services": {}}))
+    pair = _signed(keys["beta"], "beta")
+
+    async def fetch(channel):
+        return pair
+    monkeypatch.setattr(app_updates, "fetch", fetch)
+    await client.put("/api/admin/updates/settings", json={"mode": "approve", "day": 6, "hour": 4, "channel": "beta"})
+    view = (await client.post("/api/admin/updates/check")).json()
+    # The signed bytes are for update.sh, not for the page.
+    assert "app_signed" not in view and "manifest" not in view["available"]["app"] and view["script_outdated"] is False
+    assert (await client.post("/api/admin/updates/approve?now=true")).status_code == 200
+    assert "CHANNEL=beta\n" in (tmp_path / "plan.env").read_text()
+    assert (tmp_path / "manifest.json").read_bytes() == pair[0] and (tmp_path / "manifest.sig").read_bytes() == pair[1]
+    # What update.sh then asks of the image that runs: the same answer, from the files alone.
+    from app import verify_manifest
+    assert verify_manifest.main([str(tmp_path / "manifest.json"), str(tmp_path / "manifest.sig"), "beta", "-"]) == 0
+
+    # Called off: nothing left for the script to take in.
+    await client.put("/api/admin/updates/settings", json={"mode": "off", "day": 6, "hour": 4, "channel": "beta"})
+    assert not any((tmp_path / name).exists() for name in ("plan.env", "manifest.json", "manifest.sig"))
+
+
+async def test_what_update_sh_asks_before_it_puts_a_build_in(keys, tmp_path, capsys):
+    from app import verify_manifest
+
+    def ask(pair, channel, floor="-"):
+        (tmp_path / "m.json").write_bytes(pair[0])
+        (tmp_path / "m.sig").write_bytes(pair[1])
+        code = verify_manifest.main([str(tmp_path / "m.json"), str(tmp_path / "m.sig"), channel, floor])
+        return code, capsys.readouterr()
+
+    beta = _signed(keys["beta"], "beta")
+    code, said = ask(beta, "beta")
+    assert code == 0 and said.out.splitlines() == ["version=3.3.0-beta.2", "build=7", f"backend={BACKEND}", f"frontend={FRONTEND}"]
+
+    # Newer than anything put in before – the version, then the build within it. An older build that
+    # was signed once stays signed, so this is what keeps it from coming back.
+    assert ask(beta, "beta", "3.3.0-beta.2:6")[0] == 0
+    assert ask(beta, "beta", "3.3.0-beta.1:900")[0] == 0
+    for floor in ("3.3.0-beta.2:7", "3.3.0-beta.2:8", "3.3.0:1", "3.4.0-beta.1:1"):
+        code, said = ask(beta, "beta", floor)
+        assert code == 1 and said.out == "" and "Not newer" in said.err
+
+    # The stable channel takes only what the stable key signed, as in the app.
+    assert ask(beta, "stable")[0] == 1
+    assert ask(_signed(keys["beta"], "beta", channel="stable", version="3.3.0"), "stable")[0] == 1
+    assert ask(_signed(keys["stable"], "stable", channel="stable", version="3.3.0"), "stable")[0] == 0
+    # Changed after it was signed, another channel's name, a file that isn't there.
+    assert ask((beta[0].replace(b"a" * 64, b"c" * 64), beta[1]), "beta")[0] == 1
+    assert ask(beta, "off")[0] == 1
+    assert verify_manifest.main([str(tmp_path / "none.json"), str(tmp_path / "m.sig"), "beta", "-"]) == 1
+    assert verify_manifest.main(["only", "three", "arguments"]) == 2

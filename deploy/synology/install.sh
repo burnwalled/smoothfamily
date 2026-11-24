@@ -181,6 +181,9 @@ if [ ! -f "$PINS" ] && [ -f "$OLD_PINS" ] && [ ! -L "$OLD_PINS" ]; then
 	head -c 4096 "$OLD_PINS" > "$PINS"
 fi
 rm -f "$OLD_PINS" "$OLD_PINS.tmp" "$OLD_PINS.before"
+# Installed by hand, this release is where update.sh counts from: an older build than the last one
+# the app put in is root's own choice here.
+rm -f "$DATA_DIR/updates-root/app-installed"
 if [ -f "$PINS" ] && grep -Eq '^(backend|frontend)=' "$PINS"; then
 	grep -Ev '^(backend|frontend)=' "$PINS" > "$PINS.tmp" || true
 	mv "$PINS.tmp" "$PINS"

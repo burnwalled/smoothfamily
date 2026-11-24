@@ -172,6 +172,23 @@ once, as a plain file, and moves its own two files in. What it keeps for itself 
 the versions in use, the database as it was before an update – is in
 `data/updates-root`, which only root reads (3.5.1).
 
+Nor does it take the app's word for what may be put in (3.5.1) – the app is the
+part that faces the internet:
+
+- **Smooth Family's own build** comes with its signed manifest. `update.sh` has
+  the signature checked once more, in a container of its own made from the image
+  that runs now (no network, nothing to write to), and puts the build in only if
+  the two images are the ones the manifest names and the build is newer than any
+  it has put in before. An older build that was signed once can't come back.
+- **Stable only, whatever the app asks for:** add `UPDATE_CHANNEL_LOCK=stable` to
+  `.env`. Then a beta build is refused here even if the channel is changed in
+  Server settings – that takes someone who can edit `.env` on the NAS.
+- **The other services** stay in the major version they run (SearXNG's versions
+  are dates) and never go back to an older one.
+
+A release installed by hand with `install.sh` is root's own choice: the count of
+what is newest starts again from it.
+
 `update.sh` itself is not updated by the app: it is a file on the NAS. When a
 release changes it, Server settings → Updates says that the server's script is
 older. Replace it with the new one (from the release's files, or
